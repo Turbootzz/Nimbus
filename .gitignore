@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.*.local
+
+# Build output
+dist/
+build/
+bin/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Testing
+coverage/
+*.test
+*.cover
+
+# Database
+*.db
+*.sqlite
+postgres_data/
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# Docker
+docker-compose.override.yml
+
+# Claude
+.claude

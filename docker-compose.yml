@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: nimbus-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nimbus}
+      POSTGRES_USER: ${DB_USER:-nimbus}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus_secret}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nimbus}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nimbus-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: nimbus-backend
+    restart: unless-stopped
+    environment:
+      PORT: 8080
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-nimbus}
+      DB_USER: ${DB_USER:-nimbus}
+      DB_PASSWORD: ${DB_PASSWORD:-nimbus_secret}
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - nimbus-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: nimbus-frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - nimbus-network
+
+  # Optional: Nginx reverse proxy (commented out by default)
+  # nginx:
+  #   image: nginx:alpine
+  #   container_name: nimbus-nginx
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #   volumes:
+  #     - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+  #   depends_on:
+  #     - frontend
+  #     - backend
+  #   networks:
+  #     - nimbus-network
+
+  # Optional: pgAdmin for database management
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   container_name: nimbus-pgadmin
+  #   restart: unless-stopped
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@nimbus.local}
+  #     PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+  #   ports:
+  #     - "5050:80"
+  #   depends_on:
+  #     - db
+  #   networks:
+  #     - nimbus-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  nimbus-network:
+    driver: bridge
