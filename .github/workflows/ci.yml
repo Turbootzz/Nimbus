@@ -73,7 +73,7 @@ jobs:
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         with:
-          file: ./backend/coverage.out
+          files: ./backend/coverage.out
           flags: backend
           fail_ci_if_error: false
 
