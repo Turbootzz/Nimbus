@@ -1,13 +1,4 @@
-language:
-  go:
-    # Focus on Go best practices and performance
-    enable_performance_hints: true
-    check_error_handling: true
-
-  typescript:
-    enable_react_hooks_rules: true
-    check_accessibility: true
-    enforce_type_safety: true
+language: en-US
 
 reviews:
   request_changes_workflow: true
