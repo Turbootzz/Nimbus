@@ -10,6 +10,10 @@ updates:
       - "backend"
     commit-message:
       prefix: "chore(backend)"
+    groups:
+      go-dependencies:
+        patterns:
+          - "*"
 
   # Frontend (npm)
   - package-ecosystem: "npm"
@@ -25,6 +29,10 @@ updates:
       # Ignore major version updates for now
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+    groups:
+      npm-dependencies:
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -36,3 +44,7 @@ updates:
       - "ci"
     commit-message:
       prefix: "chore(ci)"
+    groups:
+      actions-dependencies:
+        patterns:
+          - "*"
