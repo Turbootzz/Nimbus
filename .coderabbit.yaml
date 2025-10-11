@@ -1,0 +1,47 @@
+language:
+  go:
+    # Focus on Go best practices and performance
+    enable_performance_hints: true
+    check_error_handling: true
+
+  typescript:
+    enable_react_hooks_rules: true
+    check_accessibility: true
+    enforce_type_safety: true
+
+reviews:
+  request_changes_workflow: true
+
+  auto_approve:
+    - "docs/**"
+    - "*.md"
+    - ".gitignore"
+
+  focus_areas:
+    - "security"
+    - "performance"
+    - "maintainability"
+    - "type_safety"
+
+exclude_paths:
+  - "node_modules/**"
+  - "dist/**"
+  - "build/**"
+  - "*.log"
+  - ".env*"
+  - "vendor/**"
+
+instructions: |
+  This is a homelab dashboard project with:
+  - Go backend using Fiber framework
+  - Next.js 14 frontend with App Router
+  - PostgreSQL database
+  - JWT authentication
+
+  Please focus on:
+  - Security best practices for authentication
+  - Next.js App Router conventions
+  - Go error handling patterns
+  - Type safety in TypeScript
+  - Performance optimizations
+  - Accessibility in React components
