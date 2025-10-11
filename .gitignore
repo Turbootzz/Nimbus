@@ -53,3 +53,8 @@ docker-compose.override.yml
 # Claude
 .claude
 CLAUDE.md
+
+# Database backups/dumps
+*.dump
+*_backup.sql
+backup_*.sql

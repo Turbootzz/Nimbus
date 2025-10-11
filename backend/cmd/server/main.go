@@ -8,6 +8,11 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
+	"github.com/nimbus/backend/internal/db"
+	"github.com/nimbus/backend/internal/handlers"
+	"github.com/nimbus/backend/internal/middleware"
+	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 func main() {
@@ -16,6 +21,23 @@ func main() {
 	if err != nil {
 		log.Println("No .env file found")
 	}
+
+	// Connect to database
+	database, err := db.Connect()
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer database.Close()
+	log.Println("✓ Connected to database")
+
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(database)
+
+	// Initialize services
+	authService := services.NewAuthService()
+
+	// Initialize handlers
+	authHandler := handlers.NewAuthHandler(userRepo, authService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -42,6 +64,15 @@ func main() {
 		})
 	})
 
+	// Auth routes (public)
+	auth := v1.Group("/auth")
+	auth.Post("/register", authHandler.Register)
+	auth.Post("/login", authHandler.Login)
+
+	// Protected auth routes
+	authProtected := auth.Group("", middleware.AuthMiddleware(authService))
+	authProtected.Get("/me", authHandler.GetMe)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -49,5 +80,9 @@ func main() {
 	}
 
 	log.Printf("Server starting on port %s", port)
+	log.Printf("Auth endpoints available:")
+	log.Printf("  POST /api/v1/auth/register")
+	log.Printf("  POST /api/v1/auth/login")
+	log.Printf("  GET  /api/v1/auth/me (protected)")
 	log.Fatal(app.Listen(":" + port))
 }
