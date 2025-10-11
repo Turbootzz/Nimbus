@@ -1,4 +1,4 @@
-.PHONY: dev build test clean migrate testdb
+.PHONY: dev build test clean migrate testdb fmt vet ci-check
 
 # Development
 dev:
@@ -24,9 +24,27 @@ clean:
 fmt:
 	go fmt ./...
 
-# Lint
-lint:
-	golangci-lint run
+# Format check (fail if not formatted)
+fmt-check:
+	@echo "🔍 Checking Go formatting..."
+	@if [ "$$(gofmt -s -l . | wc -l)" -gt 0 ]; then \
+		echo "❌ Go code is not formatted. Run 'make fmt' to fix:"; \
+		gofmt -s -l .; \
+		exit 1; \
+	fi
+	@echo "✓ Go code is properly formatted"
+
+# Go vet
+vet:
+	@echo "🔍 Running go vet..."
+	@go vet ./...
+	@echo "✓ go vet passed"
+
+# Run all CI checks locally
+ci-check: fmt-check vet
+	@echo "🔍 Running tests with race detector..."
+	@go test -v -race ./...
+	@echo "✓ All CI checks passed!"
 
 # Install dependencies
 deps:

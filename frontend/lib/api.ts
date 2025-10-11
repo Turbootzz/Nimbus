@@ -7,6 +7,7 @@ import type {
   ServiceCreateRequest,
   ServiceUpdateRequest,
   ApiResponse,
+  HealthCheck,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
@@ -39,13 +40,10 @@ class ApiClient {
     return this.token
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
-    const headers: HeadersInit = {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string>),
     }
 
     if (this.token) {
@@ -139,10 +137,7 @@ class ApiClient {
     })
   }
 
-  async updateService(
-    id: string,
-    data: ServiceUpdateRequest
-  ): Promise<ApiResponse<Service>> {
+  async updateService(id: string, data: ServiceUpdateRequest): Promise<ApiResponse<Service>> {
     return this.request<Service>(`/services/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -159,12 +154,12 @@ class ApiClient {
   // Health Checks
   // ============================================
 
-  async getServiceHealth(id: string): Promise<ApiResponse<any>> {
-    return this.request(`/health/services/${id}`)
+  async getServiceHealth(id: string): Promise<ApiResponse<HealthCheck>> {
+    return this.request<HealthCheck>(`/health/services/${id}`)
   }
 
-  async getAllServicesHealth(): Promise<ApiResponse<any>> {
-    return this.request('/health/services')
+  async getAllServicesHealth(): Promise<ApiResponse<HealthCheck[]>> {
+    return this.request<HealthCheck[]>('/health/services')
   }
 }
 

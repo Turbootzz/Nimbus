@@ -16,6 +16,13 @@ help:
 	@echo "Testing:"
 	@echo "  make testdb       Test database connection"
 	@echo ""
+	@echo "Formatting:"
+	@echo "  cd backend && make fmt           Format Go code"
+	@echo "  cd frontend && npm run format    Format frontend code with Prettier"
+	@echo ""
+	@echo "CI/CD:"
+	@echo "  make ci-check     Run all CI checks locally (format, lint, tests, build)"
+	@echo ""
 	@echo "Utilities:"
 	@echo "  make kill-ports   Kill processes on ports 8080 and 3000"
 	@echo "  make clean        Clean build artifacts"
@@ -98,3 +105,19 @@ clean:
 	@cd backend && make clean
 	@cd frontend && rm -rf .next node_modules/.cache
 	@echo "✓ Done"
+
+# Run all CI checks locally (same as GitHub Actions)
+ci-check:
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "🚀 Running CI Checks (Backend + Frontend)"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo ""
+	@echo "📦 Backend checks..."
+	@cd backend && make ci-check
+	@echo ""
+	@echo "📦 Frontend checks..."
+	@cd frontend && npm run ci-check
+	@echo ""
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+	@echo "✅ All CI checks passed!"
+	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

@@ -65,21 +65,21 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl p-8">
+    <div className="rounded-2xl bg-white p-8 shadow-xl">
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
-        <p className="text-gray-600 mt-1">Get started with Nimbus</p>
+        <p className="mt-1 text-gray-600">Get started with Nimbus</p>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
             Full Name
           </label>
           <input
@@ -87,7 +87,7 @@ export default function RegisterPage() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-800 placeholder-gray-400"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
             placeholder="John Doe"
             required
             disabled={isLoading}
@@ -95,7 +95,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
             Email
           </label>
           <input
@@ -103,7 +103,7 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-800 placeholder-gray-400"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
             placeholder="you@example.com"
             required
             disabled={isLoading}
@@ -111,7 +111,7 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
             Password
           </label>
           <input
@@ -119,19 +119,17 @@ export default function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-800 placeholder-gray-400"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
             placeholder="••••••••"
             required
             disabled={isLoading}
             minLength={8}
           />
-          <p className="mt-1 text-xs text-gray-500">
-            Must be at least 8 characters
-          </p>
+          <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters</p>
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-gray-700">
             Confirm Password
           </label>
           <input
@@ -139,7 +137,7 @@ export default function RegisterPage() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition text-gray-800 placeholder-gray-400"
+            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
             placeholder="••••••••"
             required
             disabled={isLoading}
@@ -149,7 +147,7 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-lg font-medium hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white transition hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isLoading ? 'Creating account...' : 'Create account'}
         </button>
@@ -157,7 +155,7 @@ export default function RegisterPage() {
 
       <div className="mt-6 text-center text-sm text-gray-600">
         Already have an account?{' '}
-        <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">
           Sign in
         </Link>
       </div>
