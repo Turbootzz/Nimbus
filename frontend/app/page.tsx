@@ -10,10 +10,8 @@ export default function Home() {
     // Check if user is authenticated
     const token = localStorage.getItem('auth_token')
     if (token) {
-      // If authenticated, redirect to dashboard
       router.push('/dashboard')
     } else {
-      // If not authenticated, redirect to login
       router.push('/login')
     }
   }, [router])

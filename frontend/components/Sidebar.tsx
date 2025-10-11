@@ -6,7 +6,7 @@ import {
   HomeIcon,
   ServerIcon,
   CogIcon,
-  ArrowLeftOnRectangleIcon,
+  ArrowRightStartOnRectangleIcon,
   XMarkIcon,
   PlusIcon,
 } from '@heroicons/react/24/outline'
@@ -56,14 +56,14 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     : 'hover:bg-card-border hover:text-text-primary'
                 } `}
                 style={{
-                  backgroundColor: isActive(item.href) ? 'var(--primary)' : undefined,
-                  color: isActive(item.href) ? 'white' : 'var(--text-secondary)',
+                  backgroundColor: isActive(item.href) ? 'var(--color-primary)' : undefined,
+                  color: isActive(item.href) ? 'white' : 'var(--color-text-secondary)',
                 }}
               >
                 <item.icon
                   className="group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
                   style={{
-                    color: isActive(item.href) ? 'white' : 'var(--text-muted)',
+                    color: isActive(item.href) ? 'white' : 'var(--color-text-muted)',
                   }}
                   aria-hidden="true"
                 />
@@ -87,8 +87,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               onClick={handleLogout}
               className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
             >
-              <ArrowLeftOnRectangleIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" />
-              Logout
+              <ArrowRightStartOnRectangleIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" />
+              Sign out
             </button>
           </div>
         </div>
@@ -126,14 +126,14 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
                     : 'hover:bg-card-border hover:text-text-primary'
                 } `}
                 style={{
-                  backgroundColor: isActive(item.href) ? 'var(--primary)' : undefined,
-                  color: isActive(item.href) ? 'white' : 'var(--text-secondary)',
+                  backgroundColor: isActive(item.href) ? 'var(--color-primary)' : undefined,
+                  color: isActive(item.href) ? 'white' : 'var(--color-text-secondary)',
                 }}
               >
                 <item.icon
                   className="group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
                   style={{
-                    color: isActive(item.href) ? 'white' : 'var(--text-muted)',
+                    color: isActive(item.href) ? 'white' : 'var(--color-text-muted)',
                   }}
                 />
                 {item.name}
@@ -157,8 +157,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
               onClick={handleLogout}
               className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
             >
-              <ArrowLeftOnRectangleIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" />
-              Logout
+              <ArrowRightStartOnRectangleIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" />
+              Sign out
             </button>
           </div>
         </div>

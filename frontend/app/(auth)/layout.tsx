@@ -1,11 +1,23 @@
+import ThemeToggle from '@/components/ThemeToggle'
+
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div
+      className="flex min-h-screen items-center justify-center"
+      style={{ backgroundColor: 'var(--color-background)' }}
+    >
+      {/* Theme toggle button - fixed top right */}
+      <div className="fixed top-4 right-4">
+        <ThemeToggle />
+      </div>
+
       <div className="w-full max-w-md px-6">
         {/* Logo/Branding */}
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-4xl font-bold text-gray-900">☁️ Nimbus</h1>
-          <p className="text-gray-600">Your Personal Homelab Dashboard</p>
+          <h1 className="mb-2 text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            ☁️ Nimbus
+          </h1>
+          <p style={{ color: 'var(--color-text-secondary)' }}>Your Personal Homelab Dashboard</p>
         </div>
 
         {/* Auth Form Container */}
