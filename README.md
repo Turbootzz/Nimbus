@@ -32,10 +32,7 @@ A modern, customizable dashboard for your homelab and personal servers with per-
 # 1. One-time setup
 make setup
 
-# 2. Create 'nimbus' database in pgAdmin
-#    - Open pgAdmin
-#    - Right-click Databases → Create → Database
-#    - Name: nimbus
+# 2. Create 'nimbus' database in PostgreSQL
 
 # 3. Update backend/.env with your PostgreSQL password
 
@@ -219,16 +216,20 @@ npm run lint    # Run linter
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
 3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+5. Open a Pull Request (our PR template will guide you)
 
 ## Roadmap
 
 - [x] Initial project setup
-- [ ] User authentication (JWT)
-- [ ] Role-based access control
+- [x] User authentication (JWT)
+- [x] CI/CD pipeline (GitHub Actions)
+- [x] Database migrations
+- [x] Auth pages (login, register)
+- [ ] Dashboard layout with sidebar
 - [ ] Service management CRUD
 - [ ] Health monitoring system
 - [ ] User theme customization
+- [ ] Role-based access control (admin features)
 - [ ] Docker deployment
 - [ ] Admin configuration UI
 - [ ] Service status history graphs
@@ -239,7 +240,7 @@ npm run lint    # Run linter
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the GNU Affero General License - see the LICENSE file for details.
 
 ## Acknowledgments
 
