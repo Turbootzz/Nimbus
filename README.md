@@ -13,7 +13,7 @@ A modern, customizable dashboard for your homelab and personal servers with per-
 - **Configuration Management**: Add/edit services via web UI or JSON import/export
 
 ### Tech Stack
-- **Frontend**: Next.js 14 + React + TypeScript + Tailwind CSS
+- **Frontend**: Next.js 15 + React + TypeScript + Tailwind CSS
 - **Backend**: Go + Fiber framework
 - **Database**: PostgreSQL
 - **Deployment**: Docker + Docker Compose
