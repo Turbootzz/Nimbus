@@ -26,15 +26,21 @@ export default function ServicesPage() {
     setIsLoading(true)
     setError('')
 
-    const response = await api.getServices()
+    try {
+      const response = await api.getServices()
 
-    if (response.error) {
-      setError(response.error.message)
-    } else if (response.data) {
-      setServices(response.data)
+      if (response.error) {
+        setError(response.error.message)
+      } else if (response.data) {
+        setServices(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch services:', error)
+      const message = error instanceof Error ? error.message : 'Unable to load services. Please try again.'
+      setError(message)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   const handleDelete = async (id: string, name: string) => {
@@ -42,13 +48,19 @@ export default function ServicesPage() {
       return
     }
 
-    const response = await api.deleteService(id)
+    try {
+      const response = await api.deleteService(id)
 
-    if (response.error) {
-      alert(`Failed to delete service: ${response.error.message}`)
-    } else {
-      // Remove from list
-      setServices(services.filter((s) => s.id !== id))
+      if (response.error) {
+        alert(`Failed to delete service: ${response.error.message}`)
+      } else {
+        // Remove from list
+        setServices(services.filter((s) => s.id !== id))
+      }
+    } catch (error) {
+      console.error('Failed to delete service:', error)
+      const message = error instanceof Error ? error.message : 'Unable to delete service. Please try again.'
+      alert(`Failed to delete service: ${message}`)
     }
   }
 

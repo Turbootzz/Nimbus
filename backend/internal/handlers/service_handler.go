@@ -48,7 +48,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 
 	// Set default icon if not provided
 	if req.Icon == "" {
-		req.Icon = "🔗"
+		req.Icon = models.DefaultIcon
 	}
 
 	// Create service
@@ -197,10 +197,16 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// Set default icon if not provided (mirrors create flow)
+	icon := req.Icon
+	if icon == "" {
+		icon = models.DefaultIcon
+	}
+
 	// Update service
 	existingService.Name = req.Name
 	existingService.URL = req.URL
-	existingService.Icon = req.Icon
+	existingService.Icon = icon
 	existingService.Description = req.Description
 	existingService.UpdatedAt = time.Now()
 

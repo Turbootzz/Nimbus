@@ -46,20 +46,26 @@ export default function NewServicePage() {
     }
 
     // Create service
-    const response = await api.createService({
-      name: formData.name.trim(),
-      url: formData.url.trim(),
-      icon: formData.icon.trim() || '🔗',
-      description: formData.description.trim(),
-    })
+    try {
+      const response = await api.createService({
+        name: formData.name.trim(),
+        url: formData.url.trim(),
+        icon: formData.icon.trim() || '🔗',
+        description: formData.description.trim(),
+      })
 
-    setIsLoading(false)
-
-    if (response.error) {
-      setError(response.error.message)
-    } else {
-      // Success - redirect to services list
-      router.push('/services')
+      if (response.error) {
+        setError(response.error.message)
+      } else {
+        // Success - redirect to services list
+        router.push('/services')
+      }
+    } catch (error) {
+      console.error('Failed to create service:', error)
+      const message = error instanceof Error ? error.message : 'Unable to create service. Please try again.'
+      setError(message)
+    } finally {
+      setIsLoading(false)
     }
   }
 

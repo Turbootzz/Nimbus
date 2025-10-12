@@ -9,6 +9,10 @@ const (
 	StatusUnknown = "unknown"
 )
 
+const (
+	DefaultIcon = "🔗"
+)
+
 // Service represents a service/link in the homelab dashboard
 type Service struct {
 	ID          string    `json:"id" db:"id"`

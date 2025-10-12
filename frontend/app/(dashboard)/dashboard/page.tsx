@@ -48,13 +48,17 @@ export default function DashboardPage() {
 
   const fetchServices = async () => {
     setIsLoading(true)
-    const response = await api.getServices()
+    try {
+      const response = await api.getServices()
 
-    if (response.data) {
-      setServices(response.data)
+      if (response.data) {
+        setServices(response.data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch services:', error)
+    } finally {
+      setIsLoading(false)
     }
-
-    setIsLoading(false)
   }
 
   const getStatusColor = (status: string) => {

@@ -75,20 +75,26 @@ export default function EditServicePage() {
     }
 
     // Update service
-    const response = await api.updateService(serviceId, {
-      name: formData.name.trim(),
-      url: formData.url.trim(),
-      icon: formData.icon.trim() || '🔗',
-      description: formData.description.trim(),
-    })
+    try {
+      const response = await api.updateService(serviceId, {
+        name: formData.name.trim(),
+        url: formData.url.trim(),
+        icon: formData.icon.trim() || '🔗',
+        description: formData.description.trim(),
+      })
 
-    setIsSaving(false)
-
-    if (response.error) {
-      setError(response.error.message)
-    } else {
-      // Success - redirect to services list
-      router.push('/services')
+      if (response.error) {
+        setError(response.error.message)
+      } else {
+        // Success - redirect to services list
+        router.push('/services')
+      }
+    } catch (error) {
+      console.error('Failed to update service:', error)
+      const message = error instanceof Error ? error.message : 'Unable to update service. Please try again.'
+      setError(message)
+    } finally {
+      setIsSaving(false)
     }
   }
 
