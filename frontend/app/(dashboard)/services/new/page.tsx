@@ -84,7 +84,9 @@ export default function NewServicePage() {
       {/* Page header */}
       <div className="mb-6">
         <h1 className="text-text-primary text-3xl font-bold">Add New Service</h1>
-        <p className="text-text-secondary mt-1">Add a service to monitor in your homelab dashboard</p>
+        <p className="text-text-secondary mt-1">
+          Add a service to monitor in your homelab dashboard
+        </p>
       </div>
 
       {/* Error message */}
@@ -116,7 +118,7 @@ export default function NewServicePage() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -138,7 +140,7 @@ export default function NewServicePage() {
               name="url"
               value={formData.url}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -147,7 +149,9 @@ export default function NewServicePage() {
               required
               disabled={isLoading}
             />
-            <p className="text-text-muted mt-1 text-xs">The URL where your service can be accessed</p>
+            <p className="text-text-muted mt-1 text-xs">
+              The URL where your service can be accessed
+            </p>
           </div>
 
           {/* Service Icon */}
@@ -161,7 +165,7 @@ export default function NewServicePage() {
               name="icon"
               value={formData.icon}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -177,7 +181,10 @@ export default function NewServicePage() {
 
           {/* Service Description */}
           <div>
-            <label htmlFor="description" className="text-text-secondary mb-2 block text-sm font-medium">
+            <label
+              htmlFor="description"
+              className="text-text-secondary mb-2 block text-sm font-medium"
+            >
               Description
             </label>
             <textarea
@@ -186,7 +193,7 @@ export default function NewServicePage() {
               value={formData.description}
               onChange={handleChange}
               rows={3}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -197,7 +204,10 @@ export default function NewServicePage() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 border-t pt-6" style={{ borderColor: 'var(--color-card-border)' }}>
+          <div
+            className="flex items-center justify-end gap-3 border-t pt-6"
+            style={{ borderColor: 'var(--color-card-border)' }}
+          >
             <Link
               href="/services"
               className="hover:bg-card-border text-text-secondary hover:text-text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors"

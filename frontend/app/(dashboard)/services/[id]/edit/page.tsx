@@ -23,29 +23,29 @@ export default function EditServicePage() {
   })
 
   useEffect(() => {
-    fetchService()
-  }, [serviceId])
+    const fetchService = async () => {
+      setIsLoading(true)
+      setError('')
 
-  const fetchService = async () => {
-    setIsLoading(true)
-    setError('')
+      const response = await api.getService(serviceId)
 
-    const response = await api.getService(serviceId)
+      if (response.error) {
+        setError(response.error.message)
+      } else if (response.data) {
+        const service = response.data
+        setFormData({
+          name: service.name,
+          url: service.url,
+          icon: service.icon || '',
+          description: service.description || '',
+        })
+      }
 
-    if (response.error) {
-      setError(response.error.message)
-    } else if (response.data) {
-      const service = response.data
-      setFormData({
-        name: service.name,
-        url: service.url,
-        icon: service.icon || '',
-        description: service.description || '',
-      })
+      setIsLoading(false)
     }
 
-    setIsLoading(false)
-  }
+    fetchService()
+  }, [serviceId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -156,7 +156,7 @@ export default function EditServicePage() {
               name="name"
               value={formData.name}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -178,7 +178,7 @@ export default function EditServicePage() {
               name="url"
               value={formData.url}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -187,7 +187,9 @@ export default function EditServicePage() {
               required
               disabled={isSaving}
             />
-            <p className="text-text-muted mt-1 text-xs">The URL where your service can be accessed</p>
+            <p className="text-text-muted mt-1 text-xs">
+              The URL where your service can be accessed
+            </p>
           </div>
 
           {/* Service Icon */}
@@ -201,7 +203,7 @@ export default function EditServicePage() {
               name="icon"
               value={formData.icon}
               onChange={handleChange}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -217,7 +219,10 @@ export default function EditServicePage() {
 
           {/* Service Description */}
           <div>
-            <label htmlFor="description" className="text-text-secondary mb-2 block text-sm font-medium">
+            <label
+              htmlFor="description"
+              className="text-text-secondary mb-2 block text-sm font-medium"
+            >
               Description
             </label>
             <textarea
@@ -226,7 +231,7 @@ export default function EditServicePage() {
               value={formData.description}
               onChange={handleChange}
               rows={3}
-              className="border-card-border focus:border-primary w-full rounded-md border px-4 py-2 transition focus:outline-none focus:ring-2 focus:ring-opacity-50"
+              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 color: 'var(--color-text-primary)',
@@ -237,7 +242,10 @@ export default function EditServicePage() {
           </div>
 
           {/* Form Actions */}
-          <div className="flex items-center justify-end gap-3 border-t pt-6" style={{ borderColor: 'var(--color-card-border)' }}>
+          <div
+            className="flex items-center justify-end gap-3 border-t pt-6"
+            style={{ borderColor: 'var(--color-card-border)' }}
+          >
             <Link
               href="/services"
               className="hover:bg-card-border text-text-secondary hover:text-text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors"
