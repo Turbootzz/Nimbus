@@ -197,7 +197,7 @@ export default function ServicesPage() {
 
               {/* Response time and last checked */}
               <div className="text-text-muted mb-4 space-y-1 text-xs">
-                {(service.response_time !== undefined && service.response_time !== null) && (
+                {service.response_time !== undefined && service.response_time !== null && (
                   <div className="flex items-center">
                     <span className="mr-2">Response:</span>
                     <span className={getResponseTimeColor(service.response_time)}>
