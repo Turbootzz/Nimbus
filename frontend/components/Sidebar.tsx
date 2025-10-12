@@ -66,9 +66,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           href={item.href}
           onClick={onNavigate}
           className={`group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-            isActive(item.href)
-              ? 'text-white'
-              : 'hover:bg-card-border hover:text-text-primary'
+            isActive(item.href) ? 'text-white' : 'hover:bg-card-border hover:text-text-primary'
           } `}
           style={{
             backgroundColor: isActive(item.href) ? 'var(--color-primary)' : undefined,
@@ -92,7 +90,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         onClick={onNavigate}
         className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
       >
-        <PlusIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" aria-hidden="true" />
+        <PlusIcon
+          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
+          aria-hidden="true"
+        />
         Add Service
       </Link>
     </>
@@ -105,7 +106,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         onClick={handleLogout}
         className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
       >
-        <ArrowRightStartOnRectangleIcon className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0" aria-hidden="true" />
+        <ArrowRightStartOnRectangleIcon
+          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
+          aria-hidden="true"
+        />
         Sign out
       </button>
     </div>
@@ -123,9 +127,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 space-y-1 px-4 py-4">
-            {renderNavigation()}
-          </nav>
+          <nav className="flex-1 space-y-1 px-4 py-4">{renderNavigation()}</nav>
 
           {/* Logout button */}
           {renderLogout()}
