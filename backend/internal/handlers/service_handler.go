@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"net/url"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -43,6 +44,14 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	if req.Name == "" || req.URL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Name and URL are required",
+		})
+	}
+
+	// Validate URL format
+	parsedURL, err := url.ParseRequestURI(req.URL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid URL format. URL must include scheme (http/https) and host",
 		})
 	}
 
@@ -121,6 +130,11 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 	// Get service from database
 	service, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Service not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
 		})
@@ -176,9 +190,22 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// Validate URL format
+	parsedURL, err := url.ParseRequestURI(req.URL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid URL format. URL must include scheme (http/https) and host",
+		})
+	}
+
 	// Get existing service to verify ownership
 	existingService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Service not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
 		})

@@ -43,7 +43,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	service := &models.Service{}
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, created_at, updated_at
+		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
 		FROM services
 		WHERE id = $1
 	`
@@ -56,6 +56,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 		&service.Icon,
 		&service.Description,
 		&service.Status,
+		&service.ResponseTime,
 		&service.CreatedAt,
 		&service.UpdatedAt,
 	)
@@ -70,7 +71,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 // GetAllByUserID retrieves all services for a specific user
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, created_at, updated_at
+		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
 		FROM services
 		WHERE user_id = $1
 		ORDER BY created_at DESC
@@ -93,6 +94,7 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 			&service.Icon,
 			&service.Description,
 			&service.Status,
+			&service.ResponseTime,
 			&service.CreatedAt,
 			&service.UpdatedAt,
 		)
@@ -167,5 +169,13 @@ func (r *ServiceRepository) UpdateStatus(ctx context.Context, id, status string)
 	query := `UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
 
 	_, err := r.db.ExecContext(ctx, query, status, id)
+	return err
+}
+
+// UpdateStatusWithResponseTime updates both status and response time (used by health check system)
+func (r *ServiceRepository) UpdateStatusWithResponseTime(ctx context.Context, id, status string, responseTime *int) error {
+	query := `UPDATE services SET status = $1, response_time = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`
+
+	_, err := r.db.ExecContext(ctx, query, status, responseTime, id)
 	return err
 }
