@@ -3,11 +3,6 @@ language: en-US
 reviews:
   request_changes_workflow: true
 
-  auto_approve:
-    - "docs/**"
-    - "*.md"
-    - ".gitignore"
-
   focus_areas:
     - "security"
     - "performance"
