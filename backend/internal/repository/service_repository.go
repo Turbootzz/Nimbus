@@ -107,6 +107,44 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 	return services, rows.Err()
 }
 
+// GetAll retrieves all services across all users (used by health check monitor)
+func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, error) {
+	query := `
+		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
+		FROM services
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []*models.Service
+	for rows.Next() {
+		service := &models.Service{}
+		err := rows.Scan(
+			&service.ID,
+			&service.UserID,
+			&service.Name,
+			&service.URL,
+			&service.Icon,
+			&service.Description,
+			&service.Status,
+			&service.ResponseTime,
+			&service.CreatedAt,
+			&service.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
+
 // Update updates an existing service
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
 	query := `

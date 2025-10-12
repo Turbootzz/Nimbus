@@ -9,15 +9,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 type ServiceHandler struct {
-	serviceRepo *repository.ServiceRepository
+	serviceRepo        *repository.ServiceRepository
+	healthCheckService *services.HealthCheckService
 }
 
-func NewServiceHandler(serviceRepo *repository.ServiceRepository) *ServiceHandler {
+func NewServiceHandler(serviceRepo *repository.ServiceRepository, healthCheckService *services.HealthCheckService) *ServiceHandler {
 	return &ServiceHandler{
-		serviceRepo: serviceRepo,
+		serviceRepo:        serviceRepo,
+		healthCheckService: healthCheckService,
 	}
 }
 
@@ -278,5 +281,70 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"message": "Service deleted successfully",
+	})
+}
+
+// CheckService manually triggers a health check for a specific service
+func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
+	// Get user ID from context
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
+
+	// Get service ID from URL params
+	serviceID := c.Params("id")
+	if serviceID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Service ID is required",
+		})
+	}
+
+	// Get service from database
+	service, err := h.serviceRepo.GetByID(c.Context(), serviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Service not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve service",
+		})
+	}
+
+	if service == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "Service not found",
+		})
+	}
+
+	// Verify service belongs to user
+	if service.UserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied",
+		})
+	}
+
+	// Perform health check
+	if err := h.healthCheckService.CheckService(c.Context(), service); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to perform health check",
+		})
+	}
+
+	// Fetch updated service to return new status and response time
+	updatedService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Health check completed but failed to fetch updated service",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Health check completed",
+		"service": updatedService.ToResponse(),
 	})
 }

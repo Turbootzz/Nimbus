@@ -31,8 +31,8 @@ export default function DashboardPage() {
     const online = services.filter((s) => s.status === 'online').length
     const offline = services.filter((s) => s.status === 'offline').length
     const responseTimes = services
-      .filter((s) => s.responseTime !== undefined && s.responseTime !== null)
-      .map((s) => s.responseTime as number)
+      .filter((s) => s.response_time !== undefined && s.response_time !== null)
+      .map((s) => s.response_time as number)
     const avgResponseTime =
       responseTimes.length > 0
         ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
@@ -81,6 +81,12 @@ export default function DashboardPage() {
       default:
         return <ClockIcon className="h-5 w-5" />
     }
+  }
+
+  const getResponseTimeColor = (ms: number) => {
+    if (ms < 200) return 'text-success'
+    if (ms < 500) return 'text-warning'
+    return 'text-error'
   }
 
   if (isLoading) {
@@ -177,10 +183,12 @@ export default function DashboardPage() {
             <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
             <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
 
-            {service.responseTime && (
-              <div className="text-text-muted flex items-center text-xs">
+            {service.response_time !== undefined && service.response_time !== null && (
+              <div
+                className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
+              >
                 <ClockIcon className="mr-1 h-3 w-3" />
-                {service.responseTime}ms
+                {service.response_time}ms
               </div>
             )}
           </a>

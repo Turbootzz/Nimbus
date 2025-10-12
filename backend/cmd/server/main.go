@@ -3,6 +3,10 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"strconv"
+	"syscall"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
@@ -13,6 +17,7 @@ import (
 	"github.com/nimbus/backend/internal/middleware"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/workers"
 )
 
 func main() {
@@ -37,9 +42,13 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService()
 
+	// Initialize health check service
+	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
+	healthCheckService := services.NewHealthCheckService(serviceRepo, healthCheckTimeout)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
-	serviceHandler := handlers.NewServiceHandler(serviceRepo)
+	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -83,24 +92,69 @@ func main() {
 	services.Get("/:id", serviceHandler.GetService)
 	services.Put("/:id", serviceHandler.UpdateService)
 	services.Delete("/:id", serviceHandler.DeleteService)
+	services.Post("/:id/check", serviceHandler.CheckService)
 
-	// Start server
+	// Start health check monitor
+	healthCheckInterval := getEnvDuration("HEALTH_CHECK_INTERVAL", 60*time.Second)
+	healthMonitor := workers.NewHealthMonitor(healthCheckService, serviceRepo, healthCheckInterval)
+	healthMonitor.Start()
+
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	// Start server in a goroutine
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
 	}
 
-	log.Printf("Server starting on port %s", port)
-	log.Printf("Auth endpoints available:")
-	log.Printf("  POST /api/v1/auth/register")
-	log.Printf("  POST /api/v1/auth/login")
-	log.Printf("  POST /api/v1/auth/logout")
-	log.Printf("  GET  /api/v1/auth/me (protected)")
-	log.Printf("Service endpoints available:")
-	log.Printf("  POST   /api/v1/services (protected)")
-	log.Printf("  GET    /api/v1/services (protected)")
-	log.Printf("  GET    /api/v1/services/:id (protected)")
-	log.Printf("  PUT    /api/v1/services/:id (protected)")
-	log.Printf("  DELETE /api/v1/services/:id (protected)")
-	log.Fatal(app.Listen(":" + port))
+	go func() {
+		log.Printf("Server starting on port %s", port)
+		log.Printf("Auth endpoints available:")
+		log.Printf("  POST /api/v1/auth/register")
+		log.Printf("  POST /api/v1/auth/login")
+		log.Printf("  POST /api/v1/auth/logout")
+		log.Printf("  GET  /api/v1/auth/me (protected)")
+		log.Printf("Service endpoints available:")
+		log.Printf("  POST   /api/v1/services (protected)")
+		log.Printf("  GET    /api/v1/services (protected)")
+		log.Printf("  GET    /api/v1/services/:id (protected)")
+		log.Printf("  PUT    /api/v1/services/:id (protected)")
+		log.Printf("  DELETE /api/v1/services/:id (protected)")
+		log.Printf("  POST   /api/v1/services/:id/check (protected) - Manual health check")
+		if err := app.Listen(":" + port); err != nil {
+			log.Fatalf("Server failed to start: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	<-sigChan
+	log.Println("\nReceived shutdown signal, shutting down gracefully...")
+
+	// Stop health monitor
+	healthMonitor.Stop()
+
+	// Shutdown Fiber app
+	if err := app.Shutdown(); err != nil {
+		log.Printf("Error during shutdown: %v", err)
+	}
+
+	log.Println("Server stopped")
+}
+
+// getEnvDuration reads a duration from environment variable in seconds
+func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
+	valStr := os.Getenv(key)
+	if valStr == "" {
+		return defaultValue
+	}
+
+	seconds, err := strconv.Atoi(valStr)
+	if err != nil {
+		log.Printf("Invalid value for %s: %s, using default %v", key, valStr, defaultValue)
+		return defaultValue
+	}
+
+	return time.Duration(seconds) * time.Second
 }
