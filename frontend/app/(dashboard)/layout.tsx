@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
         <div
-          className="bg-opacity-50 fixed inset-0 z-40 bg-black lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
