@@ -58,3 +58,6 @@ CLAUDE.md
 *.dump
 *_backup.sql
 backup_*.sql
+
+# Planning
+SECURITY.md

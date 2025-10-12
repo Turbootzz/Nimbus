@@ -6,6 +6,7 @@ import Link from 'next/link'
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -15,13 +16,16 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Call API
+      // Call API with credentials to allow httpOnly cookies
+      // Backend will set secure httpOnly cookie instead of returning token in response
+      // Send rememberMe flag so backend can set appropriate cookie expiration
       const response = await fetch('http://localhost:8080/api/v1/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        credentials: 'include', // Required to receive and send httpOnly cookies
+        body: JSON.stringify({ email, password, remember_me: rememberMe }),
       })
 
       const data = await response.json()
@@ -31,8 +35,9 @@ export default function LoginPage() {
         return
       }
 
-      // Save token
-      localStorage.setItem('auth_token', data.token)
+      // No need to store token - backend sets httpOnly cookie automatically
+      // The cookie will be sent with all subsequent requests via credentials: 'include'
+      // Cookie expiration is controlled by backend based on remember_me flag
 
       // Redirect to dashboard
       window.location.href = '/dashboard'
@@ -139,14 +144,17 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center">
+          <label className="flex items-center cursor-pointer">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="h-4 w-4 rounded border cursor-pointer"
               style={{
                 borderColor: 'var(--color-card-border)',
                 accentColor: 'var(--color-primary)',
               }}
+              disabled={isLoading}
             />
             <span className="ml-2" style={{ color: 'var(--color-text-secondary)' }}>
               Remember me

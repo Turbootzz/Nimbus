@@ -12,48 +12,28 @@ import type {
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
 
+/**
+ * ApiClient - Secure API client using httpOnly cookies
+ *
+ * SECURITY NOTE: This client uses httpOnly cookies for authentication instead of
+ * storing JWT tokens in localStorage/sessionStorage, which protects against XSS attacks.
+ *
+ * - All requests include credentials: 'include' to send httpOnly cookies
+ * - Backend sets auth_token cookie with httpOnly, secure, and sameSite flags
+ * - No token management in JavaScript - cookies are handled automatically by browser
+ */
 class ApiClient {
-  private token: string | null = null
-
-  constructor() {
-    // Load token from localStorage on initialization (client-side only)
-    if (typeof window !== 'undefined') {
-      this.token = localStorage.getItem('auth_token')
-    }
-  }
-
-  setToken(token: string) {
-    this.token = token
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('auth_token', token)
-    }
-  }
-
-  clearToken() {
-    this.token = null
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_token')
-    }
-  }
-
-  getToken(): string | null {
-    return this.token
-  }
-
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     }
 
-    if (this.token) {
-      headers['Authorization'] = `Bearer ${this.token}`
-    }
-
     try {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
         headers,
+        credentials: 'include', // Always send httpOnly cookies with requests
       })
 
       const data = await response.json()
@@ -83,35 +63,26 @@ class ApiClient {
   // ============================================
 
   async login(credentials: LoginRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.request<AuthResponse>('/auth/login', {
+    // Backend will set httpOnly cookie in response
+    // No need to store token - it's handled automatically
+    return this.request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     })
-
-    if (response.data?.token) {
-      this.setToken(response.data.token)
-    }
-
-    return response
   }
 
   async register(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    const response = await this.request<AuthResponse>('/auth/register', {
+    // Backend will set httpOnly cookie in response
+    // No need to store token - it's handled automatically
+    return this.request<AuthResponse>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     })
-
-    if (response.data?.token) {
-      this.setToken(response.data.token)
-    }
-
-    return response
   }
 
   async logout(): Promise<void> {
-    this.clearToken()
-    // Optional: Call backend logout endpoint if needed
-    // await this.request('/auth/logout', { method: 'POST' })
+    // Call backend to clear httpOnly cookie
+    await this.request('/auth/logout', { method: 'POST' })
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {

@@ -37,8 +37,9 @@ func (u *User) ToResponse() UserResponse {
 
 // LoginRequest represents login credentials
 type LoginRequest struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8"`
+	Email      string `json:"email" validate:"required,email"`
+	Password   string `json:"password" validate:"required,min=8"`
+	RememberMe bool   `json:"remember_me"`
 }
 
 // RegisterRequest represents registration data

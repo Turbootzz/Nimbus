@@ -29,12 +29,14 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      // Call API
+      // Call API with credentials to allow httpOnly cookies
+      // Backend will set secure httpOnly cookie instead of returning token in response
       const response = await fetch('http://localhost:8080/api/v1/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Required to receive and send httpOnly cookies
         body: JSON.stringify({ name, email, password }),
       })
 
@@ -45,8 +47,8 @@ export default function RegisterPage() {
         return
       }
 
-      // Save token
-      localStorage.setItem('auth_token', data.token)
+      // No need to store token - backend sets httpOnly cookie automatically
+      // The cookie will be sent with all subsequent requests via credentials: 'include'
 
       // Redirect to dashboard
       window.location.href = '/dashboard'

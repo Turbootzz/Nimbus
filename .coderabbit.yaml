@@ -25,7 +25,7 @@ exclude_paths:
 instructions: |
   This is a homelab dashboard project with:
   - Go backend using Fiber framework
-  - Next.js 14 frontend with App Router
+  - Next.js 15 frontend with App Router
   - PostgreSQL database
   - JWT authentication
 

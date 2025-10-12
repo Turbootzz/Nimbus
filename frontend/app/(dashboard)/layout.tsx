@@ -11,13 +11,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   useEffect(() => {
-    // Check if user is authenticated
-    const token = localStorage.getItem('auth_token')
-    if (!token) {
-      router.push('/login')
-    } else {
-      setIsLoading(false)
+    // Check if user is authenticated by calling the backend
+    // The httpOnly cookie will be sent automatically
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('http://localhost:8080/api/v1/auth/me', {
+          method: 'GET',
+          credentials: 'include', // Required to send httpOnly cookie
+        })
+
+        if (response.ok) {
+          setIsLoading(false)
+        } else {
+          router.push('/login')
+        }
+      } catch (error) {
+        console.error('Auth check error:', error)
+        router.push('/login')
+      }
     }
+
+    checkAuth()
   }, [router])
 
   if (isLoading) {
