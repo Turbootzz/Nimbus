@@ -9,49 +9,12 @@ import {
   PlusIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-
-// Mock data for now - will be replaced with API calls
-const mockServices = [
-  {
-    id: '1',
-    name: 'Plex Media Server',
-    url: 'https://plex.local',
-    icon: '📺',
-    status: 'online' as const,
-    responseTime: 45,
-    description: 'Media streaming server',
-  },
-  {
-    id: '2',
-    name: 'Home Assistant',
-    url: 'https://homeassistant.local',
-    icon: '🏠',
-    status: 'online' as const,
-    responseTime: 123,
-    description: 'Home automation platform',
-  },
-  {
-    id: '3',
-    name: 'Pi-hole',
-    url: 'https://pihole.local',
-    icon: '🛡️',
-    status: 'offline' as const,
-    responseTime: null,
-    description: 'Network-wide ad blocking',
-  },
-  {
-    id: '4',
-    name: 'Synology NAS',
-    url: 'https://nas.local',
-    icon: '💾',
-    status: 'online' as const,
-    responseTime: 87,
-    description: 'Network attached storage',
-  },
-]
+import { api } from '@/lib/api'
+import type { Service } from '@/types'
 
 export default function DashboardPage() {
-  const [services, setServices] = useState(mockServices)
+  const [services, setServices] = useState<Service[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
@@ -60,11 +23,15 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
+    fetchServices()
+  }, [])
+
+  useEffect(() => {
     // Calculate stats
     const online = services.filter((s) => s.status === 'online').length
     const offline = services.filter((s) => s.status === 'offline').length
     const responseTimes = services
-      .filter((s) => s.responseTime !== null)
+      .filter((s) => s.responseTime !== undefined && s.responseTime !== null)
       .map((s) => s.responseTime as number)
     const avgResponseTime =
       responseTimes.length > 0
@@ -78,6 +45,17 @@ export default function DashboardPage() {
       avgResponseTime,
     })
   }, [services])
+
+  const fetchServices = async () => {
+    setIsLoading(true)
+    const response = await api.getServices()
+
+    if (response.data) {
+      setServices(response.data)
+    }
+
+    setIsLoading(false)
+  }
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,6 +77,17 @@ export default function DashboardPage() {
       default:
         return <ClockIcon className="h-5 w-5" />
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-96 items-center justify-center">
+        <div className="text-center">
+          <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
+          <p className="text-text-secondary">Loading dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
