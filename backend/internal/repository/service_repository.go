@@ -61,13 +61,9 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 		&service.UpdatedAt,
 	)
 
- 	)
- 
- 	if err == sql.ErrNoRows {
+	if err == sql.ErrNoRows {
 		return nil, sql.ErrNoRows
- 	}
- 
- 	return service, err
+	}
 
 	return service, err
 }
