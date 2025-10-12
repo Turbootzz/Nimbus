@@ -2,10 +2,7 @@ import ThemeToggle from '@/components/ThemeToggle'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: 'var(--color-background)' }}
-    >
+    <div className="flex min-h-screen items-center justify-center">
       {/* Theme toggle button - fixed top right */}
       <div className="fixed top-4 right-4">
         <ThemeToggle />

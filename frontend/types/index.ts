@@ -65,14 +65,20 @@ export interface HealthCheck {
 export interface Theme {
   mode: 'light' | 'dark'
   background?: string
-  accentColor?: string
+  accent_color?: string
 }
 
 export interface UserPreferences {
-  user_id: string
-  theme: Theme
-  created_at: string
+  theme_mode: 'light' | 'dark'
+  theme_background?: string
+  theme_accent_color?: string
   updated_at?: string
+}
+
+export interface PreferencesUpdateRequest {
+  theme_mode: 'light' | 'dark'
+  theme_background?: string
+  theme_accent_color?: string
 }
 
 // API response types

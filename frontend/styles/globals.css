@@ -2,12 +2,12 @@
 
 /* Light mode colors (default) */
 :root {
-  --color-background: #ffffff;
+  --color-background: #f9fafb; /* gray-50 - slightly off-white for better contrast */
   --color-foreground: #0a0a0a;
   --color-primary: #0ea5e9; /* sky-500 */
   --color-primary-hover: #0284c7; /* sky-600 */
   --color-primary-light: #e0f2fe; /* sky-100 */
-  --color-card: #ffffff;
+  --color-card: #ffffff; /* white cards on gray background */
   --color-card-border: #e5e7eb; /* gray-200 */
   --color-sidebar: #f9fafb; /* gray-50 */
   --color-sidebar-border: #e5e7eb; /* gray-200 */
@@ -92,8 +92,23 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
+  /* Ensure background image shows through with high quality */
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center center;
+  background-attachment: fixed;
+  /* Improve image rendering quality - use high-quality for smooth photos */
+  image-rendering: high-quality;
+  image-rendering: -webkit-optimize-contrast;
 }

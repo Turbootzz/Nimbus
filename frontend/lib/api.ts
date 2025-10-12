@@ -8,6 +8,8 @@ import type {
   ServiceUpdateRequest,
   ApiResponse,
   HealthCheck,
+  UserPreferences,
+  PreferencesUpdateRequest,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
@@ -131,6 +133,21 @@ class ApiClient {
 
   async getAllServicesHealth(): Promise<ApiResponse<HealthCheck[]>> {
     return this.request<HealthCheck[]>('/health/services')
+  }
+
+  // ============================================
+  // User Preferences
+  // ============================================
+
+  async getPreferences(): Promise<ApiResponse<UserPreferences>> {
+    return this.request<UserPreferences>('/users/me/preferences')
+  }
+
+  async updatePreferences(data: PreferencesUpdateRequest): Promise<ApiResponse<UserPreferences>> {
+    return this.request<UserPreferences>('/users/me/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
   }
 }
 
