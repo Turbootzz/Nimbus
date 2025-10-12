@@ -1,26 +1,99 @@
 @import 'tailwindcss';
 
+/* Light mode colors (default) */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --color-background: #ffffff;
+  --color-foreground: #0a0a0a;
+  --color-primary: #0ea5e9; /* sky-500 */
+  --color-primary-hover: #0284c7; /* sky-600 */
+  --color-primary-light: #e0f2fe; /* sky-100 */
+  --color-card: #ffffff;
+  --color-card-border: #e5e7eb; /* gray-200 */
+  --color-sidebar: #f9fafb; /* gray-50 */
+  --color-sidebar-border: #e5e7eb; /* gray-200 */
+  --color-text-primary: #0a0a0a;
+  --color-text-secondary: #6b7280; /* gray-500 */
+  --color-text-muted: #9ca3af; /* gray-400 */
+  --color-success: #10b981; /* green-500 */
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-error: #ef4444; /* red-500 */
+  --color-info: #3b82f6; /* blue-500 */
+
+  /* Dark mode color definitions (DRY - defined once) */
+  --dark-background: #0a0a0a;
+  --dark-foreground: #fafafa;
+  --dark-primary: #0ea5e9; /* sky-500 */
+  --dark-primary-hover: #38bdf8; /* sky-400 - lighter for dark */
+  --dark-primary-light: #075985; /* sky-900 - darker bg */
+  --dark-card: #18181b; /* zinc-900 */
+  --dark-card-border: #27272a; /* zinc-800 */
+  --dark-sidebar: #111113;
+  --dark-sidebar-border: #27272a; /* zinc-800 */
+  --dark-text-primary: #fafafa;
+  --dark-text-secondary: #a1a1aa; /* zinc-400 */
+  --dark-text-muted: #71717a; /* zinc-500 */
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+/* Apply dark mode when .dark class is present (Tailwind v4 way) */
+@layer base {
+  .dark {
+    --color-background: var(--dark-background);
+    --color-foreground: var(--dark-foreground);
+    --color-primary: var(--dark-primary);
+    --color-primary-hover: var(--dark-primary-hover);
+    --color-primary-light: var(--dark-primary-light);
+    --color-card: var(--dark-card);
+    --color-card-border: var(--dark-card-border);
+    --color-sidebar: var(--dark-sidebar);
+    --color-sidebar-border: var(--dark-sidebar-border);
+    --color-text-primary: var(--dark-text-primary);
+    --color-text-secondary: var(--dark-text-secondary);
+    --color-text-muted: var(--dark-text-muted);
+  }
+}
+
+/* Respect system preference for dark mode (if no manual override) */
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --color-background: var(--dark-background);
+    --color-foreground: var(--dark-foreground);
+    --color-primary: var(--dark-primary);
+    --color-primary-hover: var(--dark-primary-hover);
+    --color-primary-light: var(--dark-primary-light);
+    --color-card: var(--dark-card);
+    --color-card-border: var(--dark-card-border);
+    --color-sidebar: var(--dark-sidebar);
+    --color-sidebar-border: var(--dark-sidebar-border);
+    --color-text-primary: var(--dark-text-primary);
+    --color-text-secondary: var(--dark-text-secondary);
+    --color-text-muted: var(--dark-text-muted);
+  }
+}
+
+/* Register custom colors with Tailwind's @theme */
+@theme {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-light: var(--color-primary-light);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-border: var(--color-card-border);
+  --color-sidebar: var(--color-sidebar);
+  --color-sidebar-border: var(--color-sidebar-border);
+  --color-text-primary: var(--color-text-primary);
+  --color-text-secondary: var(--color-text-secondary);
+  --color-text-muted: var(--color-text-muted);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-background);
+  color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
 }

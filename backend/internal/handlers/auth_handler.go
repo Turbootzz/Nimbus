@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -19,6 +20,14 @@ func NewAuthHandler(userRepo *repository.UserRepository, authService *services.A
 		userRepo:    userRepo,
 		authService: authService,
 	}
+}
+
+// getCookieSecure returns whether cookies should be secure based on environment
+// Returns true for production (HTTPS), false for local development (HTTP)
+func (h *AuthHandler) getCookieSecure() bool {
+	// Check COOKIE_SECURE env var (defaults to true for production safety)
+	secure := os.Getenv("COOKIE_SECURE")
+	return secure != "false" // Default to true unless explicitly set to "false"
 }
 
 // Register handles user registration
@@ -84,9 +93,21 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response
+	// Set httpOnly cookie (default: session cookie, cleared when browser closes)
+	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only, sameSite prevents CSRF
+	c.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
+		SameSite: "Lax",
+		MaxAge:   0, // Session cookie (cleared when browser closes)
+	})
+
+	// Return response without token in body (cookie handles authentication)
 	return c.Status(fiber.StatusCreated).JSON(models.AuthResponse{
-		Token: token,
+		Token: "", // Empty for security - using httpOnly cookie instead
 		User:  user.ToResponse(),
 	})
 }
@@ -132,10 +153,45 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
-	// Return response
+	maxAge := 0 // Session cookie by default
+	if req.RememberMe {
+		maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
+	}
+
+	// Set httpOnly cookie
+	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only, sameSite prevents CSRF
+	c.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    token,
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   h.getCookieSecure(),
+		SameSite: "Lax",
+		MaxAge:   maxAge,
+	})
+
+	// Return response without token in body (cookie handles authentication)
 	return c.JSON(models.AuthResponse{
-		Token: token,
+		Token: "",
 		User:  user.ToResponse(),
+	})
+}
+
+// Logout handles user logout by clearing the httpOnly cookie
+func (h *AuthHandler) Logout(c *fiber.Ctx) error {
+	// Clear the auth_token cookie by setting MaxAge to -1
+	c.Cookie(&fiber.Cookie{
+		Name:     "auth_token",
+		Value:    "",
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   h.getCookieSecure(),
+		SameSite: "Lax",
+		MaxAge:   -1, // Delete the cookie
+	})
+
+	return c.JSON(fiber.Map{
+		"message": "Logged out successfully",
 	})
 }
 

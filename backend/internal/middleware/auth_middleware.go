@@ -7,26 +7,32 @@ import (
 	"github.com/nimbus/backend/internal/services"
 )
 
-// AuthMiddleware protects routes by requiring a valid JWT token
+// AuthMiddleware protects routes by requiring a valid JWT token from httpOnly cookie
+// SECURITY: Uses httpOnly cookies instead of Authorization header to prevent XSS attacks
 func AuthMiddleware(authService *services.AuthService) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Get Authorization header
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing authorization header",
-			})
+		var token string
+
+		// First, try to get token from httpOnly cookie (preferred method)
+		token = c.Cookies("auth_token")
+
+		// Fallback: Check Authorization header for backward compatibility or API clients
+		if token == "" {
+			authHeader := c.Get("Authorization")
+			if authHeader != "" {
+				parts := strings.Split(authHeader, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					token = parts[1]
+				}
+			}
 		}
 
-		// Check Bearer token format
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		// If no token found, return unauthorized
+		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid authorization header format",
+				"error": "Missing authentication token",
 			})
 		}
-
-		token := parts[1]
 
 		// Validate token
 		claims, err := authService.ValidateToken(token)

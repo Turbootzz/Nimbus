@@ -29,14 +29,14 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      console.log('Register attempt:', { name, email, password })
-
-      // Call API
+      // Call API with credentials to allow httpOnly cookies
+      // Backend will set secure httpOnly cookie instead of returning token in response
       const response = await fetch('http://localhost:8080/api/v1/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include', // Required to receive and send httpOnly cookies
         body: JSON.stringify({ name, email, password }),
       })
 
@@ -47,15 +47,11 @@ export default function RegisterPage() {
         return
       }
 
-      // Save token
-      localStorage.setItem('auth_token', data.token)
+      // No need to store token - backend sets httpOnly cookie automatically
+      // The cookie will be sent with all subsequent requests via credentials: 'include'
 
-      // Success!
-      alert(`Welcome ${data.user.name}! Registration successful!`)
-      console.log('User created:', data.user)
-
-      // TODO: Redirect to dashboard
-      // window.location.href = '/dashboard'
+      // Redirect to dashboard
+      window.location.href = '/dashboard'
     } catch (err) {
       setError('Registration failed. Please try again.')
       console.error('Registration error:', err)
@@ -65,21 +61,43 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="rounded-2xl bg-white p-8 shadow-xl">
+    <div
+      className="rounded-2xl p-8 shadow-xl"
+      style={{
+        backgroundColor: 'var(--color-card)',
+        borderColor: 'var(--color-card-border)',
+      }}
+    >
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900">Create account</h2>
-        <p className="mt-1 text-gray-600">Get started with Nimbus</p>
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          Create account
+        </h2>
+        <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+          Get started with Nimbus
+        </p>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <div
+          className="mb-4 rounded-lg border p-3 text-sm"
+          style={{
+            backgroundColor: 'var(--color-error)',
+            borderColor: 'var(--color-error)',
+            color: 'white',
+            opacity: 0.9,
+          }}
+        >
           {error}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label htmlFor="name" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="name"
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             Full Name
           </label>
           <input
@@ -87,7 +105,18 @@ export default function RegisterPage() {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              borderColor: 'var(--color-card-border)',
+              color: 'var(--color-text-primary)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-card-border)'
+            }}
             placeholder="John Doe"
             required
             disabled={isLoading}
@@ -95,7 +124,11 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="email"
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             Email
           </label>
           <input
@@ -103,7 +136,18 @@ export default function RegisterPage() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              borderColor: 'var(--color-card-border)',
+              color: 'var(--color-text-primary)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-card-border)'
+            }}
             placeholder="you@example.com"
             required
             disabled={isLoading}
@@ -111,7 +155,11 @@ export default function RegisterPage() {
         </div>
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="password"
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             Password
           </label>
           <input
@@ -119,17 +167,34 @@ export default function RegisterPage() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              borderColor: 'var(--color-card-border)',
+              color: 'var(--color-text-primary)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-card-border)'
+            }}
             placeholder="••••••••"
             required
             disabled={isLoading}
             minLength={8}
           />
-          <p className="mt-1 text-xs text-gray-500">Must be at least 8 characters</p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+            Must be at least 8 characters
+          </p>
         </div>
 
         <div>
-          <label htmlFor="confirmPassword" className="mb-1 block text-sm font-medium text-gray-700">
+          <label
+            htmlFor="confirmPassword"
+            className="mb-1 block text-sm font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
             Confirm Password
           </label>
           <input
@@ -137,7 +202,18 @@ export default function RegisterPage() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 text-gray-800 placeholder-gray-400 transition focus:border-transparent focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              borderColor: 'var(--color-card-border)',
+              color: 'var(--color-text-primary)',
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)'
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-card-border)'
+            }}
             placeholder="••••••••"
             required
             disabled={isLoading}
@@ -147,15 +223,36 @@ export default function RegisterPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-lg bg-blue-600 py-2.5 font-medium text-white transition hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg py-2.5 font-medium text-white transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            backgroundColor: 'var(--color-primary)',
+          }}
+          onMouseEnter={(e) => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'var(--color-primary)'
+          }}
         >
           {isLoading ? 'Creating account...' : 'Create account'}
         </button>
       </form>
 
-      <div className="mt-6 text-center text-sm text-gray-600">
+      <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
         Already have an account?{' '}
-        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link
+          href="/login"
+          className="font-medium transition"
+          style={{ color: 'var(--color-primary)' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--color-primary-hover)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--color-primary)'
+          }}
+        >
           Sign in
         </Link>
       </div>

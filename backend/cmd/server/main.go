@@ -68,6 +68,7 @@ func main() {
 	auth := v1.Group("/auth")
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
+	auth.Post("/logout", authHandler.Logout)
 
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService))
@@ -83,6 +84,7 @@ func main() {
 	log.Printf("Auth endpoints available:")
 	log.Printf("  POST /api/v1/auth/register")
 	log.Printf("  POST /api/v1/auth/login")
+	log.Printf("  POST /api/v1/auth/logout")
 	log.Printf("  GET  /api/v1/auth/me (protected)")
 	log.Fatal(app.Listen(":" + port))
 }
