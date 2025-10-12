@@ -116,10 +116,12 @@ func (h *HealthMonitor) checkServicesConcurrently(ctx context.Context, services 
 	var wg sync.WaitGroup
 
 	for _, service := range services {
-		// Check if context is cancelled
+		// Check if context is cancelled before launching goroutine
 		select {
 		case <-ctx.Done():
-			break
+			// Context cancelled - stop launching new goroutines
+			wg.Wait() // Wait for already-launched goroutines to finish
+			return
 		default:
 		}
 

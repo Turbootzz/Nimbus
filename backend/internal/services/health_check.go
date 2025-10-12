@@ -100,6 +100,12 @@ func (h *HealthCheckService) CheckAllServicesForAllUsers(ctx context.Context) er
 }
 
 // updateStatus is a helper to update service status and response time
+// Uses a background context to ensure status updates persist even if the check request is cancelled
 func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status string, responseTime *int) error {
-	return h.serviceRepo.UpdateStatusWithResponseTime(ctx, serviceID, status, responseTime)
+	// Create independent context with timeout for DB update
+	// This ensures status is saved even if the HTTP check context is cancelled
+	updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return h.serviceRepo.UpdateStatusWithResponseTime(updateCtx, serviceID, status, responseTime)
 }

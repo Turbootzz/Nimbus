@@ -227,7 +227,7 @@ npm run lint    # Run linter
 - [x] Auth pages (login, register)
 - [x] Dashboard layout with sidebar
 - [x] Service management CRUD
-- [ ] Health monitoring system
+- [x] Health monitoring system
 - [ ] User theme customization
 - [ ] Role-based access control (admin features)
 - [ ] Docker deployment
