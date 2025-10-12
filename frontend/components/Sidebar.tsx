@@ -36,12 +36,17 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     } catch (error) {
       console.error('Logout error:', error)
     } finally {
-      // Redirect to login regardless of API call success
       router.push('/login')
     }
   }
 
-  const isActive = (href: string) => pathname === href
+  const isActive = (href: string) => {
+    // Dashboard highlight should only match exactly to avoid matching /dashboard-something
+    if (href === '/dashboard') {
+      return pathname === href
+    }
+    return pathname.startsWith(href)
+  }
 
   return (
     <>
