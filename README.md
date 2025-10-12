@@ -225,8 +225,8 @@ npm run lint    # Run linter
 - [x] CI/CD pipeline (GitHub Actions)
 - [x] Database migrations
 - [x] Auth pages (login, register)
-- [ ] Dashboard layout with sidebar
-- [ ] Service management CRUD
+- [x] Dashboard layout with sidebar
+- [x] Service management CRUD
 - [ ] Health monitoring system
 - [ ] User theme customization
 - [ ] Role-based access control (admin features)
