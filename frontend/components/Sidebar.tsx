@@ -29,7 +29,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const handleLogout = async () => {
     try {
       // Call backend logout endpoint to clear httpOnly cookie
-      await fetch('http://localhost:8080/api/v1/auth/logout', {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
         method: 'POST',
         credentials: 'include', // Required to send httpOnly cookie
       })
