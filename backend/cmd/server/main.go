@@ -32,12 +32,14 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
+	serviceRepo := repository.NewServiceRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
+	serviceHandler := handlers.NewServiceHandler(serviceRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -74,6 +76,14 @@ func main() {
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService))
 	authProtected.Get("/me", authHandler.GetMe)
 
+	// Service routes (all protected)
+	services := v1.Group("/services", middleware.AuthMiddleware(authService))
+	services.Post("/", serviceHandler.CreateService)
+	services.Get("/", serviceHandler.GetServices)
+	services.Get("/:id", serviceHandler.GetService)
+	services.Put("/:id", serviceHandler.UpdateService)
+	services.Delete("/:id", serviceHandler.DeleteService)
+
 	// Start server
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -86,5 +96,11 @@ func main() {
 	log.Printf("  POST /api/v1/auth/login")
 	log.Printf("  POST /api/v1/auth/logout")
 	log.Printf("  GET  /api/v1/auth/me (protected)")
+	log.Printf("Service endpoints available:")
+	log.Printf("  POST   /api/v1/services (protected)")
+	log.Printf("  GET    /api/v1/services (protected)")
+	log.Printf("  GET    /api/v1/services/:id (protected)")
+	log.Printf("  PUT    /api/v1/services/:id (protected)")
+	log.Printf("  DELETE /api/v1/services/:id (protected)")
 	log.Fatal(app.Listen(":" + port))
 }

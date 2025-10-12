@@ -52,11 +52,24 @@ deps:
 	go mod tidy
 
 # Database migrations
+# Load .env file and use DB_URL directly
 migrate-up:
-	migrate -path internal/db/migrations -database "postgresql://$$DB_URL" up
+	@if [ -f .env ]; then \
+		set -a; . ./.env; set +a; \
+		migrate -path internal/db/migrations -database "$$DB_URL" up || exit 1; \
+	else \
+		echo "Error: .env file not found"; \
+		exit 1; \
+	fi
 
 migrate-down:
-	migrate -path internal/db/migrations -database "postgresql://$$DB_URL" down
+	@if [ -f .env ]; then \
+		set -a; . ./.env; set +a; \
+		migrate -path internal/db/migrations -database "$$DB_URL" down || exit 1; \
+	else \
+		echo "Error: .env file not found"; \
+		exit 1; \
+	fi
 
 migrate-create:
 	migrate create -ext sql -dir internal/db/migrations -seq $(name)

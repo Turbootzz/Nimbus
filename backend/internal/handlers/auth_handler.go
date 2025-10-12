@@ -198,7 +198,12 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 // GetMe returns the current authenticated user
 func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	// Get user from database
 	user, err := h.userRepo.GetByID(userID)
