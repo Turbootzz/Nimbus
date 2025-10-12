@@ -62,7 +62,8 @@ export default function NewServicePage() {
       }
     } catch (error) {
       console.error('Failed to create service:', error)
-      const message = error instanceof Error ? error.message : 'Unable to create service. Please try again.'
+      const message =
+        error instanceof Error ? error.message : 'Unable to create service. Please try again.'
       setError(message)
     } finally {
       setIsLoading(false)

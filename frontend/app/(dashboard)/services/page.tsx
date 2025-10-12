@@ -36,7 +36,8 @@ export default function ServicesPage() {
       }
     } catch (error) {
       console.error('Failed to fetch services:', error)
-      const message = error instanceof Error ? error.message : 'Unable to load services. Please try again.'
+      const message =
+        error instanceof Error ? error.message : 'Unable to load services. Please try again.'
       setError(message)
     } finally {
       setIsLoading(false)
@@ -59,7 +60,8 @@ export default function ServicesPage() {
       }
     } catch (error) {
       console.error('Failed to delete service:', error)
-      const message = error instanceof Error ? error.message : 'Unable to delete service. Please try again.'
+      const message =
+        error instanceof Error ? error.message : 'Unable to delete service. Please try again.'
       alert(`Failed to delete service: ${message}`)
     }
   }

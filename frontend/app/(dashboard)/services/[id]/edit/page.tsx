@@ -91,7 +91,8 @@ export default function EditServicePage() {
       }
     } catch (error) {
       console.error('Failed to update service:', error)
-      const message = error instanceof Error ? error.message : 'Unable to update service. Please try again.'
+      const message =
+        error instanceof Error ? error.message : 'Unable to update service. Please try again.'
       setError(message)
     } finally {
       setIsSaving(false)
