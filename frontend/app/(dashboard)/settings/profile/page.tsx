@@ -10,11 +10,17 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const response = await api.getCurrentUser()
-      if (response.data) {
-        setUser(response.data)
+      try {
+        const response = await api.getCurrentUser()
+        if (response.data) {
+          setUser(response.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch user:', error)
+        // Consider adding error state to show user-friendly message
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
     fetchUser()
   }, [])
