@@ -4,8 +4,8 @@ export interface User {
   email: string
   name: string
   role: 'admin' | 'user'
-  createdAt: string
-  updatedAt?: string
+  created_at: string
+  updated_at?: string
 }
 
 // Auth types
@@ -33,10 +33,9 @@ export interface Service {
   icon?: string
   description?: string
   status: 'online' | 'offline' | 'unknown'
-  lastChecked?: string
-  responseTime?: number
-  createdAt: string
-  updatedAt?: string
+  response_time?: number
+  created_at: string
+  updated_at?: string
 }
 
 export interface ServiceCreateRequest {
@@ -55,9 +54,9 @@ export interface ServiceUpdateRequest {
 
 // Health check types
 export interface HealthCheck {
-  serviceId: string
+  service_id: string
   status: 'online' | 'offline'
-  responseTime?: number
+  response_time?: number
   timestamp: string
   error?: string
 }
@@ -70,10 +69,10 @@ export interface Theme {
 }
 
 export interface UserPreferences {
-  userId: string
+  user_id: string
   theme: Theme
-  createdAt: string
-  updatedAt?: string
+  created_at: string
+  updated_at?: string
 }
 
 // API response types

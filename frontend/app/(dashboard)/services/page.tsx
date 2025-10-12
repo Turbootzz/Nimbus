@@ -88,6 +88,23 @@ export default function ServicesPage() {
     }
   }
 
+  const getResponseTimeColor = (ms: number) => {
+    if (ms < 200) return 'text-success font-medium'
+    if (ms < 500) return 'text-warning font-medium'
+    return 'text-error font-medium'
+  }
+
+  const formatRelativeTime = (timestamp: string) => {
+    const now = new Date()
+    const date = new Date(timestamp)
+    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    if (seconds < 60) return 'just now'
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
+    return `${Math.floor(seconds / 86400)}d ago`
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center">
@@ -173,10 +190,28 @@ export default function ServicesPage() {
                 href={service.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-primary hover:text-primary-hover mb-4 block truncate text-xs transition-colors"
+                className="text-primary hover:text-primary-hover mb-2 block truncate text-xs transition-colors"
               >
                 {service.url}
               </a>
+
+              {/* Response time and last checked */}
+              <div className="text-text-muted mb-4 space-y-1 text-xs">
+                {(service.response_time !== undefined && service.response_time !== null) && (
+                  <div className="flex items-center">
+                    <span className="mr-2">Response:</span>
+                    <span className={getResponseTimeColor(service.response_time)}>
+                      {service.response_time}ms
+                    </span>
+                  </div>
+                )}
+                {service.updated_at && service.status !== 'unknown' && (
+                  <div className="flex items-center">
+                    <ClockIcon className="mr-1 h-3 w-3" />
+                    Last checked: {formatRelativeTime(service.updated_at)}
+                  </div>
+                )}
+              </div>
 
               {/* Actions */}
               <div

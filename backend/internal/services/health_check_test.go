@@ -14,10 +14,10 @@ import (
 // MockServiceRepository implements a mock for testing
 type MockServiceRepository struct {
 	updateStatusWithResponseTimeCalled bool
-	lastServiceID                       string
-	lastStatus                          string
-	lastResponseTime                    *int
-	updateError                         error
+	lastServiceID                      string
+	lastStatus                         string
+	lastResponseTime                   *int
+	updateError                        error
 }
 
 func (m *MockServiceRepository) UpdateStatusWithResponseTime(ctx context.Context, serviceID, status string, responseTime *int) error {
