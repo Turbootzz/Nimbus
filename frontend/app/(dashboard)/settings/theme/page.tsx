@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useTheme } from '@/contexts/ThemeContext'
 
 export default function ThemePage() {
@@ -140,8 +141,14 @@ export default function ThemePage() {
           </div>
 
           {background && (
-            <div className="border-card-border mt-4 overflow-hidden rounded-lg border">
-              <img src={background} alt="Background preview" className="h-48 w-full object-cover" />
+            <div className="border-card-border relative mt-4 h-48 overflow-hidden rounded-lg border">
+              <Image
+                src={background}
+                alt="Background preview"
+                fill
+                className="object-cover"
+                unoptimized
+              />
             </div>
           )}
 

@@ -1,8 +1,7 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react'
 import { api } from '@/lib/api'
-import type { UserPreferences } from '@/types'
 
 interface ThemeContextType {
   theme: 'light' | 'dark'
@@ -22,6 +21,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [accentColor, setAccentColorState] = useState<string | undefined>()
   const [background, setBackgroundState] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
+
+  // Save preferences function (defined early so it can be used in useEffect)
+  const savePreferences = useCallback(async () => {
+    try {
+      await api.updatePreferences({
+        theme_mode: theme,
+        theme_accent_color: accentColor,
+        theme_background: background,
+      })
+    } catch (error) {
+      console.error('Failed to save preferences:', error)
+      throw error
+    }
+  }, [theme, accentColor, background])
 
   // Load preferences on mount
   useEffect(() => {
@@ -87,7 +100,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }, 1000) // Save 1 second after last change
 
     return () => clearTimeout(timeoutId)
-  }, [theme, accentColor, background])
+  }, [theme, accentColor, background, savePreferences])
 
   const loadPreferences = async () => {
     setLoading(true)
@@ -113,19 +126,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       console.error('Failed to load preferences:', error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const savePreferences = async () => {
-    try {
-      await api.updatePreferences({
-        theme_mode: theme,
-        theme_accent_color: accentColor,
-        theme_background: background,
-      })
-    } catch (error) {
-      console.error('Failed to save preferences:', error)
-      throw error
     }
   }
 
