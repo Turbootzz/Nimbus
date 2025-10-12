@@ -168,14 +168,40 @@ func (r *ServiceRepository) Delete(ctx context.Context, id, userID string) error
 func (r *ServiceRepository) UpdateStatus(ctx context.Context, id, status string) error {
 	query := `UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`
 
-	_, err := r.db.ExecContext(ctx, query, status, id)
-	return err
+	result, err := r.db.ExecContext(ctx, query, status, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
 
 // UpdateStatusWithResponseTime updates both status and response time (used by health check system)
 func (r *ServiceRepository) UpdateStatusWithResponseTime(ctx context.Context, id, status string, responseTime *int) error {
 	query := `UPDATE services SET status = $1, response_time = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3`
 
-	_, err := r.db.ExecContext(ctx, query, status, responseTime, id)
-	return err
+	result, err := r.db.ExecContext(ctx, query, status, responseTime, id)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	if rowsAffected == 0 {
+		return sql.ErrNoRows
+	}
+
+	return nil
 }
