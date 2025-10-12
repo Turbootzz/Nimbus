@@ -6,9 +6,10 @@ import ThemeToggle from './ThemeToggle'
 
 interface HeaderProps {
   onMenuClick: () => void
+  title?: string
 }
 
-export default function Header({ onMenuClick }: HeaderProps) {
+export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps) {
   return (
     <header
       className="sticky top-0 z-30 border-b"
@@ -38,7 +39,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
         {/* Page title (desktop) */}
         <div className="hidden lg:block">
           <h1 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            Dashboard
+            {title}
           </h1>
         </div>
 

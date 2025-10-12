@@ -144,12 +144,12 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center cursor-pointer">
+          <label className="flex cursor-pointer items-center">
             <input
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="h-4 w-4 rounded border cursor-pointer"
+              className="h-4 w-4 cursor-pointer rounded border"
               style={{
                 borderColor: 'var(--color-card-border)',
                 accentColor: 'var(--color-primary)',
