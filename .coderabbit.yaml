@@ -2,14 +2,13 @@ language: en-US
 
 reviews:
   request_changes_workflow: true
-
-exclude_paths:
-  - "node_modules/**"
-  - "dist/**"
-  - "build/**"
-  - "*.log"
-  - ".env*"
-  - "vendor/**"
+  path_filters:
+    - "!node_modules/**"
+    - "!dist/**"
+    - "!build/**"
+    - "!*.log"
+    - "!.env*"
+    - "!vendor/**"
 
 instructions: |
   This is a homelab dashboard project with:
