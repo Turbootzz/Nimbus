@@ -55,8 +55,8 @@ deps:
 # Load .env file and use DB_URL directly
 migrate-up:
 	@if [ -f .env ]; then \
-		export $$(cat .env | sed 's/#.*//' | grep -v '^$$' | xargs) && \
-		migrate -path internal/db/migrations -database "$$DB_URL" up; \
+		set -a; . ./.env; set +a; \
+		migrate -path internal/db/migrations -database "$$DB_URL" up || exit 1; \
 	else \
 		echo "Error: .env file not found"; \
 		exit 1; \
@@ -64,8 +64,8 @@ migrate-up:
 
 migrate-down:
 	@if [ -f .env ]; then \
-		export $$(cat .env | sed 's/#.*//' | grep -v '^$$' | xargs) && \
-		migrate -path internal/db/migrations -database "$$DB_URL" down; \
+		set -a; . ./.env; set +a; \
+		migrate -path internal/db/migrations -database "$$DB_URL" down || exit 1; \
 	else \
 		echo "Error: .env file not found"; \
 		exit 1; \

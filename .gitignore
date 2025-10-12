@@ -17,6 +17,12 @@ bin/
 *.so
 *.dylib
 
+# Go binaries (no extension on Unix/macOS)
+backend/server
+backend/testdb
+server
+testdb
+
 # IDE
 .vscode/
 .idea/

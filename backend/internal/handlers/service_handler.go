@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -21,7 +23,12 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository) *ServiceHandle
 // CreateService handles service creation
 func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	var req models.ServiceCreateRequest
 
@@ -51,7 +58,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		URL:         req.URL,
 		Icon:        req.Icon,
 		Description: req.Description,
-		Status:      "unknown", // Initial status
+		Status:      models.StatusUnknown, // Initial status
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
 	}
@@ -69,7 +76,12 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 // GetServices retrieves all services for the authenticated user
 func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 	// Get user ID from context
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	// Get all services for user
 	services, err := h.serviceRepo.GetAllByUserID(c.Context(), userID)
@@ -91,7 +103,12 @@ func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 // GetService retrieves a single service by ID
 func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 	// Get user ID from context
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	// Get service ID from URL params
 	serviceID := c.Params("id")
@@ -128,7 +145,12 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 // UpdateService handles service updates
 func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	// Get user ID from context
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	// Get service ID from URL params
 	serviceID := c.Params("id")
@@ -194,7 +216,12 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 // DeleteService handles service deletion
 func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 	// Get user ID from context
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
 
 	// Get service ID from URL params
 	serviceID := c.Params("id")
@@ -206,7 +233,7 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 
 	// Delete service (repository checks ownership)
 	if err := h.serviceRepo.Delete(c.Context(), serviceID, userID); err != nil {
-		if err.Error() == "sql: no rows in result set" {
+		if errors.Is(err, sql.ErrNoRows) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Service not found or access denied",
 			})

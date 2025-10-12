@@ -2,6 +2,13 @@ package models
 
 import "time"
 
+// Service status constants
+const (
+	StatusOnline  = "online"
+	StatusOffline = "offline"
+	StatusUnknown = "unknown"
+)
+
 // Service represents a service/link in the homelab dashboard
 type Service struct {
 	ID          string    `json:"id" db:"id"`
@@ -10,7 +17,7 @@ type Service struct {
 	URL         string    `json:"url" db:"url"`
 	Icon        string    `json:"icon" db:"icon"` // Emoji or icon identifier
 	Description string    `json:"description" db:"description"`
-	Status      string    `json:"status" db:"status"` // "online", "offline", "unknown"
+	Status      string    `json:"status" db:"status"` // StatusOnline, StatusOffline, or StatusUnknown
 	CreatedAt   time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
