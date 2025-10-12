@@ -23,6 +23,8 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
         <button
           onClick={onMenuClick}
           className="rounded-md p-2 focus:outline-none lg:hidden"
+          aria-label="Open navigation menu"
+          aria-expanded={false}
           style={{ color: 'var(--color-text-secondary)' }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'var(--color-card-border)'
