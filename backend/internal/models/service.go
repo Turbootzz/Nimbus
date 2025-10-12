@@ -21,7 +21,7 @@ type Service struct {
 	URL          string    `json:"url" db:"url"`
 	Icon         string    `json:"icon" db:"icon"` // Emoji or icon identifier
 	Description  string    `json:"description" db:"description"`
-	Status       string    `json:"status" db:"status"`             // StatusOnline, StatusOffline, or StatusUnknown
+	Status       string    `json:"status" db:"status"`               // StatusOnline, StatusOffline, or StatusUnknown
 	ResponseTime *int      `json:"response_time" db:"response_time"` // Response time in milliseconds (nil if never checked)
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
