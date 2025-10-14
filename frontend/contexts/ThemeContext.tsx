@@ -25,13 +25,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Save preferences function (defined early so it can be used in useEffect)
   const savePreferences = useCallback(async () => {
     try {
-      await api.updatePreferences({
+      const response = await api.updatePreferences({
         theme_mode: theme,
         theme_accent_color: accentColor,
         theme_background: background,
       })
+
+      // Check if the API returned an error
+      if (response.error) {
+        console.error('Failed to save preferences:', response.error.message)
+        throw new Error(response.error.message || 'Failed to save preferences')
+      }
+
+      // If successful, the valid preferences are confirmed by server
     } catch (error) {
-      console.error('Failed to save preferences:', error)
+      console.error('Failed to save preferences (network error):', error)
+      // On validation errors, we should revert to last known good state
       throw error
     }
   }, [theme, accentColor, background])
@@ -117,13 +126,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Then fetch from API to sync with server
     try {
       const response = await api.getPreferences()
-      if (response.data) {
+
+      // Check if the API returned an error
+      if (response.error) {
+        console.error('Failed to load preferences from server:', response.error.message)
+        // Keep localStorage values if API fails
+      } else if (response.data) {
+        // Successfully loaded from server - update state
         setThemeState(response.data.theme_mode)
         setAccentColorState(response.data.theme_accent_color)
         setBackgroundState(response.data.theme_background)
       }
     } catch (error) {
-      console.error('Failed to load preferences:', error)
+      console.error('Failed to load preferences (network error):', error)
+      // Keep localStorage values if network fails
     } finally {
       setLoading(false)
     }

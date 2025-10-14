@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -10,11 +13,13 @@ import (
 
 type PreferencesHandler struct {
 	preferencesRepo *repository.PreferencesRepository
+	validator       *validator.Validate
 }
 
 func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *PreferencesHandler {
 	return &PreferencesHandler{
 		preferencesRepo: preferencesRepo,
+		validator:       validator.New(),
 	}
 }
 
@@ -31,9 +36,11 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 	preferences, err := h.preferencesRepo.GetByUserID(c.Context(), userID)
 	if err == sql.ErrNoRows {
 		// Return default preferences if user hasn't set any yet
-		return c.JSON(fiber.Map{
-			"theme_mode": "light",
-			"updated_at": nil,
+		return c.JSON(models.PreferencesResponse{
+			ThemeMode:        "light",
+			ThemeBackground:  nil,
+			ThemeAccentColor: nil,
+			UpdatedAt:        time.Time{}, // Zero value for time
 		})
 	}
 	if err != nil {
@@ -63,10 +70,29 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate theme_mode
-	if req.ThemeMode != "light" && req.ThemeMode != "dark" {
+	// Validate request using struct tags
+	if err := h.validator.Struct(req); err != nil {
+		// Parse validation errors and return field-specific messages
+		validationErrors := err.(validator.ValidationErrors)
+		errorMessages := make(map[string]string)
+
+		for _, fieldError := range validationErrors {
+			field := fieldError.Field()
+			switch fieldError.Tag() {
+			case "required":
+				errorMessages[field] = fmt.Sprintf("%s is required", field)
+			case "oneof":
+				errorMessages[field] = fmt.Sprintf("%s must be one of: %s", field, fieldError.Param())
+			case "hexcolor":
+				errorMessages[field] = fmt.Sprintf("%s must be a valid hex color (e.g., #3B82F6)", field)
+			default:
+				errorMessages[field] = fmt.Sprintf("%s is invalid", field)
+			}
+		}
+
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "theme_mode must be 'light' or 'dark'",
+			"error":  "Validation failed",
+			"fields": errorMessages,
 		})
 	}
 

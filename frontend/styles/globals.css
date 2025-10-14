@@ -108,7 +108,6 @@ body {
   background-size: cover;
   background-position: center center;
   background-attachment: fixed;
-  /* Improve image rendering quality - use high-quality for smooth photos */
   image-rendering: high-quality;
   image-rendering: -webkit-optimize-contrast;
 }
