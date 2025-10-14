@@ -1,12 +1,19 @@
 package handlers
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/repository"
 )
 
 type AdminHandler struct {
 	userRepo *repository.UserRepository
+	// TODO: Add these repositories when implementing invitation system
+	// activityRepo   *repository.ActivityLogRepository
+	// invitationRepo *repository.InvitationRepository
+	// settingsRepo   *repository.SettingsRepository
 }
 
 func NewAdminHandler(userRepo *repository.UserRepository) *AdminHandler {
@@ -15,9 +22,38 @@ func NewAdminHandler(userRepo *repository.UserRepository) *AdminHandler {
 	}
 }
 
-// GetAllUsers returns all users (admin only)
+// GetAllUsers returns all users with optional filtering and pagination (admin only)
 func (h *AdminHandler) GetAllUsers(c *fiber.Ctx) error {
-	users, err := h.userRepo.GetAll()
+	// Parse query parameters
+	search := c.Query("search", "")
+	role := c.Query("role", "")
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "20"))
+
+	// Validate and set defaults
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 100 {
+		limit = 20
+	}
+
+	// Calculate offset
+	offset := (page - 1) * limit
+
+	// Normalize search (trim and lowercase)
+	search = strings.TrimSpace(strings.ToLower(search))
+
+	// Build filter
+	filter := repository.UserFilter{
+		Search: search,
+		Role:   role,
+		Limit:  limit,
+		Offset: offset,
+	}
+
+	// Get filtered users
+	result, err := h.userRepo.GetFiltered(filter)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve users",
@@ -25,12 +61,19 @@ func (h *AdminHandler) GetAllUsers(c *fiber.Ctx) error {
 	}
 
 	// Convert to response format (without passwords)
-	userResponses := make([]interface{}, len(users))
-	for i, user := range users {
+	userResponses := make([]interface{}, len(result.Users))
+	for i, user := range result.Users {
 		userResponses[i] = user.ToResponse()
 	}
 
-	return c.JSON(userResponses)
+	// Return with pagination metadata
+	return c.JSON(fiber.Map{
+		"users":       userResponses,
+		"total":       result.Total,
+		"page":        result.Page,
+		"total_pages": result.TotalPages,
+		"limit":       limit,
+	})
 }
 
 // GetUserStats returns user statistics (admin only)

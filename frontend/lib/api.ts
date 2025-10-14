@@ -10,6 +10,8 @@ import type {
   HealthCheck,
   UserPreferences,
   PreferencesUpdateRequest,
+  PaginatedUsersResponse,
+  UserFilterParams,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
@@ -155,8 +157,18 @@ class ApiClient {
   // Admin User Management
   // ============================================
 
-  async getAllUsers(): Promise<ApiResponse<User[]>> {
-    return this.request<User[]>('/admin/users')
+  async getAllUsers(params?: UserFilterParams): Promise<ApiResponse<PaginatedUsersResponse>> {
+    const query = new URLSearchParams()
+
+    if (params?.search) query.append('search', params.search)
+    if (params?.role) query.append('role', params.role)
+    if (params?.page) query.append('page', params.page.toString())
+    if (params?.limit) query.append('limit', params.limit.toString())
+
+    const queryString = query.toString()
+    const url = queryString ? `/admin/users?${queryString}` : '/admin/users'
+
+    return this.request<PaginatedUsersResponse>(url)
   }
 
   async getUserStats(): Promise<ApiResponse<{ total: number; admins: number; users: number }>> {

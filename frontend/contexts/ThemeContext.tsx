@@ -33,12 +33,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       // Check if the API returned an error
       if (response.error) {
-        console.error('Failed to save preferences:', response.error.message)
+        // Silently fail if unauthorized (user not logged in yet)
+        if (response.error.message !== 'Unauthorized') {
+          console.error('Failed to save preferences:', response.error.message)
+        }
         throw new Error(response.error.message || 'Failed to save preferences')
       }
 
       // If successful, the valid preferences are confirmed by server
     } catch (error) {
+      // Silently ignore unauthorized errors during auto-save
+      if (error instanceof Error && error.message === 'Unauthorized') {
+        return
+      }
       console.error('Failed to save preferences (network error):', error)
       throw error
     }
@@ -143,7 +150,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       // Check if the API returned an error
       if (response.error) {
-        console.error('Failed to load preferences from server:', response.error.message)
+        // Silently fail if unauthorized (user not logged in yet on page refresh)
+        if (response.error.message !== 'Unauthorized') {
+          console.error('Failed to load preferences from server:', response.error.message)
+        }
         // Keep localStorage values if API fails
       } else if (response.data) {
         // Successfully loaded from server - update state
@@ -152,7 +162,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setBackgroundState(response.data.theme_background)
       }
     } catch (error) {
-      console.error('Failed to load preferences (network error):', error)
+      // Silently ignore unauthorized errors on initial load
+      if (error instanceof Error && error.message !== 'Unauthorized') {
+        console.error('Failed to load preferences (network error):', error)
+      }
       // Keep localStorage values if network fails
     } finally {
       setLoading(false)

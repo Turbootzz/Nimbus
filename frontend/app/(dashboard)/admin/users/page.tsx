@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { api } from '@/lib/api'
-import type { User } from '@/types'
+import type { User, UserFilterParams } from '@/types'
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
@@ -11,20 +11,31 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  const loadUsers = async () => {
+  // Pagination & Filter state
+  const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState<'' | 'admin' | 'user'>('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalUsers, setTotalUsers] = useState(0)
+  const [limit] = useState(20)
+
+  const loadUsers = async (params?: UserFilterParams) => {
     setLoading(true)
     setError(null)
 
     try {
       const [usersResponse, statsResponse] = await Promise.all([
-        api.getAllUsers(),
+        api.getAllUsers(params),
         api.getUserStats(),
       ])
 
       if (usersResponse.error) {
         setError(usersResponse.error.message)
       } else if (usersResponse.data) {
-        setUsers(usersResponse.data)
+        setUsers(usersResponse.data.users)
+        setTotalUsers(usersResponse.data.total)
+        setTotalPages(usersResponse.data.total_pages)
+        setCurrentPage(usersResponse.data.page)
       }
 
       if (statsResponse.data) {
@@ -38,9 +49,17 @@ export default function AdminUsersPage() {
     }
   }
 
+  // Build current filter params (DRY helper)
+  const getCurrentFilterParams = (): UserFilterParams => ({
+    page: currentPage,
+    limit,
+    search: searchTerm.trim() || undefined,
+    role: roleFilter || undefined,
+  })
+
   useEffect(() => {
-    loadUsers()
-  }, [])
+    loadUsers(getCurrentFilterParams())
+  }, [currentPage, searchTerm, roleFilter, limit])
 
   const handleRoleChange = async (userId: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin'
@@ -57,8 +76,7 @@ export default function AdminUsersPage() {
       if (response.error) {
         alert(`Error: ${response.error.message}`)
       } else {
-        // Refresh user list
-        await loadUsers()
+        loadUsers(getCurrentFilterParams())
       }
     } catch (err) {
       alert('Failed to update user role')
@@ -82,8 +100,7 @@ export default function AdminUsersPage() {
       if (response.error) {
         alert(`Error: ${response.error.message}`)
       } else {
-        // Refresh user list
-        await loadUsers()
+        loadUsers(getCurrentFilterParams())
       }
     } catch (err) {
       alert('Failed to delete user')
@@ -91,6 +108,16 @@ export default function AdminUsersPage() {
     } finally {
       setActionLoading(null)
     }
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value)
+    setCurrentPage(1) // Reset to first page on search
+  }
+
+  const handleRoleFilterChange = (value: '' | 'admin' | 'user') => {
+    setRoleFilter(value)
+    setCurrentPage(1) // Reset to first page on filter change
   }
 
   const formatDate = (dateString: string) => {
@@ -101,7 +128,40 @@ export default function AdminUsersPage() {
     })
   }
 
-  if (loading) {
+  const formatDateTime = (dateString: string | undefined) => {
+    if (!dateString) return 'Never'
+
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+
+    // Less than 10 seconds
+    if (diffInSeconds < 10) return 'Just now'
+
+    // 10-59 seconds
+    if (diffInSeconds < 60) return `${diffInSeconds}s ago`
+
+    // 1-59 minutes
+    const minutes = Math.floor(diffInSeconds / 60)
+    if (minutes < 60) return `${minutes}m ago`
+
+    // 1-23 hours
+    const hours = Math.floor(diffInSeconds / 3600)
+    if (hours < 24) return `${hours}h ago`
+
+    // 1-6 days
+    const days = Math.floor(diffInSeconds / 86400)
+    if (days < 7) return `${days}d ago`
+
+    // 1-4 weeks
+    const weeks = Math.floor(days / 7)
+    if (weeks < 4) return `${weeks}w ago`
+
+    // Older than 4 weeks - show date
+    return formatDate(dateString)
+  }
+
+  if (loading && currentPage === 1) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-text-secondary">Loading users...</div>
@@ -142,6 +202,40 @@ export default function AdminUsersPage() {
         </div>
       )}
 
+      {/* Search and Filter Bar */}
+      <div className="bg-card border-card-border mb-4 rounded-lg border p-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          {/* Search Input */}
+          <div className="flex-1">
+            <input
+              type="text"
+              placeholder="Search by name or email..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="bg-background border-card-border text-text-primary placeholder:text-text-secondary focus:border-primary w-full rounded-lg border px-4 py-2 transition-colors focus:outline-none"
+            />
+          </div>
+
+          {/* Role Filter */}
+          <div className="w-full md:w-48">
+            <select
+              value={roleFilter}
+              onChange={(e) => handleRoleFilterChange(e.target.value as '' | 'admin' | 'user')}
+              className="bg-background border-card-border text-text-primary focus:border-primary w-full rounded-lg border px-4 py-2 transition-colors focus:outline-none"
+            >
+              <option value="">All Roles</option>
+              <option value="admin">Admins Only</option>
+              <option value="user">Users Only</option>
+            </select>
+          </div>
+
+          {/* Results Count */}
+          <div className="text-text-secondary text-sm whitespace-nowrap">
+            {totalUsers} {totalUsers === 1 ? 'user' : 'users'} found
+          </div>
+        </div>
+      </div>
+
       {/* Users Table */}
       <div className="bg-card border-card-border overflow-hidden rounded-lg border">
         <div className="overflow-x-auto">
@@ -156,6 +250,9 @@ export default function AdminUsersPage() {
                 </th>
                 <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Role
+                </th>
+                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                  Last Activity
                 </th>
                 <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
                   Joined
@@ -184,6 +281,9 @@ export default function AdminUsersPage() {
                     >
                       {user.role}
                     </span>
+                  </td>
+                  <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
+                    {formatDateTime(user.last_activity_at)}
                   </td>
                   <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
                     {formatDate(user.created_at)}
@@ -217,9 +317,69 @@ export default function AdminUsersPage() {
         </div>
 
         {users.length === 0 && (
-          <div className="text-text-secondary p-6 text-center">No users found</div>
+          <div className="text-text-secondary p-6 text-center">
+            {searchTerm || roleFilter ? 'No users match your search criteria' : 'No users found'}
+          </div>
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="mt-4 flex items-center justify-between">
+          <div className="text-text-secondary text-sm">
+            Page {currentPage} of {totalPages}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+              disabled={currentPage === 1 || loading}
+              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+
+            {/* Page numbers */}
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum: number
+                if (totalPages <= 5) {
+                  pageNum = i + 1
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i
+                } else {
+                  pageNum = currentPage - 2 + i
+                }
+
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    disabled={loading}
+                    className={`rounded-lg border px-3 py-2 transition-colors ${
+                      currentPage === pageNum
+                        ? 'bg-primary border-primary text-white'
+                        : 'bg-card border-card-border text-text-primary hover:bg-background'
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || loading}
+              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -4,34 +4,37 @@ import "time"
 
 // User represents a user in the system
 type User struct {
-	ID        string    `json:"id" db:"id"`
-	Email     string    `json:"email" db:"email"`
-	Name      string    `json:"name" db:"name"`
-	Password  string    `json:"-" db:"password"` // Never expose password in JSON
-	Role      string    `json:"role" db:"role"`  // "admin" or "user"
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID             string     `json:"id" db:"id"`
+	Email          string     `json:"email" db:"email"`
+	Name           string     `json:"name" db:"name"`
+	Password       string     `json:"-" db:"password"`                        // Never expose password in JSON
+	Role           string     `json:"role" db:"role"`                         // "admin" or "user"
+	LastActivityAt *time.Time `json:"last_activity_at" db:"last_activity_at"` // Last login/activity
+	CreatedAt      time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // UserResponse is the safe user data to return to clients
 type UserResponse struct {
-	ID        string    `json:"id"`
-	Email     string    `json:"email"`
-	Name      string    `json:"name"`
-	Role      string    `json:"role"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID             string     `json:"id"`
+	Email          string     `json:"email"`
+	Name           string     `json:"name"`
+	Role           string     `json:"role"`
+	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // ToResponse converts User to UserResponse (without password)
 func (u *User) ToResponse() UserResponse {
 	return UserResponse{
-		ID:        u.ID,
-		Email:     u.Email,
-		Name:      u.Name,
-		Role:      u.Role,
-		CreatedAt: u.CreatedAt,
-		UpdatedAt: u.UpdatedAt,
+		ID:             u.ID,
+		Email:          u.Email,
+		Name:           u.Name,
+		Role:           u.Role,
+		LastActivityAt: u.LastActivityAt,
+		CreatedAt:      u.CreatedAt,
+		UpdatedAt:      u.UpdatedAt,
 	}
 }
 
