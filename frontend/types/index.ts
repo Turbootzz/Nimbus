@@ -4,6 +4,7 @@ export interface User {
   email: string
   name: string
   role: 'admin' | 'user'
+  last_activity_at?: string
   created_at: string
   updated_at?: string
 }
@@ -92,4 +93,21 @@ export interface ApiResponse<T> {
   data?: T
   error?: ApiError
   message?: string
+}
+
+// Paginated response for admin user list
+export interface PaginatedUsersResponse {
+  users: User[]
+  total: number
+  page: number
+  total_pages: number
+  limit: number
+}
+
+// Query params for user filtering
+export interface UserFilterParams {
+  search?: string
+  role?: 'admin' | 'user' | ''
+  page?: number
+  limit?: number
 }

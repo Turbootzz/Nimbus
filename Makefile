@@ -1,4 +1,4 @@
-.PHONY: help setup dev-backend dev-frontend testdb kill-ports clean install
+.PHONY: help setup dev-backend dev-frontend testdb seed kill-ports clean install
 
 # Default target
 help:
@@ -13,8 +13,9 @@ help:
 	@echo "  make dev-backend  Start backend server (or: cd backend && make dev)"
 	@echo "  make dev-frontend Start frontend server (or: cd frontend && npm run dev)"
 	@echo ""
-	@echo "Testing:"
+	@echo "Database:"
 	@echo "  make testdb       Test database connection"
+	@echo "  make seed         Seed database with test users"
 	@echo ""
 	@echo "Formatting:"
 	@echo "  cd backend && make fmt           Format Go code"
@@ -92,6 +93,10 @@ dev-frontend:
 # Test database connection
 testdb:
 	@cd backend && make testdb
+
+# Seed database with test data
+seed:
+	@cd backend && make seed
 
 # Kill stuck processes on development ports
 kill-ports:

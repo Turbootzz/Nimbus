@@ -8,6 +8,11 @@ dev:
 testdb:
 	go run cmd/testdb/main.go
 
+# Seed database with test data (dev only - excluded from production builds)
+seed: migrate-up
+	@echo "🌱 Seeding database with test users..."
+	@go run -tags dev cmd/seed/main.go
+
 # Build
 build:
 	go build -o bin/nimbus cmd/server/main.go

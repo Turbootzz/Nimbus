@@ -10,6 +10,8 @@ import type {
   HealthCheck,
   UserPreferences,
   PreferencesUpdateRequest,
+  PaginatedUsersResponse,
+  UserFilterParams,
 } from '@/types'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
@@ -43,7 +45,8 @@ class ApiClient {
       if (!response.ok) {
         return {
           error: {
-            message: data.message || 'An error occurred',
+            // Backend returns {error: "message"} or {message: "message"}
+            message: data.error || data.message || 'An error occurred',
             code: data.code,
             details: data.details,
           },
@@ -147,6 +150,41 @@ class ApiClient {
     return this.request<UserPreferences>('/users/me/preferences', {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Admin User Management
+  // ============================================
+
+  async getAllUsers(params?: UserFilterParams): Promise<ApiResponse<PaginatedUsersResponse>> {
+    const query = new URLSearchParams()
+
+    if (params?.search) query.append('search', params.search)
+    if (params?.role) query.append('role', params.role)
+    if (params?.page) query.append('page', params.page.toString())
+    if (params?.limit) query.append('limit', params.limit.toString())
+
+    const queryString = query.toString()
+    const url = queryString ? `/admin/users?${queryString}` : '/admin/users'
+
+    return this.request<PaginatedUsersResponse>(url)
+  }
+
+  async getUserStats(): Promise<ApiResponse<{ total: number; admins: number; users: number }>> {
+    return this.request<{ total: number; admins: number; users: number }>('/admin/users/stats')
+  }
+
+  async updateUserRole(userId: string, role: 'admin' | 'user'): Promise<ApiResponse<User>> {
+    return this.request<User>(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    })
+  }
+
+  async deleteUser(userId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
     })
   }
 }

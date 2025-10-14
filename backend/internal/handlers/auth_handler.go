@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"os"
 	"time"
 
@@ -145,6 +146,12 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// Update last activity timestamp
+	if err := h.userRepo.UpdateLastActivity(user.ID); err != nil {
+		// Log error but don't fail login
+		log.Printf("Failed to update last activity for user %s: %v", user.Email, err)
+	}
+
 	// Generate token
 	token, err := h.authService.GenerateToken(user.ID, user.Email, user.Role)
 	if err != nil {
@@ -211,6 +218,23 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "User not found",
 		})
+	}
+
+	// Update last activity if more than 1 minute has passed
+	// This tracks actual website usage without overwhelming the database
+	shouldUpdate := user.LastActivityAt == nil || time.Since(*user.LastActivityAt) > time.Minute
+
+	if shouldUpdate {
+		if err := h.userRepo.UpdateLastActivity(user.ID); err != nil {
+			// Log error but don't fail the request
+			log.Printf("Failed to update last activity for user %s: %v", user.Email, err)
+		} else {
+			// Re-fetch user to get the updated timestamp from database
+			updatedUser, err := h.userRepo.GetByID(userID)
+			if err == nil {
+				user = updatedUser
+			}
+		}
 	}
 
 	return c.JSON(user.ToResponse())

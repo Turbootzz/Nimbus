@@ -51,6 +51,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
+	adminHandler := handlers.NewAdminHandler(userRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -100,6 +101,13 @@ func main() {
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService))
 	preferences.Get("/", preferencesHandler.GetPreferences)
 	preferences.Put("/", preferencesHandler.UpdatePreferences)
+
+	// Admin routes (protected, admin only)
+	admin := v1.Group("/admin", middleware.AuthMiddleware(authService), middleware.AdminOnly())
+	admin.Get("/users", adminHandler.GetAllUsers)
+	admin.Get("/users/stats", adminHandler.GetUserStats)
+	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
+	admin.Delete("/users/:id", adminHandler.DeleteUser)
 
 	// Start health check monitor
 	healthCheckInterval := getEnvDuration("HEALTH_CHECK_INTERVAL", 60*time.Second)
