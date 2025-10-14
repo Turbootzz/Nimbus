@@ -149,3 +149,72 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 
 	return users, nil
 }
+
+// UpdateRole updates a user's role (admin operation)
+func (r *UserRepository) UpdateRole(userID string, newRole string) error {
+	query := `
+		UPDATE users
+		SET role = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	result, err := r.db.Exec(query, newRole, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update user role: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// Delete deletes a user (admin operation)
+func (r *UserRepository) Delete(userID string) error {
+	query := `DELETE FROM users WHERE id = $1`
+
+	result, err := r.db.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to delete user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("user not found")
+	}
+
+	return nil
+}
+
+// GetStats returns user statistics (admin operation)
+func (r *UserRepository) GetStats() (map[string]int, error) {
+	query := `
+		SELECT
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE role = 'admin') as admins,
+			COUNT(*) FILTER (WHERE role = 'user') as users
+		FROM users
+	`
+
+	var total, admins, users int
+	err := r.db.QueryRow(query).Scan(&total, &admins, &users)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user stats: %w", err)
+	}
+
+	return map[string]int{
+		"total":  total,
+		"admins": admins,
+		"users":  users,
+	}, nil
+}

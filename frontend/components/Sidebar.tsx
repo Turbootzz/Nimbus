@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -9,7 +10,10 @@ import {
   ArrowRightStartOnRectangleIcon,
   XMarkIcon,
   PlusIcon,
+  UserGroupIcon,
 } from '@heroicons/react/24/outline'
+import { api } from '@/lib/api'
+import type { User } from '@/types'
 
 interface SidebarProps {
   isOpen: boolean
@@ -19,10 +23,29 @@ interface SidebarProps {
 export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  // Load current user to check role
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const response = await api.getCurrentUser()
+        if (response.data) {
+          setCurrentUser(response.data)
+        }
+      } catch (error) {
+        console.error('Failed to load user:', error)
+      }
+    }
+    loadUser()
+  }, [])
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Services', href: '/services', icon: ServerIcon },
+    ...(currentUser?.role === 'admin'
+      ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
+      : []),
     { name: 'Settings', href: '/settings', icon: CogIcon },
   ]
 

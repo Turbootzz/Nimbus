@@ -13,6 +13,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const getPageTitle = () => {
     if (pathname === '/dashboard') return 'Dashboard'
     if (pathname.startsWith('/services')) return 'Services'
+    if (pathname.startsWith('/admin/users')) return 'User Management'
+    if (pathname.startsWith('/admin')) return 'Admin'
     if (pathname.startsWith('/settings/profile')) return 'Profile Settings'
     if (pathname.startsWith('/settings/theme')) return 'Theme Settings'
     if (pathname.startsWith('/settings')) return 'Settings'

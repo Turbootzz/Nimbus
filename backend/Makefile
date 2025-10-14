@@ -1,4 +1,4 @@
-.PHONY: dev build test clean migrate testdb fmt vet ci-check
+.PHONY: dev build test clean migrate testdb fmt vet ci-check promote-admin
 
 # Development
 dev:

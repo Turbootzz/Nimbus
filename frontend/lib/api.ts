@@ -43,7 +43,8 @@ class ApiClient {
       if (!response.ok) {
         return {
           error: {
-            message: data.message || 'An error occurred',
+            // Backend returns {error: "message"} or {message: "message"}
+            message: data.error || data.message || 'An error occurred',
             code: data.code,
             details: data.details,
           },
@@ -147,6 +148,31 @@ class ApiClient {
     return this.request<UserPreferences>('/users/me/preferences', {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Admin User Management
+  // ============================================
+
+  async getAllUsers(): Promise<ApiResponse<User[]>> {
+    return this.request<User[]>('/admin/users')
+  }
+
+  async getUserStats(): Promise<ApiResponse<{ total: number; admins: number; users: number }>> {
+    return this.request<{ total: number; admins: number; users: number }>('/admin/users/stats')
+  }
+
+  async updateUserRole(userId: string, role: 'admin' | 'user'): Promise<ApiResponse<User>> {
+    return this.request<User>(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    })
+  }
+
+  async deleteUser(userId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
     })
   }
 }
