@@ -21,7 +21,7 @@ This is a **compile-time guarantee** that test data cannot leak into production.
 
 ## 📁 File Structure
 
-```
+```text
 backend/
 ├── cmd/seed/
 │   ├── main.go              # Entry point (build tag: dev)

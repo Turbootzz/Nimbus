@@ -1,4 +1,4 @@
-.PHONY: dev build test clean migrate testdb fmt vet ci-check promote-admin seed
+.PHONY: dev build test clean migrate testdb fmt vet ci-check
 
 # Development
 dev:
@@ -9,7 +9,7 @@ testdb:
 	go run cmd/testdb/main.go
 
 # Seed database with test data (dev only - excluded from production builds)
-seed:
+seed: migrate-up
 	@echo "🌱 Seeding database with test users..."
 	@go run -tags dev cmd/seed/main.go
 

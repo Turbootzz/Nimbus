@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { api } from '@/lib/api'
 import type { User, UserFilterParams } from '@/types'
 
@@ -50,16 +50,29 @@ export default function AdminUsersPage() {
   }
 
   // Build current filter params (DRY helper)
-  const getCurrentFilterParams = (): UserFilterParams => ({
-    page: currentPage,
-    limit,
-    search: searchTerm.trim() || undefined,
-    role: roleFilter || undefined,
-  })
+  const getCurrentFilterParams = useCallback(
+    (): UserFilterParams => ({
+      page: currentPage,
+      limit,
+      search: searchTerm.trim() || undefined,
+      role: roleFilter || undefined,
+    }),
+    [currentPage, limit, searchTerm, roleFilter]
+  )
 
+  // Debounced search - only trigger after user stops typing for 500ms
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadUsers(getCurrentFilterParams())
+    }, 500) // 500ms delay
+
+    return () => clearTimeout(timer)
+  }, [searchTerm, getCurrentFilterParams])
+
+  // Immediate load for page/role changes (no debounce needed)
   useEffect(() => {
     loadUsers(getCurrentFilterParams())
-  }, [currentPage, searchTerm, roleFilter, limit])
+  }, [currentPage, roleFilter, getCurrentFilterParams])
 
   const handleRoleChange = async (userId: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'user' : 'admin'
@@ -161,24 +174,16 @@ export default function AdminUsersPage() {
     return formatDate(dateString)
   }
 
-  if (loading && currentPage === 1) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-text-secondary">Loading users...</div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-error/10 border-error/20 text-error rounded-lg border p-4">{error}</div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6">
+      {/* Error Message */}
+      {error && (
+        <div className="mb-4">
+          <div className="bg-error/10 border-error/20 text-error rounded-lg border p-4">
+            {error}
+          </div>
+        </div>
+      )}
       <div className="mb-6">
         <h1 className="text-text-primary text-3xl font-bold">User Management</h1>
         <p className="text-text-secondary mt-1">Manage user accounts and roles</p>
@@ -206,7 +211,7 @@ export default function AdminUsersPage() {
       <div className="bg-card border-card-border mb-4 rounded-lg border p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           {/* Search Input */}
-          <div className="flex-1">
+          <div className="relative flex-1">
             <input
               type="text"
               placeholder="Search by name or email..."
@@ -214,6 +219,11 @@ export default function AdminUsersPage() {
               onChange={(e) => handleSearchChange(e.target.value)}
               className="bg-background border-card-border text-text-primary placeholder:text-text-secondary focus:border-primary w-full rounded-lg border px-4 py-2 transition-colors focus:outline-none"
             />
+            {loading && (
+              <div className="absolute top-1/2 right-3 -translate-y-1/2">
+                <div className="border-primary h-4 w-4 animate-spin rounded-full border-2 border-t-transparent"></div>
+              </div>
+            )}
           </div>
 
           {/* Role Filter */}

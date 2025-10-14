@@ -2,10 +2,17 @@ package repository
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
+)
+
+// Sentinel errors for user repository
+var (
+	ErrUserNotFound = errors.New("user not found")
 )
 
 type UserRepository struct {
@@ -65,7 +72,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
+		return nil, ErrUserNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -95,7 +102,7 @@ func (r *UserRepository) GetByID(id string) (*models.User, error) {
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("user not found")
+		return nil, ErrUserNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -176,11 +183,11 @@ func (r *UserRepository) GetFiltered(filter UserFilter) (*UserListResult, error)
 	args := []interface{}{}
 	argCount := 0
 
-	// Add search filter
+	// Add search filter (lowercase the search term for case-insensitive comparison)
 	if filter.Search != "" {
 		argCount++
 		where += fmt.Sprintf(" AND (LOWER(name) LIKE $%d OR LOWER(email) LIKE $%d)", argCount, argCount)
-		args = append(args, "%"+filter.Search+"%")
+		args = append(args, "%"+strings.ToLower(filter.Search)+"%")
 	}
 
 	// Add role filter
@@ -268,7 +275,7 @@ func (r *UserRepository) UpdateRole(userID string, newRole string) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found")
+		return ErrUserNotFound
 	}
 
 	return nil
@@ -289,7 +296,7 @@ func (r *UserRepository) Delete(userID string) error {
 	}
 
 	if rowsAffected == 0 {
-		return fmt.Errorf("user not found")
+		return ErrUserNotFound
 	}
 
 	return nil
@@ -297,11 +304,13 @@ func (r *UserRepository) Delete(userID string) error {
 
 // GetStats returns user statistics (admin operation)
 func (r *UserRepository) GetStats() (map[string]int, error) {
+	// Use CASE WHEN for SQLite compatibility (FILTER is PostgreSQL-specific)
+	// Use COALESCE to handle NULL when table is empty
 	query := `
 		SELECT
 			COUNT(*) as total,
-			COUNT(*) FILTER (WHERE role = 'admin') as admins,
-			COUNT(*) FILTER (WHERE role = 'user') as users
+			COALESCE(SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END), 0) as admins,
+			COALESCE(SUM(CASE WHEN role = 'user' THEN 1 ELSE 0 END), 0) as users
 		FROM users
 	`
 

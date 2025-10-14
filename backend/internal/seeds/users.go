@@ -4,6 +4,7 @@ package seeds
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -83,7 +84,7 @@ func SeedUsers(userRepo *repository.UserRepository, authService *services.AuthSe
 		// Check if user exists
 		existingUser, err := userRepo.GetByEmail(testUser.email)
 
-		if err != nil && err.Error() == "user not found" {
+		if err != nil && errors.Is(err, repository.ErrUserNotFound) {
 			// User doesn't exist, create new
 			createdAt := now.Add(-time.Duration(testUser.createdDays) * 24 * time.Hour)
 			user := &models.User{

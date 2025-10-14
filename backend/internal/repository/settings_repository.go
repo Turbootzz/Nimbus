@@ -3,9 +3,15 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/nimbus/backend/internal/models"
+)
+
+// Sentinel errors for settings repository
+var (
+	ErrSettingNotFound = errors.New("setting not found")
 )
 
 type SettingsRepository struct {
@@ -33,7 +39,7 @@ func (r *SettingsRepository) Get(ctx context.Context, key string) (*models.Syste
 	)
 
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("setting not found")
+		return nil, ErrSettingNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get setting: %w", err)
@@ -98,8 +104,11 @@ func (r *SettingsRepository) Update(ctx context.Context, key, value string, upda
 func (r *SettingsRepository) IsPublicRegistrationEnabled(ctx context.Context) (bool, error) {
 	setting, err := r.Get(ctx, "public_registration_enabled")
 	if err != nil {
-		// Default to false if setting doesn't exist
-		return false, nil
+		if errors.Is(err, ErrSettingNotFound) {
+			// Default to false if setting doesn't exist
+			return false, nil
+		}
+		return false, err
 	}
 
 	return setting.Value == "true", nil

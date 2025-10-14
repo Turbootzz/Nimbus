@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+	"log"
 	"strconv"
 	"strings"
 
@@ -161,8 +163,14 @@ func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
 	// Delete user
 	err := h.userRepo.Delete(userID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "User not found",
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		log.Printf("Failed to delete user %s: %v", userID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete user",
 		})
 	}
 
