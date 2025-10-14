@@ -40,7 +40,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // If successful, the valid preferences are confirmed by server
     } catch (error) {
       console.error('Failed to save preferences (network error):', error)
-      // On validation errors, we should revert to last known good state
       throw error
     }
   }, [theme, accentColor, background])
