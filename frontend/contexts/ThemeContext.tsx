@@ -81,10 +81,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (background) {
       // Validate URL to prevent XSS via javascript: or data: schemes
       try {
-        const parsedURL = new URL(background)
+        const parsedURL = new URL(background, window.location.href)
         if (parsedURL.protocol === 'http:' || parsedURL.protocol === 'https:') {
           // Safe to apply - only http(s) URLs allowed
-          document.body.style.backgroundImage = `url(${background})`
+          document.body.style.backgroundImage = `url("${parsedURL.href}")`
           document.body.style.backgroundSize = 'cover'
           document.body.style.backgroundPosition = 'center'
           document.body.style.backgroundAttachment = 'fixed'
