@@ -229,7 +229,7 @@ npm run lint    # Run linter
 - [x] Service management CRUD
 - [x] Health monitoring system
 - [x] User theme customization
-- [ ] Role-based access control (admin features)
+- [x] Role-based access control (admin features)
 - [ ] Docker deployment
 - [ ] Admin configuration UI
 - [ ] Service status history graphs
