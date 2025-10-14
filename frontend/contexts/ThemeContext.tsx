@@ -77,12 +77,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.removeProperty('--dark-primary-hover')
     }
 
-    // Set background image on body
+    // Set background image on body with XSS protection
     if (background) {
-      document.body.style.backgroundImage = `url(${background})`
-      document.body.style.backgroundSize = 'cover'
-      document.body.style.backgroundPosition = 'center'
-      document.body.style.backgroundAttachment = 'fixed'
+      // Validate URL to prevent XSS via javascript: or data: schemes
+      try {
+        const parsedURL = new URL(background)
+        if (parsedURL.protocol === 'http:' || parsedURL.protocol === 'https:') {
+          // Safe to apply - only http(s) URLs allowed
+          document.body.style.backgroundImage = `url(${background})`
+          document.body.style.backgroundSize = 'cover'
+          document.body.style.backgroundPosition = 'center'
+          document.body.style.backgroundAttachment = 'fixed'
+        } else {
+          // Invalid protocol - skip setting background
+          console.warn(
+            `Background URL rejected: only HTTP(S) URLs are allowed, got ${parsedURL.protocol}`
+          )
+        }
+      } catch (error) {
+        // Invalid URL - skip setting background
+        console.warn('Invalid background URL:', background, error)
+      }
     } else {
       document.body.style.backgroundImage = ''
       document.body.style.backgroundSize = ''

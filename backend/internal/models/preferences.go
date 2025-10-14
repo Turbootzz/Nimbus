@@ -16,7 +16,7 @@ type UserPreferences struct {
 // PreferencesUpdateRequest represents the data needed to update preferences
 type PreferencesUpdateRequest struct {
 	ThemeMode        string  `json:"theme_mode" validate:"required,oneof=light dark"`
-	ThemeBackground  *string `json:"theme_background"`
+	ThemeBackground  *string `json:"theme_background" validate:"omitempty,httpurl"` // Custom validator - only allows http(s)
 	ThemeAccentColor *string `json:"theme_accent_color" validate:"omitempty,hexcolor"`
 }
 

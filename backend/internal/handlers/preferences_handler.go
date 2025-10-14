@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"time"
 
 	"github.com/go-playground/validator/v10"
@@ -17,9 +18,27 @@ type PreferencesHandler struct {
 }
 
 func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *PreferencesHandler {
+	v := validator.New()
+
+	// Register custom validator for HTTP(S) URLs only
+	v.RegisterValidation("httpurl", func(fl validator.FieldLevel) bool {
+		urlStr := fl.Field().String()
+		if urlStr == "" {
+			return true // Empty is valid (omitempty will handle required check)
+		}
+
+		parsedURL, err := url.Parse(urlStr)
+		if err != nil {
+			return false
+		}
+
+		// Only allow http and https schemes to prevent XSS
+		return parsedURL.Scheme == "http" || parsedURL.Scheme == "https"
+	})
+
 	return &PreferencesHandler{
 		preferencesRepo: preferencesRepo,
-		validator:       validator.New(),
+		validator:       v,
 	}
 }
 
@@ -72,27 +91,36 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 
 	// Validate request using struct tags
 	if err := h.validator.Struct(req); err != nil {
-		// Parse validation errors and return field-specific messages
-		validationErrors := err.(validator.ValidationErrors)
-		errorMessages := make(map[string]string)
+		// Use comma-ok to safely type assert validation errors
+		if validationErrors, ok := err.(validator.ValidationErrors); ok {
+			// Parse validation errors and return field-specific messages
+			errorMessages := make(map[string]string)
 
-		for _, fieldError := range validationErrors {
-			field := fieldError.Field()
-			switch fieldError.Tag() {
-			case "required":
-				errorMessages[field] = fmt.Sprintf("%s is required", field)
-			case "oneof":
-				errorMessages[field] = fmt.Sprintf("%s must be one of: %s", field, fieldError.Param())
-			case "hexcolor":
-				errorMessages[field] = fmt.Sprintf("%s must be a valid hex color (e.g., #3B82F6)", field)
-			default:
-				errorMessages[field] = fmt.Sprintf("%s is invalid", field)
+			for _, fieldError := range validationErrors {
+				field := fieldError.Field()
+				switch fieldError.Tag() {
+				case "required":
+					errorMessages[field] = fmt.Sprintf("%s is required", field)
+				case "oneof":
+					errorMessages[field] = fmt.Sprintf("%s must be one of: %s", field, fieldError.Param())
+				case "hexcolor":
+					errorMessages[field] = fmt.Sprintf("%s must be a valid hex color (e.g., #3B82F6)", field)
+				case "httpurl":
+					errorMessages[field] = fmt.Sprintf("%s must be a valid HTTP or HTTPS URL", field)
+				default:
+					errorMessages[field] = fmt.Sprintf("%s is invalid", field)
+				}
 			}
+
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": errorMessages,
+			})
 		}
 
+		// If not ValidationErrors, treat as generic validation error
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":  "Validation failed",
-			"fields": errorMessages,
+			"error": fmt.Sprintf("Validation error: %s", err.Error()),
 		})
 	}
 
