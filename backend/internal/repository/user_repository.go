@@ -390,7 +390,7 @@ func (r *UserRepository) BulkDelete(userIDs []string) (int, error) {
 func (r *UserRepository) UpdateLastActivity(userID string) error {
 	query := `
 		UPDATE users
-		SET last_activity_at = NOW()
+		SET last_activity_at = CURRENT_TIMESTAMP
 		WHERE id = $1
 	`
 
