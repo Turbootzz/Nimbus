@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <div className="bg-background min-h-screen">
+    <div className="min-h-screen">
       {/* Mobile sidebar backdrop */}
       {isSidebarOpen && (
         <div
