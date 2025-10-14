@@ -77,6 +77,11 @@ func (r *SettingsRepository) GetAll(ctx context.Context) ([]*models.SystemSettin
 		settings = append(settings, setting)
 	}
 
+	// Check for iteration errors
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows iteration error: %w", err)
+	}
+
 	return settings, nil
 }
 

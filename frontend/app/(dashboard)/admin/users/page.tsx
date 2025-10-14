@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { User, UserFilterParams } from '@/types'
 
@@ -19,7 +19,14 @@ export default function AdminUsersPage() {
   const [totalUsers, setTotalUsers] = useState(0)
   const [limit] = useState(20)
 
+  // Track latest request to prevent race conditions
+  const requestIdRef = useRef(0)
+
   const loadUsers = async (params?: UserFilterParams) => {
+    // Increment request ID and capture it for this request
+    requestIdRef.current += 1
+    const currentRequestId = requestIdRef.current
+
     setLoading(true)
     setError(null)
 
@@ -28,6 +35,11 @@ export default function AdminUsersPage() {
         api.getAllUsers(params),
         api.getUserStats(),
       ])
+
+      // Only update state if this is still the latest request
+      if (currentRequestId !== requestIdRef.current) {
+        return // Ignore outdated response
+      }
 
       if (usersResponse.error) {
         setError(usersResponse.error.message)
@@ -42,10 +54,16 @@ export default function AdminUsersPage() {
         setStats(statsResponse.data)
       }
     } catch (err) {
-      setError('Failed to load users')
-      console.error(err)
+      // Only update error if this is still the latest request
+      if (currentRequestId === requestIdRef.current) {
+        setError('Failed to load users')
+        console.error(err)
+      }
     } finally {
-      setLoading(false)
+      // Only update loading if this is still the latest request
+      if (currentRequestId === requestIdRef.current) {
+        setLoading(false)
+      }
     }
   }
 
