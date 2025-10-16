@@ -21,31 +21,39 @@ const publicPaths = ['/login', '/register']
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
 
-// Validate JWT_SECRET at module load time for fail-fast behavior
+// fail-fast
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
-  console.error('[Middleware] CRITICAL: JWT_SECRET not set in environment')
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('JWT_SECRET must be set in production environment')
-  }
+  throw new Error('JWT_SECRET must be set in environment variables')
+}
+
+// Cache the encoded secret to avoid encoding on every validation
+const ENCODED_SECRET = new TextEncoder().encode(JWT_SECRET)
+
+// JWT verification options for security
+const JWT_VERIFY_OPTIONS = {
+  algorithms: ['HS256'], // Only allow HS256 to prevent algorithm confusion attacks
 }
 
 /**
  * Validates JWT token locally without calling backend API
  * Much faster and reduces backend load
+ *
+ * Security features:
+ * - Algorithm whitelist (HS256 only)
+ * - Signature verification
+ * - Expiration checking
  */
 async function validateToken(token: string): Promise<boolean> {
-  if (!JWT_SECRET) {
-    return false
-  }
-
   try {
-    // Verify JWT signature and expiration
-    const secret = new TextEncoder().encode(JWT_SECRET)
-    await jwtVerify(token, secret)
+    await jwtVerify(token, ENCODED_SECRET, JWT_VERIFY_OPTIONS)
     return true
-  } catch {
-    // Token is invalid, expired, or malformed
+  } catch (error) {
+    // Log validation failure for observability (don't log token for security)
+    console.warn(
+      '[Middleware] Token validation failed:',
+      error instanceof Error ? error.message : 'Unknown error'
+    )
     return false
   }
 }

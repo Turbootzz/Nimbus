@@ -63,7 +63,8 @@ jobs:
           DB_NAME: nimbus_test
           DB_USER: nimbus
           DB_PASSWORD: test_password
-          JWT_SECRET: test-secret-key
+          JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
+          PORT: 8080
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Build
@@ -108,10 +109,18 @@ jobs:
         working-directory: ./frontend
         run: npx tsc --noEmit
 
+      # TODO: Re-enable when Jest React 19 compatibility is resolved
+      # - name: Run tests
+      #   working-directory: ./frontend
+      #   env:
+      #     JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
+      #   run: npm test -- --coverage
+
       - name: Build
         working-directory: ./frontend
         env:
           NEXT_PUBLIC_API_URL: http://localhost:8080/api/v1
+          JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
         run: npm run build
 
       - name: Check build output
@@ -122,6 +131,14 @@ jobs:
             exit 1
           fi
           echo "Build successful"
+
+      # TODO: Re-enable when tests are running
+      # - name: Upload coverage
+      #   uses: codecov/codecov-action@v5
+      #   with:
+      #     files: ./frontend/coverage/lcov.info
+      #     flags: frontend
+      #     fail_ci_if_error: false
 
   ci-success:
     name: CI Success
