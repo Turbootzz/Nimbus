@@ -13,6 +13,7 @@ import type {
   PaginatedUsersResponse,
   UserFilterParams,
 } from '@/types'
+import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
 const getApiUrl = (): string | undefined => {
   const defaultPort = '8080'
@@ -26,21 +27,8 @@ const getApiUrl = (): string | undefined => {
     )
   }
 
-  // Client-side: determine API URL at runtime
-  // Priority: 1) Full URL env var, 2) Runtime detection with configurable port, 3) localhost fallback
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
-  }
-
-  // Runtime: Use same host as frontend but with configurable backend port
-  if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol // http: or https:
-    const hostname = window.location.hostname // e.g., 192.168.1.100 or localhost
-    const backendPort = process.env.NEXT_PUBLIC_API_PORT || defaultPort
-    return `${protocol}//${hostname}:${backendPort}/api/v1`
-  }
-
-  return `http://localhost:${defaultPort}/api/v1`
+  // Client-side: use shared utility
+  return getClientApiUrl()
 }
 
 /**

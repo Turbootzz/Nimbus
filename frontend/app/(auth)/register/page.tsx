@@ -2,24 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-
-// Get API URL helper - determines URL at runtime based on browser location
-const getApiUrl = (): string => {
-  const defaultPort = '8080'
-
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
-  }
-
-  if (typeof window !== 'undefined' && window.location) {
-    const protocol = window.location.protocol
-    const hostname = window.location.hostname
-    const backendPort = process.env.NEXT_PUBLIC_API_PORT || defaultPort
-    return `${protocol}//${hostname}:${backendPort}/api/v1`
-  }
-
-  return `http://localhost:${defaultPort}/api/v1`
-}
+import { getApiUrl } from '@/lib/utils/api-url'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
