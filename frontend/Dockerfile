@@ -3,10 +3,12 @@ FROM node:24-alpine AS builder
 
 WORKDIR /build
 
-# Build arguments for Next.js public env vars
+# Build arguments for Next.js public env vars (optional - runtime detection is preferred)
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_API_PORT
 ARG NEXT_PUBLIC_APP_NAME
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 
 # Copy package files
