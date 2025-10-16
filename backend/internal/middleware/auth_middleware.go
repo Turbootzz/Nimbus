@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 )
 
 // AuthMiddleware protects routes by requiring a valid JWT token from httpOnly cookie
 // SECURITY: Uses httpOnly cookies instead of Authorization header to prevent XSS attacks
-func AuthMiddleware(authService *services.AuthService) fiber.Handler {
+func AuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		var token string
 
@@ -47,6 +48,15 @@ func AuthMiddleware(authService *services.AuthService) fiber.Handler {
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "Invalid token claims",
+			})
+		}
+
+		// Verify user exists in database
+		// This prevents tokens for deleted/non-existent users from being valid
+		_, err = userRepo.GetByID(userID)
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "User not found - invalid session",
 			})
 		}
 

@@ -1,0 +1,54 @@
+# Development dependencies
+node_modules/
+backend/vendor/
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+backend/server
+backend/testdb
+
+# Environment files
+.env
+.env*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.github/
+
+# Documentation (keep essential ones)
+Documentation/
+
+# Logs
+*.log
+logs/
+
+# Database backups
+backups/
+
+# Docker files (already in context)
+docker-compose.yml
+docker-compose.*.yml
+
+# Test files
+**/*_test.go
+**/*.test.ts
+**/*.test.tsx
+coverage/
+
+# Temporary files
+tmp/
+temp/

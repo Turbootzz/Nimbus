@@ -94,14 +94,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If accessing public auth pages (login/register) with valid token, redirect to dashboard
+  // If accessing public auth pages (login/register) with token, clear invalid ones
   if (isPublicPath && authToken) {
-    // Validate token before redirecting
+    // Validate token signature - if invalid, clear it
     const isValid = await validateToken(authToken)
-    if (isValid) {
-      const dashboardUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(dashboardUrl)
-    } else {
+    if (!isValid) {
       // Clear invalid cookie
       const response = NextResponse.next()
       response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
@@ -109,23 +106,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If accessing root path, redirect based on auth status
+  // If accessing root path, always redirect to login
+  // Don't assume valid token signature = valid session (user might not exist in DB)
   if (pathname === '/') {
-    if (authToken) {
-      // Validate token before redirecting to dashboard
-      const isValid = await validateToken(authToken)
-      if (isValid) {
-        const dashboardUrl = new URL('/dashboard', request.url)
-        return NextResponse.redirect(dashboardUrl)
-      } else {
-        // Clear invalid cookie and redirect to login
-        const loginUrl = new URL('/login', request.url)
-        const redirectResponse = NextResponse.redirect(loginUrl)
-        redirectResponse.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
-        return redirectResponse
-      }
-    }
-    // No token - redirect to login
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }

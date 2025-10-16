@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+# Keep package-lock.json for npm ci
+# package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Build outputs
+.next/
+out/
+dist/
+build/
+
+# Development files
+.env
+.env*.local
+.env.development
+
+# Testing
+coverage/
+.nyc_output/
+*.test.ts
+*.test.tsx
+*.test.js
+*.test.jsx
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+
+# Debug
+.pnpm-debug.log*
+
+# Misc
+.turbo/
+.vercel/

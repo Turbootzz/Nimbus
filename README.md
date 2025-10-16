@@ -237,7 +237,7 @@ npm run lint    # Run linter
 - [ ] Service status history graphs
 - [ ] OAuth2 login support
 - [ ] Widget/plugin system
-- [ ] Mobile responsive design
+- [x] Mobile responsive design
 - [ ] PWA support
 
 ## License

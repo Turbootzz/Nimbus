@@ -82,11 +82,11 @@ func main() {
 	auth.Post("/logout", authHandler.Logout)
 
 	// Protected auth routes
-	authProtected := auth.Group("", middleware.AuthMiddleware(authService))
+	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
 	authProtected.Get("/me", authHandler.GetMe)
 
 	// Service routes (all protected)
-	services := v1.Group("/services", middleware.AuthMiddleware(authService))
+	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
 	services.Get("/:id", serviceHandler.GetService)
@@ -95,12 +95,12 @@ func main() {
 	services.Post("/:id/check", serviceHandler.CheckService)
 
 	// User preferences routes (protected)
-	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService))
+	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo))
 	preferences.Get("/", preferencesHandler.GetPreferences)
 	preferences.Put("/", preferencesHandler.UpdatePreferences)
 
 	// Admin routes (protected, admin only)
-	admin := v1.Group("/admin", middleware.AuthMiddleware(authService), middleware.AdminOnly())
+	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo), middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
 	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
