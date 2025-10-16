@@ -5,7 +5,7 @@ package main
 import (
 	"log"
 
-	"github.com/joho/godotenv"
+	"github.com/nimbus/backend/internal/config"
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/seeds"
@@ -14,9 +14,7 @@ import (
 
 func main() {
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found")
-	}
+	config.MustLoadEnv()
 
 	// Connect to database
 	database, err := db.Connect()

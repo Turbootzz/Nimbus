@@ -35,9 +35,11 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="max-w-4xl p-6">
-      <h1 className="mb-2 text-3xl font-bold">Settings</h1>
-      <p className="text-base-content/70 mb-8">Configure your dashboard preferences</p>
+    <div className="max-w-4xl p-4 sm:p-6">
+      <h1 className="mb-2 text-2xl font-bold sm:text-3xl">Settings</h1>
+      <p className="text-base-content/70 mb-8 text-sm sm:text-base">
+        Configure your dashboard preferences
+      </p>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {settingsSections.map((section) => (

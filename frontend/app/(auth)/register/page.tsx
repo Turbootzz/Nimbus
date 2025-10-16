@@ -68,7 +68,7 @@ export default function RegisterPage() {
         borderColor: 'var(--color-card-border)',
       }}
     >
-      <div className="mb-6">
+      <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
           Create account
         </h2>

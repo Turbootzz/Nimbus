@@ -11,7 +11,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
-	"github.com/joho/godotenv"
+	"github.com/nimbus/backend/internal/config"
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/handlers"
 	"github.com/nimbus/backend/internal/middleware"
@@ -22,10 +22,7 @@ import (
 
 func main() {
 	// Load environment variables
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found")
-	}
+	config.MustLoadEnv()
 
 	// Connect to database
 	database, err := db.Connect()

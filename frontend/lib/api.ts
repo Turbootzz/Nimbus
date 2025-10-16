@@ -14,7 +14,18 @@ import type {
   UserFilterParams,
 } from '@/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+// Get API URL without throwing at import time
+const getApiUrl = (): string | undefined => {
+  const url = process.env.NEXT_PUBLIC_API_URL
+
+  // In production, return undefined if not configured (error will be handled at request time)
+  if (process.env.NODE_ENV === 'production' && !url) {
+    return undefined
+  }
+
+  // In development, fallback to localhost
+  return url || 'http://localhost:8080/api/v1'
+}
 
 /**
  * ApiClient - Secure API client using httpOnly cookies
@@ -28,13 +39,26 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1
  */
 class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
+    // Validate API URL at request time (not import time)
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      const errorMsg =
+        'API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.'
+      console.error('[API Client]', errorMsg)
+      return {
+        error: {
+          message: errorMsg,
+        },
+      }
+    }
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...(options.headers as Record<string, string>),
     }
 
     try {
-      const response = await fetch(`${API_URL}${endpoint}`, {
+      const response = await fetch(`${apiUrl}${endpoint}`, {
         ...options,
         headers,
         credentials: 'include', // Always send httpOnly cookies with requests

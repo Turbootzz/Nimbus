@@ -16,7 +16,10 @@ type AuthService struct {
 func NewAuthService() *AuthService {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		secret = "default-secret-change-in-production"
+		panic("JWT_SECRET environment variable is required (must be set before creating AuthService)")
+	}
+	if len(secret) < 32 {
+		panic("JWT_SECRET must be at least 32 characters for security")
 	}
 	return &AuthService{
 		jwtSecret: []byte(secret),
