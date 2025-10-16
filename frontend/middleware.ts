@@ -21,10 +21,13 @@ const publicPaths = ['/login', '/register']
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
 
-// fail-fast
+// fail-fast validation
 const JWT_SECRET = process.env.JWT_SECRET
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET must be set in environment variables')
+}
+if (JWT_SECRET.length < 32) {
+  throw new Error('JWT_SECRET must be at least 32 characters for security')
 }
 
 // Cache the encoded secret to avoid encoding on every validation

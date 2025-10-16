@@ -207,12 +207,14 @@ export default function AdminUsersPage() {
     }, 500) // 500ms delay
 
     return () => clearTimeout(timer)
-  }, [searchTerm, getCurrentFilterParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]) // getCurrentFilterParams not needed - already depends on searchTerm
 
   // Immediate load for page/role changes (no debounce needed)
   useEffect(() => {
     loadUsers(getCurrentFilterParams())
-  }, [currentPage, roleFilter, getCurrentFilterParams])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, roleFilter]) // getCurrentFilterParams not needed - already depends on these
 
   const handleRoleChange = useCallback(
     async (userId: string, currentRole: string) => {

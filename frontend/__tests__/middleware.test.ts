@@ -29,30 +29,125 @@ async function createToken(payload: Record<string, unknown>, expiresIn = '1h'): 
     .sign(encoder.encode(TEST_SECRET))
 }
 
-describe('Middleware Route Protection', () => {
+describe('Middleware Route Protection Logic', () => {
+  // These arrays mirror the middleware's actual configuration
   const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
   const publicPaths = ['/login', '/register']
 
-  it('should identify protected paths correctly', () => {
-    protectedPaths.forEach((path) => {
+  describe('Protected Path Detection', () => {
+    it('should detect /dashboard as protected', () => {
+      const path = '/dashboard'
       const isProtected = protectedPaths.some((p) => path.startsWith(p))
       expect(isProtected).toBe(true)
     })
+
+    it('should detect /services as protected', () => {
+      const path = '/services'
+      const isProtected = protectedPaths.some((p) => path.startsWith(p))
+      expect(isProtected).toBe(true)
+    })
+
+    it('should detect /settings as protected', () => {
+      const path = '/settings'
+      const isProtected = protectedPaths.some((p) => path.startsWith(p))
+      expect(isProtected).toBe(true)
+    })
+
+    it('should detect /admin as protected', () => {
+      const path = '/admin'
+      const isProtected = protectedPaths.some((p) => path.startsWith(p))
+      expect(isProtected).toBe(true)
+    })
+
+    it('should detect nested protected routes', () => {
+      const nestedPaths = [
+        '/dashboard/overview',
+        '/services/123/edit',
+        '/settings/profile',
+        '/admin/users',
+      ]
+
+      nestedPaths.forEach((path) => {
+        const isProtected = protectedPaths.some((p) => path.startsWith(p))
+        expect(isProtected).toBe(true)
+      })
+    })
+
+    it('should NOT detect public paths as protected', () => {
+      publicPaths.forEach((path) => {
+        const isProtected = protectedPaths.some((p) => path.startsWith(p))
+        expect(isProtected).toBe(false)
+      })
+    })
+
+    it('should NOT detect root path as protected', () => {
+      const path = '/'
+      const isProtected = protectedPaths.some((p) => path.startsWith(p))
+      expect(isProtected).toBe(false)
+    })
   })
 
-  it('should identify public paths correctly', () => {
-    publicPaths.forEach((path) => {
+  describe('Public Path Detection', () => {
+    it('should detect /login as public', () => {
+      const path = '/login'
       const isPublic = publicPaths.some((p) => path.startsWith(p))
       expect(isPublic).toBe(true)
     })
+
+    it('should detect /register as public', () => {
+      const path = '/register'
+      const isPublic = publicPaths.some((p) => path.startsWith(p))
+      expect(isPublic).toBe(true)
+    })
+
+    it('should NOT detect protected paths as public', () => {
+      protectedPaths.forEach((path) => {
+        const isPublic = publicPaths.some((p) => path.startsWith(p))
+        expect(isPublic).toBe(false)
+      })
+    })
+
+    it('should NOT detect root path as public', () => {
+      const path = '/'
+      const isPublic = publicPaths.some((p) => path.startsWith(p))
+      expect(isPublic).toBe(false)
+    })
   })
 
-  it('should protect nested dashboard routes', () => {
-    const nestedPaths = ['/dashboard/nested', '/services/123', '/settings/profile', '/admin/users']
-
-    nestedPaths.forEach((path) => {
+  describe('Edge Cases', () => {
+    it('should handle paths with query parameters', () => {
+      const path = '/dashboard?tab=overview'
       const isProtected = protectedPaths.some((p) => path.startsWith(p))
       expect(isProtected).toBe(true)
+    })
+
+    it('should handle paths with hash fragments', () => {
+      const path = '/login#forgot-password'
+      const isPublic = publicPaths.some((p) => path.startsWith(p))
+      expect(isPublic).toBe(true)
+    })
+
+    it('should match paths with similar prefixes due to startsWith behavior', () => {
+      // Note: This documents actual middleware behavior
+      // /admin matches /administrator because '/administrator'.startsWith('/admin') is true
+      // This is acceptable because /administrator is not a real route in the app
+      const adminPath = '/admin/users'
+      const administratorPath = '/administrator'
+
+      const isAdminProtected = protectedPaths.some((p) => adminPath.startsWith(p))
+      const isAdministratorProtected = protectedPaths.some((p) => administratorPath.startsWith(p))
+
+      expect(isAdminProtected).toBe(true)
+      expect(isAdministratorProtected).toBe(true) // Also matches due to prefix
+    })
+
+    it('should correctly identify unrelated paths as not protected', () => {
+      const unrelatedPaths = ['/about', '/contact', '/api', '/docs']
+
+      unrelatedPaths.forEach((path) => {
+        const isProtected = protectedPaths.some((p) => path.startsWith(p))
+        expect(isProtected).toBe(false)
+      })
     })
   })
 })

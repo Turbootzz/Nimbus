@@ -34,7 +34,7 @@ make setup
 
 # 2. Create 'nimbus' database in PostgreSQL
 
-# 3. Update backend/.env with your PostgreSQL password
+# 3. Update .env (in root directory) with your PostgreSQL credentials
 
 # 4. Test database connection
 make testdb
@@ -155,12 +155,14 @@ nimbus/
 
 ## Environment Variables
 
-See `.env.example` for all available configuration options. Key variables include:
+**Important**: Environment variables are configured in the **root `.env` file**
 
-- `DB_*` - Database connection settings
-- `JWT_SECRET` - Secret key for JWT tokens (change in production!)
-- `CORS_ORIGINS` - Allowed CORS origins
-- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend
+See `.env.example` in the root directory for all available configuration options. Key variables include:
+
+- `DB_*` - Database connection settings (host, port, name, user, password)
+- `JWT_SECRET` - Secret key for JWT tokens (minimum 32 characters, change in production!)
+- `CORS_ORIGINS` - Allowed CORS origins for API requests
+- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend (must include `/api/v1`)
 
 ## Development Commands
 
@@ -172,7 +174,7 @@ Run `make` or `make help` to see all available commands.
 
 ```bash
 # Setup (first time)
-make setup          # Copy .env files, install dependencies
+make setup          # Copy .env.example to .env, install dependencies
 
 # Development
 make dev-backend    # Start backend (or: cd backend && make dev)
