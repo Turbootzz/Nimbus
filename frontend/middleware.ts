@@ -21,23 +21,27 @@ const publicPaths = ['/login', '/register']
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
 
+// Validate JWT_SECRET at module load time for fail-fast behavior
+const JWT_SECRET = process.env.JWT_SECRET
+if (!JWT_SECRET) {
+  console.error('[Middleware] CRITICAL: JWT_SECRET not set in environment')
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production environment')
+  }
+}
+
 /**
  * Validates JWT token locally without calling backend API
  * Much faster and reduces backend load
  */
 async function validateToken(token: string): Promise<boolean> {
-  const jwtSecret = process.env.JWT_SECRET
-
-  if (!jwtSecret) {
-    console.error(
-      '[Middleware] JWT_SECRET not configured. Set JWT_SECRET (not NEXT_PUBLIC_JWT_SECRET) in environment variables.'
-    )
+  if (!JWT_SECRET) {
     return false
   }
 
   try {
     // Verify JWT signature and expiration
-    const secret = new TextEncoder().encode(jwtSecret)
+    const secret = new TextEncoder().encode(JWT_SECRET)
     await jwtVerify(token, secret)
     return true
   } catch {
@@ -86,6 +90,11 @@ export async function middleware(request: NextRequest) {
     if (isValid) {
       const dashboardUrl = new URL('/dashboard', request.url)
       return NextResponse.redirect(dashboardUrl)
+    } else {
+      // Clear invalid cookie
+      const response = NextResponse.next()
+      response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
+      return response
     }
   }
 
@@ -97,9 +106,15 @@ export async function middleware(request: NextRequest) {
       if (isValid) {
         const dashboardUrl = new URL('/dashboard', request.url)
         return NextResponse.redirect(dashboardUrl)
+      } else {
+        // Clear invalid cookie and redirect to login
+        const loginUrl = new URL('/login', request.url)
+        const redirectResponse = NextResponse.redirect(loginUrl)
+        redirectResponse.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
+        return redirectResponse
       }
     }
-    // No token or invalid token - redirect to login
+    // No token - redirect to login
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }

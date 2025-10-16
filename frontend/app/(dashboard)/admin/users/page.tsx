@@ -146,9 +146,8 @@ export default function AdminUsersPage() {
   const requestIdRef = useRef(0)
 
   const loadUsers = async (params?: UserFilterParams) => {
-    // Increment request ID and capture it for this request
-    requestIdRef.current += 1
-    const currentRequestId = requestIdRef.current
+    // Increment request ID atomically to prevent race conditions
+    const currentRequestId = ++requestIdRef.current
 
     setLoading(true)
     setError(null)
