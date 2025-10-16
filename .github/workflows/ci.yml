@@ -65,6 +65,7 @@ jobs:
           DB_PASSWORD: test_password
           JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
           PORT: 8080
+          CORS_ORIGINS: http://localhost:3000
         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
       - name: Build
@@ -109,12 +110,11 @@ jobs:
         working-directory: ./frontend
         run: npx tsc --noEmit
 
-      # TODO: Re-enable when Jest React 19 compatibility is resolved
-      # - name: Run tests
-      #   working-directory: ./frontend
-      #   env:
-      #     JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
-      #   run: npm test -- --coverage
+      - name: Run tests
+        working-directory: ./frontend
+        env:
+          JWT_SECRET: test-jwt-secret-key-for-ci-minimum-32-characters-required
+        run: npm test
 
       - name: Build
         working-directory: ./frontend
@@ -132,13 +132,12 @@ jobs:
           fi
           echo "Build successful"
 
-      # TODO: Re-enable when tests are running
-      # - name: Upload coverage
-      #   uses: codecov/codecov-action@v5
-      #   with:
-      #     files: ./frontend/coverage/lcov.info
-      #     flags: frontend
-      #     fail_ci_if_error: false
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./frontend/coverage/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
 
   ci-success:
     name: CI Success

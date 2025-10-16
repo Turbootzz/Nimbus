@@ -16,26 +16,28 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "all required vars present and valid",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: false,
 		},
 		{
 			name: "JWT_SECRET too short",
 			envVars: map[string]string{
-				"JWT_SECRET":  "short",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "short",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "JWT_SECRET must be at least 32 characters",
@@ -43,12 +45,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "JWT_SECRET missing",
 			envVars: map[string]string{
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "JWT_SECRET is required",
@@ -56,12 +59,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_HOST missing",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_HOST is required",
@@ -69,12 +73,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_PORT missing",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT is required",
@@ -82,13 +87,14 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_PORT invalid",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "invalid",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "invalid",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT must be a valid port number",
@@ -96,13 +102,14 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_PORT out of range (too high)",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "99999",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "99999",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT must be a valid port number",
@@ -110,13 +117,14 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_PORT out of range (too low)",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "0",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "0",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_PORT must be a valid port number",
@@ -124,12 +132,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_NAME missing",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_NAME is required",
@@ -137,12 +146,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_USER missing",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_USER is required",
@@ -150,12 +160,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "DB_PASSWORD missing",
 			envVars: map[string]string{
-				"JWT_SECRET": "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":    "localhost",
-				"DB_PORT":    "5432",
-				"DB_NAME":    "nimbus",
-				"DB_USER":    "postgres",
-				"PORT":       "8080",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "DB_PASSWORD is required",
@@ -163,12 +174,13 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "PORT missing",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "PORT is required",
@@ -176,13 +188,14 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "PORT invalid",
 			envVars: map[string]string{
-				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "not-a-number",
+				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "not-a-number",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "PORT must be a valid port number",
@@ -190,13 +203,14 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "whitespace-only values trimmed and caught",
 			envVars: map[string]string{
-				"JWT_SECRET":  "   ",
-				"DB_HOST":     "localhost",
-				"DB_PORT":     "5432",
-				"DB_NAME":     "nimbus",
-				"DB_USER":     "postgres",
-				"DB_PASSWORD": "password",
-				"PORT":        "8080",
+				"JWT_SECRET":   "   ",
+				"DB_HOST":      "localhost",
+				"DB_PORT":      "5432",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
 			},
 			wantErr: true,
 			errMsg:  "JWT_SECRET is required",
@@ -206,14 +220,29 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 			envVars: map[string]string{
 				"JWT_SECRET": "short",
 				// DB_HOST missing
-				"DB_PORT":     "invalid",
+				"DB_PORT":      "invalid",
+				"DB_NAME":      "nimbus",
+				"DB_USER":      "postgres",
+				"DB_PASSWORD":  "password",
+				"PORT":         "8080",
+				"CORS_ORIGINS": "http://localhost:3000",
+			},
+			wantErr: true,
+			// Should contain multiple error messages
+		},
+		{
+			name: "CORS_ORIGINS missing",
+			envVars: map[string]string{
+				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
+				"DB_HOST":     "localhost",
+				"DB_PORT":     "5432",
 				"DB_NAME":     "nimbus",
 				"DB_USER":     "postgres",
 				"DB_PASSWORD": "password",
 				"PORT":        "8080",
 			},
 			wantErr: true,
-			// Should contain multiple error messages
+			errMsg:  "CORS_ORIGINS is required",
 		},
 	}
 
@@ -262,6 +291,7 @@ func TestValidateRequiredEnvVars_EdgeCases(t *testing.T) {
 		os.Setenv("DB_USER", "postgres")
 		os.Setenv("DB_PASSWORD", "password")
 		os.Setenv("PORT", "8080")
+		os.Setenv("CORS_ORIGINS", "http://localhost:3000")
 
 		err := validateRequiredEnvVars()
 		if err != nil {
@@ -291,6 +321,7 @@ func TestValidateRequiredEnvVars_EdgeCases(t *testing.T) {
 			os.Setenv("DB_USER", "postgres")
 			os.Setenv("DB_PASSWORD", "password")
 			os.Setenv("PORT", tc.port)
+			os.Setenv("CORS_ORIGINS", "http://localhost:3000")
 
 			err := validateRequiredEnvVars()
 			if (err != nil) != tc.wantErr {
@@ -311,6 +342,7 @@ func clearEnv() {
 		"DB_USER",
 		"DB_PASSWORD",
 		"PORT",
+		"CORS_ORIGINS",
 	}
 	for _, v := range vars {
 		os.Unsetenv(v)

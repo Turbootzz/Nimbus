@@ -10,10 +10,10 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
     "format-check": "prettier --check .",
-    "test": "echo 'Tests require Jest dependencies (React 19 compatibility pending)' && exit 0",
-    "test:watch": "echo 'Tests require Jest dependencies' && exit 1",
-    "test:coverage": "echo 'Tests require Jest dependencies' && exit 1",
-    "ci-check": "npm run format-check && npm run lint && npm run type-check && npm run build"
+    "test": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "ci-check": "npm run format-check && npm run lint && npm run type-check && npm test && npm run build"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
@@ -25,14 +25,21 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5.0.4",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "happy-dom": "^20.0.2",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.4"
   }
 }

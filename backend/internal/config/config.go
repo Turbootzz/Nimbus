@@ -77,8 +77,8 @@ func validateRequiredEnvVars() error {
 		errors = append(errors, "DB_USER is required")
 	}
 
-	// Validate database password
-	dbPassword := strings.TrimSpace(os.Getenv("DB_PASSWORD"))
+	// Validate database password (don't trim - spaces may be intentional)
+	dbPassword := os.Getenv("DB_PASSWORD")
 	if dbPassword == "" {
 		errors = append(errors, "DB_PASSWORD is required")
 	}
@@ -91,6 +91,12 @@ func validateRequiredEnvVars() error {
 		if p, err := strconv.Atoi(port); err != nil || p < 1 || p > 65535 {
 			errors = append(errors, "PORT must be a valid port number (1-65535)")
 		}
+	}
+
+	// Validate CORS origins (critical for security)
+	corsOrigins := strings.TrimSpace(os.Getenv("CORS_ORIGINS"))
+	if corsOrigins == "" {
+		errors = append(errors, "CORS_ORIGINS is required (security risk if misconfigured)")
 	}
 
 	// Return all validation errors
