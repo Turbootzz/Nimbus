@@ -215,105 +215,127 @@ export default function AdminUsersPage() {
     loadUsers(getCurrentFilterParams())
   }, [currentPage, roleFilter, getCurrentFilterParams])
 
-  const handleRoleChange = async (userId: string, currentRole: string) => {
-    const newRole = currentRole === 'admin' ? 'user' : 'admin'
-    const confirmMessage = `Are you sure you want to change this user's role to ${newRole}?`
+  const handleRoleChange = useCallback(
+    async (userId: string, currentRole: string) => {
+      const newRole = currentRole === 'admin' ? 'user' : 'admin'
+      const confirmMessage = `Are you sure you want to change this user's role to ${newRole}?`
 
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    setActionLoading(userId)
-    try {
-      const response = await api.updateUserRole(userId, newRole)
-
-      if (response.error) {
-        alert(`Error: ${response.error.message}`)
-      } else {
-        loadUsers(getCurrentFilterParams())
+      if (!confirm(confirmMessage)) {
+        return
       }
-    } catch (err) {
-      alert('Failed to update user role')
-      console.error(err)
-    } finally {
-      setActionLoading(null)
-    }
-  }
 
-  const handleDeleteUser = async (userId: string, userName: string) => {
-    const confirmMessage = `Are you sure you want to delete user "${userName}"? This action cannot be undone.`
+      setActionLoading(userId)
+      try {
+        const response = await api.updateUserRole(userId, newRole)
 
-    if (!confirm(confirmMessage)) {
-      return
-    }
-
-    setActionLoading(userId)
-    try {
-      const response = await api.deleteUser(userId)
-
-      if (response.error) {
-        alert(`Error: ${response.error.message}`)
-      } else {
-        loadUsers(getCurrentFilterParams())
+        if (response.error) {
+          alert(`Error: ${response.error.message}`)
+        } else {
+          loadUsers(getCurrentFilterParams())
+        }
+      } catch (err) {
+        alert('Failed to update user role')
+        console.error(err)
+      } finally {
+        setActionLoading(null)
       }
-    } catch (err) {
-      alert('Failed to delete user')
-      console.error(err)
-    } finally {
-      setActionLoading(null)
-    }
-  }
+    },
+    [getCurrentFilterParams]
+  )
 
-  const handleSearchChange = (value: string) => {
+  const handleDeleteUser = useCallback(
+    async (userId: string, userName: string) => {
+      const confirmMessage = `Are you sure you want to delete user "${userName}"? This action cannot be undone.`
+
+      if (!confirm(confirmMessage)) {
+        return
+      }
+
+      setActionLoading(userId)
+      try {
+        const response = await api.deleteUser(userId)
+
+        if (response.error) {
+          alert(`Error: ${response.error.message}`)
+        } else {
+          loadUsers(getCurrentFilterParams())
+        }
+      } catch (err) {
+        alert('Failed to delete user')
+        console.error(err)
+      } finally {
+        setActionLoading(null)
+      }
+    },
+    [getCurrentFilterParams]
+  )
+
+  const handleSearchChange = useCallback((value: string) => {
     setSearchTerm(value)
     setCurrentPage(1) // Reset to first page on search
-  }
+  }, [])
 
-  const handleRoleFilterChange = (value: '' | 'admin' | 'user') => {
+  const handleRoleFilterChange = useCallback((value: '' | 'admin' | 'user') => {
     setRoleFilter(value)
     setCurrentPage(1) // Reset to first page on filter change
-  }
+  }, [])
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    })
-  }
+  const formatDate = useCallback((dateString: string) => {
+    try {
+      if (!dateString) return 'N/A'
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) return 'Invalid date'
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    } catch {
+      return 'Invalid date'
+    }
+  }, [])
 
-  const formatDateTime = (dateString: string | undefined) => {
-    if (!dateString) return 'Never'
+  const formatDateTime = useCallback(
+    (dateString: string | undefined) => {
+      if (!dateString) return 'Never'
 
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+      try {
+        const date = new Date(dateString)
+        if (isNaN(date.getTime())) return 'Invalid date'
 
-    // Less than 10 seconds
-    if (diffInSeconds < 10) return 'Just now'
+        const now = new Date()
+        const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
 
-    // 10-59 seconds
-    if (diffInSeconds < 60) return `${diffInSeconds}s ago`
+        // Less than 10 seconds
+        if (diffInSeconds < 10) return 'Just now'
 
-    // 1-59 minutes
-    const minutes = Math.floor(diffInSeconds / 60)
-    if (minutes < 60) return `${minutes}m ago`
+        // 10-59 seconds
+        if (diffInSeconds < 60) return `${diffInSeconds}s ago`
 
-    // 1-23 hours
-    const hours = Math.floor(diffInSeconds / 3600)
-    if (hours < 24) return `${hours}h ago`
+        // 1-59 minutes
+        const minutes = Math.floor(diffInSeconds / 60)
+        if (minutes < 60) return `${minutes}m ago`
 
-    // 1-6 days
-    const days = Math.floor(diffInSeconds / 86400)
-    if (days < 7) return `${days}d ago`
+        // 1-23 hours
+        const hours = Math.floor(diffInSeconds / 3600)
+        if (hours < 24) return `${hours}h ago`
 
-    // 1-4 weeks
-    const weeks = Math.floor(days / 7)
-    if (weeks < 4) return `${weeks}w ago`
+        // 1-6 days
+        const days = Math.floor(diffInSeconds / 86400)
+        if (days < 7) return `${days}d ago`
 
-    // Older than 4 weeks - show date
-    return formatDate(dateString)
-  }
+        // 1-4 weeks
+        const weeks = Math.floor(days / 7)
+        if (weeks < 4) return `${weeks}w ago`
+
+        // Older than 4 weeks - show date
+        return formatDate(dateString)
+      } catch {
+        return 'Invalid date'
+      }
+    },
+    [formatDate]
+  )
 
   return (
     <div className="p-4 sm:p-6">

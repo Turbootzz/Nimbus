@@ -31,7 +31,7 @@ help:
 	@echo "Typical workflow:"
 	@echo "  1. make setup              # First time only"
 	@echo "  2. Create 'nimbus' database in pgAdmin"
-	@echo "  3. Update backend/.env with your PostgreSQL credentials"
+	@echo "  3. Update .env (root) with your PostgreSQL credentials"
 	@echo "  4. make testdb             # Verify database connection"
 	@echo "  5. make dev-backend        # Terminal 1"
 	@echo "  6. make dev-frontend       # Terminal 2"
@@ -45,11 +45,6 @@ setup:
 		cp .env.example .env && echo "✓ Created .env"; \
 	else \
 		echo "ℹ .env already exists"; \
-	fi
-	@if [ ! -f backend/.env ]; then \
-		cp backend/.env.example backend/.env && echo "✓ Created backend/.env"; \
-	else \
-		echo "ℹ backend/.env already exists"; \
 	fi
 	@if [ ! -f frontend/.env.local ]; then \
 		cp frontend/.env.local.example frontend/.env.local && echo "✓ Created frontend/.env.local"; \
@@ -71,8 +66,9 @@ setup:
 	@echo ""
 	@echo "⚠️  Next steps:"
 	@echo "1. Create 'nimbus' database in pgAdmin"
-	@echo "2. Update backend/.env with your PostgreSQL password"
-	@echo "3. Run: make testdb"
+	@echo "2. Update .env (root) with your PostgreSQL credentials"
+	@echo "3. Update frontend/.env.local to match JWT_SECRET from .env"
+	@echo "4. Run: make testdb"
 	@echo ""
 
 # Install dependencies only

@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
 /**
  * Next.js Middleware for Server-Side Authentication
  *
  * This middleware runs on the Edge before any page renders, providing:
- * - Server-side auth validation by calling backend API
+ * - Fast JWT validation without backend calls (improves performance)
  * - Protection against SSR/hydration mismatches
  * - Proper redirects before page load
  * - Automatic cleanup of invalid/expired tokens
  *
- * For protected routes, validates the token with the backend API.
- * Invalid tokens are cleared and the user is redirected to login.
+ * Performance: Validates JWT tokens locally by checking signature and expiration
+ * instead of making backend API calls on every request.
  */
 
 // Define public routes that don't require authentication
@@ -19,6 +20,30 @@ const publicPaths = ['/login', '/register']
 
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
+
+// JWT secret must match backend secret
+const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXT_PUBLIC_JWT_SECRET
+
+/**
+ * Validates JWT token locally without calling backend API
+ * This is much faster and reduces backend load
+ */
+async function validateToken(token: string): Promise<boolean> {
+  if (!JWT_SECRET) {
+    console.error('[Middleware] JWT_SECRET not configured')
+    return false
+  }
+
+  try {
+    // Verify JWT signature and expiration
+    const secret = new TextEncoder().encode(JWT_SECRET)
+    await jwtVerify(token, secret)
+    return true
+  } catch (error) {
+    // Token is invalid, expired, or malformed
+    return false
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -38,50 +63,44 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(loginUrl)
     }
 
-    // Validate token with backend
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
-      const response = await fetch(`${apiUrl}/auth/me`, {
-        headers: {
-          Cookie: `auth_token=${authToken}`,
-        },
-      })
-
-      // If token is invalid (401, 403, etc), clear cookie and redirect to login
-      if (!response.ok) {
-        const loginUrl = new URL('/login', request.url)
-        const redirectResponse = NextResponse.redirect(loginUrl)
-        // Clear the invalid cookie
-        redirectResponse.cookies.set('auth_token', '', {
-          maxAge: 0,
-          path: '/',
-        })
-        return redirectResponse
-      }
-    } catch (error) {
-      // Network error or backend down - redirect to login
-      console.error('[Middleware] Failed to validate token:', error)
+    // Validate token locally (fast, no backend call)
+    const isValid = await validateToken(authToken)
+    if (!isValid) {
+      // Token is invalid or expired - clear cookie and redirect to login
       const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      const redirectResponse = NextResponse.redirect(loginUrl)
+      // Clear the invalid cookie
+      redirectResponse.cookies.set('auth_token', '', {
+        maxAge: 0,
+        path: '/',
+      })
+      return redirectResponse
     }
   }
 
   // If accessing public auth pages (login/register) with valid token, redirect to dashboard
   if (isPublicPath && authToken) {
-    // Note: We only check cookie presence here. Backend validates the JWT.
-    const dashboardUrl = new URL('/dashboard', request.url)
-    return NextResponse.redirect(dashboardUrl)
+    // Validate token before redirecting
+    const isValid = await validateToken(authToken)
+    if (isValid) {
+      const dashboardUrl = new URL('/dashboard', request.url)
+      return NextResponse.redirect(dashboardUrl)
+    }
   }
 
   // If accessing root path, redirect based on auth status
   if (pathname === '/') {
     if (authToken) {
-      const dashboardUrl = new URL('/dashboard', request.url)
-      return NextResponse.redirect(dashboardUrl)
-    } else {
-      const loginUrl = new URL('/login', request.url)
-      return NextResponse.redirect(loginUrl)
+      // Validate token before redirecting to dashboard
+      const isValid = await validateToken(authToken)
+      if (isValid) {
+        const dashboardUrl = new URL('/dashboard', request.url)
+        return NextResponse.redirect(dashboardUrl)
+      }
     }
+    // No token or invalid token - redirect to login
+    const loginUrl = new URL('/login', request.url)
+    return NextResponse.redirect(loginUrl)
   }
 
   // Allow the request to continue

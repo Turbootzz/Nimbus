@@ -14,7 +14,21 @@ import type {
   UserFilterParams,
 } from '@/types'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+// Validate API_URL is configured properly
+const getApiUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL
+
+  // In production, API_URL must be explicitly set
+  if (process.env.NODE_ENV === 'production' && !url) {
+    console.error('[API Client] NEXT_PUBLIC_API_URL not configured in production')
+    throw new Error('API URL not configured. Please set NEXT_PUBLIC_API_URL environment variable.')
+  }
+
+  // In development, fallback to localhost
+  return url || 'http://localhost:8080/api/v1'
+}
+
+const API_URL = getApiUrl()
 
 /**
  * ApiClient - Secure API client using httpOnly cookies

@@ -5,16 +5,14 @@ import (
 	"log"
 	"os"
 
-	"github.com/joho/godotenv"
+	"github.com/nimbus/backend/internal/config"
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/repository"
 )
 
 func main() {
 	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
-	}
+	config.LoadEnv()
 
 	// Check if email argument provided
 	if len(os.Args) < 2 {
