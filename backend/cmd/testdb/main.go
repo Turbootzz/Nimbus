@@ -10,7 +10,7 @@ import (
 
 func main() {
 	// Load environment variables
-	config.LoadEnv()
+	config.MustLoadEnv()
 
 	fmt.Println("🔍 Testing database connection...")
 	fmt.Println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")

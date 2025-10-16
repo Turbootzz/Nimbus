@@ -22,7 +22,7 @@ import (
 
 func main() {
 	// Load environment variables
-	config.LoadEnv()
+	config.MustLoadEnv()
 
 	// Connect to database
 	database, err := db.Connect()

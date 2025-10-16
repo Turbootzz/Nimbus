@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Load environment variables
-	config.LoadEnv()
+	config.MustLoadEnv()
 
 	// Check if email argument provided
 	if len(os.Args) < 2 {

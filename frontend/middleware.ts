@@ -21,22 +21,23 @@ const publicPaths = ['/login', '/register']
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
 
-// JWT secret must match backend secret
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXT_PUBLIC_JWT_SECRET
-
 /**
  * Validates JWT token locally without calling backend API
- * This is much faster and reduces backend load
+ * Much faster and reduces backend load
  */
 async function validateToken(token: string): Promise<boolean> {
-  if (!JWT_SECRET) {
-    console.error('[Middleware] JWT_SECRET not configured')
+  const jwtSecret = process.env.JWT_SECRET
+
+  if (!jwtSecret) {
+    console.error(
+      '[Middleware] JWT_SECRET not configured. Set JWT_SECRET (not NEXT_PUBLIC_JWT_SECRET) in environment variables.'
+    )
     return false
   }
 
   try {
     // Verify JWT signature and expiration
-    const secret = new TextEncoder().encode(JWT_SECRET)
+    const secret = new TextEncoder().encode(jwtSecret)
     await jwtVerify(token, secret)
     return true
   } catch {
