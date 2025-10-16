@@ -39,7 +39,7 @@ async function validateToken(token: string): Promise<boolean> {
     const secret = new TextEncoder().encode(JWT_SECRET)
     await jwtVerify(token, secret)
     return true
-  } catch (error) {
+  } catch {
     // Token is invalid, expired, or malformed
     return false
   }

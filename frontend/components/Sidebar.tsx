@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   HomeIcon,
@@ -145,7 +146,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         <div className="border-sidebar-border bg-sidebar flex flex-grow flex-col overflow-y-auto border-r">
           {/* Logo */}
           <div className="border-sidebar-border flex h-16 flex-shrink-0 items-center border-b px-6">
-            <span className="text-2xl">☁️</span>
+            <Image src="/images/logo.png" alt="Nimbus Logo" width={30} height={30} />
             <span className="text-text-primary ml-2 text-xl font-semibold">Nimbus</span>
           </div>
 
@@ -165,7 +166,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Logo and close button */}
           <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-6">
             <div className="flex items-center">
-              <span className="text-2xl">☁️</span>
+              <Image src="/images/logo.png" alt="Nimbus Logo" width={32} height={32} />
               <span className="text-text-primary ml-2 text-xl font-semibold">Nimbus</span>
             </div>
             <button
