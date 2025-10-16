@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -35,22 +37,65 @@ func MustLoadEnv() {
 	}
 }
 
-// validateRequiredEnvVars ensures critical environment variables are set
+// validateRequiredEnvVars ensures critical environment variables are set and properly formatted
 func validateRequiredEnvVars() error {
-	jwtSecret := os.Getenv("JWT_SECRET")
+	var errors []string
+
+	// Validate JWT_SECRET
+	jwtSecret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
 	if jwtSecret == "" {
-		return fmt.Errorf("JWT_SECRET is required")
-	}
-	if len(jwtSecret) < 32 {
-		return fmt.Errorf("JWT_SECRET must be at least 32 characters for security")
-	}
-
-	if os.Getenv("DB_NAME") == "" {
-		return fmt.Errorf("DB_NAME is required")
+		errors = append(errors, "JWT_SECRET is required")
+	} else if len(jwtSecret) < 32 {
+		errors = append(errors, "JWT_SECRET must be at least 32 characters for security")
 	}
 
-	if os.Getenv("PORT") == "" {
-		return fmt.Errorf("PORT is required")
+	// Validate database host
+	dbHost := strings.TrimSpace(os.Getenv("DB_HOST"))
+	if dbHost == "" {
+		errors = append(errors, "DB_HOST is required")
+	}
+
+	// Validate database port
+	dbPort := strings.TrimSpace(os.Getenv("DB_PORT"))
+	if dbPort == "" {
+		errors = append(errors, "DB_PORT is required")
+	} else {
+		if port, err := strconv.Atoi(dbPort); err != nil || port < 1 || port > 65535 {
+			errors = append(errors, "DB_PORT must be a valid port number (1-65535)")
+		}
+	}
+
+	// Validate database name
+	dbName := strings.TrimSpace(os.Getenv("DB_NAME"))
+	if dbName == "" {
+		errors = append(errors, "DB_NAME is required")
+	}
+
+	// Validate database user
+	dbUser := strings.TrimSpace(os.Getenv("DB_USER"))
+	if dbUser == "" {
+		errors = append(errors, "DB_USER is required")
+	}
+
+	// Validate database password
+	dbPassword := strings.TrimSpace(os.Getenv("DB_PASSWORD"))
+	if dbPassword == "" {
+		errors = append(errors, "DB_PASSWORD is required")
+	}
+
+	// Validate server port
+	port := strings.TrimSpace(os.Getenv("PORT"))
+	if port == "" {
+		errors = append(errors, "PORT is required")
+	} else {
+		if p, err := strconv.Atoi(port); err != nil || p < 1 || p > 65535 {
+			errors = append(errors, "PORT must be a valid port number (1-65535)")
+		}
+	}
+
+	// Return all validation errors
+	if len(errors) > 0 {
+		return fmt.Errorf("environment validation failed:\n  - %s", strings.Join(errors, "\n  - "))
 	}
 
 	return nil
