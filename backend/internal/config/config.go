@@ -11,6 +11,7 @@ import (
 )
 
 // LoadEnv loads environment variables from .env file with proper error handling
+// If no .env file is found, it will continue (for Docker/production deployments)
 func LoadEnv() error {
 	// Try to load .env from current directory, then parent directory
 	err := godotenv.Load(".env")
@@ -18,7 +19,8 @@ func LoadEnv() error {
 		// Fallback to parent directory (for when running from backend/)
 		err = godotenv.Load("../.env")
 		if err != nil {
-			return fmt.Errorf("failed to load .env file: %w (ensure file exists and has valid syntax)", err)
+			// .env file is optional - environment variables may be set directly (Docker/production)
+			log.Println("No .env file found, using environment variables directly")
 		}
 	}
 

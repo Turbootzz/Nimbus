@@ -215,8 +215,10 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	// Get user from database
 	user, err := h.userRepo.GetByID(userID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "User not found",
+		// User in token doesn't exist in DB - token is invalid/stale
+		// Return 401 to trigger frontend logout
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User not found - invalid session",
 		})
 	}
 

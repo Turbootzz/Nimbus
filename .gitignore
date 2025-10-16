@@ -65,5 +65,8 @@ CLAUDE.md
 *_backup.sql
 backup_*.sql
 
-# Planning
-SECURITY.md
+# Documentation for myself
+Documentation/
+
+# Backups
+backups/

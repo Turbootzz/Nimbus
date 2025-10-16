@@ -1,8 +1,8 @@
-version: '3.8'
-
+# Multi-platform support: works on ARM64 (Apple Silicon) and AMD64 (Intel)
+# Docker will automatically use the correct architecture for your system
 services:
   db:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: nimbus-db
     restart: unless-stopped
     environment:
@@ -10,52 +10,79 @@ services:
       POSTGRES_USER: ${DB_USER:-nimbus}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus_secret}
     ports:
-      - "5432:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nimbus}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nimbus} -d ${DB_NAME:-nimbus}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     networks:
       - nimbus-network
 
   backend:
     build:
       context: ./backend
-      dockerfile: ../docker/backend.Dockerfile
+      dockerfile: Dockerfile
     container_name: nimbus-backend
     restart: unless-stopped
     environment:
-      PORT: 8080
+      PORT: ${PORT:-8080}
       DB_HOST: db
       DB_PORT: 5432
       DB_NAME: ${DB_NAME:-nimbus}
       DB_USER: ${DB_USER:-nimbus}
       DB_PASSWORD: ${DB_PASSWORD:-nimbus_secret}
-      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key}
+      # WARNING: Change JWT_SECRET in production! This default is for development only.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-this-in-production-min-32-chars}
+      JWT_EXPIRY: ${JWT_EXPIRY:-24h}
+      BCRYPT_COST: ${BCRYPT_COST:-10}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      HEALTH_CHECK_INTERVAL: ${HEALTH_CHECK_INTERVAL:-60}
+      HEALTH_CHECK_TIMEOUT: ${HEALTH_CHECK_TIMEOUT:-10}
     ports:
-      - "8080:8080"
+      - "${PORT:-8080}:8080"
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
     networks:
       - nimbus-network
 
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../docker/frontend.Dockerfile
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api/v1}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Nimbus}
     container_name: nimbus-frontend
     restart: unless-stopped
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080/api}
+      # WARNING: Change JWT_SECRET in production! This default is for development only.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-this-in-production-min-32-chars}
+      NODE_ENV: production
+      INTERNAL_API_URL: http://backend:8080/api/v1
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => {if (r.statusCode !== 200 && r.statusCode !== 307) throw new Error(r.statusCode)})\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     networks:
       - nimbus-network
 

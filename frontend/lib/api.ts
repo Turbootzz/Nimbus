@@ -14,16 +14,21 @@ import type {
   UserFilterParams,
 } from '@/types'
 
-// Get API URL without throwing at import time
 const getApiUrl = (): string | undefined => {
-  const url = process.env.NEXT_PUBLIC_API_URL
+  // Server-side: use internal Docker network (faster)
+  if (typeof window === 'undefined') {
+    return (
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:8080/api/v1'
+    )
+  }
 
-  // In production, return undefined if not configured (error will be handled at request time)
+  // Client-side: use external URL accessible from browser
+  const url = process.env.NEXT_PUBLIC_API_URL
   if (process.env.NODE_ENV === 'production' && !url) {
     return undefined
   }
-
-  // In development, fallback to localhost
   return url || 'http://localhost:8080/api/v1'
 }
 
@@ -67,6 +72,17 @@ class ApiClient {
       const data = await response.json()
 
       if (!response.ok) {
+        // Handle 401 Unauthorized - token is invalid or user doesn't exist
+        if (response.status === 401 && typeof window !== 'undefined') {
+          // Redirect to login unless already on login/register page
+          if (
+            !window.location.pathname.startsWith('/login') &&
+            !window.location.pathname.startsWith('/register')
+          ) {
+            window.location.href = '/login'
+          }
+        }
+
         return {
           error: {
             // Backend returns {error: "message"} or {message: "message"}
