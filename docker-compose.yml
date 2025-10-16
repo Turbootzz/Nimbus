@@ -69,6 +69,7 @@ services:
     environment:
       JWT_SECRET: ${JWT_SECRET}
       NODE_ENV: production
+      INTERNAL_API_URL: http://backend:8080/api/v1
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     depends_on:

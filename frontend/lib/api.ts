@@ -14,16 +14,21 @@ import type {
   UserFilterParams,
 } from '@/types'
 
-// Get API URL without throwing at import time
 const getApiUrl = (): string | undefined => {
-  const url = process.env.NEXT_PUBLIC_API_URL
+  // Server-side: use internal Docker network (faster)
+  if (typeof window === 'undefined') {
+    return (
+      process.env.INTERNAL_API_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      'http://localhost:8080/api/v1'
+    )
+  }
 
-  // In production, return undefined if not configured (error will be handled at request time)
+  // Client-side: use external URL accessible from browser
+  const url = process.env.NEXT_PUBLIC_API_URL
   if (process.env.NODE_ENV === 'production' && !url) {
     return undefined
   }
-
-  // In development, fallback to localhost
   return url || 'http://localhost:8080/api/v1'
 }
 
