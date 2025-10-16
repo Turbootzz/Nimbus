@@ -3,6 +3,24 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+// Get API URL helper - determines URL at runtime based on browser location
+const getApiUrl = (): string => {
+  const defaultPort = '8080'
+
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol
+    const hostname = window.location.hostname
+    const backendPort = process.env.NEXT_PUBLIC_API_PORT || defaultPort
+    return `${protocol}//${hostname}:${backendPort}/api/v1`
+  }
+
+  return `http://localhost:${defaultPort}/api/v1`
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -19,7 +37,7 @@ export default function LoginPage() {
       // Call API with credentials to allow httpOnly cookies
       // Backend will set secure httpOnly cookie instead of returning token in response
       // Send rememberMe flag so backend can set appropriate cookie expiration
-      const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+      const response = await fetch(`${getApiUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

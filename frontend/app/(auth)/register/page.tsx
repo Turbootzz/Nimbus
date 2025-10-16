@@ -3,6 +3,24 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
+// Get API URL helper - determines URL at runtime based on browser location
+const getApiUrl = (): string => {
+  const defaultPort = '8080'
+
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL
+  }
+
+  if (typeof window !== 'undefined' && window.location) {
+    const protocol = window.location.protocol
+    const hostname = window.location.hostname
+    const backendPort = process.env.NEXT_PUBLIC_API_PORT || defaultPort
+    return `${protocol}//${hostname}:${backendPort}/api/v1`
+  }
+
+  return `http://localhost:${defaultPort}/api/v1`
+}
+
 export default function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -31,7 +49,7 @@ export default function RegisterPage() {
     try {
       // Call API with credentials to allow httpOnly cookies
       // Backend will set secure httpOnly cookie instead of returning token in response
-      const response = await fetch('http://localhost:8080/api/v1/auth/register', {
+      const response = await fetch(`${getApiUrl()}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
