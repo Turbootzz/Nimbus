@@ -18,10 +18,12 @@ export default function ThemePage() {
   ]
 
   return (
-    <div className="max-w-4xl p-6">
-      <h1 className="text-text-primary mb-2 text-3xl font-bold">Theme Settings</h1>
-      <p className="text-text-secondary mb-2">Customize the appearance of your dashboard</p>
-      <p className="text-text-muted mb-8 text-sm">Changes are saved automatically</p>
+    <div className="max-w-4xl p-4 sm:p-6">
+      <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Theme Settings</h1>
+      <p className="text-text-secondary mb-2 text-sm sm:text-base">
+        Customize the appearance of your dashboard
+      </p>
+      <p className="text-text-muted mb-8 text-xs sm:text-sm">Changes are saved automatically</p>
 
       <div className="space-y-6">
         {/* Theme Mode */}
@@ -74,7 +76,7 @@ export default function ThemePage() {
           <h2 className="text-text-primary mb-2 text-xl font-semibold">Accent Color</h2>
           <p className="text-text-secondary mb-4 text-sm">Choose your preferred accent color</p>
 
-          <div className="mb-4 grid grid-cols-4 gap-3 md:grid-cols-8">
+          <div className="mb-4 grid grid-cols-4 gap-2 sm:gap-3 md:grid-cols-8">
             {presetColors.map((color) => (
               <button
                 key={color.value}
@@ -90,30 +92,32 @@ export default function ThemePage() {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
             <label className="text-text-primary text-sm font-medium">Custom color:</label>
-            <input
-              type="color"
-              value={accentColor || '#0ea5e9'}
-              onChange={(e) => setAccentColor(e.target.value)}
-              className="border-card-border h-10 w-16 cursor-pointer rounded border"
-            />
-            <input
-              type="text"
-              value={accentColor || ''}
-              onChange={(e) => setAccentColor(e.target.value)}
-              placeholder="#0ea5e9"
-              className="border-card-border bg-background text-text-primary focus:ring-primary min-w-[150px] flex-1 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
-              maxLength={7}
-            />
-            {accentColor && (
-              <button
-                onClick={() => setAccentColor(undefined)}
-                className="text-text-secondary hover:text-text-primary px-4 py-2 text-sm transition-colors"
-              >
-                Reset
-              </button>
-            )}
+            <div className="flex flex-1 items-center gap-2">
+              <input
+                type="color"
+                value={accentColor || '#0ea5e9'}
+                onChange={(e) => setAccentColor(e.target.value)}
+                className="border-card-border h-10 w-16 cursor-pointer rounded border"
+              />
+              <input
+                type="text"
+                value={accentColor || ''}
+                onChange={(e) => setAccentColor(e.target.value)}
+                placeholder="#0ea5e9"
+                className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-[150px]"
+                maxLength={7}
+              />
+              {accentColor && (
+                <button
+                  onClick={() => setAccentColor(undefined)}
+                  className="text-text-secondary hover:text-text-primary px-3 py-2 text-sm whitespace-nowrap transition-colors sm:px-4"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -122,18 +126,18 @@ export default function ThemePage() {
           <h2 className="text-text-primary mb-2 text-xl font-semibold">Background Image</h2>
           <p className="text-text-secondary mb-4 text-sm">Add a custom background image (URL)</p>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <input
               type="url"
               value={background || ''}
               onChange={(e) => setBackground(e.target.value)}
               placeholder="https://example.com/image.jpg"
-              className="border-card-border bg-background text-text-primary focus:ring-primary min-w-[200px] flex-1 rounded-lg border px-3 py-2 focus:ring-2 focus:outline-none"
+              className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-[200px]"
             />
             {background && (
               <button
                 onClick={() => setBackground(undefined)}
-                className="border-card-border text-text-primary hover:bg-card-border rounded-lg border px-4 py-2 transition-colors"
+                className="border-card-border text-text-primary hover:bg-card-border rounded-lg border px-4 py-2 text-sm transition-colors"
               >
                 Clear
               </button>

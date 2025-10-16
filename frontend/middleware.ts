@@ -5,13 +5,13 @@ import type { NextRequest } from 'next/server'
  * Next.js Middleware for Server-Side Authentication
  *
  * This middleware runs on the Edge before any page renders, providing:
- * - Server-side auth validation (no client-side localStorage checks)
+ * - Server-side auth validation by calling backend API
  * - Protection against SSR/hydration mismatches
  * - Proper redirects before page load
- * - Validation of httpOnly cookies
+ * - Automatic cleanup of invalid/expired tokens
  *
- * This only checks cookie PRESENCE for UX.
- * The backend Go API validates JWT signature, expiration, and claims for actual security.
+ * For protected routes, validates the token with the backend API.
+ * Invalid tokens are cleared and the user is redirected to login.
  */
 
 // Define public routes that don't require authentication
@@ -30,10 +30,40 @@ export async function middleware(request: NextRequest) {
   const isProtectedPath = protectedPaths.some((path) => pathname.startsWith(path))
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path))
 
-  // If accessing a protected path without auth token, redirect to login
-  if (isProtectedPath && !authToken) {
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+  // If accessing a protected path, validate the token
+  if (isProtectedPath) {
+    if (!authToken) {
+      // No token at all - redirect to login
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // Validate token with backend
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api/v1'
+      const response = await fetch(`${apiUrl}/auth/me`, {
+        headers: {
+          Cookie: `auth_token=${authToken}`,
+        },
+      })
+
+      // If token is invalid (401, 403, etc), clear cookie and redirect to login
+      if (!response.ok) {
+        const loginUrl = new URL('/login', request.url)
+        const redirectResponse = NextResponse.redirect(loginUrl)
+        // Clear the invalid cookie
+        redirectResponse.cookies.set('auth_token', '', {
+          maxAge: 0,
+          path: '/',
+        })
+        return redirectResponse
+      }
+    } catch (error) {
+      // Network error or backend down - redirect to login
+      console.error('[Middleware] Failed to validate token:', error)
+      const loginUrl = new URL('/login', request.url)
+      return NextResponse.redirect(loginUrl)
+    }
   }
 
   // If accessing public auth pages (login/register) with valid token, redirect to dashboard

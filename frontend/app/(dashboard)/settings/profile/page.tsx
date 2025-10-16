@@ -27,8 +27,11 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div>
-        <h1 className="mb-4 text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+      <div className="p-4 sm:p-6">
+        <h1
+          className="mb-4 text-2xl font-bold sm:text-3xl"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
           Profile
         </h1>
         <p style={{ color: 'var(--color-text-secondary)' }}>Loading...</p>
@@ -37,8 +40,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div>
-      <h1 className="mb-4 text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+    <div className="p-4 sm:p-6">
+      <h1
+        className="mb-4 text-2xl font-bold sm:text-3xl"
+        style={{ color: 'var(--color-text-primary)' }}
+      >
         Profile
       </h1>
 

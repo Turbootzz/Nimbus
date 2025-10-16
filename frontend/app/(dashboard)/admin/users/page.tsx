@@ -4,6 +4,129 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { api } from '@/lib/api'
 import type { User, UserFilterParams } from '@/types'
 
+interface UserItemProps {
+  user: User
+  actionLoading: string | null
+  onRoleChange: (userId: string, currentRole: string) => void
+  onDelete: (userId: string, userName: string) => void
+  formatDateTime: (dateString: string | undefined) => string
+  formatDate: (dateString: string) => string
+}
+
+// Desktop table row component
+function UserTableRow({
+  user,
+  actionLoading,
+  onRoleChange,
+  onDelete,
+  formatDateTime,
+  formatDate,
+}: UserItemProps) {
+  const isLoading = actionLoading === user.id
+
+  return (
+    <tr className="hover:bg-background transition-colors">
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-text-primary text-sm font-medium">{user.name}</div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="text-text-secondary text-sm">{user.email}</div>
+      </td>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <span
+          className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
+            user.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-info/10 text-info'
+          }`}
+        >
+          {user.role}
+        </span>
+      </td>
+      <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
+        {formatDateTime(user.last_activity_at)}
+      </td>
+      <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
+        {formatDate(user.created_at)}
+      </td>
+      <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={() => onRoleChange(user.id, user.role)}
+            disabled={isLoading}
+            className="bg-primary/10 text-primary hover:bg-primary/20 rounded px-3 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {isLoading ? 'Loading...' : user.role === 'admin' ? 'Demote' : 'Promote'}
+          </button>
+          <button
+            onClick={() => onDelete(user.id, user.name)}
+            disabled={isLoading}
+            className="bg-error/10 text-error hover:bg-error/20 rounded px-3 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Delete
+          </button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// Mobile card component
+function UserCard({
+  user,
+  actionLoading,
+  onRoleChange,
+  onDelete,
+  formatDateTime,
+  formatDate,
+}: UserItemProps) {
+  const isLoading = actionLoading === user.id
+
+  return (
+    <div className="bg-card border-card-border rounded-lg border p-4">
+      <div className="mb-3 flex items-start justify-between">
+        <div className="min-w-0 flex-1">
+          <h3 className="text-text-primary truncate text-base font-semibold">{user.name}</h3>
+          <p className="text-text-secondary truncate text-sm">{user.email}</p>
+        </div>
+        <span
+          className={`ml-2 inline-flex flex-shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
+            user.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-info/10 text-info'
+          }`}
+        >
+          {user.role}
+        </span>
+      </div>
+
+      <div className="text-text-secondary mb-3 space-y-1 text-xs">
+        <div className="flex justify-between">
+          <span className="text-text-muted">Last Activity:</span>
+          <span>{formatDateTime(user.last_activity_at)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-text-muted">Joined:</span>
+          <span>{formatDate(user.created_at)}</span>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={() => onRoleChange(user.id, user.role)}
+          disabled={isLoading}
+          className="bg-primary/10 text-primary hover:bg-primary/20 flex-1 rounded px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isLoading ? 'Loading...' : user.role === 'admin' ? 'Demote' : 'Promote'}
+        </button>
+        <button
+          onClick={() => onDelete(user.id, user.name)}
+          disabled={isLoading}
+          className="bg-error/10 text-error hover:bg-error/20 flex-1 rounded px-3 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Delete
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [stats, setStats] = useState<{ total: number; admins: number; users: number } | null>(null)
@@ -193,7 +316,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       {/* Error Message */}
       {error && (
         <div className="mb-4">
@@ -203,8 +326,10 @@ export default function AdminUsersPage() {
         </div>
       )}
       <div className="mb-6">
-        <h1 className="text-text-primary text-3xl font-bold">User Management</h1>
-        <p className="text-text-secondary mt-1">Manage user accounts and roles</p>
+        <h1 className="text-text-primary text-2xl font-bold sm:text-3xl">User Management</h1>
+        <p className="text-text-secondary mt-1 text-sm sm:text-base">
+          Manage user accounts and roles
+        </p>
       </div>
 
       {/* Statistics Cards */}
@@ -264,96 +389,76 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className="bg-card border-card-border overflow-hidden rounded-lg border">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-background border-card-border border-b">
-              <tr>
-                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                  User
-                </th>
-                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                  Email
-                </th>
-                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                  Role
-                </th>
-                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                  Last Activity
-                </th>
-                <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
-                  Joined
-                </th>
-                <th className="text-text-secondary px-6 py-3 text-right text-xs font-medium tracking-wider uppercase">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-card-border divide-y">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-background transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-text-primary text-sm font-medium">{user.name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-text-secondary text-sm">{user.email}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex rounded-full px-2 py-1 text-xs font-semibold ${
-                        user.role === 'admin'
-                          ? 'bg-primary/10 text-primary'
-                          : 'bg-info/10 text-info'
-                      }`}
-                    >
-                      {user.role}
-                    </span>
-                  </td>
-                  <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
-                    {formatDateTime(user.last_activity_at)}
-                  </td>
-                  <td className="text-text-secondary px-6 py-4 text-sm whitespace-nowrap">
-                    {formatDate(user.created_at)}
-                  </td>
-                  <td className="px-6 py-4 text-right text-sm font-medium whitespace-nowrap">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleRoleChange(user.id, user.role)}
-                        disabled={actionLoading === user.id}
-                        className="bg-primary/10 text-primary hover:bg-primary/20 rounded px-3 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {actionLoading === user.id
-                          ? 'Loading...'
-                          : user.role === 'admin'
-                            ? 'Demote'
-                            : 'Promote'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user.id, user.name)}
-                        disabled={actionLoading === user.id}
-                        className="bg-error/10 text-error hover:bg-error/20 rounded px-3 py-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Users List - Responsive table/cards */}
+      {users.length === 0 ? (
+        <div className="bg-card border-card-border text-text-secondary rounded-lg border p-6 text-center">
+          {searchTerm || roleFilter ? 'No users match your search criteria' : 'No users found'}
         </div>
-
-        {users.length === 0 && (
-          <div className="text-text-secondary p-6 text-center">
-            {searchTerm || roleFilter ? 'No users match your search criteria' : 'No users found'}
+      ) : (
+        <>
+          {/* Desktop Table */}
+          <div className="bg-card border-card-border hidden overflow-hidden rounded-lg border md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-background border-card-border border-b">
+                  <tr>
+                    <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                      User
+                    </th>
+                    <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                      Email
+                    </th>
+                    <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                      Role
+                    </th>
+                    <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                      Last Activity
+                    </th>
+                    <th className="text-text-secondary px-6 py-3 text-left text-xs font-medium tracking-wider uppercase">
+                      Joined
+                    </th>
+                    <th className="text-text-secondary px-6 py-3 text-right text-xs font-medium tracking-wider uppercase">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-card-border divide-y">
+                  {users.map((user) => (
+                    <UserTableRow
+                      key={user.id}
+                      user={user}
+                      actionLoading={actionLoading}
+                      onRoleChange={handleRoleChange}
+                      onDelete={handleDeleteUser}
+                      formatDateTime={formatDateTime}
+                      formatDate={formatDate}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
-      </div>
+
+          {/* Mobile Cards */}
+          <div className="space-y-4 md:hidden">
+            {users.map((user) => (
+              <UserCard
+                key={user.id}
+                user={user}
+                actionLoading={actionLoading}
+                onRoleChange={handleRoleChange}
+                onDelete={handleDeleteUser}
+                formatDateTime={formatDateTime}
+                formatDate={formatDate}
+              />
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
           <div className="text-text-secondary text-sm">
             Page {currentPage} of {totalPages}
           </div>
@@ -362,13 +467,13 @@ export default function AdminUsersPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage === 1 || loading}
-              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
             >
               Previous
             </button>
 
             {/* Page numbers */}
-            <div className="flex gap-1">
+            <div className="hidden gap-1 sm:flex">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 let pageNum: number
                 if (totalPages <= 5) {
@@ -401,7 +506,7 @@ export default function AdminUsersPage() {
             <button
               onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
               disabled={currentPage === totalPages || loading}
-              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-4 py-2 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+              className="bg-card border-card-border text-text-primary hover:bg-background rounded-lg border px-3 py-2 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 sm:px-4"
             >
               Next
             </button>
