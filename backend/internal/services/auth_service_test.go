@@ -9,6 +9,13 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+func TestMain(m *testing.M) {
+	// Set JWT_SECRET for all tests
+	os.Setenv("JWT_SECRET", "test-jwt-secret-key-for-testing-minimum-32-characters")
+	code := m.Run()
+	os.Exit(code)
+}
+
 func TestAuthService_HashPassword(t *testing.T) {
 	authService := NewAuthService()
 
@@ -135,8 +142,8 @@ func TestAuthService_ComparePassword(t *testing.T) {
 }
 
 func TestAuthService_GenerateToken(t *testing.T) {
-	// Set a test secret
-	os.Setenv("JWT_SECRET", "test-secret-for-jwt")
+	// Set a test secret (minimum 32 characters required)
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
 	defer os.Unsetenv("JWT_SECRET")
 
 	authService := NewAuthService()
@@ -194,8 +201,8 @@ func TestAuthService_GenerateToken(t *testing.T) {
 }
 
 func TestAuthService_ValidateToken(t *testing.T) {
-	// Set a test secret
-	os.Setenv("JWT_SECRET", "test-secret-for-jwt")
+	// Set a test secret (minimum 32 characters required)
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
 	defer os.Unsetenv("JWT_SECRET")
 
 	authService := NewAuthService()
@@ -282,6 +289,10 @@ func TestAuthService_ValidateToken(t *testing.T) {
 }
 
 func TestAuthService_GetUserIDFromToken(t *testing.T) {
+	// Set a test secret (minimum 32 characters required)
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
+	defer os.Unsetenv("JWT_SECRET")
+
 	authService := NewAuthService()
 
 	tests := []struct {
@@ -338,7 +349,7 @@ func TestAuthService_GetUserIDFromToken(t *testing.T) {
 }
 
 func TestAuthService_TokenExpiration(t *testing.T) {
-	os.Setenv("JWT_SECRET", "test-secret-for-jwt")
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
 	defer os.Unsetenv("JWT_SECRET")
 
 	authService := NewAuthService()
@@ -371,31 +382,37 @@ func TestAuthService_TokenExpiration(t *testing.T) {
 	}
 }
 
-func TestAuthService_DefaultSecret(t *testing.T) {
+func TestAuthService_RequiresJWTSecret(t *testing.T) {
 	// Ensure no JWT_SECRET is set
 	os.Unsetenv("JWT_SECRET")
 
-	authService := NewAuthService()
+	// Should panic when JWT_SECRET is not set
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewAuthService() did not panic when JWT_SECRET is missing")
+		}
+	}()
 
-	// Should use default secret
-	if string(authService.jwtSecret) != "default-secret-change-in-production" {
-		t.Errorf("NewAuthService() with no env var, jwtSecret = %v, want default", string(authService.jwtSecret))
-	}
+	NewAuthService() // This should panic
+}
 
-	// Should still be able to generate and validate tokens
-	token, err := authService.GenerateToken("user-123", "test@example.com", "user")
-	if err != nil {
-		t.Errorf("GenerateToken() with default secret failed: %v", err)
-	}
+func TestAuthService_RequiresMinimumLength(t *testing.T) {
+	// Set JWT_SECRET that's too short
+	os.Setenv("JWT_SECRET", "short-secret")
+	defer os.Unsetenv("JWT_SECRET")
 
-	_, err = authService.ValidateToken(token)
-	if err != nil {
-		t.Errorf("ValidateToken() with default secret failed: %v", err)
-	}
+	// Should panic when JWT_SECRET is too short
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewAuthService() did not panic when JWT_SECRET is too short")
+		}
+	}()
+
+	NewAuthService() // This should panic
 }
 
 func TestAuthService_FullWorkflow(t *testing.T) {
-	os.Setenv("JWT_SECRET", "test-secret-for-jwt")
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
 	defer os.Unsetenv("JWT_SECRET")
 
 	authService := NewAuthService()
