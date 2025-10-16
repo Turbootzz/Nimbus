@@ -33,7 +33,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.24'
+          go-version: '1.25'
           cache-dependency-path: backend/go.sum
 
       - name: Install dependencies
@@ -146,7 +146,7 @@ jobs:
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
-      github.repository_owner == 'thijsherman' &&
+      github.repository_owner == 'Turbootzz' &&
       needs.backend.result == 'success' &&
       needs.frontend.result == 'success'
 
@@ -204,6 +204,9 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
+            NEXT_PUBLIC_APP_NAME=Nimbus
 
   ci-success:
     name: CI Success
