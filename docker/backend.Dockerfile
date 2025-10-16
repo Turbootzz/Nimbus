@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git make
@@ -22,10 +22,20 @@ FROM alpine:latest
 # Install ca-certificates for HTTPS
 RUN apk --no-cache add ca-certificates
 
-WORKDIR /root/
+# Create non-root user
+RUN addgroup -g 1001 -S nimbus && \
+    adduser -u 1001 -S nimbus -G nimbus
+
+WORKDIR /home/nimbus
 
 # Copy the binary from builder
 COPY --from=builder /app/nimbus .
+
+# Set ownership
+RUN chown nimbus:nimbus /home/nimbus/nimbus
+
+# Switch to non-root user
+USER nimbus
 
 # Expose port
 EXPOSE 8080

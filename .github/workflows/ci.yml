@@ -143,7 +143,12 @@ jobs:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
     needs: [backend, frontend]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      github.repository_owner == 'thijsherman' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success'
 
     steps:
       - name: Checkout code
@@ -199,24 +204,25 @@ jobs:
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: |
-            NEXT_PUBLIC_API_URL=http://localhost:8080/api/v1
-            NEXT_PUBLIC_APP_NAME=Nimbus
 
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, docker]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]]; then
+          # Docker job is skipped on non-main branches, so treat 'skipped' as success
+          docker_ok=$([[ "${{ needs.docker.result }}" == "success" ]] || [[ "${{ needs.docker.result }}" == "skipped" ]] && echo "true" || echo "false")
+
+          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]]; then
             echo "All CI jobs passed!"
             exit 0
           else
             echo "Some CI jobs failed"
             echo "Backend: ${{ needs.backend.result }}"
             echo "Frontend: ${{ needs.frontend.result }}"
+            echo "Docker: ${{ needs.docker.result }}"
             exit 1
           fi
