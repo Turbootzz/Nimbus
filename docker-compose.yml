@@ -36,7 +36,8 @@ services:
       DB_NAME: ${DB_NAME:-nimbus}
       DB_USER: ${DB_USER:-nimbus}
       DB_PASSWORD: ${DB_PASSWORD:-nimbus_secret}
-      JWT_SECRET: ${JWT_SECRET}
+      # WARNING: Change JWT_SECRET in production! This default is for development only.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-this-in-production-min-32-chars}
       JWT_EXPIRY: ${JWT_EXPIRY:-24h}
       BCRYPT_COST: ${BCRYPT_COST:-10}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
@@ -67,7 +68,8 @@ services:
     container_name: nimbus-frontend
     restart: unless-stopped
     environment:
-      JWT_SECRET: ${JWT_SECRET}
+      # WARNING: Change JWT_SECRET in production! This default is for development only.
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-this-in-production-min-32-chars}
       NODE_ENV: production
       INTERNAL_API_URL: http://backend:8080/api/v1
     ports:

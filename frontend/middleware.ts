@@ -106,9 +106,17 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // If accessing root path, always redirect to login
-  // Don't assume valid token signature = valid session (user might not exist in DB)
+  // If accessing root path, redirect based on authentication status
   if (pathname === '/') {
+    if (authToken) {
+      // Validate token signature before redirecting
+      const isValid = await validateToken(authToken)
+      if (isValid) {
+        // Authenticated users go to dashboard
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
+    }
+    // Unauthenticated or invalid token - go to login
     const loginUrl = new URL('/login', request.url)
     return NextResponse.redirect(loginUrl)
   }

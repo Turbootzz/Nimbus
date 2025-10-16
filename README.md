@@ -162,7 +162,12 @@ See `.env.example` in the root directory for all available configuration options
 - `DB_*` - Database connection settings (host, port, name, user, password)
 - `JWT_SECRET` - Secret key for JWT tokens (minimum 32 characters, change in production!)
 - `CORS_ORIGINS` - Allowed CORS origins for API requests
-- `NEXT_PUBLIC_API_URL` - Backend API URL for frontend (must include `/api/v1`)
+- `NEXT_PUBLIC_API_URL` - Backend API URL accessible from the browser (must include `/api/v1`)
+  - Example: `http://localhost:8080/api/v1` (development) or `https://api.yourdomain.com/api/v1` (production)
+- `INTERNAL_API_URL` - *Optional* server-side API URL for internal Docker/network calls
+  - Used only for server-side requests (SSR, API routes) for better performance in containerized environments
+  - Example: `http://backend:8080/api/v1` (Docker) or `http://localhost:8080/api/v1` (local)
+  - Falls back to `NEXT_PUBLIC_API_URL` if not set
 
 ## Development Commands
 

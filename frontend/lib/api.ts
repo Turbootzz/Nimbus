@@ -73,13 +73,9 @@ class ApiClient {
 
       if (!response.ok) {
         // Handle 401 Unauthorized - token is invalid or user doesn't exist
-        if (response.status === 401) {
-          // Clear the invalid cookie by setting it to expire immediately
-          document.cookie = 'auth_token=; path=/; max-age=0'
-
+        if (response.status === 401 && typeof window !== 'undefined') {
           // Redirect to login unless already on login/register page
           if (
-            typeof window !== 'undefined' &&
             !window.location.pathname.startsWith('/login') &&
             !window.location.pathname.startsWith('/register')
           ) {

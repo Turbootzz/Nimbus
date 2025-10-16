@@ -12,8 +12,8 @@ ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --omit=dev
+# Install all dependencies (including devDependencies needed for build)
+RUN npm ci
 
 # Copy source code
 COPY . .

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -55,8 +56,16 @@ func AuthMiddleware(authService *services.AuthService, userRepo *repository.User
 		// This prevents tokens for deleted/non-existent users from being valid
 		_, err = userRepo.GetByID(userID)
 		if err != nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "User not found - invalid session",
+			// Distinguish between user not found (401) and DB errors (503)
+			if errors.Is(err, repository.ErrUserNotFound) {
+				return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+					"error": "User not found - invalid session",
+				})
+			}
+			// Database or infrastructure error - log and return service unavailable
+			c.Context().Logger().Printf("Auth middleware DB error: %v", err)
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "Authentication service unavailable",
 			})
 		}
 
