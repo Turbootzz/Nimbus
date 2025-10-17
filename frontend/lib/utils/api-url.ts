@@ -4,7 +4,7 @@
  *
  * Priority:
  * 1. NEXT_PUBLIC_API_URL environment variable (base URL with or without /api/v1)
- * 2. Runtime detection using window.location + configurable port
+ * 2. Runtime detection using window.location
  * 3. Fallback to localhost:8080
  *
  * @returns The full API base URL including /api/v1
@@ -32,6 +32,29 @@ export const getApiUrl = (): string => {
   if (typeof window !== 'undefined' && window.location) {
     const protocol = window.location.protocol // http: or https:
     const hostname = window.location.hostname // e.g., 192.168.1.100 or localhost
+
+    // Check if we should add a port
+    const isCustomDomain = hostname.includes('.') && hostname !== 'localhost'
+    const currentPort = window.location.port
+    const isStandardPort = !currentPort || currentPort === '80' || currentPort === '443'
+
+    // For custom domains with reverse proxy (like Nginx Proxy Manager)
+    // Use subdomain: api.domain.com instead of domain.com:8080
+    if (isCustomDomain && isStandardPort) {
+      // Replace first subdomain with 'api' or prepend 'api.'
+      const parts = hostname.split('.')
+      if (parts.length >= 2) {
+        // If hostname is already api.domain.com, keep it
+        if (parts[0] === 'api') {
+          return `${protocol}//${hostname}${apiPath}`
+        }
+        // Otherwise, replace first part with 'api' (e.g., nimbus.domain.com -> api.domain.com)
+        parts[0] = 'api'
+        return `${protocol}//${parts.join('.')}${apiPath}`
+      }
+    }
+
+    // For localhost, IPs, or custom port scenarios, add the backend port
     const backendPort = process.env.NEXT_PUBLIC_API_PORT || defaultPort
     return `${protocol}//${hostname}:${backendPort}${apiPath}`
   }
