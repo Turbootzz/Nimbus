@@ -32,6 +32,13 @@ func main() {
 	defer database.Close()
 	log.Println("✓ Connected to database")
 
+	// Run database migrations
+	log.Println("Running database migrations...")
+	if err := db.RunMigrations(database); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+	log.Println("✓ Database migrations completed")
+
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
 	serviceRepo := repository.NewServiceRepository(database)

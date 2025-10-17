@@ -27,6 +27,9 @@ RUN apk --no-cache add ca-certificates tzdata wget
 # Copy binary from builder
 COPY --from=builder /build/server .
 
+# Copy migration files
+COPY --from=builder /build/internal/db/migrations ./internal/db/migrations
+
 # Create non-root user
 RUN addgroup -g 1000 nimbus && \
     adduser -D -u 1000 -G nimbus nimbus && \
