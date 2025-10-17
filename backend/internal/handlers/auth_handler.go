@@ -31,6 +31,11 @@ func (h *AuthHandler) getCookieSecure() bool {
 	return secure != "false" // Default to true unless explicitly set to "false"
 }
 
+// getCookieDomain returns the domain for cookies based on environment
+func (h *AuthHandler) getCookieDomain() string {
+	return os.Getenv("COOKIE_DOMAIN")
+}
+
 // Register handles user registration
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req models.RegisterRequest
@@ -100,7 +105,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
-		Domain:   "nimbus.turboot.com", // Cookie only valid for nimbus.turboot.com (not shared with other subdomains)
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
 		SameSite: "Lax",
@@ -168,12 +173,11 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	// Set httpOnly cookie
 	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only
-	// Domain=.turboot.com shares cookie across all *.turboot.com subdomains
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
-		Domain:   "nimbus.turboot.com",
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
 		SameSite: "Lax",
@@ -194,7 +198,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Path:     "/",
-		Domain:   "nimbus.turboot.com", // Must match the domain used when setting the cookie
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
 		SameSite: "Lax",
