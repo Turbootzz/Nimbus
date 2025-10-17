@@ -166,14 +166,14 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	// Set httpOnly cookie
-	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only, sameSite prevents CSRF
+	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "Lax",
+		SameSite: "None",
 		MaxAge:   maxAge,
 	})
 
@@ -193,7 +193,7 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "Lax",
+		SameSite: "None",
 		MaxAge:   -1, // Delete the cookie
 	})
 
