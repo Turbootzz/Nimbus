@@ -102,7 +102,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Path:     "/",
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
-		SameSite: "Lax",
+		SameSite: "None",
 		MaxAge:   0, // Session cookie (cleared when browser closes)
 	})
 

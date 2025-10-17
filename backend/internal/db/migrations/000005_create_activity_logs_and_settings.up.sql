@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS user_activity_logs (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_activity_logs_user_id ON user_activity_logs(user_id);
-CREATE INDEX idx_activity_logs_actor_id ON user_activity_logs(actor_id);
-CREATE INDEX idx_activity_logs_created_at ON user_activity_logs(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_user_id ON user_activity_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_actor_id ON user_activity_logs(actor_id);
+CREATE INDEX IF NOT EXISTS idx_activity_logs_created_at ON user_activity_logs(created_at DESC);
 
 -- Create system settings table for admin configuration
 CREATE TABLE IF NOT EXISTS system_settings (
@@ -37,6 +37,6 @@ CREATE TABLE IF NOT EXISTS user_invitations (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_invitations_email ON user_invitations(email);
-CREATE INDEX idx_invitations_token ON user_invitations(token);
-CREATE INDEX idx_invitations_expires_at ON user_invitations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON user_invitations(email);
+CREATE INDEX IF NOT EXISTS idx_invitations_token ON user_invitations(token);
+CREATE INDEX IF NOT EXISTS idx_invitations_expires_at ON user_invitations(expires_at);

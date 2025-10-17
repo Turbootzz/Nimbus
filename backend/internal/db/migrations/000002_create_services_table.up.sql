@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS services (
 );
 
 -- Create index on user_id for faster queries
-CREATE INDEX idx_services_user_id ON services(user_id);
+CREATE INDEX IF NOT EXISTS idx_services_user_id ON services(user_id);
 
 -- Create index on status for health check queries
-CREATE INDEX idx_services_status ON services(status);
+CREATE INDEX IF NOT EXISTS idx_services_status ON services(status);

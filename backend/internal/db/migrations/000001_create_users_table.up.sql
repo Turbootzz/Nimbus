@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 -- Create index on email for faster lookups
-CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- Create index on role for filtering
-CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

@@ -75,8 +75,12 @@ func RunMigrations(db *sql.DB) error {
 }
 
 func createMigrationsTable(db *sql.DB) error {
+	// Drop old schema_migrations table if it exists (from golang-migrate library)
+	// The old table used BIGINT for version, we need VARCHAR(255)
+	_, _ = db.Exec("DROP TABLE IF EXISTS schema_migrations CASCADE")
+
 	query := `
-		CREATE TABLE IF NOT EXISTS schema_migrations (
+		CREATE TABLE schema_migrations (
 			version VARCHAR(255) PRIMARY KEY,
 			applied_at TIMESTAMP NOT NULL DEFAULT NOW()
 		);
