@@ -100,9 +100,10 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
+		Domain:   "nimbus.turboot.com", // Cookie only valid for nimbus.turboot.com (not shared with other subdomains)
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   0, // Session cookie (cleared when browser closes)
 	})
 
@@ -167,13 +168,15 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	// Set httpOnly cookie
 	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only
+	// Domain=.turboot.com shares cookie across all *.turboot.com subdomains
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
+		Domain:   "nimbus.turboot.com",
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   maxAge,
 	})
 
@@ -191,9 +194,10 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Path:     "/",
+		Domain:   "nimbus.turboot.com", // Must match the domain used when setting the cookie
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   -1, // Delete the cookie
 	})
 
