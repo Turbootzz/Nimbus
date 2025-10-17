@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { getApiUrl } from '@/lib/utils/api-url'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -31,7 +32,7 @@ export default function RegisterPage() {
     try {
       // Call API with credentials to allow httpOnly cookies
       // Backend will set secure httpOnly cookie instead of returning token in response
-      const response = await fetch('http://localhost:8080/api/v1/auth/register', {
+      const response = await fetch(`${getApiUrl()}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

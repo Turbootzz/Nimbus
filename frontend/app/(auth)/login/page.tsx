@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { getApiUrl } from '@/lib/utils/api-url'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -19,7 +20,7 @@ export default function LoginPage() {
       // Call API with credentials to allow httpOnly cookies
       // Backend will set secure httpOnly cookie instead of returning token in response
       // Send rememberMe flag so backend can set appropriate cookie expiration
-      const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+      const response = await fetch(`${getApiUrl()}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

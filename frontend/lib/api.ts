@@ -13,23 +13,22 @@ import type {
   PaginatedUsersResponse,
   UserFilterParams,
 } from '@/types'
+import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
 const getApiUrl = (): string | undefined => {
+  const defaultPort = '8080'
+
   // Server-side: use internal Docker network (faster)
   if (typeof window === 'undefined') {
     return (
       process.env.INTERNAL_API_URL ||
       process.env.NEXT_PUBLIC_API_URL ||
-      'http://localhost:8080/api/v1'
+      `http://localhost:${defaultPort}/api/v1`
     )
   }
 
-  // Client-side: use external URL accessible from browser
-  const url = process.env.NEXT_PUBLIC_API_URL
-  if (process.env.NODE_ENV === 'production' && !url) {
-    return undefined
-  }
-  return url || 'http://localhost:8080/api/v1'
+  // Client-side: use shared utility
+  return getClientApiUrl()
 }
 
 /**
