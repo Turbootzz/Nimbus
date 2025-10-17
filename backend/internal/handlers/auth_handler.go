@@ -31,6 +31,11 @@ func (h *AuthHandler) getCookieSecure() bool {
 	return secure != "false" // Default to true unless explicitly set to "false"
 }
 
+// getCookieDomain returns the domain for cookies based on environment
+func (h *AuthHandler) getCookieDomain() string {
+	return os.Getenv("COOKIE_DOMAIN")
+}
+
 // Register handles user registration
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req models.RegisterRequest
@@ -100,9 +105,10 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   0, // Session cookie (cleared when browser closes)
 	})
 
@@ -171,9 +177,10 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    token,
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   maxAge,
 	})
 
@@ -191,9 +198,10 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 		Name:     "auth_token",
 		Value:    "",
 		Path:     "/",
+		Domain:   h.getCookieDomain(),
 		HTTPOnly: true,
 		Secure:   h.getCookieSecure(),
-		SameSite: "None",
+		SameSite: "Lax",
 		MaxAge:   -1, // Delete the cookie
 	})
 
