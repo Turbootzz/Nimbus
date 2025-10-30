@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../.env -- next dev",
-    "build": "dotenv -e ../.env -- next build",
-    "start": "dotenv -e ../.env -- next start",
+    "build": "next build",
+    "build:local": "dotenv -e ../.env -- next build",
+    "start": "next start",
+    "start:local": "dotenv -e ../.env -- next start",
     "lint": "eslint",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
