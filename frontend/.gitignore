@@ -30,8 +30,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (root .env is loaded via dotenv-cli)
-.env*
+# env files (local overrides not committed)
+.env*.local
 
 # vercel
 .vercel
