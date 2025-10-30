@@ -18,6 +18,7 @@ import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortab
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
+import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
@@ -221,10 +222,10 @@ export default function ServicesPage() {
 
           <DragOverlay>
             {activeService ? (
-              <DraggableServiceManagementCard
+              <ServiceManagementCardPresentation
                 service={activeService}
                 onDelete={handleDelete}
-                isDragging
+                style={{ opacity: 0.5 }}
               />
             ) : null}
           </DragOverlay>

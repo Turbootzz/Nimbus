@@ -35,10 +35,28 @@ func NewServiceRepository(db *sql.DB) *ServiceRepository {
 
 // Create creates a new service
 func (r *ServiceRepository) Create(ctx context.Context, service *models.Service) error {
-	// Get the max position for this user and set new service to end
+	// Use a transaction with row-level locking to prevent concurrent position conflicts
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Get the max position for this user with row lock (PostgreSQL) or exclusive table lock (SQLite)
+	// This prevents race conditions when multiple services are created simultaneously
 	var maxPos sql.NullInt64
-	posQuery := `SELECT MAX(position) FROM services WHERE user_id = $1`
-	_ = r.db.QueryRowContext(ctx, posQuery, service.UserID).Scan(&maxPos)
+	posQuery := `
+		SELECT position
+		FROM services
+		WHERE user_id = $1
+		ORDER BY position DESC
+		LIMIT 1
+		FOR UPDATE
+	`
+	err = tx.QueryRowContext(ctx, posQuery, service.UserID).Scan(&maxPos)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
 
 	if maxPos.Valid {
 		service.Position = int(maxPos.Int64) + 1
@@ -52,7 +70,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		RETURNING id
 	`
 
-	err := r.db.QueryRowContext(
+	err = tx.QueryRowContext(
 		ctx,
 		query,
 		service.UserID,
@@ -65,8 +83,11 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.CreatedAt,
 		service.UpdatedAt,
 	).Scan(&service.ID)
+	if err != nil {
+		return err
+	}
 
-	return err
+	return tx.Commit()
 }
 
 // GetByID retrieves a service by ID
@@ -312,7 +333,7 @@ func (r *ServiceRepository) bulkUpdatePositionsPostgreSQL(ctx context.Context, u
 		SET position = data.new_position,
 		    updated_at = CURRENT_TIMESTAMP
 		FROM (
-			SELECT unnest($1::text[]) AS id,
+			SELECT unnest($1::uuid[]) AS id,
 			       unnest($2::int[]) AS new_position
 		) AS data
 		WHERE services.id = data.id
