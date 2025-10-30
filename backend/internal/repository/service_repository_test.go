@@ -29,6 +29,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			description TEXT,
 			status TEXT NOT NULL,
 			response_time INTEGER,
+			position INTEGER DEFAULT 0,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -45,8 +46,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 // This bypasses the RETURNING clause issue in SQLite
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(
 		query,
@@ -58,6 +59,7 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Description,
 		service.Status,
 		service.ResponseTime,
+		service.Position,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)
@@ -679,5 +681,261 @@ func TestServiceRepository_UpdateStatusWithResponseTime(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestServiceRepository_UpdatePositions(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewServiceRepository(db)
+	ctx := context.Background()
+
+	// Create test services for multiple users
+	services := []*models.Service{
+		{
+			ID:        "service-1",
+			UserID:    "user-1",
+			Name:      "User 1 Service 1",
+			URL:       "https://example1.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  0,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			ID:        "service-2",
+			UserID:    "user-1",
+			Name:      "User 1 Service 2",
+			URL:       "https://example2.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  1,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			ID:        "service-3",
+			UserID:    "user-1",
+			Name:      "User 1 Service 3",
+			URL:       "https://example3.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  2,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			ID:        "service-4",
+			UserID:    "user-2",
+			Name:      "User 2 Service 1",
+			URL:       "https://example4.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  0,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	for _, s := range services {
+		createServiceDirectly(t, db, s)
+	}
+
+	tests := []struct {
+		name      string
+		userID    string
+		positions map[string]int
+		wantErr   bool
+	}{
+		{
+			name:   "Reorder services for user-1",
+			userID: "user-1",
+			positions: map[string]int{
+				"service-1": 2,
+				"service-2": 0,
+				"service-3": 1,
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Update single service position",
+			userID: "user-1",
+			positions: map[string]int{
+				"service-1": 5,
+			},
+			wantErr: false,
+		},
+		{
+			name:   "Attempt to update another user's service (security check)",
+			userID: "user-1",
+			positions: map[string]int{
+				"service-4": 10,
+			},
+			wantErr: true,
+		},
+		{
+			name:   "Update non-existent service",
+			userID: "user-1",
+			positions: map[string]int{
+				"non-existent": 0,
+			},
+			wantErr: true,
+		},
+		{
+			name:      "Empty positions map",
+			userID:    "user-1",
+			positions: map[string]int{},
+			wantErr:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := repo.UpdatePositions(ctx, tt.userID, tt.positions)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("UpdatePositions() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr && len(tt.positions) > 0 {
+				for serviceID, expectedPos := range tt.positions {
+					service, err := repo.GetByID(ctx, serviceID)
+					if err != nil {
+						t.Fatalf("Failed to retrieve service %s: %v", serviceID, err)
+					}
+					if service.Position != expectedPos {
+						t.Errorf("UpdatePositions() service %s position = %v, want %v", serviceID, service.Position, expectedPos)
+					}
+				}
+			}
+		})
+	}
+}
+
+func TestServiceRepository_UpdatePositions_Transaction(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewServiceRepository(db)
+	ctx := context.Background()
+
+	services := []*models.Service{
+		{
+			ID:        "service-1",
+			UserID:    "user-1",
+			Name:      "Service 1",
+			URL:       "https://example1.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  0,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			ID:        "service-2",
+			UserID:    "user-1",
+			Name:      "Service 2",
+			URL:       "https://example2.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  1,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+	}
+
+	for _, s := range services {
+		createServiceDirectly(t, db, s)
+	}
+
+	// Test transaction rollback
+	positions := map[string]int{
+		"service-1":    10,
+		"non-existent": 20,
+	}
+
+	err := repo.UpdatePositions(ctx, "user-1", positions)
+	if err == nil {
+		t.Error("UpdatePositions() expected error for partial invalid update, got nil")
+	}
+
+	// Verify rollback
+	service1, err := repo.GetByID(ctx, "service-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve service-1: %v", err)
+	}
+	if service1.Position != 0 {
+		t.Errorf("UpdatePositions() transaction rollback failed: position = %v, want %v", service1.Position, 0)
+	}
+}
+
+func TestServiceRepository_GetAllByUserID_OrderedByPosition(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewServiceRepository(db)
+	ctx := context.Background()
+
+	services := []*models.Service{
+		{
+			ID:        "service-1",
+			UserID:    "user-1",
+			Name:      "Third",
+			URL:       "https://example1.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  2,
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		},
+		{
+			ID:        "service-2",
+			UserID:    "user-1",
+			Name:      "First",
+			URL:       "https://example2.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  0,
+			CreatedAt: time.Now().Add(1 * time.Second),
+			UpdatedAt: time.Now().Add(1 * time.Second),
+		},
+		{
+			ID:        "service-3",
+			UserID:    "user-1",
+			Name:      "Second",
+			URL:       "https://example3.com",
+			Icon:      "🔗",
+			Status:    models.StatusUnknown,
+			Position:  1,
+			CreatedAt: time.Now().Add(2 * time.Second),
+			UpdatedAt: time.Now().Add(2 * time.Second),
+		},
+	}
+
+	for _, s := range services {
+		createServiceDirectly(t, db, s)
+	}
+
+	result, err := repo.GetAllByUserID(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("GetAllByUserID() error = %v", err)
+	}
+
+	if len(result) != 3 {
+		t.Fatalf("GetAllByUserID() returned %d services, want 3", len(result))
+	}
+
+	expectedOrder := []string{"First", "Second", "Third"}
+	for i, expected := range expectedOrder {
+		if result[i].Name != expected {
+			t.Errorf("GetAllByUserID() service[%d] name = %v, want %v", i, result[i].Name, expected)
+		}
+	}
+
+	for i := 0; i < len(result)-1; i++ {
+		if result[i].Position > result[i+1].Position {
+			t.Errorf("GetAllByUserID() not ordered by position: %d > %d", result[i].Position, result[i+1].Position)
+		}
 	}
 }

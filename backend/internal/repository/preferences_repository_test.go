@@ -43,6 +43,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			theme_mode TEXT NOT NULL DEFAULT 'light' CHECK (theme_mode IN ('light', 'dark')),
 			theme_background TEXT,
 			theme_accent_color TEXT,
+			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
