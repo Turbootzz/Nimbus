@@ -43,6 +43,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			theme_mode TEXT NOT NULL DEFAULT 'light' CHECK (theme_mode IN ('light', 'dark')),
 			theme_background TEXT,
 			theme_accent_color TEXT,
+			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -440,4 +441,116 @@ func TestPreferencesRepository_NullFields(t *testing.T) {
 	if preferences.ThemeMode != "dark" {
 		t.Errorf("ThemeMode = %v, want dark", preferences.ThemeMode)
 	}
+}
+
+func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("default value is true", func(t *testing.T) {
+		// Create preferences without specifying OpenInNewTab
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: "light",
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if !preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want true (default)", preferences.OpenInNewTab)
+		}
+	})
+
+	t.Run("can set to false", func(t *testing.T) {
+		openInNewTabFalse := false
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode:    "light",
+			OpenInNewTab: &openInNewTabFalse,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want false", preferences.OpenInNewTab)
+		}
+	})
+
+	t.Run("can set to true explicitly", func(t *testing.T) {
+		openInNewTabTrue := true
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode:    "dark",
+			OpenInNewTab: &openInNewTabTrue,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if !preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want true", preferences.OpenInNewTab)
+		}
+	})
+
+	t.Run("nil value defaults to true", func(t *testing.T) {
+		// Set to false explicitly
+		openInNewTabFalse := false
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode:    "light",
+			OpenInNewTab: &openInNewTabFalse,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Verify it's false
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after first upsert failed: %v", err)
+		}
+		if preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want false", preferences.OpenInNewTab)
+		}
+
+		// Update with nil OpenInNewTab (should default to true, matching the helper function behavior)
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: "dark",
+			// OpenInNewTab not set (nil), should default to true per getOpenInNewTabValue()
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err = repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after second upsert failed: %v", err)
+		}
+
+		// OpenInNewTab should be true (default value when nil)
+		if !preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want true (default when nil)", preferences.OpenInNewTab)
+		}
+	})
 }

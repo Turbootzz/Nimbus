@@ -1,4 +1,4 @@
-.PHONY: dev build test clean migrate testdb fmt vet ci-check
+.PHONY: dev build test clean migrate migrate-up migrate-down migrate-create testdb fmt vet ci-check
 
 # Development
 dev:
@@ -57,24 +57,17 @@ deps:
 	go mod tidy
 
 # Database migrations
-# Load .env file and use DB_URL directly
+# Uses Go-based migration runner (same as dev server)
+migrate: migrate-up
+
 migrate-up:
-	@if [ -f .env ]; then \
-		set -a; . ./.env; set +a; \
-		migrate -path internal/db/migrations -database "$$DB_URL" up || exit 1; \
-	else \
-		echo "Error: .env file not found"; \
-		exit 1; \
-	fi
+	@go run cmd/migrate/main.go
 
 migrate-down:
-	@if [ -f .env ]; then \
-		set -a; . ./.env; set +a; \
-		migrate -path internal/db/migrations -database "$$DB_URL" down || exit 1; \
-	else \
-		echo "Error: .env file not found"; \
-		exit 1; \
-	fi
+	@echo "⚠️  Note: migrate-down is not supported by the Go migration runner"
+	@echo "Migrations run automatically on server start (cmd/server/main.go)"
+	@echo "To rollback, modify/delete migration files and restart the server"
 
 migrate-create:
-	migrate create -ext sql -dir internal/db/migrations -seq $(name)
+	@echo "Creating new migration with name: $(name)"
+	@migrate create -ext sql -dir internal/db/migrations -seq $(name)

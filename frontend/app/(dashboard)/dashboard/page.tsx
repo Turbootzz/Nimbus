@@ -11,8 +11,10 @@ import {
 import Link from 'next/link'
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function DashboardPage() {
+  const { openInNewTab } = useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -168,8 +170,8 @@ export default function DashboardPage() {
           <a
             key={service.id}
             href={service.url}
-            target="_blank"
-            rel="noopener noreferrer"
+            target={openInNewTab ? '_blank' : '_self'}
+            {...(openInNewTab && { rel: 'noopener noreferrer' })}
             className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="mb-4 flex items-start justify-between">

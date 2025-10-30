@@ -9,7 +9,9 @@ A modern, customizable dashboard for your homelab and personal servers with per-
 - **Role-Based Access Control**: Admin and user roles with different permissions
 - **Dashboard UI**: Grid-based service tiles with icons and health status
 - **Health Monitoring**: Automatic service availability checking with visual indicators
-- **User Personalization**: Custom backgrounds, themes, and light/dark mode per user
+- **User Personalization**: Custom backgrounds, themes, accent colors, and light/dark mode per user
+- **Drag & Drop Reordering**: Rearrange service tiles with touch and mouse support
+- **Link Behavior Control**: Choose whether services open in new tabs or same window
 - **Configuration Management**: Add/edit services via web UI or JSON import/export
 
 ### Tech Stack
@@ -143,19 +145,28 @@ nimbus/
 - `POST /api/v1/auth/refresh` - Refresh JWT token
 - `POST /api/v1/auth/logout` - User logout
 
-### Service Management (Coming Soon)
+### Service Management
 - `GET /api/v1/services` - List all services
-- `POST /api/v1/services` - Create new service (admin only)
-- `PUT /api/v1/services/:id` - Update service (admin only)
-- `DELETE /api/v1/services/:id` - Delete service (admin only)
+- `GET /api/v1/services/:id` - Get specific service
+- `POST /api/v1/services` - Create new service
+- `PUT /api/v1/services/:id` - Update service
+- `DELETE /api/v1/services/:id` - Delete service
+- `PUT /api/v1/services/reorder` - Update service positions (drag & drop)
+- `POST /api/v1/services/:id/check` - Manual health check
 
-### Health Monitoring (Coming Soon)
-- `GET /api/v1/health/services` - Get service health statuses
-- `GET /api/v1/health/services/:id` - Get specific service health history
+### Health Monitoring
+- Automatic background health checks with configurable interval
+- Visual status indicators (online/offline/unknown)
+- Response time tracking
 
 ## Environment Variables
 
 **Important**: Environment variables are configured in the **root `.env` file**
+
+Both backend and frontend read from the same `.env` file:
+- **Backend**: Reads directly from root `.env`
+- **Frontend**: Uses `dotenv-cli` to load from root `.env` (configured in `package.json`)
+- **Production (Portainer/Docker)**: Environment variables are injected by your orchestration tool
 
 See `.env.example` in the root directory for all available configuration options. Key variables include:
 

@@ -96,6 +96,7 @@ func main() {
 	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
+	services.Put("/reorder", serviceHandler.ReorderServices) // Must be before /:id routes
 	services.Get("/:id", serviceHandler.GetService)
 	services.Put("/:id", serviceHandler.UpdateService)
 	services.Delete("/:id", serviceHandler.DeleteService)
@@ -142,6 +143,7 @@ func main() {
 		log.Printf("  PUT    /api/v1/services/:id (protected)")
 		log.Printf("  DELETE /api/v1/services/:id (protected)")
 		log.Printf("  POST   /api/v1/services/:id/check (protected) - Manual health check")
+		log.Printf("  PUT    /api/v1/services/reorder (protected) - Reorder services")
 		if err := app.Listen(":" + port); err != nil {
 			log.Fatalf("Server failed to start: %v", err)
 		}

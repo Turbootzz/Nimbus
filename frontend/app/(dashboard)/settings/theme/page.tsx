@@ -2,9 +2,19 @@
 
 import Image from 'next/image'
 import { useTheme } from '@/contexts/ThemeContext'
+import { Toggle } from '@/components/ui/Toggle'
 
 export default function ThemePage() {
-  const { theme, accentColor, background, setTheme, setAccentColor, setBackground } = useTheme()
+  const {
+    theme,
+    accentColor,
+    background,
+    openInNewTab,
+    setTheme,
+    setAccentColor,
+    setBackground,
+    setOpenInNewTab,
+  } = useTheme()
 
   const presetColors = [
     { name: 'Sky Blue (Default)', value: '#0ea5e9' },
@@ -119,6 +129,19 @@ export default function ThemePage() {
               )}
             </div>
           </div>
+        </div>
+
+        {/* Link Behavior */}
+        <div className="bg-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Link Behavior</h2>
+          <p className="text-text-secondary mb-4 text-sm">Choose how service links should open</p>
+
+          <Toggle
+            enabled={openInNewTab}
+            onChange={setOpenInNewTab}
+            label="Open services in new tab"
+            description="When enabled, clicking a service will open it in a new tab"
+          />
         </div>
 
         {/* Background Image */}

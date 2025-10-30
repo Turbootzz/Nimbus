@@ -35,6 +35,7 @@ export interface Service {
   description?: string
   status: 'online' | 'offline' | 'unknown'
   response_time?: number
+  position: number
   created_at: string
   updated_at?: string
 }
@@ -51,6 +52,15 @@ export interface ServiceUpdateRequest {
   url?: string
   icon?: string
   description?: string
+}
+
+export interface ServicePosition {
+  id: string
+  position: number
+}
+
+export interface ServiceReorderRequest {
+  services: ServicePosition[]
 }
 
 // Health check types
@@ -73,6 +83,7 @@ export interface UserPreferences {
   theme_mode: 'light' | 'dark'
   theme_background?: string
   theme_accent_color?: string
+  open_in_new_tab: boolean
   updated_at?: string
 }
 
@@ -80,6 +91,7 @@ export interface PreferencesUpdateRequest {
   theme_mode: 'light' | 'dark'
   theme_background?: string
   theme_accent_color?: string
+  open_in_new_tab?: boolean
 }
 
 // API response types

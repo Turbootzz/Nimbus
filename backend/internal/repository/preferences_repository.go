@@ -15,11 +15,19 @@ func NewPreferencesRepository(db *sql.DB) *PreferencesRepository {
 	return &PreferencesRepository{db: db}
 }
 
+// getOpenInNewTabValue returns the open_in_new_tab value, defaulting to true if nil
+func getOpenInNewTabValue(value *bool) bool {
+	if value != nil {
+		return *value
+	}
+	return true
+}
+
 // GetByUserID retrieves preferences for a specific user
 func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) (*models.UserPreferences, error) {
 	preferences := &models.UserPreferences{}
 	query := `
-		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, created_at, updated_at
+		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -30,6 +38,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.ThemeMode,
 		&preferences.ThemeBackground,
 		&preferences.ThemeAccentColor,
+		&preferences.OpenInNewTab,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -44,8 +53,8 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 // Create creates default preferences for a new user
 func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.UserPreferences) error {
 	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id
 	`
 
@@ -56,6 +65,7 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 		preferences.ThemeMode,
 		preferences.ThemeBackground,
 		preferences.ThemeAccentColor,
+		preferences.OpenInNewTab,
 		preferences.CreatedAt,
 		preferences.UpdatedAt,
 	).Scan(&preferences.ID)
@@ -67,8 +77,8 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 func (r *PreferencesRepository) Update(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
 	query := `
 		UPDATE user_preferences
-		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, updated_at = CURRENT_TIMESTAMP
-		WHERE user_id = $4
+		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, open_in_new_tab = $4, updated_at = CURRENT_TIMESTAMP
+		WHERE user_id = $5
 	`
 
 	result, err := r.db.ExecContext(
@@ -77,6 +87,7 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 		preferences.ThemeMode,
 		preferences.ThemeBackground,
 		preferences.ThemeAccentColor,
+		getOpenInNewTabValue(preferences.OpenInNewTab),
 		userID,
 	)
 
@@ -99,13 +110,14 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 // Upsert creates or updates preferences (used when user might not have preferences yet)
 func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
 	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT (user_id)
 		DO UPDATE SET
 			theme_mode = EXCLUDED.theme_mode,
 			theme_background = EXCLUDED.theme_background,
 			theme_accent_color = EXCLUDED.theme_accent_color,
+			open_in_new_tab = EXCLUDED.open_in_new_tab,
 			updated_at = CURRENT_TIMESTAMP
 	`
 
@@ -116,6 +128,7 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, prefe
 		preferences.ThemeMode,
 		preferences.ThemeBackground,
 		preferences.ThemeAccentColor,
+		getOpenInNewTabValue(preferences.OpenInNewTab),
 	)
 
 	return err
