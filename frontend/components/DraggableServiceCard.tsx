@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service } from '@/types'
+import { useTheme } from '@/contexts/ThemeContext'
 
 interface DraggableServiceCardProps {
   service: Service
@@ -12,6 +13,7 @@ interface DraggableServiceCardProps {
 }
 
 export function DraggableServiceCard({ service, isDragging = false }: DraggableServiceCardProps) {
+  const { openInNewTab } = useTheme()
   const {
     attributes,
     listeners,
@@ -74,7 +76,12 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
       </div>
 
       {/* Service card content */}
-      <a href={service.url} target="_blank" rel="noopener noreferrer" className="block p-6">
+      <a
+        href={service.url}
+        target={openInNewTab ? '_blank' : '_self'}
+        {...(openInNewTab && { rel: 'noopener noreferrer' })}
+        className="block p-6"
+      >
         <div className="mb-4 flex items-start justify-between">
           <span className="text-3xl">{service.icon}</span>
           <div className={`flex items-center ${getStatusColor(service.status)}`}>

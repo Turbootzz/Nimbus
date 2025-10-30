@@ -1,4 +1,4 @@
-.PHONY: help setup dev-backend dev-frontend testdb migrate migrate-down seed kill-ports clean install
+.PHONY: help setup dev-backend dev-frontend testdb migrate migrate-down seed kill-ports clean install ci-check
 
 # Default target
 help:

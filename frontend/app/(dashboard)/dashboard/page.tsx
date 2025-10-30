@@ -171,7 +171,7 @@ export default function DashboardPage() {
             key={service.id}
             href={service.url}
             target={openInNewTab ? '_blank' : '_self'}
-            rel="noopener noreferrer"
+            {...(openInNewTab && { rel: 'noopener noreferrer' })}
             className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="mb-4 flex items-start justify-between">

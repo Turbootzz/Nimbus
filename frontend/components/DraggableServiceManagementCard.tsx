@@ -26,6 +26,9 @@ export function DraggableServiceManagementCard({
   onDelete,
 }: DraggableServiceManagementCardProps) {
   const { openInNewTab } = useTheme()
+
+  // Always call useSortable to comply with React Hooks rules
+  // When isDragging=true (in DragOverlay), we ignore transform/transition
   const {
     attributes,
     listeners,
@@ -38,8 +41,8 @@ export function DraggableServiceManagementCard({
   })
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: isDragging ? undefined : CSS.Transform.toString(transform),
+    transition: isDragging ? undefined : transition,
     opacity: isSortableDragging || isDragging ? 0.5 : 1,
   }
 
@@ -114,7 +117,7 @@ export function DraggableServiceManagementCard({
       <a
         href={service.url}
         target={openInNewTab ? '_blank' : '_self'}
-        rel="noopener noreferrer"
+        {...(openInNewTab && { rel: 'noopener noreferrer' })}
         className="text-primary hover:text-primary-hover mb-2 block truncate text-xs transition-colors"
         onClick={(e) => {
           // Prevent link from opening during drag

@@ -3,16 +3,34 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
+	"github.com/lib/pq"
 	"github.com/nimbus/backend/internal/models"
 )
 
 type ServiceRepository struct {
-	db *sql.DB
+	db           *sql.DB
+	isPostgreSQL bool
 }
 
 func NewServiceRepository(db *sql.DB) *ServiceRepository {
-	return &ServiceRepository{db: db}
+	// Detect if we're using PostgreSQL by checking the driver
+	isPostgreSQL := false
+	if db != nil {
+		// Try a simple query that only PostgreSQL supports
+		var version string
+		err := db.QueryRow("SELECT version()").Scan(&version)
+		if err == nil {
+			// Check if it contains "PostgreSQL"
+			isPostgreSQL = len(version) > 10 && version[:10] == "PostgreSQL"
+		}
+	}
+
+	return &ServiceRepository{
+		db:           db,
+		isPostgreSQL: isPostgreSQL,
+	}
 }
 
 // Create creates a new service
@@ -261,6 +279,66 @@ func (r *ServiceRepository) UpdateStatusWithResponseTime(ctx context.Context, id
 
 // UpdatePositions updates positions for multiple services in a transaction
 func (r *ServiceRepository) UpdatePositions(ctx context.Context, userID string, positions map[string]int) error {
+	if r.isPostgreSQL {
+		return r.bulkUpdatePositionsPostgreSQL(ctx, userID, positions)
+	}
+	return r.loopUpdatePositions(ctx, userID, positions)
+}
+
+// bulkUpdatePositionsPostgreSQL uses PostgreSQL array operations for optimal performance
+func (r *ServiceRepository) bulkUpdatePositionsPostgreSQL(ctx context.Context, userID string, positions map[string]int) error {
+	if len(positions) == 0 {
+		return nil
+	}
+
+	// Convert map to arrays for PostgreSQL
+	serviceIDs := make([]string, 0, len(positions))
+	positionValues := make([]int, 0, len(positions))
+
+	for id, pos := range positions {
+		serviceIDs = append(serviceIDs, id)
+		positionValues = append(positionValues, pos)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Single bulk UPDATE using PostgreSQL array operations
+	query := `
+		UPDATE services
+		SET position = data.new_position,
+		    updated_at = CURRENT_TIMESTAMP
+		FROM (
+			SELECT unnest($1::text[]) AS id,
+			       unnest($2::int[]) AS new_position
+		) AS data
+		WHERE services.id = data.id
+		  AND services.user_id = $3
+	`
+
+	result, err := tx.ExecContext(ctx, query, pq.Array(serviceIDs), pq.Array(positionValues), userID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+
+	// Verify all services were updated
+	if int(rowsAffected) != len(positions) {
+		return fmt.Errorf("expected to update %d services, but updated %d (service not found or access denied)", len(positions), rowsAffected)
+	}
+
+	return tx.Commit()
+}
+
+// loopUpdatePositions uses individual UPDATE statements (SQLite compatible)
+func (r *ServiceRepository) loopUpdatePositions(ctx context.Context, userID string, positions map[string]int) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
