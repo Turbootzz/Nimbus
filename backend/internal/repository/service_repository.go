@@ -17,9 +17,20 @@ func NewServiceRepository(db *sql.DB) *ServiceRepository {
 
 // Create creates a new service
 func (r *ServiceRepository) Create(ctx context.Context, service *models.Service) error {
+	// Get the max position for this user and set new service to end
+	var maxPos sql.NullInt64
+	posQuery := `SELECT MAX(position) FROM services WHERE user_id = $1`
+	_ = r.db.QueryRowContext(ctx, posQuery, service.UserID).Scan(&maxPos)
+
+	if maxPos.Valid {
+		service.Position = int(maxPos.Int64) + 1
+	} else {
+		service.Position = 0
+	}
+
 	query := `
-		INSERT INTO services (user_id, name, url, icon, description, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO services (user_id, name, url, icon, description, status, position, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 
@@ -32,6 +43,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.Icon,
 		service.Description,
 		service.Status,
+		service.Position,
 		service.CreatedAt,
 		service.UpdatedAt,
 	).Scan(&service.ID)
@@ -43,7 +55,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	service := &models.Service{}
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
+		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
 		FROM services
 		WHERE id = $1
 	`
@@ -57,6 +69,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 		&service.Description,
 		&service.Status,
 		&service.ResponseTime,
+		&service.Position,
 		&service.CreatedAt,
 		&service.UpdatedAt,
 	)
@@ -71,10 +84,10 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 // GetAllByUserID retrieves all services for a specific user
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
+		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
 		FROM services
 		WHERE user_id = $1
-		ORDER BY created_at DESC
+		ORDER BY position ASC, created_at DESC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
@@ -95,6 +108,7 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 			&service.Description,
 			&service.Status,
 			&service.ResponseTime,
+			&service.Position,
 			&service.CreatedAt,
 			&service.UpdatedAt,
 		)
@@ -110,7 +124,7 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 // GetAll retrieves all services across all users (used by health check monitor)
 func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, created_at, updated_at
+		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
 		FROM services
 		ORDER BY created_at DESC
 	`
@@ -133,6 +147,7 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 			&service.Description,
 			&service.Status,
 			&service.ResponseTime,
+			&service.Position,
 			&service.CreatedAt,
 			&service.UpdatedAt,
 		)
@@ -242,4 +257,34 @@ func (r *ServiceRepository) UpdateStatusWithResponseTime(ctx context.Context, id
 	}
 
 	return nil
+}
+
+// UpdatePositions updates positions for multiple services in a transaction
+func (r *ServiceRepository) UpdatePositions(ctx context.Context, userID string, positions map[string]int) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// Verify all services belong to the user and update positions
+	query := `UPDATE services SET position = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`
+
+	for serviceID, position := range positions {
+		result, err := tx.ExecContext(ctx, query, position, serviceID, userID)
+		if err != nil {
+			return err
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return err
+		}
+
+		if rowsAffected == 0 {
+			return sql.ErrNoRows // Service doesn't exist or doesn't belong to user
+		}
+	}
+
+	return tx.Commit()
 }

@@ -23,6 +23,7 @@ type Service struct {
 	Description  string    `json:"description" db:"description"`
 	Status       string    `json:"status" db:"status"`               // StatusOnline, StatusOffline, or StatusUnknown
 	ResponseTime *int      `json:"response_time" db:"response_time"` // Response time in milliseconds (nil if never checked)
+	Position     int       `json:"position" db:"position"`           // User-defined position for dashboard ordering
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -52,6 +53,7 @@ type ServiceResponse struct {
 	Description  string    `json:"description"`
 	Status       string    `json:"status"`
 	ResponseTime *int      `json:"response_time,omitempty"` // Response time in milliseconds (omitted if nil)
+	Position     int       `json:"position"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -66,7 +68,19 @@ func (s *Service) ToResponse() ServiceResponse {
 		Description:  s.Description,
 		Status:       s.Status,
 		ResponseTime: s.ResponseTime,
+		Position:     s.Position,
 		CreatedAt:    s.CreatedAt,
 		UpdatedAt:    s.UpdatedAt,
 	}
+}
+
+// ServicePosition represents a service ID and its new position
+type ServicePosition struct {
+	ID       string `json:"id" validate:"required"`
+	Position int    `json:"position" validate:"min=0"`
+}
+
+// ServiceReorderRequest represents bulk position updates
+type ServiceReorderRequest struct {
+	Services []ServicePosition `json:"services" validate:"required,dive"`
 }

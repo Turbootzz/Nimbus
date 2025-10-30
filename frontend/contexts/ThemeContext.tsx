@@ -1,14 +1,24 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  ReactNode,
+} from 'react'
 
 interface ThemeContextType {
   theme: 'light' | 'dark'
   accentColor?: string
   background?: string
+  openInNewTab: boolean
   setTheme: (theme: 'light' | 'dark') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
+  setOpenInNewTab: (openInNewTab: boolean) => void
   loading: boolean
 }
 
@@ -18,6 +28,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<'light' | 'dark'>('light')
   const [accentColor, setAccentColorState] = useState<string | undefined>()
   const [background, setBackgroundState] = useState<string | undefined>()
+  const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
 
   // Load preferences on mount (from localStorage only)
@@ -26,10 +37,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
     const savedAccent = localStorage.getItem('accentColor')
     const savedBackground = localStorage.getItem('background')
+    const savedOpenInNewTab = localStorage.getItem('openInNewTab')
 
     if (savedTheme) setThemeState(savedTheme)
     if (savedAccent) setAccentColorState(savedAccent)
     if (savedBackground) setBackgroundState(savedBackground)
+    if (savedOpenInNewTab !== null) setOpenInNewTabState(savedOpenInNewTab === 'true')
 
     setLoading(false)
   }, [])
@@ -84,6 +97,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     // Save to localStorage for persistence
     localStorage.setItem('theme', theme)
+    localStorage.setItem('openInNewTab', String(openInNewTab))
     if (accentColor) {
       localStorage.setItem('accentColor', accentColor)
     } else {
@@ -94,35 +108,50 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     } else {
       localStorage.removeItem('background')
     }
-  }, [theme, accentColor, background])
+  }, [theme, accentColor, background, openInNewTab])
 
-  const setTheme = (newTheme: 'light' | 'dark') => {
+  const setTheme = useCallback((newTheme: 'light' | 'dark') => {
     setThemeState(newTheme)
-  }
+  }, [])
 
-  const setAccentColor = (color: string | undefined) => {
+  const setAccentColor = useCallback((color: string | undefined) => {
     setAccentColorState(color)
-  }
+  }, [])
 
-  const setBackground = (bg: string | undefined) => {
+  const setBackground = useCallback((bg: string | undefined) => {
     setBackgroundState(bg)
-  }
+  }, [])
 
-  return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        accentColor,
-        background,
-        setTheme,
-        setAccentColor,
-        setBackground,
-        loading,
-      }}
-    >
-      {children}
-    </ThemeContext.Provider>
+  const setOpenInNewTab = useCallback((value: boolean) => {
+    setOpenInNewTabState(value)
+  }, [])
+
+  const value = useMemo(
+    () => ({
+      theme,
+      accentColor,
+      background,
+      openInNewTab,
+      setTheme,
+      setAccentColor,
+      setBackground,
+      setOpenInNewTab,
+      loading,
+    }),
+    [
+      theme,
+      accentColor,
+      background,
+      openInNewTab,
+      setTheme,
+      setAccentColor,
+      setBackground,
+      setOpenInNewTab,
+      loading,
+    ]
   )
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
 }
 
 export function useTheme() {

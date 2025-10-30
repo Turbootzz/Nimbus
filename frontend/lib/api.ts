@@ -6,6 +6,7 @@ import type {
   Service,
   ServiceCreateRequest,
   ServiceUpdateRequest,
+  ServiceReorderRequest,
   ApiResponse,
   HealthCheck,
   UserPreferences,
@@ -162,6 +163,13 @@ class ApiClient {
   async deleteService(id: string): Promise<ApiResponse<void>> {
     return this.request<void>(`/services/${id}`, {
       method: 'DELETE',
+    })
+  }
+
+  async reorderServices(data: ServiceReorderRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/services/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(data),
     })
   }
 

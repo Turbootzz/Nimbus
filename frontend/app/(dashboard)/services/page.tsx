@@ -2,21 +2,43 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { PlusIcon } from '@heroicons/react/24/outline'
 import {
-  PlusIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ClockIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline'
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
+import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  // Configure sensors for both mouse/touch input
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150, // 150ms press before drag starts on touch (shorter delay)
+        tolerance: 5, // 5px movement tolerance
+      },
+    })
+  )
 
   useEffect(() => {
     fetchServices()
@@ -66,43 +88,53 @@ export default function ServicesPage() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'text-success'
-      case 'offline':
-        return 'text-error'
-      default:
-        return 'text-text-muted'
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    setActiveId(null)
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = services.findIndex((s) => s.id === active.id)
+    const newIndex = services.findIndex((s) => s.id === over.id)
+
+    if (oldIndex === -1 || newIndex === -1) {
+      return
+    }
+
+    // Optimistically update UI
+    const reorderedServices = arrayMove(services, oldIndex, newIndex)
+    setServices(reorderedServices)
+
+    // Update positions on backend
+    const updatedPositions = reorderedServices.map((service, index) => ({
+      id: service.id,
+      position: index,
+    }))
+
+    try {
+      const response = await api.reorderServices({ services: updatedPositions })
+
+      if (response.error) {
+        console.error('Failed to save order:', response.error.message || response.error)
+        // Revert on error
+        setServices(services)
+      }
+    } catch (error) {
+      console.error('Failed to save order:', error)
+      // Revert on error
+      setServices(services)
     }
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return <CheckCircleIcon className="h-5 w-5" />
-      case 'offline':
-        return <ExclamationCircleIcon className="h-5 w-5" />
-      default:
-        return <ClockIcon className="h-5 w-5" />
-    }
-  }
-
-  const getResponseTimeColor = (ms: number) => {
-    if (ms < 200) return 'text-success font-medium'
-    if (ms < 500) return 'text-warning font-medium'
-    return 'text-error font-medium'
-  }
-
-  const formatRelativeTime = (timestamp: string) => {
-    const now = new Date()
-    const date = new Date(timestamp)
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-    if (seconds < 60) return 'just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-    return `${Math.floor(seconds / 86400)}d ago`
+  const handleDragCancel = () => {
+    setActiveId(null)
   }
 
   if (isLoading) {
@@ -115,6 +147,8 @@ export default function ServicesPage() {
       </div>
     )
   }
+
+  const activeService = services.find((s) => s.id === activeId)
 
   return (
     <div>
@@ -166,76 +200,35 @@ export default function ServicesPage() {
           </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {services.map((service) => (
-            <div
-              key={service.id}
-              className="bg-card border-card-border group relative rounded-lg border p-6 transition-all hover:shadow-lg"
-            >
-              {/* Service icon and status */}
-              <div className="mb-4 flex items-start justify-between">
-                <span className="text-3xl">{service.icon || '🔗'}</span>
-                <div className={`flex items-center ${getStatusColor(service.status)}`}>
-                  {getStatusIcon(service.status)}
-                  <span className="ml-1 text-sm capitalize">{service.status}</span>
-                </div>
-              </div>
-
-              {/* Service info */}
-              <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
-              <p className="text-text-secondary mb-2 text-sm">
-                {service.description || 'No description'}
-              </p>
-              <a
-                href={service.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:text-primary-hover mb-2 block truncate text-xs transition-colors"
-              >
-                {service.url}
-              </a>
-
-              {/* Response time and last checked */}
-              <div className="text-text-muted mb-4 space-y-1 text-xs">
-                {service.response_time !== undefined && service.response_time !== null && (
-                  <div className="flex items-center">
-                    <span className="mr-2">Response:</span>
-                    <span className={getResponseTimeColor(service.response_time)}>
-                      {service.response_time}ms
-                    </span>
-                  </div>
-                )}
-                {service.updated_at && service.status !== 'unknown' && (
-                  <div className="flex items-center">
-                    <ClockIcon className="mr-1 h-3 w-3" />
-                    Last checked: {formatRelativeTime(service.updated_at)}
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div
-                className="flex items-center gap-2 border-t pt-4"
-                style={{ borderColor: 'var(--color-card-border)' }}
-              >
-                <Link
-                  href={`/services/${service.id}/edit`}
-                  className="hover:bg-card-border text-text-secondary hover:text-text-primary flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
-                >
-                  <PencilIcon className="mr-1 h-4 w-4" />
-                  Edit
-                </Link>
-                <button
-                  onClick={() => handleDelete(service.id, service.name)}
-                  className="hover:bg-error text-error flex flex-1 items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors hover:text-white"
-                >
-                  <TrashIcon className="mr-1 h-4 w-4" />
-                  Delete
-                </button>
-              </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {services.map((service) => (
+                <DraggableServiceManagementCard
+                  key={service.id}
+                  service={service}
+                  onDelete={handleDelete}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeService ? (
+              <DraggableServiceManagementCard
+                service={activeService}
+                onDelete={handleDelete}
+                isDragging
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
     </div>
   )

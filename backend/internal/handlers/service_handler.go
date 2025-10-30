@@ -348,3 +348,62 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 		"service": updatedService.ToResponse(),
 	})
 }
+
+// ReorderServices handles bulk position updates for services
+func (h *ServiceHandler) ReorderServices(c *fiber.Ctx) error {
+	// Get user ID from context
+	userID, ok := c.Locals("user_id").(string)
+	if !ok || userID == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized: user ID not found",
+		})
+	}
+
+	var req models.ServiceReorderRequest
+
+	// Parse request body
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Validate request
+	if len(req.Services) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "At least one service position is required",
+		})
+	}
+
+	// Convert to map for repository method
+	positions := make(map[string]int)
+	for _, sp := range req.Services {
+		if sp.ID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Service ID cannot be empty",
+			})
+		}
+		if sp.Position < 0 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Position must be non-negative",
+			})
+		}
+		positions[sp.ID] = sp.Position
+	}
+
+	// Update positions in database (validates ownership)
+	if err := h.serviceRepo.UpdatePositions(c.Context(), userID, positions); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "One or more services not found or access denied",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update service positions",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "Service positions updated successfully",
+	})
+}

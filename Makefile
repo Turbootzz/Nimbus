@@ -1,4 +1,4 @@
-.PHONY: help setup dev-backend dev-frontend testdb seed kill-ports clean install
+.PHONY: help setup dev-backend dev-frontend testdb migrate migrate-down seed kill-ports clean install
 
 # Default target
 help:
@@ -15,6 +15,8 @@ help:
 	@echo ""
 	@echo "Database:"
 	@echo "  make testdb       Test database connection"
+	@echo "  make migrate      Run database migrations (up)"
+	@echo "  make migrate-down Rollback last migration"
 	@echo "  make seed         Seed database with test users"
 	@echo ""
 	@echo "Formatting:"
@@ -33,8 +35,9 @@ help:
 	@echo "  2. Create 'nimbus' database in pgAdmin"
 	@echo "  3. Update .env (root) with your PostgreSQL credentials"
 	@echo "  4. make testdb             # Verify database connection"
-	@echo "  5. make dev-backend        # Terminal 1"
-	@echo "  6. make dev-frontend       # Terminal 2"
+	@echo "  5. make migrate            # Run database migrations"
+	@echo "  6. make dev-backend        # Terminal 1"
+	@echo "  7. make dev-frontend       # Terminal 2"
 	@echo ""
 
 # One-time setup
@@ -89,6 +92,14 @@ dev-frontend:
 # Test database connection
 testdb:
 	@cd backend && make testdb
+
+# Run database migrations
+migrate:
+	@cd backend && make migrate-up
+
+# Rollback database migrations
+migrate-down:
+	@cd backend && make migrate-down
 
 # Seed database with test data
 seed:
