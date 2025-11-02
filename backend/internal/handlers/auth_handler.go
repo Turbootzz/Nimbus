@@ -158,17 +158,22 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		log.Printf("Failed to update last activity for user %s: %v", user.Email, err)
 	}
 
-	// Generate token
-	token, err := h.authService.GenerateToken(user.ID, user.Email, user.Role)
+	// Generate token with appropriate expiration
+	var token string
+	maxAge := 0 // Session cookie by default
+	if req.RememberMe {
+		// Remember me: 30 days for both token and cookie
+		maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
+		token, err = h.authService.GenerateTokenWithExpiration(user.ID, user.Email, user.Role, 30*24*time.Hour)
+	} else {
+		// Session: 24 hours for token, session cookie (cleared on browser close)
+		token, err = h.authService.GenerateToken(user.ID, user.Email, user.Role)
+	}
+
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to generate token",
 		})
-	}
-
-	maxAge := 0 // Session cookie by default
-	if req.RememberMe {
-		maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
 	}
 
 	// Set httpOnly cookie

@@ -40,14 +40,19 @@ func (s *AuthService) ComparePassword(hashedPassword, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 }
 
-// GenerateToken creates a JWT token for a user
+// GenerateToken creates a JWT token for a user with default 24h expiration
 func (s *AuthService) GenerateToken(userID string, email string, role string) (string, error) {
+	return s.GenerateTokenWithExpiration(userID, email, role, time.Hour*24)
+}
+
+// GenerateTokenWithExpiration creates a JWT token with custom expiration
+func (s *AuthService) GenerateTokenWithExpiration(userID string, email string, role string, expiration time.Duration) (string, error) {
 	// Create claims
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
 		"role":    role,
-		"exp":     time.Now().Add(time.Hour * 24).Unix(), // 24 hours
+		"exp":     time.Now().Add(expiration).Unix(),
 		"iat":     time.Now().Unix(),
 	}
 

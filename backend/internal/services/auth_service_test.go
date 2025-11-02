@@ -382,6 +382,64 @@ func TestAuthService_TokenExpiration(t *testing.T) {
 	}
 }
 
+func TestAuthService_GenerateTokenWithExpiration(t *testing.T) {
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
+	defer os.Unsetenv("JWT_SECRET")
+
+	authService := NewAuthService()
+
+	tests := []struct {
+		name       string
+		expiration time.Duration
+		variance   time.Duration
+	}{
+		{
+			name:       "30 day token (remember me)",
+			expiration: 30 * 24 * time.Hour,
+			variance:   5 * time.Second,
+		},
+		{
+			name:       "1 hour token",
+			expiration: time.Hour,
+			variance:   5 * time.Second,
+		},
+		{
+			name:       "7 day token",
+			expiration: 7 * 24 * time.Hour,
+			variance:   5 * time.Second,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token, err := authService.GenerateTokenWithExpiration("user-123", "test@example.com", "user", tt.expiration)
+			if err != nil {
+				t.Fatalf("GenerateTokenWithExpiration() failed: %v", err)
+			}
+
+			// Validate token
+			claims, err := authService.ValidateToken(token)
+			if err != nil {
+				t.Fatalf("ValidateToken() failed: %v", err)
+			}
+
+			// Check expiration matches expected duration
+			exp, ok := (*claims)["exp"].(float64)
+			if !ok {
+				t.Fatal("Token expiration not found or wrong type")
+			}
+
+			expirationTime := time.Unix(int64(exp), 0)
+			expectedExpiration := time.Now().Add(tt.expiration)
+			timeDiff := expirationTime.Sub(expectedExpiration)
+
+			if timeDiff > tt.variance || timeDiff < -tt.variance {
+				t.Errorf("Token expiration = %v, want ~%v (diff: %v)", expirationTime, expectedExpiration, timeDiff)
+			}
+		})
+	}
+}
+
 func TestAuthService_RequiresJWTSecret(t *testing.T) {
 	// Ensure no JWT_SECRET is set
 	os.Unsetenv("JWT_SECRET")
