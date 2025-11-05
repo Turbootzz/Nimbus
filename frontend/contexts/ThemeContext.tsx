@@ -85,7 +85,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // If response.error (e.g., 401 Unauthorized), silently use localStorage values
       } catch (error) {
         // Network error or other issue - fall back to localStorage
-        console.warn('Failed to load preferences from API, using localStorage:', error)
+        if (error instanceof Error) {
+          console.warn('Failed to load preferences from API, using localStorage:', error.message)
+        } else {
+          // Unexpected error type - log and re-throw in development
+          console.error('Unexpected error loading preferences:', error)
+          if (process.env.NODE_ENV === 'development') throw error
+        }
       } finally {
         setLoading(false)
       }
