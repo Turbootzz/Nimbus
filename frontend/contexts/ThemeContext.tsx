@@ -7,6 +7,7 @@ import {
   useState,
   useCallback,
   useMemo,
+  useRef,
   ReactNode,
 } from 'react'
 import { api } from '@/lib/api'
@@ -33,6 +34,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
+
+  // Ref to store pending updates that arrive while syncing
+  const pendingUpdatesRef = useRef<PreferencesUpdateRequest | null>(null)
 
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
@@ -139,81 +143,62 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme, accentColor, background])
 
+  // Helper to update localStorage for a set of preference updates
+  const updateLocalStorage = (updates: PreferencesUpdateRequest) => {
+    if (updates.theme_mode) localStorage.setItem('theme', updates.theme_mode)
+    if (updates.open_in_new_tab !== undefined) {
+      localStorage.setItem('openInNewTab', String(updates.open_in_new_tab))
+    }
+    if (updates.theme_accent_color !== undefined) {
+      if (updates.theme_accent_color) {
+        localStorage.setItem('accentColor', updates.theme_accent_color)
+      } else {
+        localStorage.removeItem('accentColor')
+      }
+    }
+    if (updates.theme_background !== undefined) {
+      if (updates.theme_background) {
+        localStorage.setItem('background', updates.theme_background)
+      } else {
+        localStorage.removeItem('background')
+      }
+    }
+  }
+
   // Save preferences to API and localStorage
   const savePreferences = useCallback(
     async (updates: PreferencesUpdateRequest) => {
-      if (syncing) return // Prevent concurrent saves
+      // Always update localStorage immediately for instant UI feedback
+      updateLocalStorage(updates)
+
+      // If already syncing, merge updates into pending queue
+      if (syncing) {
+        pendingUpdatesRef.current = {
+          ...pendingUpdatesRef.current,
+          ...updates,
+        }
+        return
+      }
 
       setSyncing(true)
       try {
-        // Save to API first
+        // Save to API
         const response = await api.updatePreferences(updates)
 
-        if (response.data) {
-          // Update localStorage cache on successful API save
-          if (updates.theme_mode) localStorage.setItem('theme', updates.theme_mode)
-          if (updates.open_in_new_tab !== undefined) {
-            localStorage.setItem('openInNewTab', String(updates.open_in_new_tab))
-          }
-          if (updates.theme_accent_color !== undefined) {
-            if (updates.theme_accent_color) {
-              localStorage.setItem('accentColor', updates.theme_accent_color)
-            } else {
-              localStorage.removeItem('accentColor')
-            }
-          }
-          if (updates.theme_background !== undefined) {
-            if (updates.theme_background) {
-              localStorage.setItem('background', updates.theme_background)
-            } else {
-              localStorage.removeItem('background')
-            }
-          }
-        } else if (response.error) {
-          // API save failed - still update localStorage as fallback
+        if (response.error) {
           console.warn('Failed to save preferences to API:', response.error.message)
-          if (updates.theme_mode) localStorage.setItem('theme', updates.theme_mode)
-          if (updates.open_in_new_tab !== undefined) {
-            localStorage.setItem('openInNewTab', String(updates.open_in_new_tab))
-          }
-          if (updates.theme_accent_color !== undefined) {
-            if (updates.theme_accent_color) {
-              localStorage.setItem('accentColor', updates.theme_accent_color)
-            } else {
-              localStorage.removeItem('accentColor')
-            }
-          }
-          if (updates.theme_background !== undefined) {
-            if (updates.theme_background) {
-              localStorage.setItem('background', updates.theme_background)
-            } else {
-              localStorage.removeItem('background')
-            }
-          }
         }
       } catch (error) {
         console.error('Error saving preferences:', error)
-        // Fallback to localStorage on network error
-        if (updates.theme_mode) localStorage.setItem('theme', updates.theme_mode)
-        if (updates.open_in_new_tab !== undefined) {
-          localStorage.setItem('openInNewTab', String(updates.open_in_new_tab))
-        }
-        if (updates.theme_accent_color !== undefined) {
-          if (updates.theme_accent_color) {
-            localStorage.setItem('accentColor', updates.theme_accent_color)
-          } else {
-            localStorage.removeItem('accentColor')
-          }
-        }
-        if (updates.theme_background !== undefined) {
-          if (updates.theme_background) {
-            localStorage.setItem('background', updates.theme_background)
-          } else {
-            localStorage.removeItem('background')
-          }
-        }
       } finally {
         setSyncing(false)
+
+        // If updates arrived while we were syncing, flush them now
+        const pending = pendingUpdatesRef.current
+        if (pending && Object.keys(pending).length > 0) {
+          pendingUpdatesRef.current = null
+          savePreferences(pending)
+        }
       }
     },
     [syncing]
