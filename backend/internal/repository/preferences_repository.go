@@ -108,27 +108,75 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 }
 
 // Upsert creates or updates preferences (used when user might not have preferences yet)
+// This method supports partial updates - only provided fields will be updated
 func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
+	// First, check if preferences exist
+	existing, err := r.GetByUserID(ctx, userID)
+
+	if err == sql.ErrNoRows {
+		// No existing preferences - create with defaults for missing fields
+		themeMode := "light"
+		if preferences.ThemeMode != nil {
+			themeMode = *preferences.ThemeMode
+		}
+
+		query := `
+			INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		`
+
+		_, err := r.db.ExecContext(
+			ctx,
+			query,
+			userID,
+			themeMode,
+			preferences.ThemeBackground,
+			preferences.ThemeAccentColor,
+			getOpenInNewTabValue(preferences.OpenInNewTab),
+		)
+
+		return err
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Preferences exist - update only provided fields
+	themeMode := existing.ThemeMode
+	if preferences.ThemeMode != nil {
+		themeMode = *preferences.ThemeMode
+	}
+
+	themeBackground := existing.ThemeBackground
+	if preferences.ThemeBackground != nil {
+		themeBackground = preferences.ThemeBackground
+	}
+
+	themeAccentColor := existing.ThemeAccentColor
+	if preferences.ThemeAccentColor != nil {
+		themeAccentColor = preferences.ThemeAccentColor
+	}
+
+	openInNewTab := existing.OpenInNewTab
+	if preferences.OpenInNewTab != nil {
+		openInNewTab = *preferences.OpenInNewTab
+	}
+
 	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (user_id)
-		DO UPDATE SET
-			theme_mode = EXCLUDED.theme_mode,
-			theme_background = EXCLUDED.theme_background,
-			theme_accent_color = EXCLUDED.theme_accent_color,
-			open_in_new_tab = EXCLUDED.open_in_new_tab,
-			updated_at = CURRENT_TIMESTAMP
+		UPDATE user_preferences
+		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, open_in_new_tab = $4, updated_at = CURRENT_TIMESTAMP
+		WHERE user_id = $5
 	`
 
-	_, err := r.db.ExecContext(
+	_, err = r.db.ExecContext(
 		ctx,
 		query,
+		themeMode,
+		themeBackground,
+		themeAccentColor,
+		openInNewTab,
 		userID,
-		preferences.ThemeMode,
-		preferences.ThemeBackground,
-		preferences.ThemeAccentColor,
-		getOpenInNewTabValue(preferences.OpenInNewTab),
 	)
 
 	return err

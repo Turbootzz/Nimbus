@@ -88,9 +88,9 @@ export interface UserPreferences {
 }
 
 export interface PreferencesUpdateRequest {
-  theme_mode: 'light' | 'dark'
-  theme_background?: string
-  theme_accent_color?: string
+  theme_mode?: 'light' | 'dark'
+  theme_background?: string | null
+  theme_accent_color?: string | null
   open_in_new_tab?: boolean
 }
 

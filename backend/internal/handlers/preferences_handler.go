@@ -45,7 +45,7 @@ func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *P
 // GetPreferences retrieves the current user's preferences
 func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
+	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -74,7 +74,7 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 // UpdatePreferences updates the current user's preferences
 func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
+	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -88,6 +88,10 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 			"error": "Invalid request body",
 		})
 	}
+
+	// Log the incoming request for debugging
+	fmt.Printf("[PreferencesHandler] UserID: %s, Update: ThemeMode=%v, ThemeBackground=%v, ThemeAccentColor=%v, OpenInNewTab=%v\n",
+		userID, req.ThemeMode, req.ThemeBackground, req.ThemeAccentColor, req.OpenInNewTab)
 
 	// Validate request using struct tags
 	if err := h.validator.Struct(req); err != nil {

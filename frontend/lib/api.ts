@@ -74,8 +74,12 @@ class ApiClient {
       if (!response.ok) {
         // Handle 401 Unauthorized - token is invalid or user doesn't exist
         if (response.status === 401 && typeof window !== 'undefined') {
-          // Redirect to login unless already on login/register page
+          // Don't redirect for preferences endpoint - it's okay if user isn't logged in yet
+          const isPreferencesEndpoint = endpoint.includes('/users/me/preferences')
+
+          // Redirect to login unless already on login/register page or accessing preferences
           if (
+            !isPreferencesEndpoint &&
             !window.location.pathname.startsWith('/login') &&
             !window.location.pathname.startsWith('/register')
           ) {
