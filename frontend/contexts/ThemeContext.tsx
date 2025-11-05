@@ -174,7 +174,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       // If already syncing, merge updates into pending queue
       if (syncing) {
         pendingUpdatesRef.current = {
-          ...pendingUpdatesRef.current,
+          ...(pendingUpdatesRef.current ?? {}),
           ...updates,
         }
         return

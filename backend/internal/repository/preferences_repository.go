@@ -85,8 +85,8 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 		ctx,
 		query,
 		preferences.ThemeMode,
-		preferences.ThemeBackground,
-		preferences.ThemeAccentColor,
+		preferences.ThemeBackground.GetValue(),
+		preferences.ThemeAccentColor.GetValue(),
 		getOpenInNewTabValue(preferences.OpenInNewTab),
 		userID,
 	)
@@ -137,16 +137,16 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, prefe
 	`
 
 	// Flags to indicate if field was provided (even if NULL)
-	hasBackground := preferences.ThemeBackground != nil
-	hasAccentColor := preferences.ThemeAccentColor != nil
+	hasBackground := preferences.ThemeBackground.IsSet()
+	hasAccentColor := preferences.ThemeAccentColor.IsSet()
 
 	_, err := r.db.ExecContext(
 		ctx,
 		query,
-		userID,                       // $1
-		insertThemeMode,              // $2 (for INSERT)
-		preferences.ThemeBackground,  // $3 (for both INSERT and UPDATE)
-		preferences.ThemeAccentColor, // $4 (for both INSERT and UPDATE)
+		userID,                                  // $1
+		insertThemeMode,                         // $2 (for INSERT)
+		preferences.ThemeBackground.GetValue(),  // $3 (for both INSERT and UPDATE)
+		preferences.ThemeAccentColor.GetValue(), // $4 (for both INSERT and UPDATE)
 		getOpenInNewTabValue(preferences.OpenInNewTab), // $5 (for INSERT)
 		preferences.ThemeMode,                          // $6 (for UPDATE - COALESCE)
 		hasBackground,                                  // $7 (flag: was background provided?)
