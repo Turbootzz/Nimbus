@@ -10,6 +10,15 @@ import (
 	"github.com/nimbus/backend/internal/models"
 )
 
+// Helper functions for creating pointers to string values
+func stringPtr(s string) *string {
+	return &s
+}
+
+func boolPtr(b bool) *bool {
+	return &b
+}
+
 // setupPreferencesTestDB creates an in-memory SQLite database with users and preferences tables
 func setupPreferencesTestDB(t *testing.T) *sql.DB {
 	db, err := sql.Open("sqlite3", ":memory:")
@@ -204,7 +213,7 @@ func TestPreferencesRepository_Update(t *testing.T) {
 			name:   "Update existing preferences",
 			userID: "user-1",
 			req: &models.PreferencesUpdateRequest{
-				ThemeMode:        "dark",
+				ThemeMode:        stringPtr("dark"),
 				ThemeBackground:  &newBackground,
 				ThemeAccentColor: &newAccentColor,
 			},
@@ -214,7 +223,7 @@ func TestPreferencesRepository_Update(t *testing.T) {
 			name:   "Update non-existent preferences",
 			userID: "user-999",
 			req: &models.PreferencesUpdateRequest{
-				ThemeMode: "dark",
+				ThemeMode: stringPtr("dark"),
 			},
 			wantErr: true,
 		},
@@ -232,8 +241,8 @@ func TestPreferencesRepository_Update(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to retrieve updated preferences: %v", err)
 				}
-				if preferences.ThemeMode != tt.req.ThemeMode {
-					t.Errorf("Update() ThemeMode = %v, want %v", preferences.ThemeMode, tt.req.ThemeMode)
+				if tt.req.ThemeMode != nil && preferences.ThemeMode != *tt.req.ThemeMode {
+					t.Errorf("Update() ThemeMode = %v, want %v", preferences.ThemeMode, *tt.req.ThemeMode)
 				}
 				if tt.req.ThemeBackground != nil {
 					if preferences.ThemeBackground == nil || *preferences.ThemeBackground != *tt.req.ThemeBackground {
@@ -289,7 +298,7 @@ func TestPreferencesRepository_Upsert(t *testing.T) {
 			name:   "Upsert for existing user (update)",
 			userID: "user-1",
 			req: &models.PreferencesUpdateRequest{
-				ThemeMode:        "dark",
+				ThemeMode:        stringPtr("dark"),
 				ThemeAccentColor: &accentColor1,
 			},
 			isNew:   false,
@@ -299,7 +308,7 @@ func TestPreferencesRepository_Upsert(t *testing.T) {
 			name:   "Upsert for new user (insert)",
 			userID: "user-2",
 			req: &models.PreferencesUpdateRequest{
-				ThemeMode:        "light",
+				ThemeMode:        stringPtr("light"),
 				ThemeAccentColor: &accentColor2,
 			},
 			isNew:   true,
@@ -320,8 +329,8 @@ func TestPreferencesRepository_Upsert(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Failed to retrieve upserted preferences: %v", err)
 				}
-				if preferences.ThemeMode != tt.req.ThemeMode {
-					t.Errorf("Upsert() ThemeMode = %v, want %v", preferences.ThemeMode, tt.req.ThemeMode)
+				if tt.req.ThemeMode != nil && preferences.ThemeMode != *tt.req.ThemeMode {
+					t.Errorf("Upsert() ThemeMode = %v, want %v", preferences.ThemeMode, *tt.req.ThemeMode)
 				}
 				if tt.req.ThemeAccentColor != nil {
 					if preferences.ThemeAccentColor == nil || *preferences.ThemeAccentColor != *tt.req.ThemeAccentColor {
@@ -356,7 +365,7 @@ func TestPreferencesRepository_Upsert_MultipleUpdates(t *testing.T) {
 
 	// First upsert (insert)
 	req1 := &models.PreferencesUpdateRequest{
-		ThemeMode:        "light",
+		ThemeMode:        stringPtr("light"),
 		ThemeAccentColor: &accentColor1,
 	}
 	err := repo.Upsert(ctx, "user-1", req1)
@@ -366,7 +375,7 @@ func TestPreferencesRepository_Upsert_MultipleUpdates(t *testing.T) {
 
 	// Second upsert (update)
 	req2 := &models.PreferencesUpdateRequest{
-		ThemeMode:        "dark",
+		ThemeMode:        stringPtr("dark"),
 		ThemeAccentColor: &accentColor2,
 	}
 	err = repo.Upsert(ctx, "user-1", req2)
@@ -376,7 +385,7 @@ func TestPreferencesRepository_Upsert_MultipleUpdates(t *testing.T) {
 
 	// Third upsert (update)
 	req3 := &models.PreferencesUpdateRequest{
-		ThemeMode:        "light",
+		ThemeMode:        stringPtr("light"),
 		ThemeAccentColor: &accentColor3,
 	}
 	err = repo.Upsert(ctx, "user-1", req3)
@@ -416,7 +425,7 @@ func TestPreferencesRepository_NullFields(t *testing.T) {
 
 	// Upsert with nil optional fields
 	req := &models.PreferencesUpdateRequest{
-		ThemeMode:        "dark",
+		ThemeMode:        stringPtr("dark"),
 		ThemeBackground:  nil,
 		ThemeAccentColor: nil,
 	}
@@ -453,7 +462,7 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 	t.Run("default value is true", func(t *testing.T) {
 		// Create preferences without specifying OpenInNewTab
 		req := &models.PreferencesUpdateRequest{
-			ThemeMode: "light",
+			ThemeMode: stringPtr("light"),
 		}
 		err := repo.Upsert(ctx, "user-1", req)
 		if err != nil {
@@ -473,7 +482,7 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 	t.Run("can set to false", func(t *testing.T) {
 		openInNewTabFalse := false
 		req := &models.PreferencesUpdateRequest{
-			ThemeMode:    "light",
+			ThemeMode:    stringPtr("light"),
 			OpenInNewTab: &openInNewTabFalse,
 		}
 		err := repo.Upsert(ctx, "user-1", req)
@@ -494,7 +503,7 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 	t.Run("can set to true explicitly", func(t *testing.T) {
 		openInNewTabTrue := true
 		req := &models.PreferencesUpdateRequest{
-			ThemeMode:    "dark",
+			ThemeMode:    stringPtr("dark"),
 			OpenInNewTab: &openInNewTabTrue,
 		}
 		err := repo.Upsert(ctx, "user-1", req)
@@ -516,7 +525,7 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 		// Set to false explicitly
 		openInNewTabFalse := false
 		req1 := &models.PreferencesUpdateRequest{
-			ThemeMode:    "light",
+			ThemeMode:    stringPtr("light"),
 			OpenInNewTab: &openInNewTabFalse,
 		}
 		err := repo.Upsert(ctx, "user-1", req1)
@@ -533,10 +542,10 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 			t.Errorf("OpenInNewTab = %v, want false", preferences.OpenInNewTab)
 		}
 
-		// Update with nil OpenInNewTab (should default to true, matching the helper function behavior)
+		// Update with nil OpenInNewTab (should preserve existing value - partial update)
 		req2 := &models.PreferencesUpdateRequest{
-			ThemeMode: "dark",
-			// OpenInNewTab not set (nil), should default to true per getOpenInNewTabValue()
+			ThemeMode: stringPtr("dark"),
+			// OpenInNewTab not set (nil), should preserve existing value (false)
 		}
 		err = repo.Upsert(ctx, "user-1", req2)
 		if err != nil {
@@ -548,9 +557,9 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 			t.Fatalf("GetByUserID() after second upsert failed: %v", err)
 		}
 
-		// OpenInNewTab should be true (default value when nil)
-		if !preferences.OpenInNewTab {
-			t.Errorf("OpenInNewTab = %v, want true (default when nil)", preferences.OpenInNewTab)
+		// OpenInNewTab should still be false (preserved from first update)
+		if preferences.OpenInNewTab {
+			t.Errorf("OpenInNewTab = %v, want false (preserved from previous value)", preferences.OpenInNewTab)
 		}
 	})
 }
