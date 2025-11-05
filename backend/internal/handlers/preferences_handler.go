@@ -45,7 +45,7 @@ func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *P
 // GetPreferences retrieves the current user's preferences
 func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
+	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -74,7 +74,7 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 // UpdatePreferences updates the current user's preferences
 func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("userID").(string)
+	userID, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Unauthorized",
@@ -87,6 +87,28 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
 		})
+	}
+
+	// Log the incoming request for debugging
+	fmt.Printf("[PreferencesHandler] UserID: %s, Update: ThemeMode=%v, ThemeBackground=%v, ThemeAccentColor=%v, OpenInNewTab=%v\n",
+		userID, req.ThemeMode, req.ThemeBackground, req.ThemeAccentColor, req.OpenInNewTab)
+
+	// Manual validation for NullableString fields
+	if req.ThemeBackground.IsSet() && req.ThemeBackground.GetValue() != nil {
+		if err := h.validator.Var(*req.ThemeBackground.GetValue(), "httpurl"); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": map[string]string{"theme_background": "theme_background must be a valid HTTP or HTTPS URL"},
+			})
+		}
+	}
+	if req.ThemeAccentColor.IsSet() && req.ThemeAccentColor.GetValue() != nil {
+		if err := h.validator.Var(*req.ThemeAccentColor.GetValue(), "hexcolor"); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": map[string]string{"theme_accent_color": "theme_accent_color must be a valid hex color (e.g., #3B82F6)"},
+			})
+		}
 	}
 
 	// Validate request using struct tags
