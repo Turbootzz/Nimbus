@@ -301,3 +301,41 @@ func TestHealthCheckService_CheckService_ContextCancellation(t *testing.T) {
 		t.Errorf("Expected status 'offline' for cancelled context, got '%s'", mockRepo.lastStatus)
 	}
 }
+
+func TestIsLocalURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected bool
+	}{
+		// Private IPv4 ranges
+		{"Private 192.168.x.x", "https://192.168.1.181:9443", true},
+		{"Private 10.x.x.x", "http://10.0.0.1", true},
+		{"Private 172.16.x.x", "https://172.16.0.1:8080", true},
+		{"Private 172.31.x.x", "http://172.31.255.255", true},
+
+		// Localhost
+		{"Localhost", "http://localhost:8080", true},
+		{"Localhost HTTPS", "https://localhost", true},
+		{"127.0.0.1", "http://127.0.0.1", true},
+		{"127.0.0.1 with port", "https://127.0.0.1:9443", true},
+
+		// Public IPs (should NOT be local)
+		{"Google DNS", "https://8.8.8.8", false},
+		{"Cloudflare DNS", "http://1.1.1.1", false},
+
+		// Edge cases
+		{"Invalid URL", "not-a-valid-url", false},
+		{"IP outside private range", "http://192.167.1.1", false},
+		{"172.32.x.x (not private)", "http://172.32.0.1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isLocalURL(tt.url)
+			if result != tt.expected {
+				t.Errorf("isLocalURL(%s) = %v, expected %v", tt.url, result, tt.expected)
+			}
+		})
+	}
+}

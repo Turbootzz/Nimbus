@@ -2,8 +2,11 @@ package services
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/nimbus/backend/internal/models"
@@ -17,13 +20,82 @@ type HealthCheckService struct {
 	httpClient    *http.Client
 }
 
+// isPrivateIP checks if an IP address is in a private/local range
+func isPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsPrivate() {
+		return true
+	}
+	return false
+}
+
+// isLocalURL checks if a URL points to a local/private network address
+func isLocalURL(urlStr string) bool {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return false
+	}
+
+	host := parsedURL.Hostname()
+
+	// Check for localhost
+	if host == "localhost" {
+		return true
+	}
+
+	// Resolve hostname to IP
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		// If we can't resolve, assume it might be external (safer default)
+		return false
+	}
+
+	// Check if any resolved IP is private
+	for _, ip := range ips {
+		if isPrivateIP(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// customTransport creates a transport that skips TLS verification only for local IPs
+type customTransport struct {
+	baseTransport *http.Transport
+}
+
+func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Check if this is a local URL
+	isLocal := isLocalURL(req.URL.String())
+
+	// Clone the base transport for this request
+	transport := t.baseTransport.Clone()
+
+	// Only skip TLS verification for local/private IPs
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	}
+	transport.TLSClientConfig.InsecureSkipVerify = isLocal
+
+	return transport.RoundTrip(req)
+}
+
 // NewHealthCheckService creates a new health check service
 func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
+	baseTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: false, // Default: verify certificates
+		},
+	}
+
 	return &HealthCheckService{
 		serviceRepo:   serviceRepo,
 		statusLogRepo: statusLogRepo,
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &customTransport{
+				baseTransport: baseTransport,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Don't follow redirects - consider them successful
 				return http.ErrUseLastResponse
