@@ -79,6 +79,59 @@ func AuthMiddleware(authService *services.AuthService, userRepo *repository.User
 	}
 }
 
+// OptionalAuthMiddleware tries to authenticate but doesn't fail if no token
+// Used for endpoints that support multiple auth methods (e.g., JWT or API key)
+func OptionalAuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		var token string
+
+		// Try to get token from httpOnly cookie
+		token = c.Cookies("auth_token")
+
+		// Fallback: Check Authorization header
+		if token == "" {
+			authHeader := c.Get("Authorization")
+			if authHeader != "" {
+				parts := strings.Split(authHeader, " ")
+				if len(parts) == 2 && parts[0] == "Bearer" {
+					token = parts[1]
+				}
+			}
+		}
+
+		// If no token, just continue without setting context
+		if token == "" {
+			return c.Next()
+		}
+
+		// Validate token
+		claims, err := authService.ValidateToken(token)
+		if err != nil {
+			// Invalid token - continue without auth context
+			return c.Next()
+		}
+
+		// Extract user ID from claims
+		userID, err := authService.GetUserIDFromToken(claims)
+		if err != nil {
+			return c.Next()
+		}
+
+		// Verify user exists
+		_, err = userRepo.GetByID(userID)
+		if err != nil {
+			return c.Next()
+		}
+
+		// Store user info in context
+		c.Locals("user_id", userID)
+		c.Locals("email", (*claims)["email"])
+		c.Locals("role", (*claims)["role"])
+
+		return c.Next()
+	}
+}
+
 // AdminOnly middleware ensures the user has admin role
 func AdminOnly() fiber.Handler {
 	return func(c *fiber.Ctx) error {

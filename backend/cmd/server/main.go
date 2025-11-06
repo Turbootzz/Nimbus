@@ -43,19 +43,24 @@ func main() {
 	userRepo := repository.NewUserRepository(database)
 	serviceRepo := repository.NewServiceRepository(database)
 	preferencesRepo := repository.NewPreferencesRepository(database)
+	statusLogRepo := repository.NewStatusLogRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
 
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
-	healthCheckService := services.NewHealthCheckService(serviceRepo, healthCheckTimeout)
+	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, healthCheckTimeout)
+
+	// Initialize metrics service
+	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
+	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -101,6 +106,16 @@ func main() {
 	services.Put("/:id", serviceHandler.UpdateService)
 	services.Delete("/:id", serviceHandler.DeleteService)
 	services.Post("/:id/check", serviceHandler.CheckService)
+	services.Get("/:id/status-logs", metricsHandler.GetRecentStatusLogs)
+
+	// Metrics routes (protected)
+	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))
+	metrics.Get("/:id", metricsHandler.GetServiceMetrics)
+
+	// Prometheus metrics endpoint (supports both JWT and API key authentication)
+	// Middleware is optional - handler checks for both JWT (from middleware) and API key
+	prometheus := v1.Group("/prometheus")
+	prometheus.Get("/metrics/user/:userID", middleware.OptionalAuthMiddleware(authService, userRepo), metricsHandler.GetUserPrometheusMetrics)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo))
@@ -118,6 +133,10 @@ func main() {
 	healthCheckInterval := getEnvDuration("HEALTH_CHECK_INTERVAL", 60*time.Second)
 	healthMonitor := workers.NewHealthMonitor(healthCheckService, serviceRepo, healthCheckInterval)
 	healthMonitor.Start()
+
+	// Start metrics cleanup worker
+	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService)
+	metricsCleanup.Start()
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
@@ -153,8 +172,9 @@ func main() {
 	<-sigChan
 	log.Println("\nReceived shutdown signal, shutting down gracefully...")
 
-	// Stop health monitor
+	// Stop workers
 	healthMonitor.Stop()
+	metricsCleanup.Stop()
 
 	// Shutdown Fiber app
 	if err := app.Shutdown(); err != nil {

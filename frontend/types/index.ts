@@ -123,3 +123,41 @@ export interface UserFilterParams {
   page?: number
   limit?: number
 }
+
+// Metrics and monitoring types
+export interface StatusLog {
+  id: string
+  service_id: string
+  status: 'online' | 'offline' | 'unknown'
+  response_time?: number
+  error_message?: string
+  checked_at: string
+}
+
+export interface MetricDataPoint {
+  timestamp: string
+  check_count: number
+  online_count: number
+  uptime_percentage: number
+  avg_response_time: number
+}
+
+export interface TimeRange {
+  start: string
+  end: string
+}
+
+export interface MetricsResponse {
+  service_id: string
+  time_range: TimeRange
+  uptime_percentage: number
+  total_checks: number
+  online_count: number
+  offline_count: number
+  avg_response_time: number
+  min_response_time: number
+  max_response_time: number
+  data_points: MetricDataPoint[]
+}
+
+export type TimeRangeOption = '1h' | '6h' | '24h' | '7d' | '30d'

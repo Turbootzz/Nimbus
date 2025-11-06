@@ -12,14 +12,16 @@ import (
 
 // HealthCheckService handles health checking of services
 type HealthCheckService struct {
-	serviceRepo repository.ServiceRepositoryInterface
-	httpClient  *http.Client
+	serviceRepo   repository.ServiceRepositoryInterface
+	statusLogRepo *repository.StatusLogRepository
+	httpClient    *http.Client
 }
 
 // NewHealthCheckService creates a new health check service
-func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, timeout time.Duration) *HealthCheckService {
+func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
 	return &HealthCheckService{
-		serviceRepo: serviceRepo,
+		serviceRepo:   serviceRepo,
+		statusLogRepo: statusLogRepo,
 		httpClient: &http.Client{
 			Timeout: timeout,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -38,7 +40,8 @@ func (h *HealthCheckService) CheckService(ctx context.Context, service *models.S
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, service.URL, nil)
 	if err != nil {
 		// Invalid URL - mark as offline
-		return h.updateStatus(ctx, service.ID, models.StatusOffline, nil)
+		errorMsg := err.Error()
+		return h.updateStatus(ctx, service.ID, models.StatusOffline, nil, &errorMsg)
 	}
 
 	// Set user agent
@@ -50,20 +53,24 @@ func (h *HealthCheckService) CheckService(ctx context.Context, service *models.S
 
 	if err != nil {
 		// Request failed - service is offline
-		return h.updateStatus(ctx, service.ID, models.StatusOffline, &responseTime)
+		errorMsg := err.Error()
+		return h.updateStatus(ctx, service.ID, models.StatusOffline, &responseTime, &errorMsg)
 	}
 	defer resp.Body.Close()
 
 	// Consider 2xx and 3xx status codes as "online"
 	// 4xx and 5xx are considered "offline" (service is responding but not healthy)
 	var status string
+	var errorMsg *string
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		status = models.StatusOnline
 	} else {
 		status = models.StatusOffline
+		msg := fmt.Sprintf("HTTP %d", resp.StatusCode)
+		errorMsg = &msg
 	}
 
-	return h.updateStatus(ctx, service.ID, status, &responseTime)
+	return h.updateStatus(ctx, service.ID, status, &responseTime, errorMsg)
 }
 
 // CheckAllServices checks all services for a specific user
@@ -99,13 +106,34 @@ func (h *HealthCheckService) CheckAllServicesForAllUsers(ctx context.Context) er
 	return fmt.Errorf("not implemented yet - check services per user")
 }
 
-// updateStatus is a helper to update service status and response time
+// updateStatus is a helper to update service status and response time, and create a status log entry
 // Uses a background context to ensure status updates persist even if the check request is cancelled
-func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status string, responseTime *int) error {
+func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status string, responseTime *int, errorMessage *string) error {
 	// Create independent context with timeout for DB update
 	// This ensures status is saved even if the HTTP check context is cancelled
 	updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	return h.serviceRepo.UpdateStatusWithResponseTime(updateCtx, serviceID, status, responseTime)
+	// Update the service's current status
+	if err := h.serviceRepo.UpdateStatusWithResponseTime(updateCtx, serviceID, status, responseTime); err != nil {
+		return err
+	}
+
+	// Create status log entry if statusLogRepo is available
+	if h.statusLogRepo != nil {
+		statusLog := &models.StatusLog{
+			ServiceID:    serviceID,
+			Status:       status,
+			ResponseTime: responseTime,
+			ErrorMessage: errorMessage,
+			CheckedAt:    time.Now(),
+		}
+
+		// Log creation errors but don't fail the health check
+		if err := h.statusLogRepo.Create(updateCtx, statusLog); err != nil {
+			fmt.Printf("Failed to create status log for service %s: %v\n", serviceID, err)
+		}
+	}
+
+	return nil
 }

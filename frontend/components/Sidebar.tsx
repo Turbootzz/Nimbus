@@ -12,6 +12,7 @@ import {
   XMarkIcon,
   PlusIcon,
   UserGroupIcon,
+  ChartBarIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
@@ -44,6 +45,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Services', href: '/services', icon: ServerIcon },
+    { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
     ...(currentUser?.role === 'admin'
       ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
       : []),
