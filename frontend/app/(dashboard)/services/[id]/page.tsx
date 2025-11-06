@@ -10,6 +10,7 @@ import { api } from '@/lib/api'
 import UptimeChart from '@/components/graphs/UptimeChart'
 import MetricsCard from '@/components/graphs/MetricsCard'
 import { getApiUrl } from '@/lib/utils/api-url'
+import { getResponseTimeColor } from '@/lib/status-utils'
 
 const API_URL = getApiUrl()
 
@@ -149,6 +150,7 @@ export default function ServiceDetailPage() {
     )
   }
 
+  // Local status icon with larger size for detail page
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'online':
@@ -158,13 +160,6 @@ export default function ServiceDetailPage() {
       default:
         return <ClockIcon className="h-6 w-6 text-yellow-500" />
     }
-  }
-
-  const getResponseTimeColor = (time?: number) => {
-    if (!time) return 'text-gray-500'
-    if (time < 200) return 'text-green-600 dark:text-green-400'
-    if (time < 500) return 'text-yellow-600 dark:text-yellow-400'
-    return 'text-red-600 dark:text-red-400'
   }
 
   return (

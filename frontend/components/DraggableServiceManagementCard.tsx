@@ -2,17 +2,13 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import {
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ClockIcon,
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline'
+import { ClockIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import { formatRelativeTime } from '@/lib/date-utils'
 
 interface DraggableServiceManagementCardProps {
   service: Service
@@ -33,45 +29,6 @@ export function DraggableServiceManagementCard({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.5 : 1,
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'text-success'
-      case 'offline':
-        return 'text-error'
-      default:
-        return 'text-text-muted'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return <CheckCircleIcon className="h-5 w-5" />
-      case 'offline':
-        return <ExclamationCircleIcon className="h-5 w-5" />
-      default:
-        return <ClockIcon className="h-5 w-5" />
-    }
-  }
-
-  const getResponseTimeColor = (ms: number) => {
-    if (ms < 200) return 'text-success font-medium'
-    if (ms < 500) return 'text-warning font-medium'
-    return 'text-error font-medium'
-  }
-
-  const formatRelativeTime = (timestamp: string) => {
-    const now = new Date()
-    const date = new Date(timestamp)
-    const seconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-
-    if (seconds < 60) return 'just now'
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`
-    return `${Math.floor(seconds / 86400)}d ago`
   }
 
   return (
@@ -123,7 +80,7 @@ export function DraggableServiceManagementCard({
         {service.response_time !== undefined && service.response_time !== null && (
           <div className="flex items-center">
             <span className="mr-2">Response:</span>
-            <span className={getResponseTimeColor(service.response_time)}>
+            <span className={`${getResponseTimeColor(service.response_time)} font-medium`}>
               {service.response_time}ms
             </span>
           </div>

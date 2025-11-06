@@ -2,11 +2,12 @@
 
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { ClockIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon, ChartBarIcon } from '@heroicons/react/24/solid'
 import Link from 'next/link'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
 
 interface DraggableServiceCardProps {
   service: Service
@@ -30,34 +31,6 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isSortableDragging || isDragging ? 0.5 : 1,
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'text-success'
-      case 'offline':
-        return 'text-error'
-      default:
-        return 'text-warning'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return <CheckCircleIcon className="h-5 w-5" />
-      case 'offline':
-        return <ExclamationCircleIcon className="h-5 w-5" />
-      default:
-        return <ClockIcon className="h-5 w-5" />
-    }
-  }
-
-  const getResponseTimeColor = (ms: number) => {
-    if (ms < 200) return 'text-success'
-    if (ms < 500) return 'text-warning'
-    return 'text-error'
   }
 
   return (
