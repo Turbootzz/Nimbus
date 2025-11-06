@@ -140,7 +140,7 @@ export default function MetricsPage() {
       )}
 
       {/* Services List */}
-      <div className="border-card-border bg-card rounded-lg border p-6">
+      <div className="border-card-border bg-card rounded-lg border p-4 sm:p-6">
         <h2 className="text-text-primary mb-4 text-lg font-semibold">All Services</h2>
 
         {services.length === 0 ? (
@@ -155,42 +155,130 @@ export default function MetricsPage() {
             </Link>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-card-border border-b">
-                  <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
-                    Service
-                  </th>
-                  <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
-                    Status
-                  </th>
-                  <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
-                    Response Time
-                  </th>
-                  <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
-                    URL
-                  </th>
-                  <th className="text-text-secondary px-4 py-3 text-right text-sm font-medium">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-card-border divide-y">
-                {services.map((service) => (
-                  <tr key={service.id} className="hover:bg-card-hover transition-colors">
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{service.icon || '🔗'}</span>
-                        <div>
-                          <p className="text-text-primary font-medium">{service.name}</p>
-                          {service.description && (
-                            <p className="text-text-secondary text-sm">{service.description}</p>
+          <>
+            {/* Desktop Table View (hidden on mobile) */}
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-card-border border-b">
+                    <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
+                      Service
+                    </th>
+                    <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
+                      Status
+                    </th>
+                    <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
+                      Response Time
+                    </th>
+                    <th className="text-text-secondary px-4 py-3 text-left text-sm font-medium">
+                      URL
+                    </th>
+                    <th className="text-text-secondary px-4 py-3 text-right text-sm font-medium">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-card-border divide-y">
+                  {services.map((service) => (
+                    <tr key={service.id} className="hover:bg-card-hover transition-colors">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{service.icon || '🔗'}</span>
+                          <div>
+                            <p className="text-text-primary font-medium">{service.name}</p>
+                            {service.description && (
+                              <p className="text-text-secondary text-sm">{service.description}</p>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          {service.status === 'online' ? (
+                            <>
+                              <CheckCircleIcon className="text-success h-5 w-5" />
+                              <span className="text-success text-sm capitalize">Online</span>
+                            </>
+                          ) : service.status === 'offline' ? (
+                            <>
+                              <ExclamationCircleIcon className="text-error h-5 w-5" />
+                              <span className="text-error text-sm capitalize">Offline</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className="bg-warning h-5 w-5 rounded-full" />
+                              <span className="text-warning text-sm capitalize">Unknown</span>
+                            </>
                           )}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4">
+                      </td>
+                      <td className="px-4 py-4">
+                        {service.response_time !== null && service.response_time !== undefined ? (
+                          <span
+                            className={`text-sm font-medium ${
+                              service.response_time < 200
+                                ? 'text-success'
+                                : service.response_time < 500
+                                  ? 'text-warning'
+                                  : 'text-error'
+                            }`}
+                          >
+                            {service.response_time}ms
+                          </span>
+                        ) : (
+                          <span className="text-text-muted text-sm">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4">
+                        <a
+                          href={service.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:text-primary-hover block max-w-xs truncate text-sm"
+                        >
+                          {service.url}
+                        </a>
+                      </td>
+                      <td className="px-4 py-4 text-right">
+                        <Link
+                          href={`/services/${service.id}`}
+                          className="bg-primary inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm text-white transition-opacity hover:opacity-90"
+                        >
+                          <ChartBarIcon className="h-4 w-4" />
+                          View Metrics
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Mobile Card View (shown on mobile only) */}
+            <div className="space-y-3 lg:hidden">
+              {services.map((service) => (
+                <div
+                  key={service.id}
+                  className="border-card-border hover:bg-card-hover rounded-lg border p-4 transition-colors"
+                >
+                  {/* Service Header */}
+                  <div className="mb-3 flex items-start gap-3">
+                    <span className="text-3xl">{service.icon || '🔗'}</span>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-text-primary text-base font-semibold break-words">
+                        {service.name}
+                      </h3>
+                      {service.description && (
+                        <p className="text-text-secondary mt-1 text-sm">{service.description}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Service Details */}
+                  <div className="space-y-2">
+                    {/* Status */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-secondary text-sm">Status</span>
                       <div className="flex items-center gap-2">
                         {service.status === 'online' ? (
                           <>
@@ -209,8 +297,11 @@ export default function MetricsPage() {
                           </>
                         )}
                       </div>
-                    </td>
-                    <td className="px-4 py-4">
+                    </div>
+
+                    {/* Response Time */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-secondary text-sm">Response Time</span>
                       {service.response_time !== null && service.response_time !== undefined ? (
                         <span
                           className={`text-sm font-medium ${
@@ -226,31 +317,36 @@ export default function MetricsPage() {
                       ) : (
                         <span className="text-text-muted text-sm">—</span>
                       )}
-                    </td>
-                    <td className="px-4 py-4">
+                    </div>
+
+                    {/* URL */}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-text-secondary text-sm">URL</span>
                       <a
                         href={service.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-primary hover:text-primary-hover text-sm"
+                        className="text-primary hover:text-primary-hover text-sm break-all"
                       >
                         {service.url}
                       </a>
-                    </td>
-                    <td className="px-4 py-4 text-right">
-                      <Link
-                        href={`/services/${service.id}`}
-                        className="bg-primary inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm text-white transition-opacity hover:opacity-90"
-                      >
-                        <ChartBarIcon className="h-4 w-4" />
-                        View Metrics
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <div className="mt-4">
+                    <Link
+                      href={`/services/${service.id}`}
+                      className="bg-primary flex w-full items-center justify-center gap-2 rounded px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90"
+                    >
+                      <ChartBarIcon className="h-4 w-4" />
+                      View Metrics
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>

@@ -37,12 +37,18 @@ func isLocalURL(urlStr string) bool {
 
 	host := parsedURL.Hostname()
 
-	// Check for localhost
-	if host == "localhost" {
+	// Fast path: Check if host is a raw IP address
+	if ip := net.ParseIP(host); ip != nil {
+		return isPrivateIP(ip)
+	}
+
+	// Fast path: Check for common local hostnames
+	switch host {
+	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
 
-	// Resolve hostname to IP
+	// Slow path: DNS lookup (only for hostnames that aren't IPs)
 	ips, err := net.LookupIP(host)
 	if err != nil {
 		// If we can't resolve, assume it might be external (safer default)
@@ -73,7 +79,9 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	// Only skip TLS verification for local/private IPs
 	if transport.TLSClientConfig == nil {
-		transport.TLSClientConfig = &tls.Config{}
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12, // Require TLS 1.2 or higher
+		}
 	}
 	transport.TLSClientConfig.InsecureSkipVerify = isLocal
 
@@ -84,7 +92,8 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
 	baseTransport := &http.Transport{
 		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: false, // Default: verify certificates
+			MinVersion:         tls.VersionTLS12, // Require TLS 1.2 or higher
+			InsecureSkipVerify: false,            // Default: verify certificates
 		},
 	}
 
