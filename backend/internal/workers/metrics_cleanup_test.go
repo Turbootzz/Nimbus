@@ -244,6 +244,33 @@ func TestMetricsCleanupWorker_StartStop(t *testing.T) {
 	// If we reached here without hanging, the test passes
 }
 
+func TestMetricsCleanupWorker_StopMultipleTimes(t *testing.T) {
+	db := setupCleanupTestDB(t)
+	defer db.Close()
+
+	statusLogRepo := repository.NewStatusLogRepository(db)
+	serviceRepo := repository.NewServiceRepository(db)
+	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
+
+	worker := NewMetricsCleanupWorker(metricsService)
+
+	// Start the worker
+	worker.Start()
+
+	// Give it a moment to start
+	time.Sleep(100 * time.Millisecond)
+
+	// Call Stop() multiple times - should not panic
+	worker.Stop()
+	worker.Stop()
+	worker.Stop()
+
+	// Give it a moment to stop gracefully
+	time.Sleep(100 * time.Millisecond)
+
+	// If we reached here without panic, the test passes
+}
+
 func TestMetricsCleanupWorker_RunCleanup_Integration(t *testing.T) {
 	db := setupCleanupTestDB(t)
 	defer db.Close()

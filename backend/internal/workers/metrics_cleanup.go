@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/nimbus/backend/internal/services"
@@ -18,6 +19,7 @@ type MetricsCleanupWorker struct {
 	cleanupInterval time.Duration
 	stopChan        chan struct{}
 	cleanupTimer    *time.Timer
+	stopOnce        sync.Once
 }
 
 // NewMetricsCleanupWorker creates a new metrics cleanup worker
@@ -54,16 +56,18 @@ func (w *MetricsCleanupWorker) Start() {
 	go w.run()
 }
 
-// Stop gracefully stops the worker
+// Stop gracefully stops the worker (safe to call multiple times)
 func (w *MetricsCleanupWorker) Stop() {
-	log.Println("Stopping metrics cleanup worker...")
+	w.stopOnce.Do(func() {
+		log.Println("Stopping metrics cleanup worker...")
 
-	// Cancel the initial cleanup timer if it hasn't fired yet
-	if w.cleanupTimer != nil {
-		w.cleanupTimer.Stop()
-	}
+		// Cancel the initial cleanup timer if it hasn't fired yet
+		if w.cleanupTimer != nil {
+			w.cleanupTimer.Stop()
+		}
 
-	close(w.stopChan)
+		close(w.stopChan)
+	})
 }
 
 // run is the main worker loop
