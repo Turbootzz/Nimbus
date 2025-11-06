@@ -15,15 +15,3 @@ func getUserID(c *fiber.Ctx) (string, error) {
 	}
 	return userID, nil
 }
-
-// requireUserID extracts user ID and returns 401 error if not found
-// Helper that combines getUserID with error response
-func requireUserID(c *fiber.Ctx) (string, error) {
-	userID, err := getUserID(c)
-	if err != nil {
-		return "", c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
-	}
-	return userID, nil
-}

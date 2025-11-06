@@ -7,10 +7,24 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+)
+
+// DNS lookup cache entry
+type dnsCacheEntry struct {
+	isLocal  bool
+	expireAt time.Time
+}
+
+// Global DNS cache with 5-minute TTL
+var (
+	dnsCacheMu  sync.RWMutex
+	dnsCache    = make(map[string]dnsCacheEntry)
+	dnsCacheTTL = 5 * time.Minute
 )
 
 // HealthCheckService handles health checking of services
@@ -29,6 +43,7 @@ func isPrivateIP(ip net.IP) bool {
 }
 
 // isLocalURL checks if a URL points to a local/private network address
+// Optimized with DNS caching and fast-path IP checking
 func isLocalURL(urlStr string) bool {
 	parsedURL, err := url.Parse(urlStr)
 	if err != nil {
@@ -37,16 +52,24 @@ func isLocalURL(urlStr string) bool {
 
 	host := parsedURL.Hostname()
 
-	// Fast path: Check if host is a raw IP address
+	// Fast path 1: Check if host is a raw IP address
 	if ip := net.ParseIP(host); ip != nil {
 		return isPrivateIP(ip)
 	}
 
-	// Fast path: Check for common local hostnames
+	// Fast path 2: Check for common local hostnames
 	switch host {
 	case "localhost", "127.0.0.1", "::1":
 		return true
 	}
+
+	// Check cache before DNS lookup
+	dnsCacheMu.RLock()
+	if cached, ok := dnsCache[host]; ok && time.Now().Before(cached.expireAt) {
+		dnsCacheMu.RUnlock()
+		return cached.isLocal
+	}
+	dnsCacheMu.RUnlock()
 
 	// Slow path: DNS lookup (only for hostnames that aren't IPs)
 	ips, err := net.LookupIP(host)
@@ -55,14 +78,25 @@ func isLocalURL(urlStr string) bool {
 		return false
 	}
 
-	// Check if any resolved IP is private
+	// SECURITY: ALL resolved IPs must be private to skip TLS verification
+	// If any IP is public, we must verify certificates
+	isLocal := len(ips) > 0
 	for _, ip := range ips {
-		if isPrivateIP(ip) {
-			return true
+		if !isPrivateIP(ip) {
+			isLocal = false
+			break
 		}
 	}
 
-	return false
+	// Cache the result
+	dnsCacheMu.Lock()
+	dnsCache[host] = dnsCacheEntry{
+		isLocal:  isLocal,
+		expireAt: time.Now().Add(dnsCacheTTL),
+	}
+	dnsCacheMu.Unlock()
+
+	return isLocal
 }
 
 // customTransport creates a transport that skips TLS verification only for local IPs

@@ -328,6 +328,8 @@ func TestIsLocalURL(t *testing.T) {
 		{"Invalid URL", "not-a-valid-url", false},
 		{"IP outside private range", "http://192.167.1.1", false},
 		{"172.32.x.x (not private)", "http://172.32.0.1", false},
+
+		// Security: DNS hostnames should not bypass TLS for public IPs
 	}
 
 	for _, tt := range tests {
