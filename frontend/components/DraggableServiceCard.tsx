@@ -3,7 +3,8 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/outline'
-import { Bars3Icon } from '@heroicons/react/24/solid'
+import { Bars3Icon, ChartBarIcon } from '@heroicons/react/24/solid'
+import Link from 'next/link'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -65,14 +66,27 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
       style={style}
       className="bg-card border-card-border hover:border-primary group relative rounded-lg border transition-all hover:shadow-lg"
     >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="bg-card-hover absolute top-2 right-2 cursor-grab rounded p-1 opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-        title="Drag to reorder"
-      >
-        <Bars3Icon className="text-text-muted h-5 w-5" />
+      {/* Action buttons */}
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+        {/* Metrics button */}
+        <Link
+          href={`/services/${service.id}`}
+          className="bg-card-hover rounded p-1 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+          title="View metrics"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <ChartBarIcon className="text-text-muted h-5 w-5" />
+        </Link>
+
+        {/* Drag handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="bg-card-hover cursor-grab rounded p-1 transition-colors hover:bg-gray-300 active:cursor-grabbing dark:hover:bg-gray-600"
+          title="Drag to reorder"
+        >
+          <Bars3Icon className="text-text-muted h-5 w-5" />
+        </div>
       </div>
 
       {/* Service card content */}

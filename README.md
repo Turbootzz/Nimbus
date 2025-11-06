@@ -248,8 +248,8 @@ npm run lint    # Run linter
 - [x] Health monitoring system
 - [x] User theme customization
 - [x] Role-based access control (admin features)
-- [ ] Docker deployment
-- [ ] Admin configuration UI
+- [x] Docker deployment
+- [x] Admin configuration UI
 - [ ] Service status history graphs
 - [ ] OAuth2 login support
 - [ ] Widget/plugin system
