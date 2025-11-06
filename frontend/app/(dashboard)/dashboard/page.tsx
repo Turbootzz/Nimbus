@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
 
 export default function DashboardPage() {
   const { openInNewTab } = useTheme()
@@ -61,34 +62,6 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online':
-        return 'text-success'
-      case 'offline':
-        return 'text-error'
-      default:
-        return 'text-warning'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'online':
-        return <CheckCircleIcon className="h-5 w-5" />
-      case 'offline':
-        return <ExclamationCircleIcon className="h-5 w-5" />
-      default:
-        return <ClockIcon className="h-5 w-5" />
-    }
-  }
-
-  const getResponseTimeColor = (ms: number) => {
-    if (ms < 200) return 'text-success'
-    if (ms < 500) return 'text-warning'
-    return 'text-error'
   }
 
   if (isLoading) {

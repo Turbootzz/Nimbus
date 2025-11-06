@@ -189,6 +189,11 @@ See `.env.example` in the root directory for all available configuration options
 **Health Checks:**
 - `HEALTH_CHECK_INTERVAL` - Seconds between checks (default: `60`)
 - `HEALTH_CHECK_TIMEOUT` - Request timeout in seconds (default: `10`)
+- **Smart TLS Verification**: Automatically detects private/local IP addresses
+  - Public services (e.g., `https://example.com`) → Full certificate verification ✅
+  - Local services (e.g., `https://192.168.1.181:9443`) → Skips verification for self-signed certs ✅
+  - Works for: Portainer, Proxmox, and other homelab services with self-signed certificates
+  - Secure by default - no configuration needed!
 
 **Metrics & Monitoring:**
 - `METRICS_RETENTION_DAYS` - Days to retain status logs (default: `30`)

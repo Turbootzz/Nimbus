@@ -2,12 +2,29 @@ package services
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net"
 	"net/http"
+	"net/url"
+	"sync"
 	"time"
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+)
+
+// DNS lookup cache entry
+type dnsCacheEntry struct {
+	isLocal  bool
+	expireAt time.Time
+}
+
+// Global DNS cache with 5-minute TTL
+var (
+	dnsCacheMu  sync.RWMutex
+	dnsCache    = make(map[string]dnsCacheEntry)
+	dnsCacheTTL = 5 * time.Minute
 )
 
 // HealthCheckService handles health checking of services
@@ -17,13 +34,111 @@ type HealthCheckService struct {
 	httpClient    *http.Client
 }
 
+// isPrivateIP checks if an IP address is in a private/local range
+func isPrivateIP(ip net.IP) bool {
+	if ip.IsLoopback() || ip.IsPrivate() {
+		return true
+	}
+	return false
+}
+
+// isLocalURL checks if a URL points to a local/private network address
+// Optimized with DNS caching and fast-path IP checking
+func isLocalURL(urlStr string) bool {
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return false
+	}
+
+	host := parsedURL.Hostname()
+
+	// Fast path 1: Check if host is a raw IP address
+	if ip := net.ParseIP(host); ip != nil {
+		return isPrivateIP(ip)
+	}
+
+	// Fast path 2: Check for common local hostnames
+	switch host {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+
+	// Check cache before DNS lookup
+	dnsCacheMu.RLock()
+	if cached, ok := dnsCache[host]; ok && time.Now().Before(cached.expireAt) {
+		dnsCacheMu.RUnlock()
+		return cached.isLocal
+	}
+	dnsCacheMu.RUnlock()
+
+	// Slow path: DNS lookup (only for hostnames that aren't IPs)
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		// If we can't resolve, assume it might be external (safer default)
+		return false
+	}
+
+	// SECURITY: ALL resolved IPs must be private to skip TLS verification
+	// If any IP is public, we must verify certificates
+	isLocal := len(ips) > 0
+	for _, ip := range ips {
+		if !isPrivateIP(ip) {
+			isLocal = false
+			break
+		}
+	}
+
+	// Cache the result
+	dnsCacheMu.Lock()
+	dnsCache[host] = dnsCacheEntry{
+		isLocal:  isLocal,
+		expireAt: time.Now().Add(dnsCacheTTL),
+	}
+	dnsCacheMu.Unlock()
+
+	return isLocal
+}
+
+// customTransport creates a transport that skips TLS verification only for local IPs
+type customTransport struct {
+	baseTransport *http.Transport
+}
+
+func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Check if this is a local URL
+	isLocal := isLocalURL(req.URL.String())
+
+	// Clone the base transport for this request
+	transport := t.baseTransport.Clone()
+
+	// Only skip TLS verification for local/private IPs
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{
+			MinVersion: tls.VersionTLS12, // Require TLS 1.2 or higher
+		}
+	}
+	transport.TLSClientConfig.InsecureSkipVerify = isLocal
+
+	return transport.RoundTrip(req)
+}
+
 // NewHealthCheckService creates a new health check service
 func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
+	baseTransport := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			MinVersion:         tls.VersionTLS12, // Require TLS 1.2 or higher
+			InsecureSkipVerify: false,            // Default: verify certificates
+		},
+	}
+
 	return &HealthCheckService{
 		serviceRepo:   serviceRepo,
 		statusLogRepo: statusLogRepo,
 		httpClient: &http.Client{
 			Timeout: timeout,
+			Transport: &customTransport{
+				baseTransport: baseTransport,
+			},
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				// Don't follow redirects - consider them successful
 				return http.ErrUseLastResponse

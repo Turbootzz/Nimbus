@@ -27,31 +27,23 @@ func NewMetricsHandler(metricsService *services.MetricsService, serviceRepo repo
 func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 	serviceID := c.Params("id")
 	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+		return BadRequest(c, "Service ID is required")
 	}
 
 	// Get authenticated user
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	userID, err := getUserID(c)
+	if err != nil {
+		return Unauthorized(c, "Unauthorized")
 	}
 
 	// Verify service belongs to user
 	service, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
-		})
+		return NotFound(c, "Service not found")
 	}
 
 	if service.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Access denied",
-		})
+		return Forbidden(c, "Access denied")
 	}
 
 	// Parse query parameters
@@ -85,12 +77,10 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 	// Get metrics
 	metrics, err := h.metricsService.GetServiceMetrics(c.Context(), serviceID, startTime, endTime, interval)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to retrieve metrics",
-		})
+		return InternalError(c, "Failed to retrieve metrics")
 	}
 
-	return c.JSON(metrics)
+	return Success(c, metrics)
 }
 
 // GetRecentStatusLogs retrieves recent status logs for a service
@@ -98,31 +88,23 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	serviceID := c.Params("id")
 	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+		return BadRequest(c, "Service ID is required")
 	}
 
 	// Get authenticated user
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	userID, err := getUserID(c)
+	if err != nil {
+		return Unauthorized(c, "Unauthorized")
 	}
 
 	// Verify service belongs to user
 	service, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
-		})
+		return NotFound(c, "Service not found")
 	}
 
 	if service.UserID != userID {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Access denied",
-		})
+		return Forbidden(c, "Access denied")
 	}
 
 	// Parse limit from query
@@ -135,9 +117,7 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	// Get status logs
 	logs, err := h.metricsService.GetRecentStatusLogs(c.Context(), serviceID, limit)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to retrieve status logs",
-		})
+		return InternalError(c, "Failed to retrieve status logs")
 	}
 
 	// Convert to response format
@@ -146,7 +126,7 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 		responses[i] = log.ToResponse()
 	}
 
-	return c.JSON(fiber.Map{
+	return Success(c, fiber.Map{
 		"logs":  responses,
 		"count": len(responses),
 	})
