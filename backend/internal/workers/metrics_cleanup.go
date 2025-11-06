@@ -17,6 +17,7 @@ type MetricsCleanupWorker struct {
 	retentionDays   int
 	cleanupInterval time.Duration
 	stopChan        chan struct{}
+	cleanupTimer    *time.Timer
 }
 
 // NewMetricsCleanupWorker creates a new metrics cleanup worker
@@ -45,7 +46,7 @@ func (w *MetricsCleanupWorker) Start() {
 	log.Printf("Starting metrics cleanup worker (retention: %d days, interval: %s)", w.retentionDays, w.cleanupInterval)
 
 	// Run first cleanup after 1 hour (give system time to settle)
-	time.AfterFunc(1*time.Hour, func() {
+	w.cleanupTimer = time.AfterFunc(1*time.Hour, func() {
 		w.runCleanup()
 	})
 
@@ -56,6 +57,12 @@ func (w *MetricsCleanupWorker) Start() {
 // Stop gracefully stops the worker
 func (w *MetricsCleanupWorker) Stop() {
 	log.Println("Stopping metrics cleanup worker...")
+
+	// Cancel the initial cleanup timer if it hasn't fired yet
+	if w.cleanupTimer != nil {
+		w.cleanupTimer.Stop()
+	}
+
 	close(w.stopChan)
 }
 
