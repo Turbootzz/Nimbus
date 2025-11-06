@@ -126,7 +126,7 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 		responses[i] = log.ToResponse()
 	}
 
-	return c.JSON(fiber.Map{
+	return Success(c, fiber.Map{
 		"logs":  responses,
 		"count": len(responses),
 	})
