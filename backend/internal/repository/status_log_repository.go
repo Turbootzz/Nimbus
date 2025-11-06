@@ -18,21 +18,43 @@ func NewStatusLogRepository(db *sql.DB) *StatusLogRepository {
 
 // Create creates a new status log entry
 func (r *StatusLogRepository) Create(ctx context.Context, log *models.StatusLog) error {
-	query := `
-		INSERT INTO service_status_logs (service_id, status, response_time, error_message, checked_at)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
-	`
+	// If ID is provided, use it; otherwise let the database generate it
+	var query string
+	var err error
 
-	err := r.db.QueryRowContext(
-		ctx,
-		query,
-		log.ServiceID,
-		log.Status,
-		log.ResponseTime,
-		log.ErrorMessage,
-		log.CheckedAt,
-	).Scan(&log.ID)
+	if log.ID != "" {
+		// ID provided (e.g., in tests) - insert it directly
+		query = `
+			INSERT INTO service_status_logs (id, service_id, status, response_time, error_message, checked_at)
+			VALUES ($1, $2, $3, $4, $5, $6)
+		`
+		_, err = r.db.ExecContext(
+			ctx,
+			query,
+			log.ID,
+			log.ServiceID,
+			log.Status,
+			log.ResponseTime,
+			log.ErrorMessage,
+			log.CheckedAt,
+		)
+	} else {
+		// No ID provided - let database generate it
+		query = `
+			INSERT INTO service_status_logs (service_id, status, response_time, error_message, checked_at)
+			VALUES ($1, $2, $3, $4, $5)
+			RETURNING id
+		`
+		err = r.db.QueryRowContext(
+			ctx,
+			query,
+			log.ServiceID,
+			log.Status,
+			log.ResponseTime,
+			log.ErrorMessage,
+			log.CheckedAt,
+		).Scan(&log.ID)
+	}
 
 	return err
 }

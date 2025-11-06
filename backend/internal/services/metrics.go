@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nimbus/backend/internal/models"
@@ -54,6 +55,11 @@ type MetricDataPoint struct {
 
 // GetServiceMetrics retrieves aggregated metrics for a service over a time range
 func (m *MetricsService) GetServiceMetrics(ctx context.Context, serviceID string, startTime, endTime time.Time, intervalMinutes int) (*MetricsResponse, error) {
+	// Validate intervalMinutes to prevent division by zero in SQL
+	if intervalMinutes <= 0 {
+		return nil, fmt.Errorf("invalid intervalMinutes: must be > 0, got %d", intervalMinutes)
+	}
+
 	// Get overall stats
 	stats, err := m.statusLogRepo.GetUptimeStats(ctx, serviceID, startTime, endTime)
 	if err != nil {
@@ -193,6 +199,17 @@ func (m *MetricsService) buildPrometheusMetrics(services []*models.Service) *Pro
 	}
 }
 
+// escapePromLabel escapes special characters in Prometheus label values
+// to prevent invalid metric exposition format
+func escapePromLabel(s string) string {
+	replacer := strings.NewReplacer(
+		"\\", "\\\\", // backslash -> double backslash
+		"\n", "\\n", // newline -> \n
+		"\"", "\\\"", // quote -> \"
+	)
+	return replacer.Replace(s)
+}
+
 // FormatPrometheusMetrics converts metrics to Prometheus text format
 func FormatPrometheusMetrics(metrics *PrometheusMetrics) string {
 	output := ""
@@ -204,10 +221,10 @@ func FormatPrometheusMetrics(metrics *PrometheusMetrics) string {
 	for _, metric := range metrics.ServiceMetrics {
 		output += fmt.Sprintf(
 			"nimbus_service_up{service_id=\"%s\",service_name=\"%s\",service_url=\"%s\",status=\"%s\"} %d\n",
-			metric.ServiceID,
-			metric.ServiceName,
-			metric.ServiceURL,
-			metric.Status,
+			escapePromLabel(metric.ServiceID),
+			escapePromLabel(metric.ServiceName),
+			escapePromLabel(metric.ServiceURL),
+			escapePromLabel(metric.Status),
 			metric.IsOnline,
 		)
 	}
@@ -218,8 +235,8 @@ func FormatPrometheusMetrics(metrics *PrometheusMetrics) string {
 	for _, metric := range metrics.ServiceMetrics {
 		output += fmt.Sprintf(
 			"nimbus_service_response_time_milliseconds{service_id=\"%s\",service_name=\"%s\"} %d\n",
-			metric.ServiceID,
-			metric.ServiceName,
+			escapePromLabel(metric.ServiceID),
+			escapePromLabel(metric.ServiceName),
 			metric.ResponseTime,
 		)
 	}

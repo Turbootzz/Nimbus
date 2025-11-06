@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon, ArrowPathIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
@@ -34,7 +34,7 @@ export default function ServiceDetailPage() {
     { value: '30d', label: 'Last 30 Days' },
   ]
 
-  const fetchService = async () => {
+  const fetchService = useCallback(async () => {
     try {
       console.log('Fetching service:', serviceId)
       const response = await api.getService(serviceId)
@@ -56,9 +56,9 @@ export default function ServiceDetailPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [serviceId])
 
-  const fetchMetrics = async () => {
+  const fetchMetrics = useCallback(async () => {
     try {
       setMetricsLoading(true)
       // API_URL already includes /api/v1, so just append /metrics/:id
@@ -83,7 +83,7 @@ export default function ServiceDetailPage() {
     } finally {
       setMetricsLoading(false)
     }
-  }
+  }, [serviceId, timeRange])
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -115,20 +115,20 @@ export default function ServiceDetailPage() {
       }
 
       router.push('/dashboard')
-    } catch (err) {
+    } catch {
       alert('Failed to delete service')
     }
   }
 
   useEffect(() => {
     fetchService()
-  }, [serviceId])
+  }, [fetchService])
 
   useEffect(() => {
     if (service) {
       fetchMetrics()
     }
-  }, [serviceId, timeRange, service])
+  }, [fetchMetrics, service])
 
   if (loading) {
     return (

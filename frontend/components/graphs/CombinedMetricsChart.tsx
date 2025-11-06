@@ -144,19 +144,34 @@ export default function CombinedMetricsChart({
     }))
     .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
+  // Calculate actual time range from data points
+  const timeRangeStart =
+    aggregatedPoints.length > 0 ? aggregatedPoints[0].timestamp : new Date().toISOString()
+  const timeRangeEnd =
+    aggregatedPoints.length > 0
+      ? aggregatedPoints[aggregatedPoints.length - 1].timestamp
+      : new Date().toISOString()
+
+  // Guard against empty metrics when computing min/max
+  const allMetricsValues = Object.values(allMetrics)
+  const minResponseTime =
+    allMetricsValues.length > 0 ? Math.min(...allMetricsValues.map((m) => m.min_response_time)) : 0
+  const maxResponseTime =
+    allMetricsValues.length > 0 ? Math.max(...allMetricsValues.map((m) => m.max_response_time)) : 0
+
   const combinedMetrics: MetricsResponse = {
     service_id: 'combined',
     time_range: {
-      start: new Date().toISOString(),
-      end: new Date().toISOString(),
+      start: timeRangeStart,
+      end: timeRangeEnd,
     },
     uptime_percentage: avgUptime,
     total_checks: combinedStats.totalChecks,
     online_count: combinedStats.onlineCount,
     offline_count: combinedStats.offlineCount,
     avg_response_time: avgResponseTime,
-    min_response_time: Math.min(...Object.values(allMetrics).map((m) => m.min_response_time)),
-    max_response_time: Math.max(...Object.values(allMetrics).map((m) => m.max_response_time)),
+    min_response_time: minResponseTime,
+    max_response_time: maxResponseTime,
     data_points: aggregatedPoints,
   }
 

@@ -3,10 +3,10 @@ package workers
 import (
 	"context"
 	"database/sql"
-	"os"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -40,10 +40,10 @@ func setupCleanupTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
 
-	// Create service_status_logs table
+	// Create service_status_logs table (matching production schema with UUID PRIMARY KEY)
 	_, err = db.Exec(`
 		CREATE TABLE service_status_logs (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			id TEXT PRIMARY KEY,
 			service_id TEXT NOT NULL,
 			status TEXT NOT NULL CHECK(status IN ('online', 'offline', 'unknown')),
 			response_time INTEGER,
@@ -97,8 +97,7 @@ func TestNewMetricsCleanupWorker_CustomRetention(t *testing.T) {
 	defer db.Close()
 
 	// Set custom retention days via environment variable
-	os.Setenv("METRICS_RETENTION_DAYS", "7")
-	defer os.Unsetenv("METRICS_RETENTION_DAYS")
+	t.Setenv("METRICS_RETENTION_DAYS", "7")
 
 	statusLogRepo := repository.NewStatusLogRepository(db)
 	serviceRepo := repository.NewServiceRepository(db)
@@ -132,6 +131,7 @@ func TestMetricsCleanupWorker_RunNow(t *testing.T) {
 		}
 
 		log := &models.StatusLog{
+			ID:           uuid.New().String(),
 			ServiceID:    "test-service-1",
 			Status:       models.StatusOnline,
 			ResponseTime: &responseTime,
@@ -190,6 +190,7 @@ func TestMetricsCleanupWorker_RunNow_NoOldLogs(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		responseTime := 100
 		log := &models.StatusLog{
+			ID:           uuid.New().String(),
 			ServiceID:    "test-service-1",
 			Status:       models.StatusOnline,
 			ResponseTime: &responseTime,
@@ -269,6 +270,7 @@ func TestMetricsCleanupWorker_RunCleanup_Integration(t *testing.T) {
 		for i := 0; i < tc.count; i++ {
 			responseTime := 100
 			log := &models.StatusLog{
+				ID:           uuid.New().String(),
 				ServiceID:    "test-service-1",
 				Status:       models.StatusOnline,
 				ResponseTime: &responseTime,
@@ -313,8 +315,7 @@ func TestMetricsCleanupWorker_InvalidRetentionDays(t *testing.T) {
 	defer db.Close()
 
 	// Set invalid retention days via environment variable
-	os.Setenv("METRICS_RETENTION_DAYS", "invalid")
-	defer os.Unsetenv("METRICS_RETENTION_DAYS")
+	t.Setenv("METRICS_RETENTION_DAYS", "invalid")
 
 	statusLogRepo := repository.NewStatusLogRepository(db)
 	serviceRepo := repository.NewServiceRepository(db)
@@ -333,8 +334,7 @@ func TestMetricsCleanupWorker_ZeroRetentionDays(t *testing.T) {
 	defer db.Close()
 
 	// Set zero retention days via environment variable
-	os.Setenv("METRICS_RETENTION_DAYS", "0")
-	defer os.Unsetenv("METRICS_RETENTION_DAYS")
+	t.Setenv("METRICS_RETENTION_DAYS", "0")
 
 	statusLogRepo := repository.NewStatusLogRepository(db)
 	serviceRepo := repository.NewServiceRepository(db)

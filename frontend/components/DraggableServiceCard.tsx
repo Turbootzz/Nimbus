@@ -67,26 +67,29 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
       className="bg-card border-card-border hover:border-primary group relative rounded-lg border transition-all hover:shadow-lg"
     >
       {/* Action buttons */}
-      <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
         {/* Metrics button */}
         <Link
           href={`/services/${service.id}`}
-          className="bg-card-hover rounded p-1 transition-colors hover:bg-gray-300 dark:hover:bg-gray-600"
+          className="bg-card-hover focus:ring-primary rounded p-1 transition-colors hover:bg-gray-300 focus:ring-2 focus:outline-none dark:hover:bg-gray-600"
           title="View metrics"
+          aria-label={`View metrics for ${service.name}`}
           onClick={(e) => e.stopPropagation()}
         >
           <ChartBarIcon className="text-text-muted h-5 w-5" />
         </Link>
 
         {/* Drag handle */}
-        <div
+        <button
           {...attributes}
           {...listeners}
-          className="bg-card-hover cursor-grab rounded p-1 transition-colors hover:bg-gray-300 active:cursor-grabbing dark:hover:bg-gray-600"
+          className="bg-card-hover focus:ring-primary cursor-grab rounded p-1 transition-colors hover:bg-gray-300 focus:ring-2 focus:outline-none active:cursor-grabbing dark:hover:bg-gray-600"
           title="Drag to reorder"
+          aria-label={`Drag to reorder ${service.name}`}
+          type="button"
         >
           <Bars3Icon className="text-text-muted h-5 w-5" />
-        </div>
+        </button>
       </div>
 
       {/* Service card content */}
