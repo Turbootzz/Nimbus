@@ -136,7 +136,7 @@ type ServiceMetric struct {
 	ResponseTime int
 }
 
-// GetPrometheusMetrics retrieves all service metrics in a Prometheus-compatible format
+// GetPrometheusMetrics retrieves all service metrics in a Prometheus-compatible format (admin only)
 func (m *MetricsService) GetPrometheusMetrics(ctx context.Context) (*PrometheusMetrics, error) {
 	// Get all services
 	services, err := m.serviceRepo.GetAll(ctx)
@@ -144,6 +144,22 @@ func (m *MetricsService) GetPrometheusMetrics(ctx context.Context) (*PrometheusM
 		return nil, fmt.Errorf("failed to get services: %w", err)
 	}
 
+	return m.buildPrometheusMetrics(services), nil
+}
+
+// GetPrometheusMetricsByUser retrieves service metrics for a specific user
+func (m *MetricsService) GetPrometheusMetricsByUser(ctx context.Context, userID string) (*PrometheusMetrics, error) {
+	// Get services for specific user
+	services, err := m.serviceRepo.GetAllByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user services: %w", err)
+	}
+
+	return m.buildPrometheusMetrics(services), nil
+}
+
+// buildPrometheusMetrics converts service models to Prometheus metrics format
+func (m *MetricsService) buildPrometheusMetrics(services []*models.Service) *PrometheusMetrics {
 	totalServices := len(services)
 	onlineServices := 0
 	serviceMetrics := make([]ServiceMetric, 0, totalServices)
@@ -174,7 +190,7 @@ func (m *MetricsService) GetPrometheusMetrics(ctx context.Context) (*PrometheusM
 		ServiceMetrics: serviceMetrics,
 		TotalServices:  totalServices,
 		OnlineServices: onlineServices,
-	}, nil
+	}
 }
 
 // FormatPrometheusMetrics converts metrics to Prometheus text format

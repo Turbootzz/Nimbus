@@ -159,26 +159,100 @@ nimbus/
 - Visual status indicators (online/offline/unknown)
 - Response time tracking
 
+### Prometheus Metrics (Optional)
+- `GET /api/v1/prometheus/metrics/user/:userID` - Prometheus metrics for specific user (requires API key)
+
 ## Environment Variables
 
-**Important**: Environment variables are configured in the **root `.env` file**
+**Important**: Environment variables are configured in **two `.env` files**:
+- **Root `.env`** - Backend configuration (database, JWT, health checks, Prometheus)
+- **`frontend/.env.local`** - Frontend configuration (API URL, app name)
 
-Both backend and frontend read from the same `.env` file:
-- **Backend**: Reads directly from root `.env`
-- **Frontend**: Uses `dotenv-cli` to load from root `.env` (configured in `package.json`)
-- **Production (Portainer/Docker)**: Environment variables are injected by your orchestration tool
+See `.env.example` in the root directory for all available configuration options.
 
-See `.env.example` in the root directory for all available configuration options. Key variables include:
+### Backend Variables (root `.env`)
 
-- `DB_*` - Database connection settings (host, port, name, user, password)
-- `JWT_SECRET` - Secret key for JWT tokens (minimum 32 characters, change in production!)
-- `CORS_ORIGINS` - Allowed CORS origins for API requests
-- `NEXT_PUBLIC_API_URL` - Backend API URL accessible from the browser (must include `/api/v1`)
-  - Example: `http://localhost:8080/api/v1` (development) or `https://api.yourdomain.com/api/v1` (production)
-- `INTERNAL_API_URL` - *Optional* server-side API URL for internal Docker/network calls
-  - Used only for server-side requests (SSR, API routes) for better performance in containerized environments
-  - Example: `http://backend:8080/api/v1` (Docker) or `http://localhost:8080/api/v1` (local)
-  - Falls back to `NEXT_PUBLIC_API_URL` if not set
+**Database:**
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` - PostgreSQL connection
+- `DB_URL` - Alternative: full connection string (optional)
+
+**Authentication & Security:**
+- `JWT_SECRET` - Secret key for JWT tokens (**minimum 32 characters, CHANGE IN PRODUCTION!**)
+- `JWT_EXPIRY` - Token expiration (e.g., `24h`, `7d`, `30d`)
+- `BCRYPT_COST` - Password hashing cost (10-12 recommended)
+
+**Server Configuration:**
+- `PORT` - Backend API port (default: `8080`)
+- `CORS_ORIGINS` - Comma-separated allowed origins (e.g., `http://localhost:3000`)
+- `COOKIE_SECURE` - Set to `true` for HTTPS, `false` for local dev
+
+**Health Checks:**
+- `HEALTH_CHECK_INTERVAL` - Seconds between checks (default: `60`)
+- `HEALTH_CHECK_TIMEOUT` - Request timeout in seconds (default: `10`)
+
+**Metrics & Monitoring:**
+- `METRICS_RETENTION_DAYS` - Days to retain status logs (default: `30`)
+- `PROMETHEUS_API_KEY` - API key for Prometheus access (never expires)
+  - Generate with: `openssl rand -hex 32`
+
+### Frontend Variables (`frontend/.env.local`)
+
+**API Configuration:**
+- `NEXT_PUBLIC_API_URL` - Backend API URL from browser (optional, auto-detects if not set)
+  - Example: `http://localhost:8080/api/v1` or `https://api.yourdomain.com/api/v1`
+- `NEXT_PUBLIC_API_PORT` - Backend port for runtime detection (default: `8080`)
+- `NEXT_PUBLIC_APP_NAME` - Application name (default: `Nimbus`)
+
+**Note:** Frontend auto-detects API URL at runtime based on browser location. Only override if needed.
+
+## Prometheus Integration (Optional)
+
+Nimbus can export service metrics in Prometheus format for monitoring and alerting.
+
+### Quick Setup
+
+1. **Generate an API key:**
+```bash
+openssl rand -hex 32
+```
+
+2. **Add to `.env`:**
+```bash
+PROMETHEUS_API_KEY=your_generated_key_here
+```
+
+3. **Create `prometheus.yml`** (not tracked in git):
+```yaml
+global:
+  scrape_interval: 30s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'nimbus'
+    scrape_interval: 30s
+    metrics_path: '/api/v1/prometheus/metrics/user/YOUR_USER_ID'
+    authorization:
+      type: Bearer
+      credentials: 'YOUR_API_KEY'
+    static_configs:
+      - targets: ['localhost:8080']  # Adjust to your Nimbus backend URL
+```
+
+4. **Deploy Prometheus with Docker:**
+```bash
+docker run -d \
+  --name prometheus \
+  -p 9090:9090 \
+  -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  prom/prometheus:latest
+```
+
+5. **Get your user ID** from the database or login response, then update `prometheus.yml`
+
+**Note:** All files in the `prometheus/` directory are gitignored. See `prometheus/SECURE_SETUP.md` for detailed setup instructions.
 
 ## Development Commands
 
@@ -250,7 +324,8 @@ npm run lint    # Run linter
 - [x] Role-based access control (admin features)
 - [x] Docker deployment
 - [x] Admin configuration UI
-- [ ] Service status history graphs
+- [x] Service status history graphs
+- [x] Prometheus metrics export
 - [ ] OAuth2 login support
 - [ ] Widget/plugin system
 - [x] Mobile responsive design

@@ -112,8 +112,10 @@ func main() {
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))
 	metrics.Get("/:id", metricsHandler.GetServiceMetrics)
 
-	// Prometheus metrics endpoint (public)
-	app.Get("/metrics", metricsHandler.GetPrometheusMetrics)
+	// Prometheus metrics endpoint (supports both JWT and API key authentication)
+	// Middleware is optional - handler checks for both JWT (from middleware) and API key
+	prometheus := v1.Group("/prometheus")
+	prometheus.Get("/metrics/user/:userID", middleware.OptionalAuthMiddleware(authService, userRepo), metricsHandler.GetUserPrometheusMetrics)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo))

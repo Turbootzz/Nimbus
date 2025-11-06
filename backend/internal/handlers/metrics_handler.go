@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"os"
 	"strconv"
 	"time"
 
@@ -151,10 +152,69 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	})
 }
 
-// GetPrometheusMetrics exports metrics in Prometheus format
-// GET /metrics
+// GetPrometheusMetrics exports ALL metrics in Prometheus format (admin only, authenticated)
+// GET /api/v1/prometheus/metrics (protected, admin only)
 func (h *MetricsHandler) GetPrometheusMetrics(c *fiber.Ctx) error {
 	metrics, err := h.metricsService.GetPrometheusMetrics(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("# Error retrieving metrics\n")
+	}
+
+	// Format as Prometheus text
+	output := services.FormatPrometheusMetrics(metrics)
+
+	// Set content type for Prometheus
+	c.Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
+	return c.SendString(output)
+}
+
+// GetUserPrometheusMetrics exports metrics for a specific user (authenticated via JWT or API key)
+// GET /api/v1/prometheus/metrics/user/:userID
+func (h *MetricsHandler) GetUserPrometheusMetrics(c *fiber.Ctx) error {
+	// Try JWT authentication first (from middleware)
+	authUserID, jwtAuth := c.Locals("user_id").(string)
+	userRole, _ := c.Locals("role").(string)
+
+	// If no JWT, try API key authentication
+	if !jwtAuth {
+		apiKey := c.Get("X-API-Key")
+		if apiKey == "" {
+			// Also try Authorization header with "Bearer" format
+			authHeader := c.Get("Authorization")
+			if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+				apiKey = authHeader[7:]
+			}
+		}
+
+		// Validate API key (stored in environment variable)
+		expectedKey := os.Getenv("PROMETHEUS_API_KEY")
+		if expectedKey == "" || apiKey != expectedKey {
+			return c.Status(fiber.StatusUnauthorized).SendString("# Unauthorized: Invalid or missing API key\n")
+		}
+
+		// API key is valid - grant access to requested user's metrics
+		// (API key has admin-level access)
+	} else {
+		// JWT authentication - check permissions
+		requestedUserID := c.Params("userID")
+		if requestedUserID == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("# User ID required\n")
+		}
+
+		// Users can only access their own metrics (unless admin)
+		if authUserID != requestedUserID && userRole != "admin" {
+			return c.Status(fiber.StatusForbidden).SendString("# Forbidden: Can only access your own metrics\n")
+		}
+	}
+
+	// Get requested user ID from URL
+	requestedUserID := c.Params("userID")
+	if requestedUserID == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("# User ID required\n")
+	}
+
+	// Get metrics filtered by user
+	metrics, err := h.metricsService.GetPrometheusMetricsByUser(c.Context(), requestedUserID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).SendString("# Error retrieving metrics\n")
 	}

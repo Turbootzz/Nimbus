@@ -70,3 +70,6 @@ Documentation/
 
 # Backups
 backups/
+
+# Prometheus
+prometheus/

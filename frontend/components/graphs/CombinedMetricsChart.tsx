@@ -136,19 +136,19 @@ export default function CombinedMetricsChart({
   // Convert to array and calculate averages
   const aggregatedPoints = Array.from(combinedDataPoints.values())
     .map((point) => ({
-      timestamp: point.timestamp,
+      timestamp: point.timestamp.toISOString(),
       check_count: point.count,
       online_count: 0, // Not used in this view
       uptime_percentage: point.uptimeSum / point.count,
       avg_response_time: point.responseTimeSum / point.count,
     }))
-    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
 
   const combinedMetrics: MetricsResponse = {
     service_id: 'combined',
     time_range: {
-      start: new Date(),
-      end: new Date(),
+      start: new Date().toISOString(),
+      end: new Date().toISOString(),
     },
     uptime_percentage: avgUptime,
     total_checks: combinedStats.totalChecks,
