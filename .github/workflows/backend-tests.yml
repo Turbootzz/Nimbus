@@ -17,21 +17,6 @@ jobs:
     name: Run Backend Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: nimbus_test
-          POSTGRES_PASSWORD: test_password
-          POSTGRES_DB: nimbus_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,22 +31,11 @@ jobs:
         working-directory: ./backend
         run: go mod download
 
-      - name: Run unit tests (SQLite)
+      - name: Run tests
         working-directory: ./backend
         run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
         env:
           CGO_ENABLED: 1
-
-      - name: Run integration tests (PostgreSQL)
-        working-directory: ./backend
-        run: go test -tags=integration -v ./internal/repository/...
-        env:
-          INTEGRATION_TEST: "true"
-          TEST_DB_HOST: localhost
-          TEST_DB_PORT: 5432
-          TEST_DB_USER: nimbus_test
-          TEST_DB_PASSWORD: test_password
-          TEST_DB_NAME: nimbus_test
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

@@ -31,6 +31,14 @@ func NewCategoryRepository(db *sql.DB) *CategoryRepository {
 	}
 }
 
+// placeholder returns the correct placeholder for the database type
+func (r *CategoryRepository) placeholder(n int) string {
+	if r.isPostgreSQL {
+		return fmt.Sprintf("$%d", n)
+	}
+	return "?"
+}
+
 // Create creates a new category
 func (r *CategoryRepository) Create(ctx context.Context, category *models.Category) error {
 	// Use a transaction with row-level locking to prevent concurrent position conflicts
@@ -40,16 +48,20 @@ func (r *CategoryRepository) Create(ctx context.Context, category *models.Catego
 	}
 	defer tx.Rollback()
 
-	// Get the max position for this user with row lock
+	// Get the max position for this user
 	var maxPos sql.NullInt64
-	posQuery := `
+	posQuery := fmt.Sprintf(`
 		SELECT position
 		FROM categories
-		WHERE user_id = $1
+		WHERE user_id = %s
 		ORDER BY position DESC
 		LIMIT 1
-		FOR UPDATE
-	`
+	`, r.placeholder(1))
+
+	if r.isPostgreSQL {
+		posQuery += " FOR UPDATE"
+	}
+
 	err = tx.QueryRowContext(ctx, posQuery, category.UserID).Scan(&maxPos)
 	if err != nil && err != sql.ErrNoRows {
 		return err
@@ -61,22 +73,49 @@ func (r *CategoryRepository) Create(ctx context.Context, category *models.Catego
 		category.Position = 0
 	}
 
-	query := `
-		INSERT INTO categories (user_id, name, color, position, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-		RETURNING id
-	`
+	if r.isPostgreSQL {
+		// PostgreSQL with RETURNING
+		query := fmt.Sprintf(`
+			INSERT INTO categories (user_id, name, color, position, created_at, updated_at)
+			VALUES (%s, %s, %s, %s, %s, %s)
+			RETURNING id
+		`, r.placeholder(1), r.placeholder(2), r.placeholder(3), r.placeholder(4), r.placeholder(5), r.placeholder(6))
 
-	err = tx.QueryRowContext(
-		ctx,
-		query,
-		category.UserID,
-		category.Name,
-		category.Color,
-		category.Position,
-		category.CreatedAt,
-		category.UpdatedAt,
-	).Scan(&category.ID)
+		err = tx.QueryRowContext(
+			ctx,
+			query,
+			category.UserID,
+			category.Name,
+			category.Color,
+			category.Position,
+			category.CreatedAt,
+			category.UpdatedAt,
+		).Scan(&category.ID)
+	} else {
+		// SQLite - use provided ID or generate one
+		if category.ID == "" {
+			// Generate a unique ID for SQLite testing using name hash and timestamp
+			category.ID = fmt.Sprintf("cat-%s-%d", category.Name, category.CreatedAt.UnixNano())
+		}
+
+		query := fmt.Sprintf(`
+			INSERT INTO categories (id, user_id, name, color, position, created_at, updated_at)
+			VALUES (%s, %s, %s, %s, %s, %s, %s)
+		`, r.placeholder(1), r.placeholder(2), r.placeholder(3), r.placeholder(4), r.placeholder(5), r.placeholder(6), r.placeholder(7))
+
+		_, err = tx.ExecContext(
+			ctx,
+			query,
+			category.ID,
+			category.UserID,
+			category.Name,
+			category.Color,
+			category.Position,
+			category.CreatedAt,
+			category.UpdatedAt,
+		)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -87,11 +126,11 @@ func (r *CategoryRepository) Create(ctx context.Context, category *models.Catego
 // GetByID retrieves a category by ID
 func (r *CategoryRepository) GetByID(ctx context.Context, id string) (*models.Category, error) {
 	category := &models.Category{}
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, user_id, name, color, position, created_at, updated_at
 		FROM categories
-		WHERE id = $1
-	`
+		WHERE id = %s
+	`, r.placeholder(1))
 
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
 		&category.ID,
@@ -112,12 +151,12 @@ func (r *CategoryRepository) GetByID(ctx context.Context, id string) (*models.Ca
 
 // GetAllByUserID retrieves all categories for a specific user
 func (r *CategoryRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Category, error) {
-	query := `
+	query := fmt.Sprintf(`
 		SELECT id, user_id, name, color, position, created_at, updated_at
 		FROM categories
-		WHERE user_id = $1
+		WHERE user_id = %s
 		ORDER BY position ASC, created_at DESC
-	`
+	`, r.placeholder(1))
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -148,11 +187,11 @@ func (r *CategoryRepository) GetAllByUserID(ctx context.Context, userID string) 
 
 // Update updates an existing category
 func (r *CategoryRepository) Update(ctx context.Context, category *models.Category) error {
-	query := `
+	query := fmt.Sprintf(`
 		UPDATE categories
-		SET name = $1, color = $2, updated_at = $3
-		WHERE id = $4 AND user_id = $5
-	`
+		SET name = %s, color = %s, updated_at = %s
+		WHERE id = %s AND user_id = %s
+	`, r.placeholder(1), r.placeholder(2), r.placeholder(3), r.placeholder(4), r.placeholder(5))
 
 	result, err := r.db.ExecContext(
 		ctx,
@@ -182,7 +221,8 @@ func (r *CategoryRepository) Update(ctx context.Context, category *models.Catego
 
 // Delete deletes a category by ID (services will have category_id set to NULL)
 func (r *CategoryRepository) Delete(ctx context.Context, id, userID string) error {
-	query := `DELETE FROM categories WHERE id = $1 AND user_id = $2`
+	query := fmt.Sprintf(`DELETE FROM categories WHERE id = %s AND user_id = %s`,
+		r.placeholder(1), r.placeholder(2))
 
 	result, err := r.db.ExecContext(ctx, query, id, userID)
 	if err != nil {
@@ -270,7 +310,8 @@ func (r *CategoryRepository) loopUpdatePositions(ctx context.Context, userID str
 	defer tx.Rollback()
 
 	// Verify all categories belong to the user and update positions
-	query := `UPDATE categories SET position = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND user_id = $3`
+	query := fmt.Sprintf(`UPDATE categories SET position = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s AND user_id = %s`,
+		r.placeholder(1), r.placeholder(2), r.placeholder(3))
 
 	for categoryID, position := range positions {
 		result, err := tx.ExecContext(ctx, query, position, categoryID, userID)
