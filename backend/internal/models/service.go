@@ -24,38 +24,43 @@ type Service struct {
 	Status       string    `json:"status" db:"status"`               // StatusOnline, StatusOffline, or StatusUnknown
 	ResponseTime *int      `json:"response_time" db:"response_time"` // Response time in milliseconds (nil if never checked)
 	Position     int       `json:"position" db:"position"`           // User-defined position for dashboard ordering
+	CategoryID   *string   `json:"category_id" db:"category_id"`     // Optional category assignment
 	CreatedAt    time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ServiceCreateRequest represents the data needed to create a new service
 type ServiceCreateRequest struct {
-	Name        string `json:"name" validate:"required"`
-	URL         string `json:"url" validate:"required,url"`
-	Icon        string `json:"icon"`
-	Description string `json:"description"`
+	Name        string  `json:"name" validate:"required"`
+	URL         string  `json:"url" validate:"required,url"`
+	Icon        string  `json:"icon"`
+	Description string  `json:"description"`
+	CategoryID  *string `json:"category_id"`
 }
 
 // ServiceUpdateRequest represents the data needed to update a service
 type ServiceUpdateRequest struct {
-	Name        string `json:"name" validate:"required"`
-	URL         string `json:"url" validate:"required,url"`
-	Icon        string `json:"icon"`
-	Description string `json:"description"`
+	Name        string  `json:"name" validate:"required"`
+	URL         string  `json:"url" validate:"required,url"`
+	Icon        string  `json:"icon"`
+	Description string  `json:"description"`
+	CategoryID  *string `json:"category_id"`
 }
 
 // ServiceResponse is the safe service data to return to clients
 type ServiceResponse struct {
-	ID           string    `json:"id"`
-	Name         string    `json:"name"`
-	URL          string    `json:"url"`
-	Icon         string    `json:"icon"`
-	Description  string    `json:"description"`
-	Status       string    `json:"status"`
-	ResponseTime *int      `json:"response_time,omitempty"` // Response time in milliseconds (omitted if nil)
-	Position     int       `json:"position"`
-	CreatedAt    time.Time `json:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at"`
+	ID           string            `json:"id"`
+	Name         string            `json:"name"`
+	URL          string            `json:"url"`
+	Icon         string            `json:"icon"`
+	Description  string            `json:"description"`
+	Status       string            `json:"status"`
+	ResponseTime *int              `json:"response_time,omitempty"` // Response time in milliseconds (omitted if nil)
+	Position     int               `json:"position"`
+	CategoryID   *string           `json:"category_id,omitempty"`
+	Category     *CategoryResponse `json:"category,omitempty"` // Populated when fetching with category info
+	CreatedAt    time.Time         `json:"created_at"`
+	UpdatedAt    time.Time         `json:"updated_at"`
 }
 
 // ToResponse converts Service to ServiceResponse
@@ -69,6 +74,7 @@ func (s *Service) ToResponse() ServiceResponse {
 		Status:       s.Status,
 		ResponseTime: s.ResponseTime,
 		Position:     s.Position,
+		CategoryID:   s.CategoryID,
 		CreatedAt:    s.CreatedAt,
 		UpdatedAt:    s.UpdatedAt,
 	}

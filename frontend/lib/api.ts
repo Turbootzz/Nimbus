@@ -7,6 +7,10 @@ import type {
   ServiceCreateRequest,
   ServiceUpdateRequest,
   ServiceReorderRequest,
+  Category,
+  CategoryCreateRequest,
+  CategoryUpdateRequest,
+  CategoryReorderRequest,
   ApiResponse,
   HealthCheck,
   UserPreferences,
@@ -172,6 +176,45 @@ class ApiClient {
 
   async reorderServices(data: ServiceReorderRequest): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>('/services/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Categories
+  // ============================================
+
+  async getCategories(): Promise<ApiResponse<Category[]>> {
+    return this.request<Category[]>('/categories')
+  }
+
+  async getCategory(id: string): Promise<ApiResponse<Category>> {
+    return this.request<Category>(`/categories/${id}`)
+  }
+
+  async createCategory(data: CategoryCreateRequest): Promise<ApiResponse<Category>> {
+    return this.request<Category>('/categories', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateCategory(id: string, data: CategoryUpdateRequest): Promise<ApiResponse<Category>> {
+    return this.request<Category>(`/categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteCategory(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/categories/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async reorderCategories(data: CategoryReorderRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/categories/reorder', {
       method: 'PUT',
       body: JSON.stringify(data),
     })

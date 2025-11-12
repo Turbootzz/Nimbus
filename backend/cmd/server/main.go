@@ -42,6 +42,7 @@ func main() {
 	// Initialize repositories
 	userRepo := repository.NewUserRepository(database)
 	serviceRepo := repository.NewServiceRepository(database)
+	categoryRepo := repository.NewCategoryRepository(database)
 	preferencesRepo := repository.NewPreferencesRepository(database)
 	statusLogRepo := repository.NewStatusLogRepository(database)
 
@@ -58,6 +59,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
+	categoryHandler := handlers.NewCategoryHandler(categoryRepo)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
@@ -107,6 +109,15 @@ func main() {
 	services.Delete("/:id", serviceHandler.DeleteService)
 	services.Post("/:id/check", serviceHandler.CheckService)
 	services.Get("/:id/status-logs", metricsHandler.GetRecentStatusLogs)
+
+	// Category routes (all protected)
+	categories := v1.Group("/categories", middleware.AuthMiddleware(authService, userRepo))
+	categories.Post("/", categoryHandler.CreateCategory)
+	categories.Get("/", categoryHandler.GetCategories)
+	categories.Put("/reorder", categoryHandler.ReorderCategories) // Must be before /:id routes
+	categories.Get("/:id", categoryHandler.GetCategory)
+	categories.Put("/:id", categoryHandler.UpdateCategory)
+	categories.Delete("/:id", categoryHandler.DeleteCategory)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))

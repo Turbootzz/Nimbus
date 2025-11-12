@@ -70,6 +70,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		URL:         req.URL,
 		Icon:        req.Icon,
 		Description: req.Description,
+		CategoryID:  req.CategoryID,
 		Status:      models.StatusUnknown, // Initial status
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),
@@ -238,6 +239,7 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	existingService.URL = req.URL
 	existingService.Icon = icon
 	existingService.Description = req.Description
+	existingService.CategoryID = req.CategoryID
 	existingService.UpdatedAt = time.Now()
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {

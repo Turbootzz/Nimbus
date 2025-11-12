@@ -45,6 +45,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			status TEXT NOT NULL,
 			response_time INTEGER,
 			position INTEGER DEFAULT 0,
+			category_id TEXT,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -69,8 +70,8 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 // createTestService inserts a test service
 func createTestService(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, category_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(
 		query,
@@ -83,6 +84,7 @@ func createTestService(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Status,
 		service.ResponseTime,
 		service.Position,
+		service.CategoryID,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)

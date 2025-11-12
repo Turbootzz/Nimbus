@@ -30,6 +30,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			status TEXT DEFAULT 'unknown',
 			response_time INTEGER,
 			position INTEGER,
+			category_id TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)

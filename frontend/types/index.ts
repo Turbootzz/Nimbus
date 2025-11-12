@@ -26,6 +26,35 @@ export interface AuthResponse {
   user: User
 }
 
+// Category types
+export interface Category {
+  id: string
+  name: string
+  color: string
+  position: number
+  created_at: string
+  updated_at?: string
+}
+
+export interface CategoryCreateRequest {
+  name: string
+  color?: string
+}
+
+export interface CategoryUpdateRequest {
+  name?: string
+  color?: string
+}
+
+export interface CategoryPosition {
+  id: string
+  position: number
+}
+
+export interface CategoryReorderRequest {
+  categories: CategoryPosition[]
+}
+
 // Service types
 export interface Service {
   id: string
@@ -36,6 +65,8 @@ export interface Service {
   status: 'online' | 'offline' | 'unknown'
   response_time?: number
   position: number
+  category_id?: string
+  category?: Category
   created_at: string
   updated_at?: string
 }
@@ -45,6 +76,7 @@ export interface ServiceCreateRequest {
   url: string
   icon?: string
   description?: string
+  category_id?: string
 }
 
 export interface ServiceUpdateRequest {
@@ -52,6 +84,7 @@ export interface ServiceUpdateRequest {
   url?: string
   icon?: string
   description?: string
+  category_id?: string
 }
 
 export interface ServicePosition {

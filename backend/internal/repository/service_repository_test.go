@@ -30,6 +30,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			status TEXT NOT NULL,
 			response_time INTEGER,
 			position INTEGER DEFAULT 0,
+			category_id TEXT,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -46,8 +47,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 // This bypasses the RETURNING clause issue in SQLite
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, category_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err := db.Exec(
 		query,
@@ -60,6 +61,7 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Status,
 		service.ResponseTime,
 		service.Position,
+		service.CategoryID,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)
