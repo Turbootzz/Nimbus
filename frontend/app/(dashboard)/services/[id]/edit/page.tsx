@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { Category } from '@/types'
+import CategorySelect from '@/components/CategorySelect'
 
 export default function EditServicePage() {
   const router = useRouter()
@@ -14,37 +16,48 @@ export default function EditServicePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
 
   const [formData, setFormData] = useState({
     name: '',
     url: '',
     icon: '',
     description: '',
+    category_id: null as string | null,
   })
 
   useEffect(() => {
-    const fetchService = async () => {
+    const fetchData = async () => {
       setIsLoading(true)
       setError('')
 
-      const response = await api.getService(serviceId)
+      // Fetch both service and categories
+      const [serviceResponse, categoriesResponse] = await Promise.all([
+        api.getService(serviceId),
+        api.getCategories(),
+      ])
 
-      if (response.error) {
-        setError(response.error.message)
-      } else if (response.data) {
-        const service = response.data
+      if (serviceResponse.error) {
+        setError(serviceResponse.error.message)
+      } else if (serviceResponse.data) {
+        const service = serviceResponse.data
         setFormData({
           name: service.name,
           url: service.url,
           icon: service.icon || '',
           description: service.description || '',
+          category_id: service.category_id || null,
         })
+      }
+
+      if (categoriesResponse.data) {
+        setCategories(categoriesResponse.data)
       }
 
       setIsLoading(false)
     }
 
-    fetchService()
+    fetchData()
   }, [serviceId])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -81,6 +94,7 @@ export default function EditServicePage() {
         url: formData.url.trim(),
         icon: formData.icon.trim() || '🔗',
         description: formData.description.trim(),
+        category_id: formData.category_id || undefined,
       })
 
       if (response.error) {
@@ -247,6 +261,14 @@ export default function EditServicePage() {
               disabled={isSaving}
             />
           </div>
+
+          {/* Category Selection */}
+          <CategorySelect
+            value={formData.category_id}
+            onChange={(categoryId) => setFormData({ ...formData, category_id: categoryId })}
+            categories={categories}
+            label="Category (Optional)"
+          />
 
           {/* Form Actions */}
           <div

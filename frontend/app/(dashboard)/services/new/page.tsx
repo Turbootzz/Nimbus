@@ -1,22 +1,42 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { Category } from '@/types'
+import CategorySelect from '@/components/CategorySelect'
 
 export default function NewServicePage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [categories, setCategories] = useState<Category[]>([])
 
   const [formData, setFormData] = useState({
     name: '',
     url: '',
     icon: '',
     description: '',
+    category_id: null as string | null,
   })
+
+  // Fetch categories on mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const response = await api.getCategories()
+        if (response.data) {
+          setCategories(response.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error)
+      }
+    }
+
+    fetchCategories()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -52,6 +72,7 @@ export default function NewServicePage() {
         url: formData.url.trim(),
         icon: formData.icon.trim() || '🔗',
         description: formData.description.trim(),
+        category_id: formData.category_id || undefined,
       })
 
       if (response.error) {
@@ -209,6 +230,14 @@ export default function NewServicePage() {
               disabled={isLoading}
             />
           </div>
+
+          {/* Category Selection */}
+          <CategorySelect
+            value={formData.category_id}
+            onChange={(categoryId) => setFormData({ ...formData, category_id: categoryId })}
+            categories={categories}
+            label="Category (Optional)"
+          />
 
           {/* Form Actions */}
           <div
