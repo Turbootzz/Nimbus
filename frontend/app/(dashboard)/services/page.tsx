@@ -16,12 +16,14 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, Category } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -42,23 +44,30 @@ export default function ServicesPage() {
   )
 
   useEffect(() => {
-    fetchServices()
+    fetchData()
   }, [])
 
-  const fetchServices = async () => {
+  const fetchData = async () => {
     setIsLoading(true)
     setError('')
 
     try {
-      const response = await api.getServices()
+      const [servicesResponse, categoriesResponse] = await Promise.all([
+        api.getServices(),
+        api.getCategories(),
+      ])
 
-      if (response.error) {
-        setError(response.error.message)
-      } else if (response.data) {
-        setServices(response.data)
+      if (servicesResponse.error) {
+        setError(servicesResponse.error.message)
+      } else if (servicesResponse.data) {
+        setServices(servicesResponse.data)
+      }
+
+      if (categoriesResponse.data) {
+        setCategories(categoriesResponse.data)
       }
     } catch (error) {
-      console.error('Failed to fetch services:', error)
+      console.error('Failed to fetch data:', error)
       const message =
         error instanceof Error ? error.message : 'Unable to load services. Please try again.'
       setError(message)
@@ -66,6 +75,14 @@ export default function ServicesPage() {
       setIsLoading(false)
     }
   }
+
+  // Filter services based on selected category
+  const filteredServices =
+    selectedCategory === null
+      ? services
+      : selectedCategory === 'uncategorized'
+        ? services.filter((s) => !s.category_id)
+        : services.filter((s) => s.category_id === selectedCategory)
 
   const handleDelete = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to delete "${name}"?`)) {
@@ -102,19 +119,28 @@ export default function ServicesPage() {
       return
     }
 
-    const oldIndex = services.findIndex((s) => s.id === active.id)
-    const newIndex = services.findIndex((s) => s.id === over.id)
+    const oldIndex = filteredServices.findIndex((s) => s.id === active.id)
+    const newIndex = filteredServices.findIndex((s) => s.id === over.id)
 
     if (oldIndex === -1 || newIndex === -1) {
       return
     }
 
     // Optimistically update UI
-    const reorderedServices = arrayMove(services, oldIndex, newIndex)
-    setServices(reorderedServices)
+    const reorderedFiltered = arrayMove(filteredServices, oldIndex, newIndex)
+
+    // Update the full services list
+    const updatedServices = services.map((service) => {
+      const filteredIndex = reorderedFiltered.findIndex((s) => s.id === service.id)
+      if (filteredIndex !== -1) {
+        return reorderedFiltered[filteredIndex]
+      }
+      return service
+    })
+    setServices(updatedServices)
 
     // Update positions on backend
-    const updatedPositions = reorderedServices.map((service, index) => ({
+    const updatedPositions = reorderedFiltered.map((service, index) => ({
       id: service.id,
       position: index,
     }))
@@ -149,7 +175,8 @@ export default function ServicesPage() {
     )
   }
 
-  const activeService = services.find((s) => s.id === activeId)
+  const activeService = filteredServices.find((s) => s.id === activeId)
+  const uncategorizedCount = services.filter((s) => !s.category_id).length
 
   return (
     <div>
@@ -183,6 +210,58 @@ export default function ServicesPage() {
         </div>
       )}
 
+      {/* Category filter */}
+      {services.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <span className="text-text-secondary text-sm font-medium">Filter by category:</span>
+          <button
+            onClick={() => setSelectedCategory(null)}
+            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+              selectedCategory === null
+                ? 'bg-primary text-white'
+                : 'bg-card border-card-border text-text-secondary hover:bg-card-border border'
+            }`}
+          >
+            All ({services.length})
+          </button>
+          {categories.map((category) => {
+            const count = services.filter((s) => s.category_id === category.id).length
+            return (
+              <button
+                key={category.id}
+                onClick={() => setSelectedCategory(category.id)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                  selectedCategory === category.id
+                    ? 'text-white'
+                    : 'bg-card border-card-border text-text-secondary hover:bg-card-border border'
+                }`}
+                style={{
+                  backgroundColor: selectedCategory === category.id ? category.color : undefined,
+                }}
+              >
+                <span
+                  className="h-2 w-2 rounded-full"
+                  style={{ backgroundColor: category.color }}
+                />
+                {category.name} ({count})
+              </button>
+            )
+          })}
+          {uncategorizedCount > 0 && (
+            <button
+              onClick={() => setSelectedCategory('uncategorized')}
+              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                selectedCategory === 'uncategorized'
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-card border-card-border text-text-secondary hover:bg-card-border border'
+              }`}
+            >
+              Uncategorized ({uncategorizedCount})
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Services grid */}
       {services.length === 0 ? (
         <div className="bg-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
@@ -201,35 +280,52 @@ export default function ServicesPage() {
           </Link>
         </div>
       ) : (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
-        >
-          <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {services.map((service) => (
-                <DraggableServiceManagementCard
-                  key={service.id}
-                  service={service}
-                  onDelete={handleDelete}
-                />
-              ))}
+        <>
+          {filteredServices.length === 0 ? (
+            <div className="bg-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
+              <div className="text-text-muted mb-4 text-6xl">🔍</div>
+              <h3 className="text-text-primary mb-2 text-xl font-semibold">
+                No services in this category
+              </h3>
+              <p className="text-text-secondary mb-6 max-w-md">
+                Try selecting a different category or add a new service.
+              </p>
             </div>
-          </SortableContext>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              <SortableContext
+                items={filteredServices.map((s) => s.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {filteredServices.map((service) => (
+                    <DraggableServiceManagementCard
+                      key={service.id}
+                      service={service}
+                      onDelete={handleDelete}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
 
-          <DragOverlay>
-            {activeService ? (
-              <ServiceManagementCardPresentation
-                service={activeService}
-                onDelete={handleDelete}
-                style={{ opacity: 0.5 }}
-              />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+              <DragOverlay>
+                {activeService ? (
+                  <ServiceManagementCardPresentation
+                    service={activeService}
+                    onDelete={handleDelete}
+                    style={{ opacity: 0.5 }}
+                  />
+                ) : null}
+              </DragOverlay>
+            </DndContext>
+          )}
+        </>
       )}
     </div>
   )

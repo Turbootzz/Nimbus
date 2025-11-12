@@ -10,13 +10,15 @@ import {
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, Category } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import CategorySection from '@/components/CategorySection'
 
 export default function DashboardPage() {
   const { openInNewTab } = useTheme()
   const [services, setServices] = useState<Service[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [stats, setStats] = useState({
     total: 0,
@@ -26,7 +28,7 @@ export default function DashboardPage() {
   })
 
   useEffect(() => {
-    fetchServices()
+    fetchData()
   }, [])
 
   useEffect(() => {
@@ -49,16 +51,23 @@ export default function DashboardPage() {
     })
   }, [services])
 
-  const fetchServices = async () => {
+  const fetchData = async () => {
     setIsLoading(true)
     try {
-      const response = await api.getServices()
+      const [servicesResponse, categoriesResponse] = await Promise.all([
+        api.getServices(),
+        api.getCategories(),
+      ])
 
-      if (response.data) {
-        setServices(response.data)
+      if (servicesResponse.data) {
+        setServices(servicesResponse.data)
+      }
+
+      if (categoriesResponse.data) {
+        setCategories(categoriesResponse.data)
       }
     } catch (error) {
-      console.error('Failed to fetch services:', error)
+      console.error('Failed to fetch data:', error)
     } finally {
       setIsLoading(false)
     }
@@ -138,46 +147,111 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {services.map((service) => (
-          <a
-            key={service.id}
-            href={service.url}
-            target={openInNewTab ? '_blank' : '_self'}
-            {...(openInNewTab && { rel: 'noopener noreferrer' })}
-            className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
+      {services.length === 0 ? (
+        <div className="bg-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
+          <div className="text-text-muted mb-4 text-6xl">🔗</div>
+          <h3 className="text-text-primary mb-2 text-xl font-semibold">No services yet</h3>
+          <p className="text-text-secondary mb-6 max-w-md">
+            Get started by adding your first service to monitor.
+          </p>
+          <Link
+            href="/services/new"
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
-            <div className="mb-4 flex items-start justify-between">
-              <span className="text-3xl">{service.icon}</span>
-              <div className={`flex items-center ${getStatusColor(service.status)}`}>
-                {getStatusIcon(service.status)}
-                <span className="ml-1 text-sm capitalize">{service.status}</span>
-              </div>
-            </div>
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Your First Service
+          </Link>
+        </div>
+      ) : (
+        <>
+          {/* Render services grouped by category */}
+          {categories.map((category) => {
+            const categoryServices = services.filter((s) => s.category_id === category.id)
+            return (
+              <CategorySection
+                key={category.id}
+                category={category}
+                services={categoryServices}
+                renderService={(service) => (
+                  <a
+                    key={service.id}
+                    href={service.url}
+                    target={openInNewTab ? '_blank' : '_self'}
+                    {...(openInNewTab && { rel: 'noopener noreferrer' })}
+                    className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
+                  >
+                    <div className="mb-4 flex items-start justify-between">
+                      <span className="text-3xl">{service.icon}</span>
+                      <div className={`flex items-center ${getStatusColor(service.status)}`}>
+                        {getStatusIcon(service.status)}
+                        <span className="ml-1 text-sm capitalize">{service.status}</span>
+                      </div>
+                    </div>
 
-            <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
-            <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
+                    <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
+                    <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
 
-            {service.response_time !== undefined && service.response_time !== null && (
-              <div
-                className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
+                    {service.response_time !== undefined && service.response_time !== null && (
+                      <div
+                        className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
+                      >
+                        <ClockIcon className="mr-1 h-3 w-3" />
+                        {service.response_time}ms
+                      </div>
+                    )}
+                  </a>
+                )}
+              />
+            )
+          })}
+
+          {/* Uncategorized services */}
+          <CategorySection
+            category={null}
+            services={services.filter((s) => !s.category_id)}
+            renderService={(service) => (
+              <a
+                key={service.id}
+                href={service.url}
+                target={openInNewTab ? '_blank' : '_self'}
+                {...(openInNewTab && { rel: 'noopener noreferrer' })}
+                className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
               >
-                <ClockIcon className="mr-1 h-3 w-3" />
-                {service.response_time}ms
-              </div>
-            )}
-          </a>
-        ))}
+                <div className="mb-4 flex items-start justify-between">
+                  <span className="text-3xl">{service.icon}</span>
+                  <div className={`flex items-center ${getStatusColor(service.status)}`}>
+                    {getStatusIcon(service.status)}
+                    <span className="ml-1 text-sm capitalize">{service.status}</span>
+                  </div>
+                </div>
 
-        {/* Add new service card */}
-        <Link
-          href="/services/new"
-          className="bg-card border-card-border hover:border-primary hover:bg-primary-light flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
-        >
-          <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-          <span className="text-text-secondary">Add Service</span>
-        </Link>
-      </div>
+                <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
+                <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
+
+                {service.response_time !== undefined && service.response_time !== null && (
+                  <div
+                    className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
+                  >
+                    <ClockIcon className="mr-1 h-3 w-3" />
+                    {service.response_time}ms
+                  </div>
+                )}
+              </a>
+            )}
+          />
+
+          {/* Add new service card */}
+          <div className="mt-6">
+            <Link
+              href="/services/new"
+              className="bg-card border-card-border hover:border-primary hover:bg-primary-light flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+            >
+              <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
+              <span className="text-text-secondary">Add Service</span>
+            </Link>
+          </div>
+        </>
+      )}
     </div>
   )
 }
