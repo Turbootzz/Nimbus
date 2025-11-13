@@ -19,9 +19,16 @@ EXCEPTION
 END $$;
 
 -- Ensure icon_image_path is NOT NULL and has default (in case it was added as nullable before)
-ALTER TABLE services ALTER COLUMN icon_image_path SET DEFAULT '';
-UPDATE services SET icon_image_path = '' WHERE icon_image_path IS NULL;
-ALTER TABLE services ALTER COLUMN icon_image_path SET NOT NULL;
+DO $$ BEGIN
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = 'services' AND column_name = 'icon_image_path'
+    ) THEN
+        ALTER TABLE services ALTER COLUMN icon_image_path SET DEFAULT '';
+        UPDATE services SET icon_image_path = '' WHERE icon_image_path IS NULL;
+        ALTER TABLE services ALTER COLUMN icon_image_path SET NOT NULL;
+    END IF;
+END $$;
 
 -- Add comment for clarity
 COMMENT ON COLUMN services.icon_type IS 'Type of icon: emoji (text), image_upload (uploaded file), or image_url (external URL)';

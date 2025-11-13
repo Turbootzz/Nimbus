@@ -82,10 +82,18 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 
 	// Validate icon_image_path for image types
 	iconImagePath := strings.TrimSpace(req.IconImagePath)
-	if iconType == models.IconTypeImageUpload && iconImagePath == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "icon_image_path is required for image_upload type",
-		})
+	if iconType == models.IconTypeImageUpload {
+		if iconImagePath == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path is required for image_upload type",
+			})
+		}
+		// Prevent path traversal attacks - only allow filename, no path separators
+		if strings.Contains(iconImagePath, "..") || strings.Contains(iconImagePath, "/") || strings.Contains(iconImagePath, "\\") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path must be a filename only, no path separators allowed",
+			})
+		}
 	}
 	if iconType == models.IconTypeImageURL {
 		if iconImagePath == "" {
@@ -289,10 +297,18 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 
 	// Validate icon_image_path for image types
 	iconImagePath := strings.TrimSpace(req.IconImagePath)
-	if iconType == models.IconTypeImageUpload && iconImagePath == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "icon_image_path is required for image_upload type",
-		})
+	if iconType == models.IconTypeImageUpload {
+		if iconImagePath == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path is required for image_upload type",
+			})
+		}
+		// Prevent path traversal attacks - only allow filename, no path separators
+		if strings.Contains(iconImagePath, "..") || strings.Contains(iconImagePath, "/") || strings.Contains(iconImagePath, "\\") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path must be a filename only, no path separators allowed",
+			})
+		}
 	}
 	if iconType == models.IconTypeImageURL {
 		if iconImagePath == "" {
@@ -311,7 +327,9 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 
 	// Delete old uploaded image if switching away from image_upload
 	if existingService.IconType == models.IconTypeImageUpload && iconType != models.IconTypeImageUpload && existingService.IconImagePath != "" {
-		oldFilePath := filepath.Join(UploadDir, existingService.IconImagePath)
+		// Sanitize filename to prevent path traversal
+		safeFilename := filepath.Base(existingService.IconImagePath)
+		oldFilePath := filepath.Join(UploadDir, safeFilename)
 		os.Remove(oldFilePath) // Ignore error, file may already be deleted
 	}
 
@@ -385,7 +403,9 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 
 	// Clean up uploaded image file if exists
 	if existingService.IconType == models.IconTypeImageUpload && existingService.IconImagePath != "" {
-		filePath := filepath.Join(UploadDir, existingService.IconImagePath)
+		// Sanitize filename to prevent path traversal
+		safeFilename := filepath.Base(existingService.IconImagePath)
+		filePath := filepath.Join(UploadDir, safeFilename)
 		os.Remove(filePath) // Ignore error, file may already be deleted
 	}
 
