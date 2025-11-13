@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 type ServiceHandler struct {
@@ -101,11 +103,10 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 				"error": "icon_image_path (URL) is required for image_url type",
 			})
 		}
-		// Validate URL format
-		_, err := url.ParseRequestURI(iconImagePath)
-		if err != nil {
+		// Validate URL format and security (prevent SSRF attacks)
+		if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid image URL format",
+				"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
 			})
 		}
 	}
@@ -316,11 +317,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 				"error": "icon_image_path (URL) is required for image_url type",
 			})
 		}
-		// Validate URL format
-		_, err := url.ParseRequestURI(iconImagePath)
-		if err != nil {
+		// Validate URL format and security (prevent SSRF attacks)
+		if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid image URL format",
+				"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
 			})
 		}
 	}
@@ -329,8 +329,12 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	if existingService.IconType == models.IconTypeImageUpload && iconType != models.IconTypeImageUpload && existingService.IconImagePath != "" {
 		// Sanitize filename to prevent path traversal
 		safeFilename := filepath.Base(existingService.IconImagePath)
-		oldFilePath := filepath.Join(UploadDir, safeFilename)
-		os.Remove(oldFilePath) // Ignore error, file may already be deleted
+		// Validate sanitized filename before deletion
+		if safeFilename != "" && safeFilename != "." && safeFilename != ".." &&
+			!strings.Contains(safeFilename, "/") && !strings.Contains(safeFilename, "\\") {
+			oldFilePath := filepath.Join(UploadDir, safeFilename)
+			os.Remove(oldFilePath) // Ignore error, file may already be deleted
+		}
 	}
 
 	// Update service
@@ -405,8 +409,12 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 	if existingService.IconType == models.IconTypeImageUpload && existingService.IconImagePath != "" {
 		// Sanitize filename to prevent path traversal
 		safeFilename := filepath.Base(existingService.IconImagePath)
-		filePath := filepath.Join(UploadDir, safeFilename)
-		os.Remove(filePath) // Ignore error, file may already be deleted
+		// Validate sanitized filename before deletion
+		if safeFilename != "" && safeFilename != "." && safeFilename != ".." &&
+			!strings.Contains(safeFilename, "/") && !strings.Contains(safeFilename, "\\") {
+			filePath := filepath.Join(UploadDir, safeFilename)
+			os.Remove(filePath) // Ignore error, file may already be deleted
+		}
 	}
 
 	return c.JSON(fiber.Map{

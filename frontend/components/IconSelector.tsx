@@ -36,6 +36,11 @@ export default function IconSelector({
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleModeChange = (mode: IconType) => {
+    // No-op if clicking the already-selected mode
+    if (mode === iconType) {
+      return
+    }
+
     onIconTypeChange(mode)
     setPreviewUrl('')
     onIconImagePathChange('')
