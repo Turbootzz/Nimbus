@@ -277,10 +277,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate and set icon fields
+	// Validate and set icon fields - preserve existing values if not provided
 	iconType := req.IconType
 	if iconType == "" {
-		iconType = models.IconTypeEmoji
+		iconType = existingService.IconType // Preserve existing icon_type instead of defaulting to emoji
 	}
 
 	// Validate icon_type
@@ -296,8 +296,13 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		icon = models.DefaultIcon
 	}
 
-	// Validate icon_image_path for image types
+	// Determine effective icon_image_path (use incoming value or preserve existing)
 	iconImagePath := strings.TrimSpace(req.IconImagePath)
+	if iconImagePath == "" {
+		iconImagePath = existingService.IconImagePath // Preserve existing path if not provided
+	}
+
+	// Validate icon_image_path for image types (only when effective path is being used)
 	if iconType == models.IconTypeImageUpload {
 		if iconImagePath == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -317,11 +322,13 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 				"error": "icon_image_path (URL) is required for image_url type",
 			})
 		}
-		// Validate URL format and security (prevent SSRF attacks)
-		if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
-			})
+		// Validate URL format and security (prevent SSRF attacks) only if non-empty
+		if iconImagePath != "" {
+			if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
+				})
+			}
 		}
 	}
 

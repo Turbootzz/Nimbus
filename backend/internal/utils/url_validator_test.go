@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"net"
 	"testing"
 )
 
@@ -313,27 +314,7 @@ func stringContains(s, substr string) bool {
 	return false
 }
 
-func parseIP(s string) []byte {
-	// Simple IP parser for testing
-	var parts [4]byte
-	var n, dotCount int
-	for i := 0; i < len(s); i++ {
-		if s[i] >= '0' && s[i] <= '9' {
-			n = n*10 + int(s[i]-'0')
-		} else if s[i] == '.' {
-			if n > 255 {
-				return nil
-			}
-			parts[dotCount] = byte(n)
-			dotCount++
-			n = 0
-		} else {
-			return nil
-		}
-	}
-	if dotCount != 3 || n > 255 {
-		return nil
-	}
-	parts[3] = byte(n)
-	return parts[:]
+func parseIP(s string) net.IP {
+	// Use net.ParseIP for proper IP parsing
+	return net.ParseIP(s)
 }
