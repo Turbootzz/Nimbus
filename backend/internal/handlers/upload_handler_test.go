@@ -89,7 +89,7 @@ func TestUploadServiceIcon_FileTooLarge(t *testing.T) {
 	app := fiber.New()
 	app.Post("/upload", handler.UploadServiceIcon)
 
-	// Create a large file (> 2MB)
+	// Create a large file (> 512KB)
 	largeData := make([]byte, MaxUploadSize+1)
 
 	// Create multipart form

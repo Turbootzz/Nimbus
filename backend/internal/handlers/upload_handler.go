@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	MaxUploadSize    = 2 * 1024 * 1024 // 2MB
+	MaxUploadSize    = 512 * 1024 // 512KB - reasonable for icons
 	UploadDir        = "uploads/service-icons"
 	AllowedMimeTypes = "image/jpeg,image/png,image/gif,image/webp"
 )

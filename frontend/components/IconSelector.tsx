@@ -61,9 +61,9 @@ export default function IconSelector({
         alert('Please select an image file')
         return
       }
-      // Validate file size (2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        alert('Image must be less than 2MB')
+      // Validate file size (512KB)
+      if (file.size > 512 * 1024) {
+        alert('Image must be less than 512KB')
         return
       }
       // Create preview
@@ -155,7 +155,7 @@ export default function IconSelector({
             </button>
           </div>
           <p className="text-text-muted mt-1 text-sm">
-            Click "Pick Emoji" or paste an emoji (letters and numbers are not allowed)
+            Click &quot;Pick Emoji&quot; or paste an emoji (letters and numbers are not allowed)
           </p>
           {icon && (
             <div className="mt-2 flex items-center gap-2">
@@ -192,12 +192,14 @@ export default function IconSelector({
             className="border-card-border bg-background text-text-primary focus:ring-primary file:bg-primary file:hover:bg-primary-hover w-full rounded-md border px-4 py-2 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:ring-2 focus:outline-none"
           />
           <p className="text-text-muted mt-1 text-sm">
-            Max size: 2MB. Formats: JPG, PNG, GIF, WEBP
+            Max size: 512KB. Formats: JPG, PNG, GIF, WEBP
           </p>
           {(previewUrl || iconImagePath) && (
             <div className="mt-3">
               <div className="flex items-center gap-3">
                 <span className="text-text-secondary text-sm">Preview:</span>
+                {/* Using <img> for blob URLs (temporary preview) - Next.js Image doesn't support blob: protocol */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewUrl || `/api/v1/uploads/service-icons/${iconImagePath}`}
                   alt="Icon preview"
@@ -246,6 +248,8 @@ export default function IconSelector({
             <div className="mt-3">
               <div className="flex items-center gap-3">
                 <span className="text-text-secondary text-sm">Preview:</span>
+                {/* Using <img> for user-provided URL preview with error fallback */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={iconImagePath}
                   alt="Icon preview"
