@@ -35,7 +35,14 @@ func TestUploadServiceIcon_Success(t *testing.T) {
 	// Create multipart form
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("icon", "test.png")
+
+	// Create form file with proper header
+	h := make(map[string][]string)
+	h["Content-Type"] = []string{"image/png"}
+	part, err := writer.CreatePart(map[string][]string{
+		"Content-Disposition": {`form-data; name="icon"; filename="test.png"`},
+		"Content-Type":        {"image/png"},
+	})
 	assert.NoError(t, err)
 	_, err = part.Write(pngBytes)
 	assert.NoError(t, err)
@@ -88,7 +95,10 @@ func TestUploadServiceIcon_FileTooLarge(t *testing.T) {
 	// Create multipart form
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("icon", "large.png")
+	part, err := writer.CreatePart(map[string][]string{
+		"Content-Disposition": {`form-data; name="icon"; filename="large.png"`},
+		"Content-Type":        {"image/png"},
+	})
 	assert.NoError(t, err)
 	_, err = part.Write(largeData)
 	assert.NoError(t, err)
@@ -115,7 +125,10 @@ func TestUploadServiceIcon_InvalidFileType(t *testing.T) {
 	// Create multipart form with text file
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	part, err := writer.CreateFormFile("icon", "test.txt")
+	part, err := writer.CreatePart(map[string][]string{
+		"Content-Disposition": {`form-data; name="icon"; filename="test.txt"`},
+		"Content-Type":        {"text/plain"},
+	})
 	assert.NoError(t, err)
 	_, err = part.Write([]byte("This is not an image"))
 	assert.NoError(t, err)
@@ -146,22 +159,22 @@ func TestDetectContentType(t *testing.T) {
 	}{
 		{
 			name:     "JPEG",
-			data:     []byte{0xFF, 0xD8, 0xFF},
+			data:     []byte{0xFF, 0xD8, 0xFF, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			expected: "image/jpeg",
 		},
 		{
 			name:     "PNG",
-			data:     []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A},
+			data:     []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x00},
 			expected: "image/png",
 		},
 		{
 			name:     "GIF87a",
-			data:     []byte("GIF87a"),
+			data:     []byte("GIF87a" + string([]byte{0, 0, 0, 0, 0, 0})),
 			expected: "image/gif",
 		},
 		{
 			name:     "GIF89a",
-			data:     []byte("GIF89a"),
+			data:     []byte("GIF89a" + string([]byte{0, 0, 0, 0, 0, 0})),
 			expected: "image/gif",
 		},
 		{
@@ -171,7 +184,7 @@ func TestDetectContentType(t *testing.T) {
 		},
 		{
 			name:     "Unknown",
-			data:     []byte{0x00, 0x01, 0x02},
+			data:     []byte{0x00, 0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 			expected: "application/octet-stream",
 		},
 	}

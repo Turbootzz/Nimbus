@@ -320,6 +320,12 @@ func TestIsLocalURL(t *testing.T) {
 		{"127.0.0.1", "http://127.0.0.1", true},
 		{"127.0.0.1 with port", "https://127.0.0.1:9443", true},
 
+		// .local domains (mDNS)
+		{"mDNS domain", "http://homeassistant.local", true},
+		{"mDNS domain with port", "https://homeassistant.local:8123", true},
+		{"mDNS domain pi", "http://pi.local", true},
+		{"mDNS domain nas", "https://nas.local:5001", true},
+
 		// Public IPs (should NOT be local)
 		{"Google DNS", "https://8.8.8.8", false},
 		{"Cloudflare DNS", "http://1.1.1.1", false},

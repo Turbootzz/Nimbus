@@ -31,6 +31,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			icon TEXT,
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
 			description TEXT,
 			status TEXT NOT NULL,
 			response_time INTEGER,

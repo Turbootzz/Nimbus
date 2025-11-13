@@ -7,6 +7,7 @@ import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/soli
 import { Service } from '@/types'
 import { api } from '@/lib/api'
 import CombinedMetricsChart from '@/components/graphs/CombinedMetricsChart'
+import ServiceIcon from '@/components/ServiceIcon'
 
 export default function MetricsPage() {
   const [services, setServices] = useState<Service[]>([])
@@ -183,7 +184,7 @@ export default function MetricsPage() {
                     <tr key={service.id} className="hover:bg-card-hover transition-colors">
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="text-2xl">{service.icon || '🔗'}</span>
+                          <ServiceIcon service={service} size="sm" />
                           <div>
                             <p className="text-text-primary font-medium">{service.name}</p>
                             {service.description && (
@@ -263,7 +264,7 @@ export default function MetricsPage() {
                 >
                   {/* Service Header */}
                   <div className="mb-3 flex items-start gap-3">
-                    <span className="text-3xl">{service.icon || '🔗'}</span>
+                    <ServiceIcon service={service} size="md" />
                     <div className="min-w-0 flex-1">
                       <h3 className="text-text-primary text-base font-semibold break-words">
                         {service.name}
