@@ -226,9 +226,12 @@ export default function EditServicePage() {
             iconType={formData.icon_type}
             iconImagePath={formData.icon_image_path}
             onIconChange={(icon) => setFormData({ ...formData, icon })}
-            onIconTypeChange={(icon_type) => setFormData({ ...formData, icon_type })}
+            onIconTypeChange={(icon_type) => {
+              setFormData((prev) => ({ ...prev, icon_type }))
+              setUploadedFile(null) // Clear uploaded file when switching icon type
+            }}
             onIconImagePathChange={(icon_image_path) =>
-              setFormData({ ...formData, icon_image_path })
+              setFormData((prev) => ({ ...prev, icon_image_path }))
             }
             onFileSelect={(file) => setUploadedFile(file)}
           />

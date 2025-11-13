@@ -28,8 +28,10 @@ export default function IconSelector({
   const handleModeChange = (mode: IconType) => {
     onIconTypeChange(mode)
     setPreviewUrl('')
-    if (mode === 'emoji') {
-      onIconImagePathChange('')
+    onIconImagePathChange('')
+    // Clear file input when switching modes
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
