@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import IconSelector from '@/components/IconSelector'
+import type { IconType } from '@/types'
 
 export default function EditServicePage() {
   const router = useRouter()
@@ -14,11 +16,14 @@ export default function EditServicePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null)
 
   const [formData, setFormData] = useState({
     name: '',
     url: '',
-    icon: '',
+    icon: '🔗',
+    icon_type: 'emoji' as IconType,
+    icon_image_path: '',
     description: '',
   })
 
@@ -36,7 +41,9 @@ export default function EditServicePage() {
         setFormData({
           name: service.name,
           url: service.url,
-          icon: service.icon || '',
+          icon: service.icon || '🔗',
+          icon_type: service.icon_type || 'emoji',
+          icon_image_path: service.icon_image_path || '',
           description: service.description || '',
         })
       }
@@ -74,12 +81,26 @@ export default function EditServicePage() {
       return
     }
 
+    // Upload image if needed
+    let iconImagePath = formData.icon_image_path
+    if (formData.icon_type === 'image_upload' && uploadedFile) {
+      const uploadResponse = await api.uploadServiceIcon(uploadedFile)
+      if (uploadResponse.error) {
+        setError(`Image upload failed: ${uploadResponse.error.message}`)
+        setIsSaving(false)
+        return
+      }
+      iconImagePath = uploadResponse.data?.icon_image_path || ''
+    }
+
     // Update service
     try {
       const response = await api.updateService(serviceId, {
         name: formData.name.trim(),
         url: formData.url.trim(),
         icon: formData.icon.trim() || '🔗',
+        icon_type: formData.icon_type,
+        icon_image_path: iconImagePath,
         description: formData.description.trim(),
       })
 
@@ -200,29 +221,17 @@ export default function EditServicePage() {
           </div>
 
           {/* Service Icon */}
-          <div>
-            <label htmlFor="icon" className="text-text-secondary mb-2 block text-sm font-medium">
-              Icon (Emoji)
-            </label>
-            <input
-              type="text"
-              id="icon"
-              name="icon"
-              value={formData.icon}
-              onChange={handleChange}
-              className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
-              style={{
-                backgroundColor: 'var(--color-background)',
-                color: 'var(--color-text-primary)',
-              }}
-              placeholder="📺"
-              maxLength={10}
-              disabled={isSaving}
-            />
-            <p className="text-text-muted mt-1 text-xs">
-              Use an emoji to represent your service (default: 🔗)
-            </p>
-          </div>
+          <IconSelector
+            icon={formData.icon}
+            iconType={formData.icon_type}
+            iconImagePath={formData.icon_image_path}
+            onIconChange={(icon) => setFormData({ ...formData, icon })}
+            onIconTypeChange={(icon_type) => setFormData({ ...formData, icon_type })}
+            onIconImagePathChange={(icon_image_path) =>
+              setFormData({ ...formData, icon_image_path })
+            }
+            onFileSelect={(file) => setUploadedFile(file)}
+          />
 
           {/* Service Description */}
           <div>

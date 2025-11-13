@@ -8,6 +8,7 @@ import Link from 'next/link'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import ServiceIcon from '@/components/ServiceIcon'
 
 interface DraggableServiceCardProps {
   service: Service
@@ -73,7 +74,7 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
         className="block p-6"
       >
         <div className="mb-4 flex items-start justify-between">
-          <span className="text-3xl">{service.icon}</span>
+          <ServiceIcon service={service} size="md" />
           <div className={`flex items-center ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
             <span className="ml-1 text-sm capitalize">{service.status}</span>

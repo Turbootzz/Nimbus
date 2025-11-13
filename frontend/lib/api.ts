@@ -177,6 +177,48 @@ class ApiClient {
     })
   }
 
+  async uploadServiceIcon(
+    file: File
+  ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      return {
+        error: {
+          message: 'API URL not configured',
+        },
+      }
+    }
+
+    const formData = new FormData()
+    formData.append('icon', file)
+
+    try {
+      const response = await fetch(`${apiUrl}/uploads/service-icon`, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include', // Send httpOnly cookies
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          error: {
+            message: data.error || data.message || 'Upload failed',
+          },
+        }
+      }
+
+      return { data }
+    } catch (error) {
+      return {
+        error: {
+          message: error instanceof Error ? error.message : 'Upload failed',
+        },
+      }
+    }
+  }
+
   // ============================================
   // Health Checks
   // ============================================

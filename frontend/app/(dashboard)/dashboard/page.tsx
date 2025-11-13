@@ -13,6 +13,7 @@ import { api } from '@/lib/api'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import ServiceIcon from '@/components/ServiceIcon'
 
 export default function DashboardPage() {
   const { openInNewTab } = useTheme()
@@ -148,7 +149,7 @@ export default function DashboardPage() {
             className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="mb-4 flex items-start justify-between">
-              <span className="text-3xl">{service.icon}</span>
+              <ServiceIcon service={service} size="md" />
               <div className={`flex items-center ${getStatusColor(service.status)}`}>
                 {getStatusIcon(service.status)}
                 <span className="ml-1 text-sm capitalize">{service.status}</span>

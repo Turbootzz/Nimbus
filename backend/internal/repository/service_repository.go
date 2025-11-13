@@ -65,8 +65,8 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 	}
 
 	query := `
-		INSERT INTO services (user_id, name, url, icon, description, status, position, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id
 	`
 
@@ -77,6 +77,8 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.Name,
 		service.URL,
 		service.Icon,
+		service.IconType,
+		service.IconImagePath,
 		service.Description,
 		service.Status,
 		service.Position,
@@ -94,7 +96,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	service := &models.Service{}
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, created_at, updated_at
 		FROM services
 		WHERE id = $1
 	`
@@ -105,6 +107,8 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 		&service.Name,
 		&service.URL,
 		&service.Icon,
+		&service.IconType,
+		&service.IconImagePath,
 		&service.Description,
 		&service.Status,
 		&service.ResponseTime,
@@ -123,7 +127,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 // GetAllByUserID retrieves all services for a specific user
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, created_at, updated_at
 		FROM services
 		WHERE user_id = $1
 		ORDER BY position ASC, created_at DESC
@@ -144,6 +148,8 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 			&service.Name,
 			&service.URL,
 			&service.Icon,
+			&service.IconType,
+			&service.IconImagePath,
 			&service.Description,
 			&service.Status,
 			&service.ResponseTime,
@@ -163,7 +169,7 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 // GetAll retrieves all services across all users (used by health check monitor)
 func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, created_at, updated_at
 		FROM services
 		ORDER BY created_at DESC
 	`
@@ -183,6 +189,8 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 			&service.Name,
 			&service.URL,
 			&service.Icon,
+			&service.IconType,
+			&service.IconImagePath,
 			&service.Description,
 			&service.Status,
 			&service.ResponseTime,
@@ -203,8 +211,8 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
 	query := `
 		UPDATE services
-		SET name = $1, url = $2, icon = $3, description = $4, updated_at = $5
-		WHERE id = $6 AND user_id = $7
+		SET name = $1, url = $2, icon = $3, icon_type = $4, icon_image_path = $5, description = $6, updated_at = $7
+		WHERE id = $8 AND user_id = $9
 	`
 
 	result, err := r.db.ExecContext(
@@ -213,6 +221,8 @@ func (r *ServiceRepository) Update(ctx context.Context, service *models.Service)
 		service.Name,
 		service.URL,
 		service.Icon,
+		service.IconType,
+		service.IconImagePath,
 		service.Description,
 		service.UpdatedAt,
 		service.ID,

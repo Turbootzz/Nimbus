@@ -4,6 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"net/url"
+	"os"
+	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -58,21 +61,59 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set default icon if not provided
-	if req.Icon == "" {
-		req.Icon = models.DefaultIcon
+	// Validate and set icon fields
+	iconType := req.IconType
+	if iconType == "" {
+		iconType = models.IconTypeEmoji
+	}
+
+	// Validate icon_type
+	if iconType != models.IconTypeEmoji && iconType != models.IconTypeImageUpload && iconType != models.IconTypeImageURL {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid icon_type. Must be 'emoji', 'image_upload', or 'image_url'",
+		})
+	}
+
+	// Set default emoji if emoji type and no icon provided
+	icon := req.Icon
+	if iconType == models.IconTypeEmoji && icon == "" {
+		icon = models.DefaultIcon
+	}
+
+	// Validate icon_image_path for image types
+	iconImagePath := strings.TrimSpace(req.IconImagePath)
+	if iconType == models.IconTypeImageUpload && iconImagePath == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "icon_image_path is required for image_upload type",
+		})
+	}
+	if iconType == models.IconTypeImageURL {
+		if iconImagePath == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path (URL) is required for image_url type",
+			})
+		}
+		// Validate URL format
+		_, err := url.ParseRequestURI(iconImagePath)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid image URL format",
+			})
+		}
 	}
 
 	// Create service
 	service := &models.Service{
-		UserID:      userID,
-		Name:        req.Name,
-		URL:         req.URL,
-		Icon:        req.Icon,
-		Description: req.Description,
-		Status:      models.StatusUnknown, // Initial status
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		UserID:        userID,
+		Name:          req.Name,
+		URL:           req.URL,
+		Icon:          icon,
+		IconType:      iconType,
+		IconImagePath: iconImagePath,
+		Description:   req.Description,
+		Status:        models.StatusUnknown, // Initial status
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	if err := h.serviceRepo.Create(c.Context(), service); err != nil {
@@ -227,16 +268,59 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set default icon if not provided (mirrors create flow)
+	// Validate and set icon fields
+	iconType := req.IconType
+	if iconType == "" {
+		iconType = models.IconTypeEmoji
+	}
+
+	// Validate icon_type
+	if iconType != models.IconTypeEmoji && iconType != models.IconTypeImageUpload && iconType != models.IconTypeImageURL {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid icon_type. Must be 'emoji', 'image_upload', or 'image_url'",
+		})
+	}
+
+	// Set default emoji if emoji type and no icon provided
 	icon := req.Icon
-	if icon == "" {
+	if iconType == models.IconTypeEmoji && icon == "" {
 		icon = models.DefaultIcon
+	}
+
+	// Validate icon_image_path for image types
+	iconImagePath := strings.TrimSpace(req.IconImagePath)
+	if iconType == models.IconTypeImageUpload && iconImagePath == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "icon_image_path is required for image_upload type",
+		})
+	}
+	if iconType == models.IconTypeImageURL {
+		if iconImagePath == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "icon_image_path (URL) is required for image_url type",
+			})
+		}
+		// Validate URL format
+		_, err := url.ParseRequestURI(iconImagePath)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid image URL format",
+			})
+		}
+	}
+
+	// Delete old uploaded image if switching away from image_upload
+	if existingService.IconType == models.IconTypeImageUpload && iconType != models.IconTypeImageUpload && existingService.IconImagePath != "" {
+		oldFilePath := filepath.Join(UploadDir, existingService.IconImagePath)
+		os.Remove(oldFilePath) // Ignore error, file may already be deleted
 	}
 
 	// Update service
 	existingService.Name = req.Name
 	existingService.URL = req.URL
 	existingService.Icon = icon
+	existingService.IconType = iconType
+	existingService.IconImagePath = iconImagePath
 	existingService.Description = req.Description
 	existingService.UpdatedAt = time.Now()
 
@@ -267,6 +351,26 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get existing service to check for uploaded images to clean up
+	existingService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "Service not found",
+			})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve service",
+		})
+	}
+
+	// Verify service belongs to user
+	if existingService.UserID != userID {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied",
+		})
+	}
+
 	// Delete service (repository checks ownership)
 	if err := h.serviceRepo.Delete(c.Context(), serviceID, userID); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -277,6 +381,12 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete service",
 		})
+	}
+
+	// Clean up uploaded image file if exists
+	if existingService.IconType == models.IconTypeImageUpload && existingService.IconImagePath != "" {
+		filePath := filepath.Join(UploadDir, existingService.IconImagePath)
+		os.Remove(filePath) // Ignore error, file may already be deleted
 	}
 
 	return c.JSON(fiber.Map{

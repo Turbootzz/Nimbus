@@ -73,3 +73,6 @@ backups/
 
 # Prometheus
 prometheus/
+
+# Uploads
+backend/uploads/
