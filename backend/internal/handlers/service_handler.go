@@ -290,10 +290,14 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set default emoji if emoji type and no icon provided
+	// Determine effective icon (use incoming value or preserve existing)
 	icon := req.Icon
-	if iconType == models.IconTypeEmoji && icon == "" {
-		icon = models.DefaultIcon
+	if icon == "" {
+		icon = existingService.Icon // Preserve existing icon if not provided
+		// Only default to DefaultIcon if both req.Icon and existingService.Icon are empty
+		if icon == "" && iconType == models.IconTypeEmoji {
+			icon = models.DefaultIcon
+		}
 	}
 
 	// Determine effective icon_image_path (use incoming value or preserve existing)
