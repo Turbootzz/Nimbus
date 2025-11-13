@@ -2,6 +2,7 @@
 
 import { useState, useRef, ChangeEvent } from 'react'
 import type { IconType } from '@/types'
+import EmojiPicker from './EmojiPicker'
 
 interface IconSelectorProps {
   icon: string
@@ -11,6 +12,14 @@ interface IconSelectorProps {
   onIconTypeChange: (iconType: IconType) => void
   onIconImagePathChange: (path: string) => void
   onFileSelect: (file: File) => void
+}
+
+// Helper function to check if a string contains only emojis
+function isEmoji(str: string): boolean {
+  if (!str) return true // Allow empty string
+  // Regex to match emoji characters
+  const emojiRegex = /^[\p{Emoji}\p{Emoji_Component}\s]+$/u
+  return emojiRegex.test(str)
 }
 
 export default function IconSelector({
@@ -23,6 +32,7 @@ export default function IconSelector({
   onFileSelect,
 }: IconSelectorProps) {
   const [previewUrl, setPreviewUrl] = useState<string>('')
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleModeChange = (mode: IconType) => {
@@ -32,6 +42,14 @@ export default function IconSelector({
     // Clear file input when switching modes
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  const handleEmojiInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    // Only allow emojis
+    if (isEmoji(value) || value === '') {
+      onIconChange(value)
     }
   }
 
@@ -117,18 +135,27 @@ export default function IconSelector({
           <label htmlFor="icon" className="text-text-secondary mb-1 block text-sm font-medium">
             Icon (Emoji)
           </label>
-          <input
-            type="text"
-            id="icon"
-            name="icon"
-            value={icon}
-            onChange={(e) => onIconChange(e.target.value)}
-            placeholder="📺"
-            maxLength={10}
-            className="border-card-border bg-background text-text-primary focus:ring-primary w-full rounded-md border px-4 py-2 focus:ring-2 focus:outline-none"
-          />
+          <div className="flex gap-2">
+            <input
+              type="text"
+              id="icon"
+              name="icon"
+              value={icon}
+              onChange={handleEmojiInputChange}
+              placeholder="📺"
+              maxLength={10}
+              className="border-card-border bg-background text-text-primary focus:ring-primary flex-1 rounded-md border px-4 py-2 focus:ring-2 focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(true)}
+              className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors"
+            >
+              Pick Emoji
+            </button>
+          </div>
           <p className="text-text-muted mt-1 text-sm">
-            Use an emoji to represent your service (default: 🔗)
+            Click "Pick Emoji" or paste an emoji (letters and numbers are not allowed)
           </p>
           {icon && (
             <div className="mt-2 flex items-center gap-2">
@@ -137,6 +164,14 @@ export default function IconSelector({
             </div>
           )}
         </div>
+      )}
+
+      {/* Emoji Picker Modal */}
+      {showEmojiPicker && (
+        <EmojiPicker
+          onSelect={(emoji) => onIconChange(emoji)}
+          onClose={() => setShowEmojiPicker(false)}
+        />
       )}
 
       {/* Upload input */}
