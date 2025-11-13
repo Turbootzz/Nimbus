@@ -48,6 +48,16 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService()
 
+	// Initialize OAuth service with provider configurations
+	googleConfig := config.GetGoogleOAuthConfig()
+	githubConfig := config.GetGitHubOAuthConfig()
+	discordConfig := config.GetDiscordOAuthConfig()
+	oauthStateSecret := os.Getenv("OAUTH_STATE_SECRET")
+	if oauthStateSecret == "" {
+		oauthStateSecret = os.Getenv("JWT_SECRET") // Fallback to JWT_SECRET
+	}
+	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
+
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
 	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, healthCheckTimeout)
@@ -57,6 +67,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
@@ -95,9 +106,16 @@ func main() {
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/logout", authHandler.Logout)
 
+	// OAuth routes (public for initiate and callback)
+	auth.Get("/oauth/providers", oauthHandler.GetProviderStatus)
+	auth.Get("/oauth/:provider", oauthHandler.InitiateOAuth)
+	auth.Get("/oauth/:provider/callback", oauthHandler.HandleCallback)
+
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
 	authProtected.Get("/me", authHandler.GetMe)
+	authProtected.Post("/oauth/link/:provider", oauthHandler.LinkProvider)
+	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
 	// Service routes (all protected)
 	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo))

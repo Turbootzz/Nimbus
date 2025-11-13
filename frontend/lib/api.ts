@@ -13,6 +13,8 @@ import type {
   PreferencesUpdateRequest,
   PaginatedUsersResponse,
   UserFilterParams,
+  OAuthProvider,
+  OAuthProviderStatus,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -277,6 +279,39 @@ class ApiClient {
 
   async deleteUser(userId: string): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // OAuth methods
+  /**
+   * Get OAuth provider status (which providers are configured)
+   */
+  async getOAuthProviders(): Promise<ApiResponse<{ providers: OAuthProviderStatus[] }>> {
+    return this.request<{ providers: OAuthProviderStatus[] }>('/auth/oauth/providers')
+  }
+
+  /**
+   * Initiate OAuth login flow - redirects to provider
+   */
+  initiateOAuth(provider: OAuthProvider, redirectTo?: string): void {
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      console.error('API URL not configured for OAuth')
+      return
+    }
+
+    const queryParams = redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''
+    window.location.href = `${apiUrl}/auth/oauth/${provider}${queryParams}`
+  }
+
+  /**
+   * Unlink an OAuth provider from the current user's account
+   */
+  async unlinkOAuthProvider(
+    provider: OAuthProvider
+  ): Promise<ApiResponse<{ message: string; user: User }>> {
+    return this.request<{ message: string; user: User }>(`/auth/oauth/unlink/${provider}`, {
       method: 'DELETE',
     })
   }

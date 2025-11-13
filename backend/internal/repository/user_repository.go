@@ -12,7 +12,8 @@ import (
 
 // Sentinel errors for user repository
 var (
-	ErrUserNotFound = errors.New("user not found")
+	ErrUserNotFound      = errors.New("user not found")
+	ErrProviderNotLinked = errors.New("provider not linked to user")
 )
 
 type UserRepository struct {
@@ -26,8 +27,8 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 // Create creates a new user in the database
 func (r *UserRepository) Create(user *models.User) error {
 	query := `
-		INSERT INTO users (id, email, name, password, role, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO users (id, email, name, password, role, provider, provider_id, avatar_url, email_verified, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -40,6 +41,10 @@ func (r *UserRepository) Create(user *models.User) error {
 		user.Name,
 		user.Password,
 		user.Role,
+		user.Provider,
+		user.ProviderID,
+		user.AvatarURL,
+		user.EmailVerified,
 		user.CreatedAt,
 		user.UpdatedAt,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
@@ -54,7 +59,7 @@ func (r *UserRepository) Create(user *models.User) error {
 // GetByEmail retrieves a user by email
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 	query := `
-		SELECT id, email, name, password, role, last_activity_at, created_at, updated_at
+		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
 		FROM users
 		WHERE email = $1
 	`
@@ -66,6 +71,10 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 		&user.Name,
 		&user.Password,
 		&user.Role,
+		&user.Provider,
+		&user.ProviderID,
+		&user.AvatarURL,
+		&user.EmailVerified,
 		&user.LastActivityAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -84,7 +93,7 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(id string) (*models.User, error) {
 	query := `
-		SELECT id, email, name, password, role, last_activity_at, created_at, updated_at
+		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
 		FROM users
 		WHERE id = $1
 	`
@@ -96,6 +105,10 @@ func (r *UserRepository) GetByID(id string) (*models.User, error) {
 		&user.Name,
 		&user.Password,
 		&user.Role,
+		&user.Provider,
+		&user.ProviderID,
+		&user.AvatarURL,
+		&user.EmailVerified,
 		&user.LastActivityAt,
 		&user.CreatedAt,
 		&user.UpdatedAt,
@@ -143,7 +156,7 @@ type UserListResult struct {
 // GetAll retrieves all users (for admin purposes)
 func (r *UserRepository) GetAll() ([]*models.User, error) {
 	query := `
-		SELECT id, email, name, password, role, last_activity_at, created_at, updated_at
+		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
 		FROM users
 		ORDER BY created_at DESC
 	`
@@ -163,6 +176,10 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 			&user.Name,
 			&user.Password,
 			&user.Role,
+			&user.Provider,
+			&user.ProviderID,
+			&user.AvatarURL,
+			&user.EmailVerified,
 			&user.LastActivityAt,
 			&user.CreatedAt,
 			&user.UpdatedAt,
@@ -211,7 +228,7 @@ func (r *UserRepository) GetFiltered(filter UserFilter) (*UserListResult, error)
 
 	// Build main query with pagination
 	query := fmt.Sprintf(`
-		SELECT id, email, name, password, role, last_activity_at, created_at, updated_at
+		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
 		FROM users
 		%s
 		ORDER BY created_at DESC
@@ -235,6 +252,10 @@ func (r *UserRepository) GetFiltered(filter UserFilter) (*UserListResult, error)
 			&user.Name,
 			&user.Password,
 			&user.Role,
+			&user.Provider,
+			&user.ProviderID,
+			&user.AvatarURL,
+			&user.EmailVerified,
 			&user.LastActivityAt,
 			&user.CreatedAt,
 			&user.UpdatedAt,
@@ -406,6 +427,129 @@ func (r *UserRepository) UpdateLastActivity(userID string) error {
 	_, err := r.db.Exec(query, userID)
 	if err != nil {
 		return fmt.Errorf("failed to update last activity: %w", err)
+	}
+
+	return nil
+}
+
+// GetByProviderID retrieves a user by OAuth provider and provider ID
+func (r *UserRepository) GetByProviderID(provider string, providerID string) (*models.User, error) {
+	query := `
+		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
+		FROM users
+		WHERE provider = $1 AND provider_id = $2
+	`
+
+	user := &models.User{}
+	err := r.db.QueryRow(query, provider, providerID).Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.Password,
+		&user.Role,
+		&user.Provider,
+		&user.ProviderID,
+		&user.AvatarURL,
+		&user.EmailVerified,
+		&user.LastActivityAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+
+	if err == sql.ErrNoRows {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user by provider: %w", err)
+	}
+
+	return user, nil
+}
+
+// LinkOAuthProvider links an OAuth provider to an existing user
+func (r *UserRepository) LinkOAuthProvider(userID string, provider string, providerID string, avatarURL *string) error {
+	query := `
+		UPDATE users
+		SET provider = $1, provider_id = $2, avatar_url = $3, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $4
+	`
+
+	result, err := r.db.Exec(query, provider, providerID, avatarURL, userID)
+	if err != nil {
+		return fmt.Errorf("failed to link OAuth provider: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
+// UnlinkOAuthProvider removes OAuth provider link from a user (reverts to local)
+func (r *UserRepository) UnlinkOAuthProvider(userID string, provider string) error {
+	// First check if user has this provider linked
+	var currentProvider string
+	var hasPassword bool
+	checkQuery := `SELECT provider, (password IS NOT NULL) as has_password FROM users WHERE id = $1`
+
+	err := r.db.QueryRow(checkQuery, userID).Scan(&currentProvider, &hasPassword)
+	if err == sql.ErrNoRows {
+		return ErrUserNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("failed to check user provider: %w", err)
+	}
+
+	if currentProvider != provider {
+		return ErrProviderNotLinked
+	}
+
+	// Don't allow unlinking if user has no password (would lock them out)
+	if !hasPassword {
+		return errors.New("cannot unlink OAuth provider: user has no password set")
+	}
+
+	// Unlink provider (revert to local)
+	query := `
+		UPDATE users
+		SET provider = 'local', provider_id = NULL, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $1
+	`
+
+	_, err = r.db.Exec(query, userID)
+	if err != nil {
+		return fmt.Errorf("failed to unlink OAuth provider: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateAvatar updates the user's avatar URL
+func (r *UserRepository) UpdateAvatar(userID string, avatarURL *string) error {
+	query := `
+		UPDATE users
+		SET avatar_url = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	result, err := r.db.Exec(query, avatarURL, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update avatar: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrUserNotFound
 	}
 
 	return nil
