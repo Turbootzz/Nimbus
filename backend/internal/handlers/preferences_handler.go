@@ -10,6 +10,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 type PreferencesHandler struct {
@@ -95,10 +96,21 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 
 	// Manual validation for NullableString fields
 	if req.ThemeBackground.IsSet() && req.ThemeBackground.GetValue() != nil {
-		if err := h.validator.Var(*req.ThemeBackground.GetValue(), "httpurl"); err != nil {
+		backgroundURL := *req.ThemeBackground.GetValue()
+
+		// First validate URL format
+		if err := h.validator.Var(backgroundURL, "httpurl"); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":  "Validation failed",
 				"fields": map[string]string{"theme_background": "theme_background must be a valid HTTP or HTTPS URL"},
+			})
+		}
+
+		// Then validate security (prevent SSRF attacks)
+		if err := utils.ValidateExternalImageURL(backgroundURL); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": map[string]string{"theme_background": fmt.Sprintf("Unsafe background URL: %s", err.Error())},
 			})
 		}
 	}

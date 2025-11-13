@@ -57,9 +57,14 @@ func isLocalURL(urlStr string) bool {
 		return isPrivateIP(ip)
 	}
 
-	// Fast path 2: Check for common local hostnames
+	// Fast path 2: Check for common local hostnames and .local domains
 	switch host {
 	case "localhost", "127.0.0.1", "::1":
+		return true
+	}
+
+	// Check for .local domains
+	if len(host) > 6 && host[len(host)-6:] == ".local" {
 		return true
 	}
 

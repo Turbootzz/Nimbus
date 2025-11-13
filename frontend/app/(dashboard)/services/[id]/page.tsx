@@ -9,6 +9,7 @@ import { Service, MetricsResponse, TimeRangeOption } from '@/types'
 import { api } from '@/lib/api'
 import UptimeChart from '@/components/graphs/UptimeChart'
 import MetricsCard from '@/components/graphs/MetricsCard'
+import ServiceIcon from '@/components/ServiceIcon'
 import { getApiUrl } from '@/lib/utils/api-url'
 import { getResponseTimeColor } from '@/lib/status-utils'
 
@@ -177,7 +178,7 @@ export default function ServiceDetailPage() {
       <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 sm:gap-4">
-            <div className="text-3xl sm:text-4xl">{service.icon || '🔗'}</div>
+            <ServiceIcon service={service} size="lg" />
             <div className="min-w-0 flex-1">
               <h1 className="text-text-primary text-2xl font-bold break-words sm:text-3xl">
                 {service.name}

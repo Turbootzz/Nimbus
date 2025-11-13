@@ -26,6 +26,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			icon TEXT,
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
 			description TEXT,
 			status TEXT NOT NULL,
 			response_time INTEGER,
@@ -46,9 +48,19 @@ func setupTestDB(t *testing.T) *sql.DB {
 // This bypasses the RETURNING clause issue in SQLite
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, description, status, response_time, position, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
+	// Use default values for new fields if not set
+	iconType := service.IconType
+	if iconType == "" {
+		iconType = models.IconTypeEmoji
+	}
+	iconImagePath := service.IconImagePath
+	if iconImagePath == "" {
+		iconImagePath = ""
+	}
+
 	_, err := db.Exec(
 		query,
 		service.ID,
@@ -56,6 +68,8 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Name,
 		service.URL,
 		service.Icon,
+		iconType,
+		iconImagePath,
 		service.Description,
 		service.Status,
 		service.ResponseTime,

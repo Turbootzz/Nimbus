@@ -6,6 +6,7 @@ import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
 import { formatRelativeTime } from '@/lib/date-utils'
+import ServiceIcon from '@/components/ServiceIcon'
 
 interface ServiceManagementCardPresentationProps {
   service: Service
@@ -28,7 +29,7 @@ export function ServiceManagementCardPresentation({
     >
       {/* Service icon and status */}
       <div className="mb-4 flex items-start justify-between">
-        <span className="text-3xl">{service.icon || '🔗'}</span>
+        <ServiceIcon service={service} size="md" />
         <div className="flex items-center gap-3">
           <div className={`order-1 flex items-center ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}

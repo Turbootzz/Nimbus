@@ -26,6 +26,8 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			icon TEXT DEFAULT '🔗',
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
 			description TEXT,
 			status TEXT DEFAULT 'unknown',
 			response_time INTEGER,

@@ -27,11 +27,15 @@ export interface AuthResponse {
 }
 
 // Service types
+export type IconType = 'emoji' | 'image_upload' | 'image_url'
+
 export interface Service {
   id: string
   name: string
   url: string
   icon?: string
+  icon_type: IconType
+  icon_image_path?: string
   description?: string
   status: 'online' | 'offline' | 'unknown'
   response_time?: number
@@ -44,6 +48,8 @@ export interface ServiceCreateRequest {
   name: string
   url: string
   icon?: string
+  icon_type?: IconType
+  icon_image_path?: string
   description?: string
 }
 
@@ -51,6 +57,8 @@ export interface ServiceUpdateRequest {
   name?: string
   url?: string
   icon?: string
+  icon_type?: IconType
+  icon_image_path?: string
   description?: string
 }
 
