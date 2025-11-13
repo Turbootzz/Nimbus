@@ -182,10 +182,12 @@ export default function MetricsPage() {
                 <tbody className="divide-card-border divide-y">
                   {services.map((service) => (
                     <tr key={service.id} className="hover:bg-card-hover transition-colors">
-                      <td className="px-4 py-4">
-                        <div className="flex items-center gap-3">
-                          <ServiceIcon service={service} size="sm" />
-                          <div>
+                      <td className="px-4 py-4 align-top">
+                        <div className="flex items-start gap-3">
+                          <div className="mt-0.5 flex-shrink-0">
+                            <ServiceIcon service={service} size="sm" />
+                          </div>
+                          <div className="min-w-0">
                             <p className="text-text-primary font-medium">{service.name}</p>
                             {service.description && (
                               <p className="text-text-secondary text-sm">{service.description}</p>
@@ -193,7 +195,7 @@ export default function MetricsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 align-top">
                         <div className="flex items-center gap-2">
                           {service.status === 'online' ? (
                             <>
@@ -213,7 +215,7 @@ export default function MetricsPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 align-top">
                         {service.response_time !== null && service.response_time !== undefined ? (
                           <span
                             className={`text-sm font-medium ${
@@ -230,7 +232,7 @@ export default function MetricsPage() {
                           <span className="text-text-muted text-sm">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 align-top">
                         <a
                           href={service.url}
                           target="_blank"
@@ -240,10 +242,10 @@ export default function MetricsPage() {
                           {service.url}
                         </a>
                       </td>
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-4 text-right align-middle">
                         <Link
                           href={`/services/${service.id}`}
-                          className="bg-primary inline-flex items-center gap-1 rounded px-3 py-1.5 text-sm text-white transition-opacity hover:opacity-90"
+                          className="bg-primary inline-flex h-8 items-center gap-1 rounded px-3 text-sm whitespace-nowrap text-white transition-opacity hover:opacity-90"
                         >
                           <ChartBarIcon className="h-4 w-4" />
                           View Metrics
