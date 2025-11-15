@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -329,7 +330,7 @@ func (h *OAuthHandler) redirectWithError(c *fiber.Ctx, message string) error {
 	}
 
 	return c.Redirect(
-		fmt.Sprintf("%s/login?error=%s", frontendURL, message),
+		fmt.Sprintf("%s/login?error=%s", frontendURL, url.QueryEscape(message)),
 		fiber.StatusTemporaryRedirect,
 	)
 }

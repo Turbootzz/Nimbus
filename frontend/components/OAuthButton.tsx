@@ -49,6 +49,7 @@ export default function OAuthButton({ provider, redirectTo, className = '' }: OA
 
   return (
     <button
+      type="button"
       onClick={handleClick}
       disabled={isLoading}
       className={`flex w-full items-center justify-center gap-3 rounded-lg border px-4 py-2.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${config.bgColor} ${config.textColor} ${config.borderColor} ${className}`}

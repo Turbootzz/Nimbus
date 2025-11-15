@@ -59,7 +59,7 @@ func isLocalURL(urlStr string) bool {
 
 	// Fast path 2: Check for common local hostnames
 	switch host {
-	case "localhost", "127.0.0.1", "::1":
+	case "localhost":
 		return true
 	}
 
@@ -83,14 +83,12 @@ func isLocalURL(urlStr string) bool {
 	defer cancel()
 
 	resolver := &net.Resolver{
-		PreferGo: true, // Use Go's DNS resolver for better mDNS support
+		PreferGo: false, // Use system resolver for mDNS support
 	}
 
 	ips, err := resolver.LookupIP(ctx, "ip", host)
 	if err != nil {
-		// DNS lookup failed - this is common for .local domains in Docker
-		// If it's a domain that looks local (e.g., ends in .local, .lan, etc.), treat as local
-		// Otherwise, assume external (safer default)
+		// DNS lookup failed - assume external for safety
 		return false
 	}
 
