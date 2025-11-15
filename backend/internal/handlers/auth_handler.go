@@ -77,12 +77,14 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 
 	// Create user
 	user := &models.User{
-		Email:     req.Email,
-		Name:      req.Name,
-		Password:  hashedPassword,
-		Role:      "user", // Default role
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		Email:         req.Email,
+		Name:          req.Name,
+		Password:      &hashedPassword,
+		Role:          "user", // Default role
+		Provider:      "local",
+		EmailVerified: false,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
 
 	if err := h.userRepo.Create(user); err != nil {
@@ -145,8 +147,15 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		})
 	}
 
+	// Check if user has a password (OAuth users won't have one)
+	if user.Password == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "This account uses OAuth login. Please use the OAuth provider button.",
+		})
+	}
+
 	// Compare password
-	if err := h.authService.ComparePassword(user.Password, req.Password); err != nil {
+	if err := h.authService.ComparePassword(*user.Password, req.Password); err != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Invalid email or password",
 		})

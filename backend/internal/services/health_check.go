@@ -57,13 +57,14 @@ func isLocalURL(urlStr string) bool {
 		return isPrivateIP(ip)
 	}
 
-	// Fast path 2: Check for common local hostnames and .local domains
+	// Fast path 2: Check for common local hostnames
 	switch host {
-	case "localhost", "127.0.0.1", "::1":
+	case "localhost":
 		return true
 	}
 
-	// Check for .local domains
+	// Fast path 3: Check for .local domains (mDNS/Bonjour)
+	// These are ALWAYS local and should skip TLS verification
 	if len(host) > 6 && host[len(host)-6:] == ".local" {
 		return true
 	}
@@ -76,10 +77,18 @@ func isLocalURL(urlStr string) bool {
 	}
 	dnsCacheMu.RUnlock()
 
-	// Slow path: DNS lookup (only for hostnames that aren't IPs)
-	ips, err := net.LookupIP(host)
+	// Slow path: DNS lookup (only for hostnames that aren't IPs or .local)
+	// Use a context with timeout to prevent hanging on slow DNS
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	resolver := &net.Resolver{
+		PreferGo: false, // Use system resolver for mDNS support
+	}
+
+	ips, err := resolver.LookupIP(ctx, "ip", host)
 	if err != nil {
-		// If we can't resolve, assume it might be external (safer default)
+		// DNS lookup failed - assume external for safety
 		return false
 	}
 
@@ -116,24 +125,93 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Clone the base transport for this request
 	transport := t.baseTransport.Clone()
 
-	// Only skip TLS verification for local/private IPs
-	if transport.TLSClientConfig == nil {
+	// Clone the TLS config to prevent data races on InsecureSkipVerify
+	if transport.TLSClientConfig != nil {
+		tlsConfig := transport.TLSClientConfig.Clone()
+		tlsConfig.InsecureSkipVerify = isLocal
+		transport.TLSClientConfig = tlsConfig
+	} else {
 		transport.TLSClientConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12, // Require TLS 1.2 or higher
+			MinVersion:         tls.VersionTLS12, // Require TLS 1.2 or higher
+			InsecureSkipVerify: isLocal,
 		}
 	}
-	transport.TLSClientConfig.InsecureSkipVerify = isLocal
 
 	return transport.RoundTrip(req)
+}
+
+// customDialContext wraps net.Dialer to handle .local domain resolution
+func customDialContext(ctx context.Context, network, addr string) (net.Conn, error) {
+	// Extract host and port from addr (format: "hostname:port")
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	// For .local domains, try mDNS-aware resolution with longer timeout
+	if len(host) > 6 && host[len(host)-6:] == ".local" {
+		// Use system's native resolver (uses cgo, supports mDNS on macOS/Linux)
+		// PreferGo: false means use the system resolver which handles mDNS
+		resolver := &net.Resolver{
+			PreferGo: false, // Use system resolver for mDNS support
+		}
+
+		// Give mDNS more time to respond (5 seconds)
+		lookupCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+
+		ips, lookupErr := resolver.LookupIP(lookupCtx, "ip", host)
+		if lookupErr == nil && len(ips) > 0 {
+			// Prefer IPv4 addresses over IPv6 link-local addresses
+			// Link-local IPv6 (fe80::) requires zone identifiers which are problematic
+			var selectedIP net.IP
+			for _, ip := range ips {
+				// Prefer IPv4
+				if ip.To4() != nil {
+					selectedIP = ip
+					break
+				}
+				// Skip IPv6 link-local addresses (fe80::/10)
+				if ip.To16() != nil && !ip.IsLinkLocalUnicast() {
+					selectedIP = ip
+				}
+			}
+
+			// Fallback to first IP if no IPv4/global IPv6 found
+			if selectedIP == nil {
+				selectedIP = ips[0]
+			}
+
+			addr = net.JoinHostPort(selectedIP.String(), port)
+		} else {
+			// mDNS lookup failed - return error so health check fails gracefully
+			return nil, fmt.Errorf("cannot resolve .local domain %s: %w (mDNS may not be available)", host, lookupErr)
+		}
+	}
+
+	// Use standard dialer for connection
+	dialer := &net.Dialer{
+		Timeout:   10 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
+	return dialer.DialContext(ctx, network, addr)
 }
 
 // NewHealthCheckService creates a new health check service
 func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
 	baseTransport := &http.Transport{
+		DialContext: customDialContext, // Use custom dialer for .local domain support
 		TLSClientConfig: &tls.Config{
 			MinVersion:         tls.VersionTLS12, // Require TLS 1.2 or higher
 			InsecureSkipVerify: false,            // Default: verify certificates
 		},
+		// Connection pooling settings
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+		// Disable HTTP/2 for better compatibility with local services
+		ForceAttemptHTTP2: false,
 	}
 
 	return &HealthCheckService{

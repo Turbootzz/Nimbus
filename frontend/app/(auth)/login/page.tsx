@@ -1,15 +1,51 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { getApiUrl } from '@/lib/utils/api-url'
+import OAuthButton from '@/components/OAuthButton'
+import { api } from '@/lib/api'
+import type { OAuthProvider } from '@/types'
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [oauthProviders, setOAuthProviders] = useState<OAuthProvider[]>([])
+
+  // Check for OAuth error in query params
+  useEffect(() => {
+    const oauthError = searchParams.get('error')
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError))
+    }
+  }, [searchParams])
+
+  // Fetch available OAuth providers
+  useEffect(() => {
+    const fetchProviders = async () => {
+      try {
+        const response = await api.getOAuthProviders()
+        if (response.data) {
+          const enabled = response.data.providers
+            .filter((p) => p.enabled)
+            .map((p) => p.name as OAuthProvider)
+          setOAuthProviders(enabled)
+        } else if (response.error) {
+          // Log error but don't show to user - OAuth is optional
+          console.error('Failed to fetch OAuth providers:', response.error.message)
+        }
+      } catch (err) {
+        // Log error but don't show to user - OAuth is optional
+        console.error('Failed to fetch OAuth providers:', err)
+      }
+    }
+    fetchProviders()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -196,6 +232,42 @@ export default function LoginPage() {
         </button>
       </form>
 
+      {oauthProviders.length > 0 && (
+        <>
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div
+                className="w-full border-t"
+                style={{ borderColor: 'var(--color-card-border)' }}
+              ></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span
+                className="px-2"
+                style={{
+                  backgroundColor: 'var(--color-card)',
+                  color: 'var(--color-text-secondary)',
+                }}
+              >
+                Or continue with
+              </span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {oauthProviders.includes('google') && (
+              <OAuthButton provider="google" redirectTo="/dashboard" />
+            )}
+            {oauthProviders.includes('github') && (
+              <OAuthButton provider="github" redirectTo="/dashboard" />
+            )}
+            {oauthProviders.includes('discord') && (
+              <OAuthButton provider="discord" redirectTo="/dashboard" />
+            )}
+          </div>
+        </>
+      )}
+
       <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
         Don&apos;t have an account?{' '}
         <Link
@@ -213,5 +285,13 @@ export default function LoginPage() {
         </Link>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   )
 }

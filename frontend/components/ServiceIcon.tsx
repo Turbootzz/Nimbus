@@ -39,13 +39,13 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
   // Render uploaded image
   if (service.icon_type === 'image_upload' && service.icon_image_path) {
     return (
-      <div className={`${sizeClass} relative ${className}`}>
+      <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={`${apiUrl}/uploads/service-icons/${service.icon_image_path}`}
           alt={`${service.name} icon`}
           width={dimension}
           height={dimension}
-          className="object-contain"
+          className="h-full w-full object-contain"
           onError={() => setImageError(true)}
         />
       </div>
@@ -55,13 +55,13 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
   // Render image URL
   if (service.icon_type === 'image_url' && service.icon_image_path) {
     return (
-      <div className={`${sizeClass} relative ${className}`}>
+      <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={service.icon_image_path}
           alt={`${service.name} icon`}
           width={dimension}
           height={dimension}
-          className="object-contain"
+          className="h-full w-full object-contain"
           onError={() => setImageError(true)}
         />
       </div>

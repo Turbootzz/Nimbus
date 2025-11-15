@@ -13,6 +13,8 @@ import type {
   PreferencesUpdateRequest,
   PaginatedUsersResponse,
   UserFilterParams,
+  OAuthProvider,
+  OAuthProviderStatus,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -136,6 +138,39 @@ class ApiClient {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     return this.request<User>('/auth/me')
+  }
+
+  async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      return {
+        error: { message: 'API URL not configured' },
+      }
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/users/me/avatar`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          error: { message: data.error || data.message || 'Failed to upload avatar' },
+        }
+      }
+
+      return {
+        data: data.user,
+      }
+    } catch (error) {
+      return {
+        error: { message: error instanceof Error ? error.message : 'Failed to upload avatar' },
+      }
+    }
   }
 
   // ============================================
@@ -277,6 +312,39 @@ class ApiClient {
 
   async deleteUser(userId: string): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>(`/admin/users/${userId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // OAuth methods
+  /**
+   * Get OAuth provider status (which providers are configured)
+   */
+  async getOAuthProviders(): Promise<ApiResponse<{ providers: OAuthProviderStatus[] }>> {
+    return this.request<{ providers: OAuthProviderStatus[] }>('/auth/oauth/providers')
+  }
+
+  /**
+   * Initiate OAuth login flow - redirects to provider
+   */
+  initiateOAuth(provider: OAuthProvider, redirectTo?: string): void {
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      console.error('API URL not configured for OAuth')
+      return
+    }
+
+    const queryParams = redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''
+    window.location.href = `${apiUrl}/auth/oauth/${provider}${queryParams}`
+  }
+
+  /**
+   * Unlink an OAuth provider from the current user's account
+   */
+  async unlinkOAuthProvider(
+    provider: OAuthProvider
+  ): Promise<ApiResponse<{ message: string; user: User }>> {
+    return this.request<{ message: string; user: User }>(`/auth/oauth/unlink/${provider}`, {
       method: 'DELETE',
     })
   }

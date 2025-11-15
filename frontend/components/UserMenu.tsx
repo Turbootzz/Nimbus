@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -9,6 +10,7 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { getApiUrl } from '@/lib/utils/api-url'
 import type { User } from '@/types'
 
 export default function UserMenu() {
@@ -50,6 +52,14 @@ export default function UserMenu() {
     router.push('/settings/profile')
   }
 
+  const getAvatarUrl = (avatarUrl: string | undefined) => {
+    if (!avatarUrl) return undefined
+    // If it's a full URL (OAuth provider), return as-is
+    if (avatarUrl.startsWith('http')) return avatarUrl
+    // If it's a relative path (local upload), prepend API URL
+    return getApiUrl() + avatarUrl
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center space-x-3">
@@ -83,7 +93,17 @@ export default function UserMenu() {
           }
         }}
       >
-        <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
+        {user?.avatar_url && getAvatarUrl(user.avatar_url) ? (
+          <Image
+            src={getAvatarUrl(user.avatar_url)!}
+            alt={user.name}
+            width={32}
+            height={32}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
+        )}
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             {user?.name || 'User'}

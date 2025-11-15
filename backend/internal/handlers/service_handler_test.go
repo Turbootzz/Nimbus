@@ -310,3 +310,176 @@ func TestServiceHandler_ReorderServices_InvalidJSON(t *testing.T) {
 		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, resp.StatusCode)
 	}
 }
+func TestServiceHandler_CreateService(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	handler := NewServiceHandler(serviceRepo, nil)
+
+	tests := []struct {
+		name           string
+		userID         string
+		requestBody    models.ServiceCreateRequest
+		expectedStatus int
+		expectError    bool
+	}{
+		{
+			name:   "Missing name",
+			userID: "user-1",
+			requestBody: models.ServiceCreateRequest{
+				URL: "https://example.com",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:   "Missing URL",
+			userID: "user-1",
+			requestBody: models.ServiceCreateRequest{
+				Name: "Test Service",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:   "Invalid URL format",
+			userID: "user-1",
+			requestBody: models.ServiceCreateRequest{
+				Name: "Test Service",
+				URL:  "not-a-valid-url",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Post("/services", func(c *fiber.Ctx) error {
+				c.Locals("user_id", tt.userID)
+				return handler.CreateService(c)
+			})
+
+			bodyJSON, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPost, "/services", bytes.NewReader(bodyJSON))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req, -1)
+			if err != nil {
+				t.Fatalf("Failed to execute request: %v", err)
+			}
+
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestServiceHandler_GetServices(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	handler := NewServiceHandler(serviceRepo, nil)
+
+	// Create test services for user-1
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-1",
+		UserID:    "user-1",
+		Name:      "Service 1",
+		URL:       "https://example1.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-2",
+		UserID:    "user-1",
+		Name:      "Service 2",
+		URL:       "https://example2.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	app := fiber.New()
+	app.Get("/services", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "user-1")
+		return handler.GetServices(c)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/services", nil)
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestServiceHandler_DeleteService(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	handler := NewServiceHandler(serviceRepo, nil)
+
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-1",
+		UserID:    "user-1",
+		Name:      "Service 1",
+		URL:       "https://example1.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	tests := []struct {
+		name           string
+		userID         string
+		serviceID      string
+		expectedStatus int
+	}{
+		{
+			name:           "Successfully delete service",
+			userID:         "user-1",
+			serviceID:      "service-1",
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "Delete non-existent service",
+			userID:         "user-1",
+			serviceID:      "non-existent",
+			expectedStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Delete("/services/:id", func(c *fiber.Ctx) error {
+				c.Locals("user_id", tt.userID)
+				return handler.DeleteService(c)
+			})
+
+			req := httptest.NewRequest(http.MethodDelete, "/services/"+tt.serviceID, nil)
+			resp, err := app.Test(req, -1)
+			if err != nil {
+				t.Fatalf("Failed to execute request: %v", err)
+			}
+
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
+	}
+}

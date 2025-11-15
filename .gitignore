@@ -76,3 +76,6 @@ prometheus/
 
 # Uploads
 backend/uploads/
+
+# Prod
+docker-compose.prod.yml

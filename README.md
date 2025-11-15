@@ -1,18 +1,16 @@
 # Nimbus - Self-Hosted Homelab Dashboard
 
-A modern, customizable dashboard for your homelab and personal servers with per-user personalization, health monitoring, and role-based access control.
+A modern, customizable dashboard for your homelab with per-user personalization, health monitoring, OAuth login, and Prometheus metrics.
 
 ## Features
 
-### MVP Features
-- **Authentication & Accounts**: User registration/login with JWT-based authentication
-- **Role-Based Access Control**: Admin and user roles with different permissions
-- **Dashboard UI**: Grid-based service tiles with icons and health status
-- **Health Monitoring**: Automatic service availability checking with visual indicators
-- **User Personalization**: Custom backgrounds, themes, accent colors, and light/dark mode per user
-- **Drag & Drop Reordering**: Rearrange service tiles with touch and mouse support
-- **Link Behavior Control**: Choose whether services open in new tabs or same window
-- **Configuration Management**: Add/edit services via web UI or JSON import/export
+- **Authentication**: Local accounts + OAuth (Google, GitHub, Discord)
+- **Role-Based Access**: Admin panel for user management
+- **Service Dashboard**: Grid-based tiles with drag & drop reordering
+- **Health Monitoring**: Automatic checks with smart self-signed cert handling
+- **User Themes**: Custom backgrounds, colors, light/dark mode per user
+- **Metrics Export**: Prometheus integration with uptime tracking
+- **Mobile Responsive**: Works on all screen sizes
 
 ### Tech Stack
 - **Frontend**: Next.js 15 + React + TypeScript + Tailwind CSS
@@ -331,7 +329,7 @@ npm run lint    # Run linter
 - [x] Admin configuration UI
 - [x] Service status history graphs
 - [x] Prometheus metrics export
-- [ ] OAuth2 login support
+- [x] OAuth2 login support
 - [ ] Widget/plugin system
 - [x] Mobile responsive design
 - [ ] PWA support
