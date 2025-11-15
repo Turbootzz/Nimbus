@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import { api } from '@/lib/api'
 import { getApiUrl } from '@/lib/utils/api-url'
 import type { User } from '@/types'
@@ -58,7 +59,7 @@ export default function ProfilePage() {
     if (response.data) {
       setUser(response.data)
     } else if (response.error) {
-      setUploadError(response.error)
+      setUploadError(response.error.message)
     }
 
     setIsUploading(false)
@@ -140,10 +141,12 @@ export default function ProfilePage() {
               Profile Picture
             </label>
             <div className="flex items-center space-x-4">
-              {user?.avatar_url ? (
-                <img
-                  src={getAvatarUrl(user.avatar_url)}
+              {user?.avatar_url && getAvatarUrl(user.avatar_url) ? (
+                <Image
+                  src={getAvatarUrl(user.avatar_url)!}
                   alt={user.name}
+                  width={80}
+                  height={80}
                   className="h-20 w-20 rounded-full object-cover"
                 />
               ) : (

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"database/sql"
 	"io"
 	"mime/multipart"
 	"net/http/httptest"
@@ -10,12 +11,51 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
+
+	_ "github.com/mattn/go-sqlite3"
 )
+
+// setupUploadTestDB creates an in-memory SQLite database for upload testing
+func setupUploadTestDB(t *testing.T) *sql.DB {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+
+	schema := `
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL,
+			password TEXT,
+			role TEXT NOT NULL DEFAULT 'user',
+			provider TEXT NOT NULL DEFAULT 'local',
+			provider_id TEXT,
+			avatar_url TEXT,
+			email_verified INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL,
+			last_activity_at TIMESTAMP,
+			UNIQUE(provider, provider_id)
+		);
+	`
+
+	if _, err := db.Exec(schema); err != nil {
+		t.Fatalf("Failed to create test table: %v", err)
+	}
+
+	return db
+}
 
 func TestUploadServiceIcon_Success(t *testing.T) {
 	// Setup
-	handler := NewUploadHandler()
+	db := setupUploadTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+	handler := NewUploadHandler(userRepo)
 	app := fiber.New()
 	app.Post("/upload", handler.UploadServiceIcon)
 
@@ -67,7 +107,11 @@ func TestUploadServiceIcon_Success(t *testing.T) {
 
 func TestUploadServiceIcon_NoFile(t *testing.T) {
 	// Setup
-	handler := NewUploadHandler()
+	db := setupUploadTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+	handler := NewUploadHandler(userRepo)
 	app := fiber.New()
 	app.Post("/upload", handler.UploadServiceIcon)
 
@@ -85,7 +129,11 @@ func TestUploadServiceIcon_NoFile(t *testing.T) {
 
 func TestUploadServiceIcon_FileTooLarge(t *testing.T) {
 	// Setup
-	handler := NewUploadHandler()
+	db := setupUploadTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+	handler := NewUploadHandler(userRepo)
 	app := fiber.New()
 	app.Post("/upload", handler.UploadServiceIcon)
 
@@ -118,7 +166,11 @@ func TestUploadServiceIcon_FileTooLarge(t *testing.T) {
 
 func TestUploadServiceIcon_InvalidFileType(t *testing.T) {
 	// Setup
-	handler := NewUploadHandler()
+	db := setupUploadTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+	handler := NewUploadHandler(userRepo)
 	app := fiber.New()
 	app.Post("/upload", handler.UploadServiceIcon)
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -92,10 +93,12 @@ export default function UserMenu() {
           }
         }}
       >
-        {user?.avatar_url ? (
-          <img
-            src={getAvatarUrl(user.avatar_url)}
+        {user?.avatar_url && getAvatarUrl(user.avatar_url) ? (
+          <Image
+            src={getAvatarUrl(user.avatar_url)!}
             alt={user.name}
+            width={32}
+            height={32}
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (

@@ -144,7 +144,7 @@ class ApiClient {
     const apiUrl = getApiUrl()
     if (!apiUrl) {
       return {
-        error: 'API URL not configured',
+        error: { message: 'API URL not configured' },
       }
     }
 
@@ -159,7 +159,7 @@ class ApiClient {
 
       if (!response.ok) {
         return {
-          error: data.error || data.message || 'Failed to upload avatar',
+          error: { message: data.error || data.message || 'Failed to upload avatar' },
         }
       }
 
@@ -168,7 +168,7 @@ class ApiClient {
       }
     } catch (error) {
       return {
-        error: error instanceof Error ? error.message : 'Failed to upload avatar',
+        error: { message: error instanceof Error ? error.message : 'Failed to upload avatar' },
       }
     }
   }
