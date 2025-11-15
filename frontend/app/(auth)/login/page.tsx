@@ -28,12 +28,20 @@ function LoginForm() {
   // Fetch available OAuth providers
   useEffect(() => {
     const fetchProviders = async () => {
-      const response = await api.getOAuthProviders()
-      if (response.data) {
-        const enabled = response.data.providers
-          .filter((p) => p.enabled)
-          .map((p) => p.name as OAuthProvider)
-        setOAuthProviders(enabled)
+      try {
+        const response = await api.getOAuthProviders()
+        if (response.data) {
+          const enabled = response.data.providers
+            .filter((p) => p.enabled)
+            .map((p) => p.name as OAuthProvider)
+          setOAuthProviders(enabled)
+        } else if (response.error) {
+          // Log error but don't show to user - OAuth is optional
+          console.error('Failed to fetch OAuth providers:', response.error.message)
+        }
+      } catch (err) {
+        // Log error but don't show to user - OAuth is optional
+        console.error('Failed to fetch OAuth providers:', err)
       }
     }
     fetchProviders()

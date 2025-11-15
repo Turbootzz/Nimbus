@@ -12,7 +12,12 @@ DROP INDEX IF EXISTS idx_users_provider_id;
 ALTER TABLE users
 DROP CONSTRAINT IF EXISTS unique_provider_user;
 
--- Make password NOT NULL again (will fail if OAuth users exist)
+-- Delete OAuth users before setting password to NOT NULL
+-- This prevents migration failure when OAuth users (with NULL passwords) exist
+DELETE FROM users
+WHERE provider != 'local' OR password IS NULL;
+
+-- Make password NOT NULL again (safe now that OAuth users are deleted)
 ALTER TABLE users
 ALTER COLUMN password SET NOT NULL;
 

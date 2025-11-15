@@ -66,7 +66,6 @@ func isLocalURL(urlStr string) bool {
 	// Fast path 3: Check for .local domains (mDNS/Bonjour)
 	// These are ALWAYS local and should skip TLS verification
 	if len(host) > 6 && host[len(host)-6:] == ".local" {
-		fmt.Printf("DEBUG: Detected .local domain: %s - skipping TLS verification\n", host)
 		return true
 	}
 
@@ -128,13 +127,17 @@ func (t *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	// Clone the base transport for this request
 	transport := t.baseTransport.Clone()
 
-	// Only skip TLS verification for local/private IPs
-	if transport.TLSClientConfig == nil {
+	// Clone the TLS config to prevent data races on InsecureSkipVerify
+	if transport.TLSClientConfig != nil {
+		tlsConfig := transport.TLSClientConfig.Clone()
+		tlsConfig.InsecureSkipVerify = isLocal
+		transport.TLSClientConfig = tlsConfig
+	} else {
 		transport.TLSClientConfig = &tls.Config{
-			MinVersion: tls.VersionTLS12, // Require TLS 1.2 or higher
+			MinVersion:         tls.VersionTLS12, // Require TLS 1.2 or higher
+			InsecureSkipVerify: isLocal,
 		}
 	}
-	transport.TLSClientConfig.InsecureSkipVerify = isLocal
 
 	return transport.RoundTrip(req)
 }
@@ -149,8 +152,6 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 
 	// For .local domains, try mDNS-aware resolution with longer timeout
 	if len(host) > 6 && host[len(host)-6:] == ".local" {
-		fmt.Printf("DEBUG: Attempting mDNS resolution for %s\n", host)
-
 		// Use system's native resolver (uses cgo, supports mDNS on macOS/Linux)
 		// PreferGo: false means use the system resolver which handles mDNS
 		resolver := &net.Resolver{
@@ -183,12 +184,9 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 				selectedIP = ips[0]
 			}
 
-			fmt.Printf("DEBUG: Resolved %s to %s (from %d addresses)\n", host, selectedIP.String(), len(ips))
 			addr = net.JoinHostPort(selectedIP.String(), port)
 		} else {
-			// mDNS lookup failed - this is expected in some environments
-			fmt.Printf("DEBUG: mDNS lookup failed for %s: %v (this is normal if mDNS isn't available)\n", host, lookupErr)
-			// Return the error so the health check fails gracefully
+			// mDNS lookup failed - return error so health check fails gracefully
 			return nil, fmt.Errorf("cannot resolve .local domain %s: %w (mDNS may not be available)", host, lookupErr)
 		}
 	}
@@ -256,10 +254,6 @@ func (h *HealthCheckService) CheckService(ctx context.Context, service *models.S
 	if err != nil {
 		// Request failed - service is offline
 		errorMsg := err.Error()
-		// Debug logging for .local domains
-		if len(req.URL.Hostname()) > 6 && req.URL.Hostname()[len(req.URL.Hostname())-6:] == ".local" {
-			fmt.Printf("Health check failed for .local domain %s: %v (response time: %dms)\n", service.URL, err, responseTime)
-		}
 		return h.updateStatus(ctx, service.ID, models.StatusOffline, &responseTime, &errorMsg)
 	}
 	defer resp.Body.Close()

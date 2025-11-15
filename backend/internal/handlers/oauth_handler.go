@@ -31,6 +31,20 @@ func NewOAuthHandler(
 	}
 }
 
+// getCookieSecure returns whether cookies should be secure based on environment
+// Returns true for production (HTTPS), false for local development (HTTP)
+func (h *OAuthHandler) getCookieSecure() bool {
+	// Check COOKIE_SECURE env var (defaults to true for production safety)
+	secure := os.Getenv("COOKIE_SECURE")
+	return secure != "false" // Default to true unless explicitly set to "false"
+}
+
+// getCookieDomain returns the domain for cookies based on environment
+func (h *OAuthHandler) getCookieDomain() string {
+	// Check COOKIE_DOMAIN env var (empty for default same-site behavior)
+	return os.Getenv("COOKIE_DOMAIN")
+}
+
 // InitiateOAuth starts the OAuth flow by redirecting to the provider
 // GET /api/v1/auth/oauth/:provider
 func (h *OAuthHandler) InitiateOAuth(c *fiber.Ctx) error {
@@ -158,7 +172,15 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 // POST /api/v1/auth/oauth/link/:provider
 func (h *OAuthHandler) LinkProvider(c *fiber.Ctx) error {
 	// Get current user from context (set by auth middleware)
-	_ = c.Locals("user_id").(string) // userID for future implementation
+	userID, ok := c.Locals("user_id").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
+	// Avoid "declared but not used" error for userID (will be used when linking is implemented)
+	_ = userID
 
 	providerStr := c.Params("provider")
 	provider := models.OAuthProvider(providerStr)
@@ -190,7 +212,12 @@ func (h *OAuthHandler) LinkProvider(c *fiber.Ctx) error {
 // DELETE /api/v1/auth/oauth/unlink/:provider
 func (h *OAuthHandler) UnlinkProvider(c *fiber.Ctx) error {
 	// Get current user from context (set by auth middleware)
-	userID := c.Locals("user_id").(string)
+	userID, ok := c.Locals("user_id").(string)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
 
 	providerStr := c.Params("provider")
 	provider := models.OAuthProvider(providerStr)
@@ -271,18 +298,15 @@ func (h *OAuthHandler) loginUser(c *fiber.Ctx, user *models.User) error {
 		return h.redirectWithError(c, "Failed to generate auth token")
 	}
 
-	// Set httpOnly cookie
-	secure := os.Getenv("COOKIE_SECURE") == "true"
-	domain := os.Getenv("COOKIE_DOMAIN")
-
+	// Set httpOnly cookie using consistent security settings
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
 		Expires:  time.Now().Add(24 * time.Hour),
 		HTTPOnly: true,
-		Secure:   secure,
+		Secure:   h.getCookieSecure(), // Consistent with regular login
 		SameSite: "Lax",
-		Domain:   domain,
+		Domain:   h.getCookieDomain(),
 	})
 
 	// Update last activity
