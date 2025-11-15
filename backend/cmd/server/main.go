@@ -72,7 +72,7 @@ func main() {
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
-	uploadHandler := handlers.NewUploadHandler()
+	uploadHandler := handlers.NewUploadHandler(userRepo)
 	staticHandler := handlers.NewStaticHandler()
 
 	// Create fiber app
@@ -131,10 +131,15 @@ func main() {
 	// Static file serving (public, but files are only accessible if you know the filename)
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
 	v1.Get("/uploads/service-icons/:filename", staticHandler.ServeServiceIcon)
+	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
 
 	// Upload routes (protected)
 	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo))
 	uploads.Post("/service-icon", uploadHandler.UploadServiceIcon)
+
+	// User avatar route (protected)
+	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo))
+	users.Put("/avatar", uploadHandler.UploadAvatar)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))

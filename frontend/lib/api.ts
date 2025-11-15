@@ -140,6 +140,39 @@ class ApiClient {
     return this.request<User>('/auth/me')
   }
 
+  async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
+    const apiUrl = getApiUrl()
+    if (!apiUrl) {
+      return {
+        error: 'API URL not configured',
+      }
+    }
+
+    try {
+      const response = await fetch(`${apiUrl}/users/me/avatar`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return {
+          error: data.error || data.message || 'Failed to upload avatar',
+        }
+      }
+
+      return {
+        data: data.user,
+      }
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Failed to upload avatar',
+      }
+    }
+  }
+
   // ============================================
   // Services
   // ============================================
