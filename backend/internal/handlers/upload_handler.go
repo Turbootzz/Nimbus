@@ -10,18 +10,25 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/repository"
 )
 
 const (
-	MaxUploadSize    = 512 * 1024 // 512KB - reasonable for icons
+	MaxUploadSize    = 512 * 1024      // 512KB - reasonable for icons
+	MaxAvatarSize    = 5 * 1024 * 1024 // 5MB for avatars
 	UploadDir        = "uploads/service-icons"
+	AvatarUploadDir  = "uploads/avatars"
 	AllowedMimeTypes = "image/jpeg,image/png,image/gif,image/webp"
 )
 
-type UploadHandler struct{}
+type UploadHandler struct {
+	userRepo *repository.UserRepository
+}
 
-func NewUploadHandler() *UploadHandler {
-	return &UploadHandler{}
+func NewUploadHandler(userRepo *repository.UserRepository) *UploadHandler {
+	return &UploadHandler{
+		userRepo: userRepo,
+	}
 }
 
 // UploadServiceIcon handles service icon image uploads
@@ -179,4 +186,147 @@ func getExtensionFromMimeType(mimeType string) string {
 	default:
 		return ".bin"
 	}
+}
+
+// UploadAvatar handles user avatar uploads (local users only)
+func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
+	// Get user ID from context (set by auth middleware)
+	userID := c.Locals("user_id").(string)
+
+	// Get user to check provider
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "User not found",
+		})
+	}
+
+	// Only allow local users to upload avatars
+	if user.Provider != "local" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Avatar uploads are only allowed for local accounts. Your profile picture is synced from " + user.Provider,
+		})
+	}
+
+	// Ensure upload directory exists
+	if err := os.MkdirAll(AvatarUploadDir, 0755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create upload directory",
+		})
+	}
+
+	// Get the uploaded file
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "No file uploaded",
+		})
+	}
+
+	// Check file size
+	if file.Size > MaxAvatarSize {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("File size exceeds maximum allowed size of %d MB", MaxAvatarSize/(1024*1024)),
+		})
+	}
+
+	// Validate file type
+	contentType := file.Header.Get("Content-Type")
+	if !isAllowedMimeType(contentType) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Invalid file type. Allowed types: %s", AllowedMimeTypes),
+		})
+	}
+
+	// Open the file
+	src, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to open uploaded file",
+		})
+	}
+	defer src.Close()
+
+	// Read first 512 bytes to detect actual content type
+	buffer := make([]byte, 512)
+	n, err := src.Read(buffer)
+	if err != nil && err != io.EOF {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to read file",
+		})
+	}
+
+	// Validate actual content type
+	detectedType := detectContentType(buffer[:n])
+	if !isAllowedMimeType(detectedType) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "File content does not match allowed image types",
+		})
+	}
+
+	// Reset read position
+	if _, err := src.Seek(0, 0); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to process file",
+		})
+	}
+
+	// Delete old avatar if exists
+	if user.AvatarURL != nil && *user.AvatarURL != "" {
+		// Extract filename from URL (assumes format: /uploads/avatars/filename.jpg)
+		if strings.HasPrefix(*user.AvatarURL, "/uploads/avatars/") {
+			oldFilename := strings.TrimPrefix(*user.AvatarURL, "/uploads/avatars/")
+			oldPath := filepath.Join(AvatarUploadDir, oldFilename)
+			os.Remove(oldPath) // Ignore error if file doesn't exist
+		}
+	}
+
+	// Generate unique filename
+	ext := filepath.Ext(file.Filename)
+	if ext == "" {
+		ext = getExtensionFromMimeType(contentType)
+	}
+	filename := generateUniqueFilename() + ext
+
+	// Full path
+	filePath := filepath.Join(AvatarUploadDir, filename)
+
+	// Create destination file
+	dst, err := os.Create(filePath)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save file",
+		})
+	}
+	defer dst.Close()
+
+	// Copy file content
+	if _, err := io.Copy(dst, src); err != nil {
+		os.Remove(filePath) // Clean up on error
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save file",
+		})
+	}
+
+	// Update user avatar URL in database
+	avatarURL := "/uploads/avatars/" + filename
+	if err := h.userRepo.UpdateAvatar(userID, &avatarURL); err != nil {
+		os.Remove(filePath) // Clean up uploaded file
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update user avatar",
+		})
+	}
+
+	// Get updated user
+	updatedUser, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve updated user",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Avatar uploaded successfully",
+		"user":    updatedUser,
+	})
 }

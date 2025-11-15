@@ -32,11 +32,16 @@ func setupAuthTestDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY,
 			email TEXT UNIQUE NOT NULL,
 			name TEXT NOT NULL,
-			password TEXT NOT NULL,
+			password TEXT,
 			role TEXT NOT NULL DEFAULT 'user',
+			provider TEXT NOT NULL DEFAULT 'local',
+			provider_id TEXT,
+			avatar_url TEXT,
+			email_verified INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
-			last_activity_at TIMESTAMP
+			last_activity_at TIMESTAMP,
+			UNIQUE(provider, provider_id)
 		);
 	`
 
@@ -128,7 +133,7 @@ func TestAuthHandler_Login_RememberMe(t *testing.T) {
 		ID:        "user-123",
 		Email:     "test@example.com",
 		Name:      "Test User",
-		Password:  hashedPassword,
+		Password:  &hashedPassword,
 		Role:      "user",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -265,7 +270,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 		ID:        "user-456",
 		Email:     "user@example.com",
 		Name:      "Test User",
-		Password:  hashedPassword,
+		Password:  &hashedPassword,
 		Role:      "user",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -493,7 +498,7 @@ func TestAuthHandler_TokenExpiration_30Days(t *testing.T) {
 		ID:        "user-789",
 		Email:     "longterm@example.com",
 		Name:      "Long Term User",
-		Password:  hashedPassword,
+		Password:  &hashedPassword,
 		Role:      "user",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),

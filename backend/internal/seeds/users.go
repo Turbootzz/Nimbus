@@ -90,8 +90,10 @@ func SeedUsers(userRepo *repository.UserRepository, authService *services.AuthSe
 			user := &models.User{
 				Email:          testUser.email,
 				Name:           testUser.name,
-				Password:       hashedPassword,
+				Password:       &hashedPassword,
 				Role:           testUser.role,
+				Provider:       "local",
+				EmailVerified:  true,
 				LastActivityAt: testUser.activityTime,
 				CreatedAt:      createdAt,
 				UpdatedAt:      createdAt,

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/joho/godotenv"
+	"github.com/nimbus/backend/internal/models"
 )
 
 // LoadEnv loads environment variables from .env file with proper error handling
@@ -107,4 +108,31 @@ func validateRequiredEnvVars() error {
 	}
 
 	return nil
+}
+
+// GetGoogleOAuthConfig returns the Google OAuth configuration
+func GetGoogleOAuthConfig() models.OAuthConfig {
+	return models.OAuthConfig{
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("GOOGLE_REDIRECT_URL"),
+	}
+}
+
+// GetGitHubOAuthConfig returns the GitHub OAuth configuration
+func GetGitHubOAuthConfig() models.OAuthConfig {
+	return models.OAuthConfig{
+		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
+		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("GITHUB_REDIRECT_URL"),
+	}
+}
+
+// GetDiscordOAuthConfig returns the Discord OAuth configuration
+func GetDiscordOAuthConfig() models.OAuthConfig {
+	return models.OAuthConfig{
+		ClientID:     os.Getenv("DISCORD_CLIENT_ID"),
+		ClientSecret: os.Getenv("DISCORD_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("DISCORD_REDIRECT_URL"),
+	}
 }

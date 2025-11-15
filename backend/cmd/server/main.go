@@ -48,6 +48,16 @@ func main() {
 	// Initialize services
 	authService := services.NewAuthService()
 
+	// Initialize OAuth service with provider configurations
+	googleConfig := config.GetGoogleOAuthConfig()
+	githubConfig := config.GetGitHubOAuthConfig()
+	discordConfig := config.GetDiscordOAuthConfig()
+	oauthStateSecret := os.Getenv("OAUTH_STATE_SECRET")
+	if oauthStateSecret == "" {
+		oauthStateSecret = os.Getenv("JWT_SECRET") // Fallback to JWT_SECRET
+	}
+	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
+
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
 	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, healthCheckTimeout)
@@ -57,11 +67,12 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
-	uploadHandler := handlers.NewUploadHandler()
+	uploadHandler := handlers.NewUploadHandler(userRepo)
 	staticHandler := handlers.NewStaticHandler()
 
 	// Create fiber app
@@ -95,9 +106,16 @@ func main() {
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/logout", authHandler.Logout)
 
+	// OAuth routes (public for initiate and callback)
+	auth.Get("/oauth/providers", oauthHandler.GetProviderStatus)
+	auth.Get("/oauth/:provider", oauthHandler.InitiateOAuth)
+	auth.Get("/oauth/:provider/callback", oauthHandler.HandleCallback)
+
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
 	authProtected.Get("/me", authHandler.GetMe)
+	authProtected.Post("/oauth/link/:provider", oauthHandler.LinkProvider)
+	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
 	// Service routes (all protected)
 	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo))
@@ -113,10 +131,15 @@ func main() {
 	// Static file serving (public, but files are only accessible if you know the filename)
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
 	v1.Get("/uploads/service-icons/:filename", staticHandler.ServeServiceIcon)
+	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
 
 	// Upload routes (protected)
 	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo))
 	uploads.Post("/service-icon", uploadHandler.UploadServiceIcon)
+
+	// User avatar route (protected)
+	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo))
+	users.Put("/avatar", uploadHandler.UploadAvatar)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))
