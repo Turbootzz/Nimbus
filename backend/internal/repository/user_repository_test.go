@@ -16,17 +16,22 @@ func setupUserTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
-	// Create users table (SQLite syntax)
+	// Create users table (SQLite syntax) with OAuth support
 	usersSchema := `
 		CREATE TABLE IF NOT EXISTS users (
 			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
 			email TEXT NOT NULL UNIQUE,
 			name TEXT NOT NULL,
-			password TEXT NOT NULL,
+			password TEXT,
 			role TEXT NOT NULL DEFAULT 'user',
+			provider TEXT NOT NULL DEFAULT 'local',
+			provider_id TEXT,
+			avatar_url TEXT,
+			email_verified INTEGER NOT NULL DEFAULT 0,
 			last_activity_at DATETIME,
 			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			UNIQUE(provider, provider_id)
 		);
 	`
 
@@ -47,7 +52,7 @@ func TestUserRepository_UpdateRole(t *testing.T) {
 	user := &models.User{
 		Email:     "test@example.com",
 		Name:      "Test User",
-		Password:  "hashedpassword",
+		Password:  stringPtr("hashedpassword"),
 		Role:      "user",
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
@@ -110,7 +115,7 @@ func TestUserRepository_Delete(t *testing.T) {
 		user := &models.User{
 			Email:     "delete@example.com",
 			Name:      "Delete User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -152,7 +157,7 @@ func TestUserRepository_GetStats(t *testing.T) {
 		{
 			Email:     "admin1@example.com",
 			Name:      "Admin One",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "admin",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -160,7 +165,7 @@ func TestUserRepository_GetStats(t *testing.T) {
 		{
 			Email:     "admin2@example.com",
 			Name:      "Admin Two",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "admin",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -168,7 +173,7 @@ func TestUserRepository_GetStats(t *testing.T) {
 		{
 			Email:     "user1@example.com",
 			Name:      "User One",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -176,7 +181,7 @@ func TestUserRepository_GetStats(t *testing.T) {
 		{
 			Email:     "user2@example.com",
 			Name:      "User Two",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -184,7 +189,7 @@ func TestUserRepository_GetStats(t *testing.T) {
 		{
 			Email:     "user3@example.com",
 			Name:      "User Three",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -257,7 +262,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 		{
 			Email:     "user1@example.com",
 			Name:      "User One",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -265,7 +270,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 		{
 			Email:     "admin@example.com",
 			Name:      "Admin User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "admin",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -273,7 +278,7 @@ func TestUserRepository_GetAll(t *testing.T) {
 		{
 			Email:     "user2@example.com",
 			Name:      "User Two",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -340,7 +345,7 @@ func TestUserRepository_AdminWorkflow(t *testing.T) {
 		user := &models.User{
 			Email:     "workflow@example.com",
 			Name:      "Workflow User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -424,7 +429,7 @@ func TestUserRepository_UpdateLastActivity(t *testing.T) {
 		user := &models.User{
 			Email:     "activity@example.com",
 			Name:      "Activity User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -473,7 +478,7 @@ func TestUserRepository_UpdateLastActivity(t *testing.T) {
 		user := &models.User{
 			Email:     "multiactivity@example.com",
 			Name:      "Multi Activity User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -538,7 +543,7 @@ func TestUserRepository_UpdateLastActivity(t *testing.T) {
 		user := &models.User{
 			Email:     "persist@example.com",
 			Name:      "Persist User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -576,7 +581,7 @@ func TestUserRepository_GetFiltered(t *testing.T) {
 		{
 			Email:     "alice@example.com",
 			Name:      "Alice Admin",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "admin",
 			CreatedAt: time.Now().Add(-3 * time.Hour),
 			UpdatedAt: time.Now().Add(-3 * time.Hour),
@@ -584,7 +589,7 @@ func TestUserRepository_GetFiltered(t *testing.T) {
 		{
 			Email:     "bob@example.com",
 			Name:      "Bob User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now().Add(-2 * time.Hour),
 			UpdatedAt: time.Now().Add(-2 * time.Hour),
@@ -592,7 +597,7 @@ func TestUserRepository_GetFiltered(t *testing.T) {
 		{
 			Email:     "charlie@example.com",
 			Name:      "Charlie Developer",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now().Add(-1 * time.Hour),
 			UpdatedAt: time.Now().Add(-1 * time.Hour),
@@ -600,7 +605,7 @@ func TestUserRepository_GetFiltered(t *testing.T) {
 		{
 			Email:     "diana@test.com",
 			Name:      "Diana Designer",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
@@ -878,7 +883,7 @@ func TestUserRepository_LastActivityIntegration(t *testing.T) {
 		user := &models.User{
 			Email:     "workflow@example.com",
 			Name:      "Workflow User",
-			Password:  "hashedpassword",
+			Password:  stringPtr("hashedpassword"),
 			Role:      "user",
 			CreatedAt: time.Now(),
 			UpdatedAt: time.Now(),
