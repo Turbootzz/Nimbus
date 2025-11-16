@@ -17,6 +17,7 @@ const providerConfig = {
   google: {
     name: 'Google',
     icon: GoogleIcon,
+    iconSize: 'h-5 w-5',
     bgColor: 'bg-white hover:bg-gray-50',
     textColor: 'text-gray-700',
     borderColor: 'border-gray-300',
@@ -24,6 +25,7 @@ const providerConfig = {
   github: {
     name: 'GitHub',
     icon: GitHubIcon,
+    iconSize: 'h-5 w-5',
     bgColor: 'bg-gray-900 hover:bg-gray-800',
     textColor: 'text-white',
     borderColor: 'border-gray-900',
@@ -31,6 +33,7 @@ const providerConfig = {
   discord: {
     name: 'Discord',
     icon: DiscordIcon,
+    iconSize: 'h-5 w-5',
     bgColor: 'bg-[#5865F2] hover:bg-[#4752C4]',
     textColor: 'text-white',
     borderColor: 'border-[#5865F2]',
@@ -54,7 +57,9 @@ export default function OAuthButton({ provider, redirectTo, className = '' }: OA
       disabled={isLoading}
       className={`flex w-full items-center justify-center gap-3 rounded-lg border px-4 py-2.5 font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${config.bgColor} ${config.textColor} ${config.borderColor} ${className}`}
     >
-      <Icon className="h-5 w-5" />
+      <span className="flex items-center">
+        <Icon className={config.iconSize} />
+      </span>
       <span>{isLoading ? 'Connecting...' : `Continue with ${config.name}`}</span>
     </button>
   )
