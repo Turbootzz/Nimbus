@@ -29,6 +29,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  // Initialize with defaults (same for server and client to prevent hydration mismatch)
   const [theme, setThemeState] = useState<'light' | 'dark' | 'auto'>('auto')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
   const [accentColor, setAccentColorState] = useState<string | undefined>()
@@ -57,6 +58,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     mediaQuery.addEventListener('change', handleChange)
     return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
+  // Sync theme across multiple tabs using storage events
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      // Only respond to changes from other tabs (e.storageArea will be set)
+      if (!e.storageArea) return
+
+      if (e.key === 'theme' && e.newValue) {
+        setThemeState(e.newValue as 'light' | 'dark' | 'auto')
+      } else if (e.key === 'accentColor') {
+        setAccentColorState(e.newValue || undefined)
+      } else if (e.key === 'background') {
+        setBackgroundState(e.newValue || undefined)
+      } else if (e.key === 'openInNewTab' && e.newValue !== null) {
+        setOpenInNewTabState(e.newValue === 'true')
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
   // Load preferences on mount (from localStorage first, then API)

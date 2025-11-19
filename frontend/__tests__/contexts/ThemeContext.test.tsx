@@ -42,8 +42,12 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 })
 
+// Store event listeners for testing
+let matchMediaListeners: ((e: MediaQueryListEvent) => void)[] = []
+
 // Mock matchMedia
 const mockMatchMedia = (matches: boolean) => {
+  matchMediaListeners = []
   Object.defineProperty(window, 'matchMedia', {
     writable: true,
     value: vi.fn().mockImplementation((query) => ({
@@ -52,8 +56,16 @@ const mockMatchMedia = (matches: boolean) => {
       onchange: null,
       addListener: vi.fn(),
       removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
+      addEventListener: vi.fn((event: string, listener: (e: MediaQueryListEvent) => void) => {
+        if (event === 'change') {
+          matchMediaListeners.push(listener)
+        }
+      }),
+      removeEventListener: vi.fn((event: string, listener: (e: MediaQueryListEvent) => void) => {
+        if (event === 'change') {
+          matchMediaListeners = matchMediaListeners.filter((l) => l !== listener)
+        }
+      }),
       dispatchEvent: vi.fn(),
     })),
   })
@@ -400,6 +412,67 @@ describe('ThemeContext', () => {
 
       expect(result.current.openInNewTab).toBe(true)
       expect(localStorage.getItem('openInNewTab')).toBe('true')
+    })
+  })
+
+  describe('Runtime system theme changes', () => {
+    it('should update effectiveTheme when system theme changes in auto mode', async () => {
+      // Start with light system theme
+      mockMatchMedia(false)
+      const { result } = renderHook(() => useTheme(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      // Ensure we're in auto mode
+      act(() => {
+        result.current.setTheme('auto')
+      })
+
+      expect(result.current.theme).toBe('auto')
+      expect(result.current.effectiveTheme).toBe('light')
+
+      // Simulate system theme change to dark by calling the registered listeners
+      act(() => {
+        const event = { matches: true } as MediaQueryListEvent
+        matchMediaListeners.forEach((listener) => listener(event))
+      })
+
+      await waitFor(() => {
+        expect(result.current.effectiveTheme).toBe('dark')
+      })
+
+      // Theme mode should still be auto
+      expect(result.current.theme).toBe('auto')
+    })
+
+    it('should not affect manual theme when system theme changes', async () => {
+      // Start with light system theme
+      mockMatchMedia(false)
+      const { result } = renderHook(() => useTheme(), { wrapper })
+
+      await waitFor(() => {
+        expect(result.current.loading).toBe(false)
+      })
+
+      // Set manual dark theme
+      act(() => {
+        result.current.setTheme('dark')
+      })
+
+      expect(result.current.theme).toBe('dark')
+      expect(result.current.effectiveTheme).toBe('dark')
+
+      // Simulate system theme change by calling the registered listeners
+      act(() => {
+        const event = { matches: true } as MediaQueryListEvent
+        matchMediaListeners.forEach((listener) => listener(event))
+      })
+
+      // Manual theme should remain unchanged
+      expect(result.current.theme).toBe('dark')
+      expect(result.current.effectiveTheme).toBe('dark')
     })
   })
 })
