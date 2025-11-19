@@ -14,11 +14,12 @@ import { api } from '@/lib/api'
 import type { PreferencesUpdateRequest } from '@/types'
 
 interface ThemeContextType {
-  theme: 'light' | 'dark'
+  theme: 'light' | 'dark' | 'auto'
+  effectiveTheme: 'light' | 'dark' // The actual theme being displayed (resolved from auto)
   accentColor?: string
   background?: string
   openInNewTab: boolean
-  setTheme: (theme: 'light' | 'dark') => void
+  setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
   setOpenInNewTab: (openInNewTab: boolean) => void
@@ -28,7 +29,8 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<'light' | 'dark'>('light')
+  const [theme, setThemeState] = useState<'light' | 'dark' | 'auto'>('auto')
+  const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
   const [accentColor, setAccentColorState] = useState<string | undefined>()
   const [background, setBackgroundState] = useState<string | undefined>()
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
@@ -38,11 +40,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Ref to store pending updates that arrive while syncing
   const pendingUpdatesRef = useRef<PreferencesUpdateRequest | null>(null)
 
+  // Compute effective theme (resolve 'auto' to actual theme)
+  const effectiveTheme = theme === 'auto' ? systemTheme : theme
+
+  // Detect system theme preference and listen for changes
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+    // Set initial system theme
+    setSystemTheme(mediaQuery.matches ? 'dark' : 'light')
+
+    // Listen for system theme changes
+    const handleChange = (e: MediaQueryListEvent) => {
+      setSystemTheme(e.matches ? 'dark' : 'light')
+    }
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => mediaQuery.removeEventListener('change', handleChange)
+  }, [])
+
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
     const loadPreferences = async () => {
       // Step 1: Load from localStorage immediately (fast, prevents flash)
-      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null
+      const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null
       const savedAccent = localStorage.getItem('accentColor')
       const savedBackground = localStorage.getItem('background')
       const savedOpenInNewTab = localStorage.getItem('openInNewTab')
@@ -104,13 +125,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const root = document.documentElement
 
-    // Set theme mode
-    if (theme === 'dark') {
+    // Set theme mode based on theme setting
+    if (theme === 'auto') {
+      // Auto mode: remove manual classes and add auto class
+      root.classList.remove('dark', 'light')
+      root.classList.add('auto')
+    } else if (theme === 'dark') {
+      // Manual dark mode
+      root.classList.remove('light', 'auto')
       root.classList.add('dark')
-      root.classList.remove('light')
     } else {
+      // Manual light mode
+      root.classList.remove('dark', 'auto')
       root.classList.add('light')
-      root.classList.remove('dark')
     }
 
     // Set accent color
@@ -211,7 +238,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   )
 
   const setTheme = useCallback(
-    (newTheme: 'light' | 'dark') => {
+    (newTheme: 'light' | 'dark' | 'auto') => {
       setThemeState(newTheme)
       savePreferences({ theme_mode: newTheme })
     },
@@ -245,6 +272,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       theme,
+      effectiveTheme,
       accentColor,
       background,
       openInNewTab,
@@ -256,6 +284,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }),
     [
       theme,
+      effectiveTheme,
       accentColor,
       background,
       openInNewTab,

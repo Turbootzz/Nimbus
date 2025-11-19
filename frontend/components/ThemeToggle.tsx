@@ -4,10 +4,16 @@ import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { useTheme } from '@/contexts/ThemeContext'
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, effectiveTheme, setTheme } = useTheme()
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark')
+    // If auto mode is on, switch to manual mode with the opposite of current effective theme
+    if (theme === 'auto') {
+      setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')
+    } else {
+      // If manual mode, just toggle between light and dark
+      setTheme(theme === 'dark' ? 'light' : 'dark')
+    }
   }
 
   return (
@@ -23,9 +29,14 @@ export default function ThemeToggle() {
         e.currentTarget.style.backgroundColor = 'transparent'
         e.currentTarget.style.color = 'var(--color-text-secondary)'
       }}
-      aria-label="Toggle theme"
+      aria-label={theme === 'auto' ? 'Toggle theme (currently auto)' : 'Toggle theme'}
+      title={theme === 'auto' ? 'Auto mode - click to switch to manual' : undefined}
     >
-      {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+      {effectiveTheme === 'dark' ? (
+        <SunIcon className="h-5 w-5" />
+      ) : (
+        <MoonIcon className="h-5 w-5" />
+      )}
     </button>
   )
 }

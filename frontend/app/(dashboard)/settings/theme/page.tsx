@@ -7,6 +7,7 @@ import { Toggle } from '@/components/ui/Toggle'
 export default function ThemePage() {
   const {
     theme,
+    effectiveTheme,
     accentColor,
     background,
     openInNewTab,
@@ -41,13 +42,29 @@ export default function ThemePage() {
           <h2 className="text-text-primary mb-2 text-xl font-semibold">Theme Mode</h2>
           <p className="text-text-secondary mb-4 text-sm">Choose between light and dark theme</p>
 
+          {/* Automatic Theme Toggle */}
+          <div className="mb-4">
+            <Toggle
+              enabled={theme === 'auto'}
+              onChange={(enabled) => setTheme(enabled ? 'auto' : effectiveTheme)}
+              label="Automatic (follow system)"
+              description={`Automatically switch between light and dark based on your system preferences${
+                theme === 'auto' ? ` (currently: ${effectiveTheme})` : ''
+              }`}
+            />
+          </div>
+
+          {/* Manual Theme Selection (disabled when auto is on) */}
           <div className="flex gap-4">
             <button
               onClick={() => setTheme('light')}
+              disabled={theme === 'auto'}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium transition-all ${
                 theme === 'light'
                   ? 'bg-primary text-white shadow-md'
-                  : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
+                  : theme === 'auto'
+                    ? 'bg-background border-card-border text-text-muted cursor-not-allowed border-2 opacity-50'
+                    : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
               }`}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,10 +79,13 @@ export default function ThemePage() {
             </button>
             <button
               onClick={() => setTheme('dark')}
+              disabled={theme === 'auto'}
               className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-6 py-3 font-medium transition-all ${
                 theme === 'dark'
                   ? 'bg-primary text-white shadow-md'
-                  : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
+                  : theme === 'auto'
+                    ? 'bg-background border-card-border text-text-muted cursor-not-allowed border-2 opacity-50'
+                    : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
               }`}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
