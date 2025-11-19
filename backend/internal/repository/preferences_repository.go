@@ -111,7 +111,7 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 // This method supports partial updates using atomic INSERT ... ON CONFLICT to avoid race conditions
 func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
 	// Determine values for insert (with defaults for nil fields)
-	insertThemeMode := "light"
+	insertThemeMode := "auto"
 	if preferences.ThemeMode != nil {
 		insertThemeMode = *preferences.ThemeMode
 	}

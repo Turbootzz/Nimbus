@@ -85,13 +85,13 @@ export interface HealthCheck {
 
 // Theme types
 export interface Theme {
-  mode: 'light' | 'dark'
+  mode: 'light' | 'dark' | 'auto'
   background?: string
   accent_color?: string
 }
 
 export interface UserPreferences {
-  theme_mode: 'light' | 'dark'
+  theme_mode: 'light' | 'dark' | 'auto'
   theme_background?: string
   theme_accent_color?: string
   open_in_new_tab: boolean
@@ -99,7 +99,7 @@ export interface UserPreferences {
 }
 
 export interface PreferencesUpdateRequest {
-  theme_mode?: 'light' | 'dark'
+  theme_mode?: 'light' | 'dark' | 'auto'
   theme_background?: string | null
   theme_accent_color?: string | null
   open_in_new_tab?: boolean

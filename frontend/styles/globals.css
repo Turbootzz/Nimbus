@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Light mode colors (default) */
+/* Default light mode colors */
 :root {
   --color-background: #f9fafb; /* gray-50 - slightly off-white for better contrast */
   --color-foreground: #0a0a0a;
@@ -19,7 +19,7 @@
   --color-error: #ef4444; /* red-500 */
   --color-info: #3b82f6; /* blue-500 */
 
-  /* Dark mode color definitions (DRY - defined once) */
+  /* Dark mode color definitions (defined once for reuse) */
   --dark-background: #0a0a0a;
   --dark-foreground: #fafafa;
   --dark-primary: #0ea5e9; /* sky-500 */
@@ -34,27 +34,30 @@
   --dark-text-muted: #71717a; /* zinc-500 */
 }
 
-/* Apply dark mode when .dark class is present (Tailwind v4 way) */
-@layer base {
-  .dark {
-    --color-background: var(--dark-background);
-    --color-foreground: var(--dark-foreground);
-    --color-primary: var(--dark-primary);
-    --color-primary-hover: var(--dark-primary-hover);
-    --color-primary-light: var(--dark-primary-light);
-    --color-card: var(--dark-card);
-    --color-card-border: var(--dark-card-border);
-    --color-sidebar: var(--dark-sidebar);
-    --color-sidebar-border: var(--dark-sidebar-border);
-    --color-text-primary: var(--dark-text-primary);
-    --color-text-secondary: var(--dark-text-secondary);
-    --color-text-muted: var(--dark-text-muted);
-  }
+/* Manual dark mode - overrides :root defaults */
+html.dark {
+  --color-background: var(--dark-background);
+  --color-foreground: var(--dark-foreground);
+  --color-primary: var(--dark-primary);
+  --color-primary-hover: var(--dark-primary-hover);
+  --color-primary-light: var(--dark-primary-light);
+  --color-card: var(--dark-card);
+  --color-card-border: var(--dark-card-border);
+  --color-sidebar: var(--dark-sidebar);
+  --color-sidebar-border: var(--dark-sidebar-border);
+  --color-text-primary: var(--dark-text-primary);
+  --color-text-secondary: var(--dark-text-secondary);
+  --color-text-muted: var(--dark-text-muted);
 }
 
-/* Respect system preference for dark mode (if no manual override) */
+/* Manual light mode - inherits :root defaults */
+html.light {
+  color: inherit;
+}
+
+/* Auto mode - follow system preference only when html.auto */
 @media (prefers-color-scheme: dark) {
-  :root:not(.light) {
+  html.auto {
     --color-background: var(--dark-background);
     --color-foreground: var(--dark-foreground);
     --color-primary: var(--dark-primary);

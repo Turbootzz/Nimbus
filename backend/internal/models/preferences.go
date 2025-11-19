@@ -48,7 +48,7 @@ func (ns NullableString) GetValue() *string {
 type UserPreferences struct {
 	ID               string    `json:"id" db:"id"`
 	UserID           string    `json:"user_id" db:"user_id"`
-	ThemeMode        string    `json:"theme_mode" db:"theme_mode"`                 // "light" or "dark"
+	ThemeMode        string    `json:"theme_mode" db:"theme_mode"`                 // "light", "dark", or "auto"
 	ThemeBackground  *string   `json:"theme_background" db:"theme_background"`     // Background image URL or color
 	ThemeAccentColor *string   `json:"theme_accent_color" db:"theme_accent_color"` // Hex color like #3B82F6
 	OpenInNewTab     bool      `json:"open_in_new_tab" db:"open_in_new_tab"`       // Whether to open services in new tab
@@ -58,7 +58,7 @@ type UserPreferences struct {
 
 // PreferencesUpdateRequest represents the data needed to update preferences
 type PreferencesUpdateRequest struct {
-	ThemeMode        *string        `json:"theme_mode" validate:"omitempty,oneof=light dark"`
+	ThemeMode        *string        `json:"theme_mode" validate:"omitempty,oneof=light dark auto"`
 	ThemeBackground  NullableString `json:"theme_background"`   // Tracks presence separately from value
 	ThemeAccentColor NullableString `json:"theme_accent_color"` // Tracks presence separately from value
 	OpenInNewTab     *bool          `json:"open_in_new_tab"`    // Optional, defaults to true if not provided
