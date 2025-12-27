@@ -6,7 +6,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
-[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
 A modern, self-hosted dashboard for monitoring and managing your homelab services.
@@ -66,7 +66,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 | Layer | Technology |
 |-------|------------|
-| **Frontend** | Next.js 15, React, TypeScript, Tailwind CSS |
+| **Frontend** | Next.js 16, React, TypeScript, Tailwind CSS |
 | **Backend** | Go, Fiber framework |
 | **Database** | PostgreSQL |
 | **Deployment** | Docker, Docker Compose |
