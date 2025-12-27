@@ -1,22 +1,75 @@
-# Nimbus - Self-Hosted Homelab Dashboard
+<div align="center">
 
-A modern, customizable dashboard for your homelab with per-user personalization, health monitoring, OAuth login, and Prometheus metrics.
+# ☁️ Nimbus
 
-## Features
+### Your Homelab, Beautifully Organized
 
-- **Authentication**: Local accounts + OAuth (Google, GitHub, Discord)
-- **Role-Based Access**: Admin panel for user management
-- **Service Dashboard**: Grid-based tiles with drag & drop reordering
-- **Health Monitoring**: Automatic checks with smart self-signed cert handling
-- **User Themes**: Custom backgrounds, colors, light/dark mode per user
-- **Metrics Export**: Prometheus integration with uptime tracking
-- **Mobile Responsive**: Works on all screen sizes
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+
+A modern, self-hosted dashboard for monitoring and managing your homelab services.
+Multi-user support, real-time health checks, beautiful themes, and Prometheus metrics — all in one place.
+
+<br />
+
+<img src="docs/images/dashboard-preview.png" alt="Nimbus Dashboard" width="800" />
+
+<br />
+
+[Getting Started](#-quick-start) · [Features](#-features) · [Documentation](#documentation) · [Roadmap](#roadmap)
+
+</div>
+
+---
+
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+**🔐 Authentication & Security**
+- Local accounts with JWT
+- OAuth2 (Google, GitHub, Discord)
+- Role-based access control
+- Admin panel for user management
+
+**📊 Service Monitoring**
+- Real-time health checks
+- Response time tracking
+- Smart self-signed cert handling
+- Status history & uptime graphs
+
+</td>
+<td width="50%">
+
+**🎨 Personalization**
+- Custom backgrounds per user
+- Light/dark mode toggle
+- Accent color themes
+- Drag & drop service tiles
+
+**📈 Metrics & Integration**
+- Uptime checker
+- Configurable check intervals
+- Prometheus metrics export support
+- Mobile responsive design
+- Docker-ready deployment
+
+</td>
+</tr>
+</table>
 
 ### Tech Stack
-- **Frontend**: Next.js 15 + React + TypeScript + Tailwind CSS
-- **Backend**: Go + Fiber framework
-- **Database**: PostgreSQL
-- **Deployment**: Docker + Docker Compose
+
+| Layer | Technology |
+|-------|------------|
+| **Frontend** | Next.js 15, React, TypeScript, Tailwind CSS |
+| **Backend** | Go, Fiber framework |
+| **Database** | PostgreSQL |
+| **Deployment** | Docker, Docker Compose |
 
 ## Getting Started
 

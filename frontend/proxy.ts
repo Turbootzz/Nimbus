@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
 /**
- * Next.js Middleware for Server-Side Authentication
+ * Next.js Proxy for Server-Side Authentication
  *
- * This middleware runs on the Edge before any page renders, providing:
+ * This proxy runs before any page renders, providing:
  * - Fast JWT validation without backend calls (improves performance)
  * - Protection against SSR/hydration mismatches
  * - Proper redirects before page load
@@ -54,14 +54,14 @@ async function validateToken(token: string): Promise<boolean> {
   } catch (error) {
     // Log validation failure for observability (don't log token for security)
     console.warn(
-      '[Middleware] Token validation failed:',
+      '[Proxy] Token validation failed:',
       error instanceof Error ? error.message : 'Unknown error'
     )
     return false
   }
 }
 
-export async function middleware(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Get auth token from httpOnly cookie
@@ -125,7 +125,7 @@ export async function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// Configure which paths the middleware should run on
+// Configure which paths the proxy should run on
 export const config = {
   matcher: [
     /*

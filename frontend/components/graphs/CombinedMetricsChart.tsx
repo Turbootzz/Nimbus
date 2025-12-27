@@ -17,7 +17,7 @@ export default function CombinedMetricsChart({
   serviceNames,
 }: CombinedMetricsChartProps) {
   const [allMetrics, setAllMetrics] = useState<{ [key: string]: MetricsResponse }>({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(serviceIds.length > 0)
   const [timeRange, setTimeRange] = useState<TimeRangeOption>('24h')
 
   const timeRangeOptions: { value: TimeRangeOption; label: string }[] = [
@@ -66,8 +66,6 @@ export default function CombinedMetricsChart({
 
     if (serviceIds.length > 0) {
       fetchAllMetrics()
-    } else {
-      setLoading(false)
     }
   }, [serviceIds, timeRange])
 
