@@ -327,15 +327,18 @@ class ApiClient {
   /**
    * Initiate OAuth login flow - redirects to provider
    */
-  initiateOAuth(provider: OAuthProvider, redirectTo?: string): void {
+  initiateOAuth(provider: OAuthProvider, redirectTo?: string, rememberMe?: boolean): void {
     const apiUrl = getApiUrl()
     if (!apiUrl) {
       console.error('API URL not configured for OAuth')
       return
     }
 
-    const queryParams = redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''
-    window.location.href = `${apiUrl}/auth/oauth/${provider}${queryParams}`
+    const params = new URLSearchParams()
+    if (redirectTo) params.set('redirect', redirectTo)
+    if (rememberMe) params.set('remember_me', 'true')
+    const queryString = params.toString()
+    window.location.href = `${apiUrl}/auth/oauth/${provider}${queryString ? '?' + queryString : ''}`
   }
 
   /**

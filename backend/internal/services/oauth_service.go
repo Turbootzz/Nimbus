@@ -85,14 +85,14 @@ func NewOAuthService(
 }
 
 // GetAuthURL generates the OAuth authorization URL with state token
-func (s *OAuthService) GetAuthURL(provider models.OAuthProvider, redirectTo string) (string, error) {
+func (s *OAuthService) GetAuthURL(provider models.OAuthProvider, redirectTo string, rememberMe bool) (string, error) {
 	config, ok := s.configs[provider]
 	if !ok {
 		return "", fmt.Errorf("%w: %s", ErrInvalidProvider, provider)
 	}
 
-	// Generate state token for CSRF protection
-	stateToken, err := s.generateStateToken(provider, redirectTo)
+	// Generate state token for CSRF protection (includes rememberMe preference)
+	stateToken, err := s.generateStateToken(provider, redirectTo, rememberMe)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate state token: %w", err)
 	}
@@ -131,16 +131,43 @@ func (s *OAuthService) ExchangeCode(ctx context.Context, provider models.OAuthPr
 }
 
 // generateStateToken creates a JWT state token for CSRF protection
-func (s *OAuthService) generateStateToken(provider models.OAuthProvider, redirectTo string) (string, error) {
+func (s *OAuthService) generateStateToken(provider models.OAuthProvider, redirectTo string, rememberMe bool) (string, error) {
 	claims := jwt.MapClaims{
 		"provider":    string(provider),
 		"redirect_to": redirectTo,
+		"remember_me": rememberMe,
 		"created_at":  time.Now().Unix(),
 		"exp":         time.Now().Add(5 * time.Minute).Unix(), // 5 minute expiry
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(s.stateSecret))
+}
+
+// GetRememberMeFromState extracts the remember_me preference from the state token
+func (s *OAuthService) GetRememberMeFromState(stateToken string) bool {
+	token, err := jwt.Parse(stateToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(s.stateSecret), nil
+	})
+
+	if err != nil {
+		return false
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || !token.Valid {
+		return false
+	}
+
+	rememberMe, ok := claims["remember_me"].(bool)
+	if !ok {
+		return false
+	}
+
+	return rememberMe
 }
 
 // validateStateToken validates the state token and extracts provider
