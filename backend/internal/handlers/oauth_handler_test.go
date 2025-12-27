@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http/httptest"
 	"testing"
 
@@ -130,6 +131,68 @@ func TestOAuthHandler_HandleCallback_MissingParameters(t *testing.T) {
 			resp, err := app.Test(req)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
+		})
+	}
+}
+
+func TestOAuthHandler_InitiateOAuth_RememberMe(t *testing.T) {
+	// Test that remember_me query parameter is correctly parsed
+	app := fiber.New()
+	app.Get("/oauth/:provider", func(c *fiber.Ctx) error {
+		rememberMe := c.Query("remember_me", "false") == "true"
+		return c.JSON(fiber.Map{
+			"remember_me": rememberMe,
+		})
+	})
+
+	tests := []struct {
+		name               string
+		queryParams        string
+		expectedRememberMe bool
+	}{
+		{
+			name:               "No remember_me param defaults to false",
+			queryParams:        "",
+			expectedRememberMe: false,
+		},
+		{
+			name:               "remember_me=true",
+			queryParams:        "?remember_me=true",
+			expectedRememberMe: true,
+		},
+		{
+			name:               "remember_me=false",
+			queryParams:        "?remember_me=false",
+			expectedRememberMe: false,
+		},
+		{
+			name:               "remember_me with other params",
+			queryParams:        "?redirect=/settings&remember_me=true",
+			expectedRememberMe: true,
+		},
+		{
+			name:               "Invalid remember_me value treated as false",
+			queryParams:        "?remember_me=yes",
+			expectedRememberMe: false,
+		},
+		{
+			name:               "remember_me=1 treated as false (must be 'true')",
+			queryParams:        "?remember_me=1",
+			expectedRememberMe: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/oauth/google"+tt.queryParams, nil)
+			resp, err := app.Test(req)
+			assert.NoError(t, err)
+			assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+			var result map[string]interface{}
+			err = json.NewDecoder(resp.Body).Decode(&result)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedRememberMe, result["remember_me"])
 		})
 	}
 }

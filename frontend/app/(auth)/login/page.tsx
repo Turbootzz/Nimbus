@@ -256,13 +256,13 @@ function LoginForm() {
 
           <div className="space-y-3">
             {oauthProviders.includes('google') && (
-              <OAuthButton provider="google" redirectTo="/dashboard" />
+              <OAuthButton provider="google" redirectTo="/dashboard" rememberMe={rememberMe} />
             )}
             {oauthProviders.includes('github') && (
-              <OAuthButton provider="github" redirectTo="/dashboard" />
+              <OAuthButton provider="github" redirectTo="/dashboard" rememberMe={rememberMe} />
             )}
             {oauthProviders.includes('discord') && (
-              <OAuthButton provider="discord" redirectTo="/dashboard" />
+              <OAuthButton provider="discord" redirectTo="/dashboard" rememberMe={rememberMe} />
             )}
           </div>
         </>

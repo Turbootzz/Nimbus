@@ -69,8 +69,11 @@ func (h *OAuthHandler) InitiateOAuth(c *fiber.Ctx) error {
 	// Get redirect URL (where to go after OAuth completes)
 	redirectTo := c.Query("redirect", "/dashboard")
 
-	// Generate authorization URL
-	authURL, err := h.oauthService.GetAuthURL(provider, redirectTo)
+	// Get remember_me preference
+	rememberMe := c.Query("remember_me", "false") == "true"
+
+	// Generate authorization URL (includes rememberMe in state token)
+	authURL, err := h.oauthService.GetAuthURL(provider, redirectTo, rememberMe)
 	if err != nil {
 		log.Printf("Failed to generate OAuth URL: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -101,6 +104,9 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 		return h.redirectWithError(c, "Missing OAuth parameters")
 	}
 
+	// Extract remember_me preference from state token before validation
+	rememberMe := h.oauthService.GetRememberMeFromState(state)
+
 	// Exchange code for user info
 	userInfo, err := h.oauthService.ExchangeCode(c.Context(), provider, code, state)
 	if err != nil {
@@ -118,7 +124,7 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 	existingUser, err := h.userRepo.GetByProviderID(string(provider), userInfo.ProviderID)
 	if err == nil {
 		// User exists - log them in
-		return h.loginUser(c, existingUser)
+		return h.loginUser(c, existingUser, rememberMe)
 	}
 
 	// Check if user exists with this email (different provider)
@@ -143,7 +149,7 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 			return h.redirectWithError(c, "Failed to fetch user")
 		}
 
-		return h.loginUser(c, existingUser)
+		return h.loginUser(c, existingUser, rememberMe)
 	}
 
 	// User doesn't exist - create new account
@@ -166,7 +172,7 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 		return h.redirectWithError(c, "Failed to create account")
 	}
 
-	return h.loginUser(c, newUser)
+	return h.loginUser(c, newUser, rememberMe)
 }
 
 // LinkProvider links an OAuth provider to the currently logged-in user
@@ -291,9 +297,21 @@ func (h *OAuthHandler) GetProviderStatus(c *fiber.Ctx) error {
 }
 
 // Helper: loginUser creates a JWT token and sets the auth cookie
-func (h *OAuthHandler) loginUser(c *fiber.Ctx, user *models.User) error {
-	// Generate JWT token
-	token, err := h.authService.GenerateToken(user.ID, user.Email, user.Role)
+func (h *OAuthHandler) loginUser(c *fiber.Ctx, user *models.User, rememberMe bool) error {
+	// Generate token with appropriate expiration (same logic as regular login)
+	var token string
+	var err error
+	maxAge := 0 // Session cookie by default
+
+	if rememberMe {
+		// Remember me: 30 days for both token and cookie
+		maxAge = 30 * 24 * 60 * 60 // 30 days in seconds
+		token, err = h.authService.GenerateTokenWithExpiration(user.ID, user.Email, user.Role, 30*24*time.Hour)
+	} else {
+		// Session: 24 hours for token, session cookie (cleared on browser close)
+		token, err = h.authService.GenerateToken(user.ID, user.Email, user.Role)
+	}
+
 	if err != nil {
 		log.Printf("Failed to generate token: %v", err)
 		return h.redirectWithError(c, "Failed to generate auth token")
@@ -303,9 +321,9 @@ func (h *OAuthHandler) loginUser(c *fiber.Ctx, user *models.User) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "auth_token",
 		Value:    token,
-		Expires:  time.Now().Add(24 * time.Hour),
+		MaxAge:   maxAge,
 		HTTPOnly: true,
-		Secure:   h.getCookieSecure(), // Consistent with regular login
+		Secure:   h.getCookieSecure(),
 		SameSite: "Lax",
 		Domain:   h.getCookieDomain(),
 	})

@@ -10,6 +10,7 @@ import DiscordIcon from './icons/DiscordIcon'
 interface OAuthButtonProps {
   provider: OAuthProvider
   redirectTo?: string
+  rememberMe?: boolean
   className?: string
 }
 
@@ -40,14 +41,19 @@ const providerConfig = {
   },
 }
 
-export default function OAuthButton({ provider, redirectTo, className = '' }: OAuthButtonProps) {
+export default function OAuthButton({
+  provider,
+  redirectTo,
+  rememberMe,
+  className = '',
+}: OAuthButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
   const config = providerConfig[provider]
   const Icon = config.icon
 
   const handleClick = () => {
     setIsLoading(true)
-    api.initiateOAuth(provider, redirectTo)
+    api.initiateOAuth(provider, redirectTo, rememberMe)
   }
 
   return (
