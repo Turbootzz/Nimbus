@@ -54,9 +54,8 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 **📈 Metrics & Integration**
 - Uptime checker
 - Configurable check intervals
-- Prometheus metrics export support
+- Prometheus metrics support
 - Mobile responsive design
-- Docker-ready deployment
 
 </td>
 </tr>
