@@ -242,14 +242,13 @@ describe('Middleware Expected Behaviors', () => {
 
   describe('Landing Page Mode', () => {
     it('should determine landing page mode from SHOW_LANDING_PAGE env var', () => {
-      // Test the logic used in middleware
-      const showLandingPageTrue = 'true' === 'true'
-      const showLandingPageFalse = 'false' === 'true'
-      const showLandingPageUndefined = undefined === 'true'
+      // Test the logic used in middleware: process.env.SHOW_LANDING_PAGE === 'true'
+      const testEnvValue = (value: string | undefined): boolean => value === 'true'
 
-      expect(showLandingPageTrue).toBe(true)
-      expect(showLandingPageFalse).toBe(false)
-      expect(showLandingPageUndefined).toBe(false)
+      expect(testEnvValue('true')).toBe(true)
+      expect(testEnvValue('false')).toBe(false)
+      expect(testEnvValue(undefined)).toBe(false)
+      expect(testEnvValue('')).toBe(false)
     })
 
     it('should show landing page at root when SHOW_LANDING_PAGE=true and unauthenticated', () => {
