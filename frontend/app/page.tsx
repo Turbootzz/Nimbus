@@ -1,10 +1,253 @@
-export default function Home() {
+import Link from 'next/link'
+import Image from 'next/image'
+import {
+  ShieldCheckIcon,
+  ChartBarIcon,
+  SwatchIcon,
+  CpuChipIcon,
+  ArrowRightIcon,
+} from '@heroicons/react/24/outline'
+
+const NimbusLogo = ({ size = 32 }: { size?: number }) => (
+  <Image src="/images/logo.png" alt="Nimbus" width={size} height={size} />
+)
+
+const features = [
+  {
+    name: 'Authentication & Security',
+    description:
+      'Local accounts with JWT, OAuth2 support (Google, GitHub, Discord), role-based access control, and admin panel for user management.',
+    icon: ShieldCheckIcon,
+  },
+  {
+    name: 'Service Monitoring',
+    description:
+      'Real-time health checks, response time tracking, smart self-signed cert handling, status history and uptime graphs.',
+    icon: ChartBarIcon,
+  },
+  {
+    name: 'Personalization',
+    description:
+      'Custom backgrounds per user, light/dark mode toggle, accent color themes, and drag & drop service tiles.',
+    icon: SwatchIcon,
+  },
+  {
+    name: 'Metrics & Integration',
+    description:
+      'Configurable check intervals, Prometheus metrics export, and mobile responsive design.',
+    icon: CpuChipIcon,
+  },
+]
+
+const screenshots = [
+  { src: '/images/dashboard-preview.png', alt: 'Nimbus Dashboard', label: 'Dashboard' },
+  { src: '/images/services.png', alt: 'Service Management', label: 'Services' },
+  { src: '/images/metrics.png', alt: 'Metrics View', label: 'Metrics' },
+  { src: '/images/theme.png', alt: 'Theme Settings', label: 'Themes' },
+]
+
+export default function LandingPage() {
   return (
-    <div className="bg-background flex min-h-screen items-center justify-center">
-      <div className="text-center">
-        <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
-        <p className="text-text-secondary">Redirecting...</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Navigation */}
+      <nav className="border-b border-gray-200 bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
+            <NimbusLogo size={32} />
+            <span className="text-xl font-semibold text-gray-900">Nimbus</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <a
+              href="https://github.com/Turbootzz/Nimbus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-gray-600 hover:text-gray-900"
+            >
+              GitHub
+            </a>
+            <Link
+              href="/login"
+              className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600"
+            >
+              Launch Nimbus
+            </Link>
+          </div>
+        </div>
+      </nav>
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden bg-white py-20 sm:py-32">
+        <div className="absolute inset-0 bg-linear-to-br from-sky-50 via-white to-white" />
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl lg:text-6xl">
+              Your Homelab,
+              <br />
+              <span className="text-sky-500">Beautifully Organized</span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-2xl text-lg text-gray-600">
+              A modern, self-hosted dashboard for monitoring and managing your homelab services.
+              Multi-user support, real-time health checks, beautiful themes, and Prometheus metrics.
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <Link
+                href="/login"
+                className="group flex items-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-base font-medium text-white shadow-lg transition-all hover:bg-sky-600 hover:shadow-xl"
+              >
+                Launch Nimbus
+                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              </Link>
+              <a
+                href="https://github.com/Turbootzz/Nimbus#-quick-start"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Self-Host in 2 Minutes
+              </a>
+            </div>
+          </div>
+
+          {/* Hero Screenshot */}
+          <div className="mt-16 sm:mt-20">
+            <div className="relative mx-auto max-w-5xl">
+              <div className="overflow-hidden rounded-xl border border-gray-200 bg-gray-900 shadow-2xl">
+                <Image
+                  src="/images/dashboard-preview.png"
+                  alt="Nimbus Dashboard Preview"
+                  width={2361}
+                  height={1025}
+                  className="w-full"
+                  priority
+                  unoptimized
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="bg-white py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              Everything you need for your homelab
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+              Built for the homelab community with the features that matter most.
+            </p>
+          </div>
+
+          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => (
+              <div
+                key={feature.name}
+                className="rounded-xl border border-gray-200 bg-gray-50 p-6 transition-shadow hover:shadow-lg"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-sky-500 text-white">
+                  <feature.icon className="h-6 w-6" />
+                </div>
+                <h3 className="mt-4 text-lg font-semibold text-gray-900">{feature.name}</h3>
+                <p className="mt-2 text-sm text-gray-600">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Screenshots Section */}
+      <section className="bg-gray-50 py-20 sm:py-28">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">
+              See it in action
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
+              A clean, intuitive interface that puts your services front and center.
+            </p>
+          </div>
+
+          <div className="mt-16 grid gap-6 sm:grid-cols-2">
+            {screenshots.map((screenshot) => (
+              <div key={screenshot.label} className="group relative">
+                <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg transition-shadow group-hover:shadow-xl">
+                  <Image
+                    src={screenshot.src}
+                    alt={screenshot.alt}
+                    width={2361}
+                    height={1025}
+                    className="w-full"
+                    unoptimized
+                  />
+                </div>
+                <p className="mt-3 text-center text-sm font-medium text-gray-600">
+                  {screenshot.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="bg-sky-500 py-16 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Ready to organize your homelab?
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-lg text-sky-100">
+            Deploy Nimbus in under 2 minutes with Docker. Only 2 environment variables required!
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Link
+              href="/login"
+              className="rounded-lg bg-white px-6 py-3 text-base font-medium text-sky-600 shadow-lg transition-colors hover:bg-gray-50"
+            >
+              Launch Nimbus
+            </Link>
+            <a
+              href="https://github.com/Turbootzz/Nimbus"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border-2 border-white px-6 py-3 text-base font-medium text-white transition-colors hover:bg-sky-600"
+            >
+              View on GitHub
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-gray-200 bg-white py-12">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
+            <div className="flex items-center gap-2">
+              <NimbusLogo size={24} />
+              <span className="font-semibold text-gray-900">Nimbus</span>
+              <span className="text-sm text-gray-500">— Made for the homelab community</span>
+            </div>
+            <div className="flex items-center gap-6">
+              <a
+                href="https://github.com/Turbootzz/Nimbus"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                GitHub
+              </a>
+              <a
+                href="https://github.com/Turbootzz/Nimbus/blob/main/LICENSE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                AGPL-3.0 License
+              </a>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

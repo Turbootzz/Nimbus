@@ -18,6 +18,9 @@ import { jwtVerify } from 'jose'
 // Define public routes that don't require authentication
 const publicPaths = ['/login', '/register']
 
+// Landing page mode: show marketing page at "/" for demo instances
+const SHOW_LANDING_PAGE = process.env.SHOW_LANDING_PAGE === 'true'
+
 // Define protected routes that require authentication
 const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
 
@@ -106,19 +109,23 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  // If accessing root path, redirect based on authentication status
+  // If accessing root path, redirect based on authentication and landing page mode
   if (pathname === '/') {
     if (authToken) {
       // Validate token signature before redirecting
       const isValid = await validateToken(authToken)
       if (isValid) {
-        // Authenticated users go to dashboard
+        // Authenticated users always go to dashboard
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
     }
-    // Unauthenticated or invalid token - go to login
-    const loginUrl = new URL('/login', request.url)
-    return NextResponse.redirect(loginUrl)
+    // Unauthenticated user at root
+    if (SHOW_LANDING_PAGE) {
+      // Demo mode: show the marketing landing page
+      return NextResponse.next()
+    }
+    // Self-hosted mode: redirect to login
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Allow the request to continue
