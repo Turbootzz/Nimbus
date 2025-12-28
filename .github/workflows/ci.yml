@@ -171,7 +171,7 @@ jobs:
           context: ./frontend
           file: ./frontend/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/nimbus-frontend-prod:latest
+          tags: ghcr.io/turbootzz/nimbus-frontend-prod:latest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
