@@ -150,6 +150,9 @@ jobs:
       github.repository_owner == 'Turbootzz' &&
       needs.backend.result == 'success' &&
       needs.frontend.result == 'success'
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout code
