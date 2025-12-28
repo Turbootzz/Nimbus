@@ -100,7 +100,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           }}
         >
           <item.icon
-            className="group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
+            className="group-hover:text-text-secondary mr-3 h-5 w-5 shrink-0"
             style={{
               color: isActive(item.href) ? 'white' : 'var(--color-text-muted)',
             }}
@@ -117,7 +117,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
         className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
       >
         <PlusIcon
-          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
+          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 shrink-0"
           aria-hidden="true"
         />
         Add Service
@@ -127,13 +127,13 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
   // Shared logout button rendering function
   const renderLogout = () => (
-    <div className="border-sidebar-border flex-shrink-0 border-t p-4">
+    <div className="border-sidebar-border shrink-0 border-t p-4">
       <button
         onClick={handleLogout}
         className="group text-text-secondary hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors"
       >
         <ArrowRightStartOnRectangleIcon
-          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 flex-shrink-0"
+          className="text-text-muted group-hover:text-text-secondary mr-3 h-5 w-5 shrink-0"
           aria-hidden="true"
         />
         Sign out
@@ -145,9 +145,9 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     <>
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
-        <div className="border-sidebar-border bg-sidebar flex flex-grow flex-col overflow-y-auto border-r">
+        <div className="border-sidebar-border bg-sidebar flex grow flex-col overflow-y-auto border-r">
           {/* Logo */}
-          <div className="border-sidebar-border flex h-16 flex-shrink-0 items-center border-b px-6">
+          <div className="border-sidebar-border flex h-16 shrink-0 items-center border-b px-6">
             <Image src="/images/logo.png" alt="Nimbus Logo" width={30} height={30} />
             <span className="text-text-primary ml-2 text-xl font-semibold">Nimbus</span>
           </div>

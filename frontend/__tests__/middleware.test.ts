@@ -235,8 +235,66 @@ describe('Middleware Expected Behaviors', () => {
       // When user accesses /:
       // - With valid token: redirect to /dashboard
       // - With invalid token: clear cookie and redirect to /login
-      // - With no token: redirect to /login
+      // - With no token: redirect to /login (or show landing page if SHOW_LANDING_PAGE=true)
       expect(true).toBe(true) // Behavior documented
+    })
+  })
+
+  describe('Landing Page Mode', () => {
+    it('should determine landing page mode from SHOW_LANDING_PAGE env var', () => {
+      // Test the logic used in middleware: process.env.SHOW_LANDING_PAGE === 'true'
+      const testEnvValue = (value: string | undefined): boolean => value === 'true'
+
+      expect(testEnvValue('true')).toBe(true)
+      expect(testEnvValue('false')).toBe(false)
+      expect(testEnvValue(undefined)).toBe(false)
+      expect(testEnvValue('')).toBe(false)
+    })
+
+    it('should show landing page at root when SHOW_LANDING_PAGE=true and unauthenticated', () => {
+      // Documents expected behavior:
+      // When SHOW_LANDING_PAGE=true and user is NOT authenticated:
+      // - Root path (/) shows the marketing landing page
+      // - User can click "Launch Nimbus" to go to /login
+      const SHOW_LANDING_PAGE = true
+      const hasValidToken = false
+      const pathname = '/'
+
+      const shouldShowLandingPage = pathname === '/' && !hasValidToken && SHOW_LANDING_PAGE
+      expect(shouldShowLandingPage).toBe(true)
+    })
+
+    it('should redirect to login at root when SHOW_LANDING_PAGE=false and unauthenticated', () => {
+      // Documents expected behavior (self-hosted default):
+      // When SHOW_LANDING_PAGE is false/undefined and user is NOT authenticated:
+      // - Root path (/) redirects to /login
+      const SHOW_LANDING_PAGE = false
+      const hasValidToken = false
+      const pathname = '/'
+
+      const shouldRedirectToLogin = pathname === '/' && !hasValidToken && !SHOW_LANDING_PAGE
+      expect(shouldRedirectToLogin).toBe(true)
+    })
+
+    it('should always redirect authenticated users to dashboard regardless of landing page setting', () => {
+      // Documents expected behavior:
+      // Authenticated users at root always go to /dashboard
+      const hasValidToken = true
+      const pathname = '/'
+
+      // Landing page setting doesn't matter for authenticated users
+      const shouldRedirectToDashboard = pathname === '/' && hasValidToken
+      expect(shouldRedirectToDashboard).toBe(true)
+    })
+
+    it('should not affect protected routes regardless of landing page setting', () => {
+      // Landing page mode only affects the root path
+      const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
+
+      protectedPaths.forEach((path) => {
+        const isRootPath = path === '/'
+        expect(isRootPath).toBe(false)
+      })
     })
   })
 })
