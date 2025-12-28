@@ -118,8 +118,18 @@ export default async function proxy(request: NextRequest) {
         // Authenticated users always go to dashboard
         return NextResponse.redirect(new URL('/dashboard', request.url))
       }
+      // Token is invalid/expired - clear it and continue to unauthenticated flow
+      if (SHOW_LANDING_PAGE) {
+        const response = NextResponse.next()
+        response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
+        return response
+      }
+      // Self-hosted mode: redirect to login with cleared cookie
+      const redirectResponse = NextResponse.redirect(new URL('/login', request.url))
+      redirectResponse.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
+      return redirectResponse
     }
-    // Unauthenticated user at root
+    // No token - unauthenticated user at root
     if (SHOW_LANDING_PAGE) {
       // Demo mode: show the marketing landing page
       return NextResponse.next()
