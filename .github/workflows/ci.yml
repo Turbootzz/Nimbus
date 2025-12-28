@@ -139,6 +139,47 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
+  # nimbus.turboot.com prod image
+  docker-prod:
+    name: Build Prod Image
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      github.repository_owner == 'Turbootzz' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push production frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/nimbus-frontend-prod:latest
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_APP_NAME=Nimbus
+            NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+
+  # Public Docker Hub images
   docker:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
@@ -210,15 +251,16 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend, frontend, docker]
+    needs: [backend, frontend, docker, docker-prod]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          # Docker job is skipped on non-main branches, so treat 'skipped' as success
+          # Docker jobs are skipped on non-main branches, so treat 'skipped' as success
           docker_ok=$([[ "${{ needs.docker.result }}" == "success" ]] || [[ "${{ needs.docker.result }}" == "skipped" ]] && echo "true" || echo "false")
+          prod_ok=$([[ "${{ needs.docker-prod.result }}" == "success" ]] || [[ "${{ needs.docker-prod.result }}" == "skipped" ]] && echo "true" || echo "false")
 
-          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]]; then
+          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$prod_ok" == "true" ]]; then
             echo "All CI jobs passed!"
             exit 0
           else
@@ -226,6 +268,6 @@ jobs:
             echo "Backend: ${{ needs.backend.result }}"
             echo "Frontend: ${{ needs.frontend.result }}"
             echo "Docker: ${{ needs.docker.result }}"
+            echo "Docker Prod: ${{ needs.docker-prod.result }}"
             exit 1
           fi
- 
