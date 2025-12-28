@@ -11,6 +11,34 @@ import (
 	"github.com/nimbus/backend/internal/models"
 )
 
+// Default values for environment variables (Convention over Configuration)
+var defaults = map[string]string{
+	"PORT":         "8080",
+	"DB_HOST":      "db",
+	"DB_PORT":      "5432",
+	"DB_USER":      "nimbus",
+	"DB_NAME":      "nimbus",
+	"CORS_ORIGINS": "http://localhost:3000",
+}
+
+// applyDefaults sets default values for environment variables if not already set
+func applyDefaults() {
+	for key, value := range defaults {
+		if os.Getenv(key) == "" {
+			os.Setenv(key, value)
+			log.Printf("Using default %s=%s", key, value)
+		}
+	}
+}
+
+// GetEnvOrDefault returns the environment variable value or a default
+func GetEnvOrDefault(key, defaultValue string) string {
+	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
 // LoadEnv loads environment variables from .env file with proper error handling
 // If no .env file is found, it will continue (for Docker/production deployments)
 func LoadEnv() error {
@@ -24,6 +52,9 @@ func LoadEnv() error {
 			log.Println("No .env file found, using environment variables directly")
 		}
 	}
+
+	// Apply defaults for optional variables before validation
+	applyDefaults()
 
 	// Validate critical environment variables
 	if err := validateRequiredEnvVars(); err != nil {
