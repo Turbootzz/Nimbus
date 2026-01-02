@@ -37,13 +37,13 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       # Optional overrides (uncomment to customize):
       # PORT: 8080
       # DB_HOST: db
       # DB_PORT: 5432
       # DB_USER: nimbus
       # DB_NAME: nimbus
-      # CORS_ORIGINS: http://localhost:3000
     ports:
       - "8080:8080"
     depends_on:

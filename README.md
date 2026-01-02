@@ -112,6 +112,7 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     volumes:
       - uploads_data:/app/uploads
     ports:
@@ -151,6 +152,8 @@ Navigate to **http://localhost:3000** and create your first account!
 ## ⚙️ Configuration
 
 Nimbus uses **convention over configuration** — sensible defaults are applied automatically.
+
+Variables can be set in your `.env` file or directly in `docker-compose.yml`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
