@@ -7,23 +7,93 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   PlusIcon,
+  PencilIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, CardSize } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceCard from '@/components/ServiceCard'
+
+// Grid span classes for wrapper - must match ServiceCard's sizeToGridSpan
+const sizeToGridSpan: Record<CardSize, string> = {
+  '1x1': 'col-span-1 row-span-1',
+  '2x1': 'col-span-2 row-span-1',
+  '1x2': 'col-span-1 row-span-2',
+  '2x2': 'col-span-2 row-span-2',
+}
+
+// Sortable wrapper for ServiceCard in edit mode
+function SortableServiceCard({
+  service,
+  openInNewTab,
+  isEditMode,
+  onSizeChange,
+}: {
+  service: Service
+  openInNewTab: boolean
+  isEditMode: boolean
+  onSizeChange: (id: string, newSize: CardSize) => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: service.id,
+  })
+
+  const cardSize = service.card_size || '2x1'
+  const gridSpan = sizeToGridSpan[cardSize]
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={`${gridSpan} h-full`}>
+      <ServiceCard
+        service={service}
+        openInNewTab={openInNewTab}
+        isEditMode={isEditMode}
+        onSizeChange={onSizeChange}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={isDragging}
+      />
+    </div>
+  )
+}
 
 export default function DashboardPage() {
   const { openInNewTab } = useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
     offline: 0,
     avgResponseTime: 0,
   })
+
+  // DnD sensors for mouse and touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    })
+  )
 
   useEffect(() => {
     fetchServices()
@@ -61,6 +131,53 @@ export default function DashboardPage() {
       console.error('Failed to fetch services:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+
+    const oldIndex = services.findIndex((s) => s.id === active.id)
+    const newIndex = services.findIndex((s) => s.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Optimistic update
+    const reordered = arrayMove(services, oldIndex, newIndex)
+    setServices(reordered)
+
+    // Persist to backend
+    try {
+      await api.reorderServices({
+        services: reordered.map((s, i) => ({ id: s.id, position: i })),
+      })
+    } catch (error) {
+      console.error('Failed to save order:', error)
+      setServices(services) // Revert on error
+    }
+  }
+
+  const handleSizeChange = async (id: string, newSize: CardSize) => {
+    const service = services.find((s) => s.id === id)
+    if (!service) return
+
+    // Optimistic update
+    setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
+
+    // Persist to backend
+    try {
+      await api.updateService(id, {
+        name: service.name,
+        url: service.url,
+        description: service.description || '',
+        icon: service.icon || '',
+        icon_type: service.icon_type || 'emoji',
+        icon_image_path: service.icon_image_path || '',
+        card_size: newSize,
+      })
+    } catch (error) {
+      console.error('Failed to update card size:', error)
+      setServices(services) // Revert on error
     }
   }
 
@@ -129,32 +246,75 @@ export default function DashboardPage() {
       {/* Services grid */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-text-primary text-xl font-semibold">Services</h2>
-        <Link
-          href="/services/new"
-          className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-        >
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Add Service
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              isEditMode
+                ? 'bg-success hover:bg-success/80 text-white'
+                : 'border-card-border text-text-primary hover:bg-card-hover border'
+            }`}
+          >
+            {isEditMode ? (
+              <>
+                <CheckIcon className="mr-2 h-4 w-4" />
+                Done
+              </>
+            ) : (
+              <>
+                <PencilIcon className="mr-2 h-4 w-4" />
+                Edit
+              </>
+            )}
+          </button>
+          <Link
+            href="/services/new"
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Service
+          </Link>
+        </div>
       </div>
 
-      <div
-        className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
-        style={{ gridAutoFlow: 'dense' }}
-      >
-        {services.map((service) => (
-          <ServiceCard key={service.id} service={service} openInNewTab={openInNewTab} />
-        ))}
-
-        {/* Add new service card - spans 2 cols like standard card */}
-        <Link
-          href="/services/new"
-          className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+      {isEditMode ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
+            <div
+              className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+              style={{ gridAutoFlow: 'dense' }}
+            >
+              {services.map((service) => (
+                <SortableServiceCard
+                  key={service.id}
+                  service={service}
+                  openInNewTab={openInNewTab}
+                  isEditMode={isEditMode}
+                  onSizeChange={handleSizeChange}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        <div
+          className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+          style={{ gridAutoFlow: 'dense' }}
         >
-          <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-          <span className="text-text-secondary">Add Service</span>
-        </Link>
-      </div>
+          {services.map((service) => (
+            <ServiceCard key={service.id} service={service} openInNewTab={openInNewTab} />
+          ))}
+
+          {/* Add new service card - spans 2 cols like standard card */}
+          <Link
+            href="/services/new"
+            className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+          >
+            <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
+            <span className="text-text-secondary">Add Service</span>
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
