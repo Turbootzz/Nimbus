@@ -32,6 +32,8 @@ services:
     image: turboot/nimbus-backend:latest
     container_name: nimbus-backend
     restart: unless-stopped
+    volumes:
+      - uploads_data:/app/uploads
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
@@ -77,6 +79,7 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
 
 networks:
   nimbus-network:

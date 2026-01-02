@@ -35,6 +35,9 @@ RUN addgroup -g 1000 nimbus && \
     adduser -D -u 1000 -G nimbus nimbus && \
     chown -R nimbus:nimbus /app
 
+# Create uploads directory for persistent storage
+RUN mkdir -p /app/uploads && chown -R nimbus:nimbus /app/uploads
+
 USER nimbus
 
 EXPOSE 8080
