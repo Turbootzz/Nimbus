@@ -31,6 +31,7 @@ export interface AuthResponse {
 
 // Service types
 export type IconType = 'emoji' | 'image_upload' | 'image_url'
+export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
 
 export interface Service {
   id: string
@@ -43,6 +44,7 @@ export interface Service {
   status: 'online' | 'offline' | 'unknown'
   response_time?: number
   position: number
+  card_size: CardSize
   created_at: string
   updated_at?: string
 }
@@ -54,6 +56,7 @@ export interface ServiceCreateRequest {
   icon_type?: IconType
   icon_image_path?: string
   description?: string
+  card_size?: CardSize
 }
 
 export interface ServiceUpdateRequest {
@@ -63,6 +66,7 @@ export interface ServiceUpdateRequest {
   icon_type?: IconType
   icon_image_path?: string
   description?: string
+  card_size?: CardSize
 }
 
 export interface ServicePosition {

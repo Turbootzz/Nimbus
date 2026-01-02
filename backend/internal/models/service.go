@@ -16,6 +16,18 @@ const (
 	IconTypeImageURL    = "image_url"
 )
 
+// Card size constants
+const (
+	CardSize1x1 = "1x1" // Compact square
+	CardSize2x1 = "2x1" // Standard rectangle (default)
+	CardSize1x2 = "1x2" // Tall rectangle
+	CardSize2x2 = "2x2" // Large square
+)
+
+const (
+	DefaultCardSize = CardSize2x1
+)
+
 const (
 	DefaultIcon = "🔗"
 )
@@ -33,6 +45,7 @@ type Service struct {
 	Status        string    `json:"status" db:"status"`               // StatusOnline, StatusOffline, or StatusUnknown
 	ResponseTime  *int      `json:"response_time" db:"response_time"` // Response time in milliseconds (nil if never checked)
 	Position      int       `json:"position" db:"position"`           // User-defined position for dashboard ordering
+	CardSize      string    `json:"card_size" db:"card_size"`         // '1x1', '2x1', '1x2', or '2x2'
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -45,6 +58,7 @@ type ServiceCreateRequest struct {
 	IconType      string `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
 	IconImagePath string `json:"icon_image_path"` // File path or URL for image icons
 	Description   string `json:"description"`
+	CardSize      string `json:"card_size"` // '1x1', '2x1', '1x2', or '2x2' (defaults to '2x1')
 }
 
 // ServiceUpdateRequest represents the data needed to update a service
@@ -55,6 +69,7 @@ type ServiceUpdateRequest struct {
 	IconType      string `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
 	IconImagePath string `json:"icon_image_path"` // File path or URL for image icons
 	Description   string `json:"description"`
+	CardSize      string `json:"card_size"` // '1x1', '2x1', '1x2', or '2x2' (preserves existing if empty)
 }
 
 // ServiceResponse is the safe service data to return to clients
@@ -69,6 +84,7 @@ type ServiceResponse struct {
 	Status        string    `json:"status"`
 	ResponseTime  *int      `json:"response_time,omitempty"` // Response time in milliseconds (omitted if nil)
 	Position      int       `json:"position"`
+	CardSize      string    `json:"card_size"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -86,6 +102,7 @@ func (s *Service) ToResponse() ServiceResponse {
 		Status:        s.Status,
 		ResponseTime:  s.ResponseTime,
 		Position:      s.Position,
+		CardSize:      s.CardSize,
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,
 	}

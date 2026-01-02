@@ -6,7 +6,8 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
-import type { IconType } from '@/types'
+import CardSizeSelector from '@/components/CardSizeSelector'
+import type { IconType, CardSize } from '@/types'
 
 export default function EditServicePage() {
   const router = useRouter()
@@ -25,6 +26,7 @@ export default function EditServicePage() {
     icon_type: 'emoji' as IconType,
     icon_image_path: '',
     description: '',
+    card_size: '2x1' as CardSize,
   })
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function EditServicePage() {
           icon_type: service.icon_type || 'emoji',
           icon_image_path: service.icon_image_path || '',
           description: service.description || '',
+          card_size: service.card_size || '2x1',
         })
       }
 
@@ -102,6 +105,7 @@ export default function EditServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
+        card_size: formData.card_size,
       })
 
       if (response.error) {
@@ -234,6 +238,12 @@ export default function EditServicePage() {
               setFormData((prev) => ({ ...prev, icon_image_path }))
             }
             onFileSelect={(file) => setUploadedFile(file)}
+          />
+
+          {/* Card Size */}
+          <CardSizeSelector
+            value={formData.card_size}
+            onChange={(card_size) => setFormData({ ...formData, card_size })}
           />
 
           {/* Service Description */}

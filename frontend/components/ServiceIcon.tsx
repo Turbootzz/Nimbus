@@ -7,7 +7,7 @@ import { getApiUrl } from '@/lib/utils/api-url'
 
 interface ServiceIconProps {
   service: Service
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'
   className?: string
 }
 
@@ -16,6 +16,8 @@ const sizeClasses = {
   md: 'text-5xl w-16 h-16',
   lg: 'text-6xl w-20 h-20',
   xl: 'text-7xl w-24 h-24',
+  '2xl': 'text-9xl w-32 h-32',
+  '3xl': 'text-[12rem] w-48 h-48',
 }
 
 const sizeDimensions = {
@@ -23,6 +25,8 @@ const sizeDimensions = {
   md: 64,
   lg: 80,
   xl: 96,
+  '2xl': 128,
+  '3xl': 192,
 }
 
 export default function ServiceIcon({ service, size = 'md', className = '' }: ServiceIconProps) {

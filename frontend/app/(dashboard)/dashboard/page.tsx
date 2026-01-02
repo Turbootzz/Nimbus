@@ -12,8 +12,7 @@ import Link from 'next/link'
 import { api } from '@/lib/api'
 import type { Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
-import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
-import ServiceIcon from '@/components/ServiceIcon'
+import ServiceCard from '@/components/ServiceCard'
 
 export default function DashboardPage() {
   const { openInNewTab } = useTheme()
@@ -139,41 +138,18 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div
+        className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+        style={{ gridAutoFlow: 'dense' }}
+      >
         {services.map((service) => (
-          <a
-            key={service.id}
-            href={service.url}
-            target={openInNewTab ? '_blank' : '_self'}
-            {...(openInNewTab && { rel: 'noopener noreferrer' })}
-            className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
-          >
-            <div className="mb-4 flex items-start justify-between">
-              <ServiceIcon service={service} size="md" />
-              <div className={`flex items-center ${getStatusColor(service.status)}`}>
-                {getStatusIcon(service.status)}
-                <span className="ml-1 text-sm capitalize">{service.status}</span>
-              </div>
-            </div>
-
-            <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
-            <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
-
-            {service.response_time !== undefined && service.response_time !== null && (
-              <div
-                className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
-              >
-                <ClockIcon className="mr-1 h-3 w-3" />
-                {service.response_time}ms
-              </div>
-            )}
-          </a>
+          <ServiceCard key={service.id} service={service} openInNewTab={openInNewTab} />
         ))}
 
-        {/* Add new service card */}
+        {/* Add new service card - spans 2 cols like standard card */}
         <Link
           href="/services/new"
-          className="bg-card border-card-border hover:border-primary hover:bg-primary-light flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+          className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
         >
           <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
           <span className="text-text-secondary">Add Service</span>
