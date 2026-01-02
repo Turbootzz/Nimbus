@@ -112,6 +112,8 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - uploads_data:/app/uploads
     ports:
       - "8080:8080"
     depends_on:
@@ -131,6 +133,7 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
 ```
 
 ### 4. Start Nimbus
