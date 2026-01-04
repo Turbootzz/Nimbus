@@ -141,6 +141,9 @@ export default function DashboardPage() {
     const newIndex = services.findIndex((s) => s.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
+    // Capture current state for rollback
+    const previousServices = services
+
     // Optimistic update
     const reordered = arrayMove(services, oldIndex, newIndex)
     setServices(reordered)
@@ -152,13 +155,16 @@ export default function DashboardPage() {
       })
     } catch (error) {
       console.error('Failed to save order:', error)
-      setServices(services) // Revert on error
+      setServices(previousServices)
     }
   }
 
   const handleSizeChange = async (id: string, newSize: CardSize) => {
     const service = services.find((s) => s.id === id)
     if (!service) return
+
+    // Capture current state for rollback
+    const previousServices = services
 
     // Optimistic update
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
@@ -176,7 +182,7 @@ export default function DashboardPage() {
       })
     } catch (error) {
       console.error('Failed to update card size:', error)
-      setServices(services) // Revert on error
+      setServices(previousServices)
     }
   }
 
@@ -280,7 +286,7 @@ export default function DashboardPage() {
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div
-              className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+              className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
               style={{ gridAutoFlow: 'dense' }}
             >
               {services.map((service) => (
@@ -297,7 +303,7 @@ export default function DashboardPage() {
         </DndContext>
       ) : (
         <div
-          className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8"
+          className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
           style={{ gridAutoFlow: 'dense' }}
         >
           {services.map((service) => (

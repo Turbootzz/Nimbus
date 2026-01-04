@@ -123,22 +123,21 @@ function CompactCard({
         </div>
       )}
       <div className="flex flex-1 items-center justify-center">
-        <div className="relative inline-block">
-          <ServiceIcon service={service} size="xl" />
-          <div
-            className={`absolute right-0 bottom-0 h-4 w-4 rounded-full border-2 ${
-              service.status === 'online'
-                ? 'border-card bg-success'
-                : service.status === 'offline'
-                  ? 'border-card bg-error'
-                  : 'border-card bg-warning'
-            }`}
-          />
-        </div>
+        <ServiceIcon service={service} size="2xl" />
       </div>
-      <h3 className="text-text-primary w-full truncate text-center text-xs font-semibold">
-        {service.name}
-      </h3>
+      {/* Title with inline status indicator */}
+      <div className="flex w-full items-center justify-center gap-1.5">
+        <div
+          className={`h-3 w-3 shrink-0 rounded-full ${
+            service.status === 'online'
+              ? 'bg-success'
+              : service.status === 'offline'
+                ? 'bg-error'
+                : 'bg-warning'
+          }`}
+        />
+        <h3 className="text-text-primary text-md truncate font-semibold">{service.name}</h3>
+      </div>
     </>
   )
 
