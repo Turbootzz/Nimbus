@@ -15,7 +15,7 @@ interface ServiceCardProps {
   isDragging?: boolean
 }
 
-const sizeOrder: CardSize[] = ['1x1', '2x1', '1x2', '2x2']
+const sizeOrder: CardSize[] = ['1x1', '2x1', '2x2']
 
 function getNextSize(current: CardSize): CardSize {
   const idx = sizeOrder.indexOf(current)
@@ -24,11 +24,10 @@ function getNextSize(current: CardSize): CardSize {
 
 // CSS Grid span classes for each size
 // Grid uses 2/4/6/8 columns at different breakpoints
-// 1x1 = 1 col (half width), 2x1 = 2 cols (standard), 1x2 = 1 col + 2 rows, 2x2 = 2 cols + 2 rows
+// 1x1 = 1 col (half width), 2x1 = 2 cols (standard), 2x2 = 2 cols + 2 rows
 const sizeToGridSpan: Record<CardSize, string> = {
   '1x1': 'col-span-1 row-span-1',
   '2x1': 'col-span-2 row-span-1',
-  '1x2': 'col-span-1 row-span-2',
   '2x2': 'col-span-2 row-span-2',
 }
 
@@ -70,8 +69,6 @@ export default function ServiceCard({
   switch (cardSize) {
     case '1x1':
       return <CompactCard {...variantProps} />
-    case '1x2':
-      return <TallCard {...variantProps} />
     case '2x2':
       return <LargeCard {...variantProps} />
     default:
@@ -211,78 +208,6 @@ function StandardCard({
         {service.response_time !== undefined && service.response_time !== null
           ? `${service.response_time}ms`
           : '-'}
-      </div>
-    </>
-  )
-
-  if (isEditMode) {
-    return (
-      <div onClick={onSizeChange} className={`${baseClasses} ${editClasses} ${dragClasses}`}>
-        {content}
-      </div>
-    )
-  }
-
-  return (
-    <a {...linkProps} className={`${baseClasses} ${editClasses}`}>
-      {content}
-    </a>
-  )
-}
-
-// 1x2 - Tall: large icon centered, name, description, status stacked vertically
-function TallCard({
-  service,
-  gridSpan,
-  linkProps,
-  isEditMode,
-  onSizeChange,
-  dragHandleProps,
-  isDragging,
-  cardSize,
-}: CardVariantProps) {
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center rounded-lg border p-4 transition-all relative`
-  const editClasses = isEditMode
-    ? 'border-dashed border-2 cursor-pointer hover:border-primary'
-    : 'hover:border-primary hover:shadow-lg'
-  const dragClasses = isDragging ? 'opacity-50' : ''
-
-  const content = (
-    <>
-      {isEditMode && (
-        <div className="absolute top-2 right-2 left-2 z-10 flex items-center justify-between">
-          <div
-            {...dragHandleProps}
-            className="bg-card/90 cursor-grab rounded p-1 active:cursor-grabbing"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Bars3Icon className="text-text-muted h-4 w-4" />
-          </div>
-          <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-        </div>
-      )}
-      <div className="flex flex-1 items-center justify-center py-4">
-        <ServiceIcon service={service} size="lg" />
-      </div>
-
-      <div className="w-full text-center">
-        <h3 className="text-text-primary mb-1 text-base font-semibold">{service.name}</h3>
-        <p className="text-text-secondary mb-3 line-clamp-3 text-xs">{service.description}</p>
-
-        <div
-          className={`flex items-center justify-center text-xs ${getStatusColor(service.status)}`}
-        >
-          {getStatusIcon(service.status)}
-          <span className="ml-1 capitalize">{service.status}</span>
-        </div>
-        {service.response_time !== undefined && service.response_time !== null && (
-          <div
-            className={`mt-1 flex items-center justify-center text-xs ${getResponseTimeColor(service.response_time)}`}
-          >
-            <ClockIcon className="mr-1 h-3 w-3" />
-            {service.response_time}ms
-          </div>
-        )}
       </div>
     </>
   )

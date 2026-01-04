@@ -561,18 +561,6 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 			expectError:    false,
 		},
 		{
-			name:      "Update service with 1x2 card size",
-			userID:    "user-1",
-			serviceID: "service-1",
-			requestBody: models.ServiceUpdateRequest{
-				Name:     "Updated Service",
-				URL:      "https://updated.com",
-				CardSize: models.CardSize1x2,
-			},
-			expectedStatus: http.StatusOK,
-			expectError:    false,
-		},
-		{
 			name:      "Update with invalid card_size",
 			userID:    "user-1",
 			serviceID: "service-1",

@@ -34,8 +34,8 @@ describe('Edit Mode Functionality', () => {
   })
 
   describe('Card Size Cycling', () => {
-    it('should cycle through card sizes: 1x1 -> 2x1 -> 1x2 -> 2x2 -> 1x1', () => {
-      const sizeCycle: CardSize[] = ['1x1', '2x1', '1x2', '2x2']
+    it('should cycle through card sizes: 1x1 -> 2x1 -> 2x2 -> 1x1', () => {
+      const sizeCycle: CardSize[] = ['1x1', '2x1', '2x2']
 
       const getNextSize = (currentSize: CardSize): CardSize => {
         const currentIndex = sizeCycle.indexOf(currentSize)
@@ -44,8 +44,7 @@ describe('Edit Mode Functionality', () => {
       }
 
       expect(getNextSize('1x1')).toBe('2x1')
-      expect(getNextSize('2x1')).toBe('1x2')
-      expect(getNextSize('1x2')).toBe('2x2')
+      expect(getNextSize('2x1')).toBe('2x2')
       expect(getNextSize('2x2')).toBe('1x1')
     })
 
@@ -206,13 +205,11 @@ describe('Edit Mode Functionality', () => {
       const sizeToGridSpan: Record<CardSize, string> = {
         '1x1': 'col-span-1 row-span-1',
         '2x1': 'col-span-2 row-span-1',
-        '1x2': 'col-span-1 row-span-2',
         '2x2': 'col-span-2 row-span-2',
       }
 
       expect(sizeToGridSpan['1x1']).toBe('col-span-1 row-span-1')
       expect(sizeToGridSpan['2x1']).toBe('col-span-2 row-span-1')
-      expect(sizeToGridSpan['1x2']).toBe('col-span-1 row-span-2')
       expect(sizeToGridSpan['2x2']).toBe('col-span-2 row-span-2')
     })
 
@@ -223,7 +220,6 @@ describe('Edit Mode Functionality', () => {
       const sizeToGridSpan: Record<CardSize, string> = {
         '1x1': 'col-span-1 row-span-1',
         '2x1': 'col-span-2 row-span-1',
-        '1x2': 'col-span-1 row-span-2',
         '2x2': 'col-span-2 row-span-2',
       }
 

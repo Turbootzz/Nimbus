@@ -31,7 +31,7 @@ export interface AuthResponse {
 
 // Service types
 export type IconType = 'emoji' | 'image_upload' | 'image_url'
-export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
+export type CardSize = '1x1' | '2x1' | '2x2'
 
 export interface Service {
   id: string
