@@ -171,7 +171,7 @@ function StandardCard({
   isDragging,
   cardSize,
 }: CardVariantProps) {
-  const baseClasses = `${gridSpan} bg-card border-card-border h-full rounded-lg border p-6 transition-all relative`
+  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border p-6 transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -199,28 +199,32 @@ function StandardCard({
         </div>
       </div>
 
-      <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
-      <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
-
-      {service.response_time !== undefined && service.response_time !== null && (
-        <div className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}>
-          <ClockIcon className="mr-1 h-3 w-3" />
-          {service.response_time}ms
-        </div>
+      <h3 className="text-text-primary mb-1 truncate text-lg font-semibold">{service.name}</h3>
+      {service.description && (
+        <p className="text-text-secondary line-clamp-1 text-sm">{service.description}</p>
       )}
+
+      <div
+        className={`mt-auto flex items-center py-1 text-xs ${service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
+      >
+        <ClockIcon className="mr-1 h-3 w-3" />
+        {service.response_time !== undefined && service.response_time !== null
+          ? `${service.response_time}ms`
+          : '-'}
+      </div>
     </>
   )
 
   if (isEditMode) {
     return (
-      <div onClick={onSizeChange} className={`${baseClasses} ${editClasses} ${dragClasses} block`}>
+      <div onClick={onSizeChange} className={`${baseClasses} ${editClasses} ${dragClasses}`}>
         {content}
       </div>
     )
   }
 
   return (
-    <a {...linkProps} className={`${baseClasses} ${editClasses} block`}>
+    <a {...linkProps} className={`${baseClasses} ${editClasses}`}>
       {content}
     </a>
   )
