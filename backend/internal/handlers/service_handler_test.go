@@ -495,3 +495,193 @@ func TestServiceHandler_DeleteService(t *testing.T) {
 		})
 	}
 }
+
+func TestServiceHandler_UpdateService(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	handler := NewServiceHandler(serviceRepo, nil)
+
+	// Create test service
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-1",
+		UserID:    "user-1",
+		Name:      "Service 1",
+		URL:       "https://example1.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CardSize:  models.CardSize2x1,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	// Create service owned by different user
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-2",
+		UserID:    "user-2",
+		Name:      "Service 2",
+		URL:       "https://example2.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	tests := []struct {
+		name           string
+		userID         string
+		serviceID      string
+		requestBody    models.ServiceUpdateRequest
+		expectedStatus int
+		expectError    bool
+	}{
+		{
+			name:      "Successfully update service with valid card_size",
+			userID:    "user-1",
+			serviceID: "service-1",
+			requestBody: models.ServiceUpdateRequest{
+				Name:     "Updated Service",
+				URL:      "https://updated.com",
+				CardSize: models.CardSize2x2,
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:      "Update service with 1x1 card size",
+			userID:    "user-1",
+			serviceID: "service-1",
+			requestBody: models.ServiceUpdateRequest{
+				Name:     "Updated Service",
+				URL:      "https://updated.com",
+				CardSize: models.CardSize1x1,
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:      "Update service with 1x2 card size",
+			userID:    "user-1",
+			serviceID: "service-1",
+			requestBody: models.ServiceUpdateRequest{
+				Name:     "Updated Service",
+				URL:      "https://updated.com",
+				CardSize: models.CardSize1x2,
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:      "Update with invalid card_size",
+			userID:    "user-1",
+			serviceID: "service-1",
+			requestBody: models.ServiceUpdateRequest{
+				Name:     "Updated Service",
+				URL:      "https://updated.com",
+				CardSize: "3x3", // Invalid size
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:      "Update preserves card_size when not provided",
+			userID:    "user-1",
+			serviceID: "service-1",
+			requestBody: models.ServiceUpdateRequest{
+				Name: "Updated Service",
+				URL:  "https://updated.com",
+				// CardSize not provided - should preserve existing
+			},
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:      "Attempt to update another user's service",
+			userID:    "user-1",
+			serviceID: "service-2",
+			requestBody: models.ServiceUpdateRequest{
+				Name:     "Updated Service",
+				URL:      "https://updated.com",
+				CardSize: models.CardSize1x1,
+			},
+			expectedStatus: http.StatusForbidden,
+			expectError:    true,
+		},
+		{
+			name:      "Update non-existent service",
+			userID:    "user-1",
+			serviceID: "non-existent",
+			requestBody: models.ServiceUpdateRequest{
+				Name: "Updated Service",
+				URL:  "https://updated.com",
+			},
+			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Put("/services/:id", func(c *fiber.Ctx) error {
+				c.Locals("user_id", tt.userID)
+				return handler.UpdateService(c)
+			})
+
+			bodyJSON, _ := json.Marshal(tt.requestBody)
+			req := httptest.NewRequest(http.MethodPut, "/services/"+tt.serviceID, bytes.NewReader(bodyJSON))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req, -1)
+			if err != nil {
+				t.Fatalf("Failed to execute request: %v", err)
+			}
+
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+
+			// Verify card_size was updated correctly (if success expected)
+			if !tt.expectError && resp.StatusCode == http.StatusOK && tt.requestBody.CardSize != "" {
+				service, err := serviceRepo.GetByID(context.Background(), tt.serviceID)
+				if err != nil {
+					t.Fatalf("Failed to retrieve service: %v", err)
+				}
+				if service.CardSize != tt.requestBody.CardSize {
+					t.Errorf("Service card_size = %s, want %s", service.CardSize, tt.requestBody.CardSize)
+				}
+			}
+		})
+	}
+}
+
+func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	handler := NewServiceHandler(serviceRepo, nil)
+
+	app := fiber.New()
+	app.Put("/services/:id", handler.UpdateService)
+
+	requestBody := models.ServiceUpdateRequest{
+		Name:     "Updated Service",
+		URL:      "https://updated.com",
+		CardSize: models.CardSize1x1,
+	}
+
+	bodyJSON, _ := json.Marshal(requestBody)
+	req := httptest.NewRequest(http.MethodPut, "/services/service-1", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("Expected status %d for unauthenticated request, got %d", http.StatusUnauthorized, resp.StatusCode)
+	}
+}
