@@ -167,24 +167,29 @@ export default function DashboardPage() {
   }
 
   const handleSizeChange = async (id: string, newSize: CardSize) => {
-    const service = services.find((s) => s.id === id)
-    if (!service) return
-
     // Capture current state for rollback
     const previousServices = services
 
     // Optimistic update
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
 
-    // Persist to backend
+    // Fetch fresh service data to avoid overwriting concurrent updates
     try {
+      const response = await api.getService(id)
+      if (response.error || !response.data) {
+        console.error('Failed to fetch service:', response.error?.message)
+        setServices(previousServices)
+        return
+      }
+
+      const freshService = response.data
       await api.updateService(id, {
-        name: service.name,
-        url: service.url,
-        description: service.description || '',
-        icon: service.icon || '',
-        icon_type: service.icon_type || 'emoji',
-        icon_image_path: service.icon_image_path || '',
+        name: freshService.name,
+        url: freshService.url,
+        description: freshService.description || '',
+        icon: freshService.icon || '',
+        icon_type: freshService.icon_type || 'emoji',
+        icon_image_path: freshService.icon_image_path || '',
         card_size: newSize,
       })
     } catch (error) {
@@ -315,15 +320,18 @@ export default function DashboardPage() {
           </SortableContext>
 
           <DragOverlay dropAnimation={null}>
-            {activeId ? (
-              <ServiceCard
-                service={services.find((s) => s.id === activeId)!}
-                openInNewTab={openInNewTab}
-                isEditMode={true}
-                onSizeChange={() => {}}
-                isDragging={true}
-              />
-            ) : null}
+            {(() => {
+              const activeService = activeId ? services.find((s) => s.id === activeId) : null
+              return activeService ? (
+                <ServiceCard
+                  service={activeService}
+                  openInNewTab={openInNewTab}
+                  isEditMode={true}
+                  onSizeChange={() => {}}
+                  isDragging={true}
+                />
+              ) : null
+            })()}
           </DragOverlay>
         </DndContext>
       ) : (
