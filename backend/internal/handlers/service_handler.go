@@ -116,12 +116,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	if cardSize == "" {
 		cardSize = models.DefaultCardSize
 	}
-	validCardSizes := map[string]bool{
-		models.CardSize1x1: true,
-		models.CardSize2x1: true,
-		models.CardSize2x2: true,
-	}
-	if !validCardSizes[cardSize] {
+	if !models.IsValidCardSize(cardSize) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
 		})
@@ -370,12 +365,7 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	if cardSize == "" {
 		cardSize = existingService.CardSize
 	}
-	validCardSizes := map[string]bool{
-		models.CardSize1x1: true,
-		models.CardSize2x1: true,
-		models.CardSize2x2: true,
-	}
-	if !validCardSizes[cardSize] {
+	if !models.IsValidCardSize(cardSize) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
 		})

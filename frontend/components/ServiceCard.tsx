@@ -4,6 +4,7 @@ import { ClockIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service, CardSize } from '@/types'
 import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
 
 interface ServiceCardProps {
@@ -13,22 +14,6 @@ interface ServiceCardProps {
   onSizeChange?: (id: string, newSize: CardSize) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
-}
-
-const sizeOrder: CardSize[] = ['1x1', '2x1', '2x2']
-
-function getNextSize(current: CardSize): CardSize {
-  const idx = sizeOrder.indexOf(current)
-  return sizeOrder[(idx + 1) % sizeOrder.length]
-}
-
-// CSS Grid span classes for each size
-// Grid uses 2/4/6/8 columns at different breakpoints
-// 1x1 = 1 col (half width), 2x1 = 2 cols (standard), 2x2 = 2 cols + 2 rows
-const sizeToGridSpan: Record<CardSize, string> = {
-  '1x1': 'col-span-1 row-span-1',
-  '2x1': 'col-span-2 row-span-1',
-  '2x2': 'col-span-2 row-span-2',
 }
 
 export default function ServiceCard({

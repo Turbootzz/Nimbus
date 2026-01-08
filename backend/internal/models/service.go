@@ -31,6 +31,15 @@ const (
 	DefaultIcon = "🔗"
 )
 
+// IsValidCardSize checks if the given size is a valid card size
+func IsValidCardSize(size string) bool {
+	switch size {
+	case CardSize1x1, CardSize2x1, CardSize2x2:
+		return true
+	}
+	return false
+}
+
 // Service represents a service/link in the homelab dashboard
 type Service struct {
 	ID            string    `json:"id" db:"id"`
