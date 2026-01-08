@@ -15,13 +15,14 @@ import {
   DndContext,
   closestCenter,
   DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 import { api } from '@/lib/api'
 import type { Service, CardSize } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -46,17 +47,16 @@ function SortableServiceCard({
   isEditMode: boolean
   onSizeChange: (id: string, newSize: CardSize) => void
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: service.id,
   })
 
   const cardSize = service.card_size || '2x1'
   const gridSpan = sizeToGridSpan[cardSize]
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  }
+  // Don't apply transforms - with dense grid and variable sizes, transforms cause
+  // weird stretching/compression. Cards stay in place, only reorder after drop.
+  const style = { opacity: isDragging ? 0.3 : 1 }
 
   return (
     <div ref={setNodeRef} style={style} className={`${gridSpan} h-full`}>
@@ -66,7 +66,7 @@ function SortableServiceCard({
         isEditMode={isEditMode}
         onSizeChange={onSizeChange}
         dragHandleProps={{ ...attributes, ...listeners }}
-        isDragging={isDragging}
+        isDragging={false}
       />
     </div>
   )
@@ -77,6 +77,7 @@ export default function DashboardPage() {
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
@@ -133,8 +134,17 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
+  }
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
+    setActiveId(null)
     if (!over || active.id === over.id) return
 
     const oldIndex = services.findIndex((s) => s.id === active.id)
@@ -283,7 +293,13 @@ export default function DashboardPage() {
       </div>
 
       {isEditMode ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
           <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div
               className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
@@ -300,6 +316,24 @@ export default function DashboardPage() {
               ))}
             </div>
           </SortableContext>
+
+          <DragOverlay>
+            {activeId ? (
+              <div
+                className={
+                  sizeToGridSpan[services.find((s) => s.id === activeId)?.card_size || '2x1']
+                }
+              >
+                <ServiceCard
+                  service={services.find((s) => s.id === activeId)!}
+                  openInNewTab={openInNewTab}
+                  isEditMode={true}
+                  onSizeChange={() => {}}
+                  isDragging={false}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       ) : (
         <div
