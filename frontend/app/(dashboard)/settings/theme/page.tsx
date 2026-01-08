@@ -11,10 +11,12 @@ export default function ThemePage() {
     accentColor,
     background,
     openInNewTab,
+    enableCardResizing,
     setTheme,
     setAccentColor,
     setBackground,
     setOpenInNewTab,
+    setEnableCardResizing,
   } = useTheme()
 
   const presetColors = [
@@ -161,6 +163,21 @@ export default function ThemePage() {
             onChange={setOpenInNewTab}
             label="Open services in new tab"
             description="When enabled, clicking a service will open it in a new tab"
+          />
+        </div>
+
+        {/* Card Resizing */}
+        <div className="bg-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Resizing</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Control whether service cards can have different sizes
+          </p>
+
+          <Toggle
+            enabled={enableCardResizing}
+            onChange={setEnableCardResizing}
+            label="Enable card resizing"
+            description="When enabled, you can resize cards in edit mode by clicking them. When disabled, all cards display as standard size (2x1)"
           />
         </div>
 

@@ -14,6 +14,7 @@ interface ServiceCardProps {
   onSizeChange?: (id: string, newSize: CardSize) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
+  enableCardResizing?: boolean
 }
 
 export default function ServiceCard({
@@ -23,8 +24,10 @@ export default function ServiceCard({
   onSizeChange,
   dragHandleProps,
   isDragging = false,
+  enableCardResizing = true,
 }: ServiceCardProps) {
-  const cardSize = service.card_size || '2x1'
+  // When card resizing is disabled, always use 2x1
+  const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
   // In edit mode, the wrapper div handles grid spanning, so card just fills container
   const gridSpan = isEditMode ? '' : sizeToGridSpan[cardSize]
 
@@ -35,7 +38,8 @@ export default function ServiceCard({
   }
 
   const handleClick = () => {
-    if (isEditMode && onSizeChange) {
+    // Only allow size change if resizing is enabled
+    if (isEditMode && onSizeChange && enableCardResizing) {
       onSizeChange(service.id, getNextSize(cardSize))
     }
   }
@@ -49,6 +53,12 @@ export default function ServiceCard({
     dragHandleProps,
     isDragging,
     cardSize,
+    showSizeBadge: enableCardResizing,
+  }
+
+  // When resizing is disabled, always use StandardCard (2x1)
+  if (!enableCardResizing) {
+    return <StandardCard {...variantProps} />
   }
 
   switch (cardSize) {
@@ -74,6 +84,7 @@ interface CardVariantProps {
   dragHandleProps?: Record<string, unknown>
   isDragging: boolean
   cardSize: CardSize
+  showSizeBadge: boolean
 }
 
 // 1x1 - Compact: large icon centered, name below, status indicator dot
@@ -86,6 +97,7 @@ function CompactCard({
   dragHandleProps,
   isDragging,
   cardSize,
+  showSizeBadge,
 }: CardVariantProps) {
   const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border p-2 transition-all relative`
   const editClasses = isEditMode
@@ -105,7 +117,9 @@ function CompactCard({
           >
             <Bars3Icon className="text-text-muted h-4 w-4" />
           </div>
-          <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          {showSizeBadge && (
+            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          )}
         </div>
       )}
       <div className="flex flex-1 items-center justify-center">
@@ -152,6 +166,7 @@ function StandardCard({
   dragHandleProps,
   isDragging,
   cardSize,
+  showSizeBadge,
 }: CardVariantProps) {
   const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border p-6 transition-all relative`
   const editClasses = isEditMode
@@ -171,7 +186,9 @@ function StandardCard({
           >
             <Bars3Icon className="text-text-muted h-5 w-5" />
           </div>
-          <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          {showSizeBadge && (
+            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          )}
         </div>
       )}
       <div className="mb-4 flex items-start justify-between">
@@ -223,6 +240,7 @@ function LargeCard({
   dragHandleProps,
   isDragging,
   cardSize,
+  showSizeBadge,
 }: CardVariantProps) {
   const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border p-6 transition-all relative`
   const editClasses = isEditMode
@@ -242,7 +260,9 @@ function LargeCard({
           >
             <Bars3Icon className="text-text-muted h-5 w-5" />
           </div>
-          <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          {showSizeBadge && (
+            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+          )}
         </div>
       )}
       {/* Status in top right */}

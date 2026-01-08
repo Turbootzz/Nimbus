@@ -19,10 +19,12 @@ interface ThemeContextType {
   accentColor?: string
   background?: string
   openInNewTab: boolean
+  enableCardResizing: boolean
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
   setOpenInNewTab: (openInNewTab: boolean) => void
+  setEnableCardResizing: (enableCardResizing: boolean) => void
   loading: boolean
 }
 
@@ -35,6 +37,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [accentColor, setAccentColorState] = useState<string | undefined>()
   const [background, setBackgroundState] = useState<string | undefined>()
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
+  const [enableCardResizing, setEnableCardResizingState] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
@@ -74,6 +77,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setBackgroundState(e.newValue || undefined)
       } else if (e.key === 'openInNewTab' && e.newValue !== null) {
         setOpenInNewTabState(e.newValue === 'true')
+      } else if (e.key === 'enableCardResizing' && e.newValue !== null) {
+        setEnableCardResizingState(e.newValue === 'true')
       }
     }
 
@@ -89,11 +94,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const savedAccent = localStorage.getItem('accentColor')
       const savedBackground = localStorage.getItem('background')
       const savedOpenInNewTab = localStorage.getItem('openInNewTab')
+      const savedEnableCardResizing = localStorage.getItem('enableCardResizing')
 
       if (savedTheme) setThemeState(savedTheme)
       if (savedAccent) setAccentColorState(savedAccent)
       if (savedBackground) setBackgroundState(savedBackground)
       if (savedOpenInNewTab !== null) setOpenInNewTabState(savedOpenInNewTab === 'true')
+      if (savedEnableCardResizing !== null)
+        setEnableCardResizingState(savedEnableCardResizing === 'true')
 
       // Step 2: Try to load from API and sync
       try {
@@ -105,15 +113,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           const apiAccent = response.data.theme_accent_color
           const apiBackground = response.data.theme_background
           const apiOpenInNewTab = response.data.open_in_new_tab ?? true
+          const apiEnableCardResizing = response.data.enable_card_resizing ?? true
 
           setThemeState(apiTheme)
           setAccentColorState(apiAccent)
           setBackgroundState(apiBackground)
           setOpenInNewTabState(apiOpenInNewTab)
+          setEnableCardResizingState(apiEnableCardResizing)
 
           // Update localStorage cache with API data
           localStorage.setItem('theme', apiTheme)
           localStorage.setItem('openInNewTab', String(apiOpenInNewTab))
+          localStorage.setItem('enableCardResizing', String(apiEnableCardResizing))
           if (apiAccent) {
             localStorage.setItem('accentColor', apiAccent)
           } else {
@@ -204,6 +215,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (updates.open_in_new_tab !== undefined) {
       localStorage.setItem('openInNewTab', String(updates.open_in_new_tab))
     }
+    if (updates.enable_card_resizing !== undefined) {
+      localStorage.setItem('enableCardResizing', String(updates.enable_card_resizing))
+    }
     if (updates.theme_accent_color !== undefined) {
       if (updates.theme_accent_color) {
         localStorage.setItem('accentColor', updates.theme_accent_color)
@@ -291,6 +305,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [savePreferences]
   )
 
+  const setEnableCardResizing = useCallback(
+    (value: boolean) => {
+      setEnableCardResizingState(value)
+      savePreferences({ enable_card_resizing: value })
+    },
+    [savePreferences]
+  )
+
   const value = useMemo(
     () => ({
       theme,
@@ -298,10 +320,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       accentColor,
       background,
       openInNewTab,
+      enableCardResizing,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
+      setEnableCardResizing,
       loading,
     }),
     [
@@ -310,10 +334,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       accentColor,
       background,
       openInNewTab,
+      enableCardResizing,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
+      setEnableCardResizing,
       loading,
     ]
   )

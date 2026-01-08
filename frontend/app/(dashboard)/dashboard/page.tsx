@@ -35,17 +35,20 @@ function SortableServiceCard({
   openInNewTab,
   isEditMode,
   onSizeChange,
+  enableCardResizing,
 }: {
   service: Service
   openInNewTab: boolean
   isEditMode: boolean
   onSizeChange: (id: string, newSize: CardSize) => void
+  enableCardResizing: boolean
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: service.id,
   })
 
-  const cardSize = service.card_size || '2x1'
+  // When card resizing is disabled, always use 2x1
+  const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
   const gridSpan = sizeToGridSpan[cardSize]
 
   // Don't apply transforms - with dense grid and variable sizes, transforms cause
@@ -64,13 +67,14 @@ function SortableServiceCard({
         onSizeChange={onSizeChange}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={false}
+        enableCardResizing={enableCardResizing}
       />
     </div>
   )
 }
 
 export default function DashboardPage() {
-  const { openInNewTab } = useTheme()
+  const { openInNewTab, enableCardResizing } = useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
@@ -314,6 +318,7 @@ export default function DashboardPage() {
                   openInNewTab={openInNewTab}
                   isEditMode={isEditMode}
                   onSizeChange={handleSizeChange}
+                  enableCardResizing={enableCardResizing}
                 />
               ))}
             </div>
@@ -329,6 +334,7 @@ export default function DashboardPage() {
                   isEditMode={true}
                   onSizeChange={() => {}}
                   isDragging={true}
+                  enableCardResizing={enableCardResizing}
                 />
               ) : null
             })()}
@@ -340,7 +346,12 @@ export default function DashboardPage() {
           style={{ gridAutoFlow: 'dense' }}
         >
           {services.map((service) => (
-            <ServiceCard key={service.id} service={service} openInNewTab={openInNewTab} />
+            <ServiceCard
+              key={service.id}
+              service={service}
+              openInNewTab={openInNewTab}
+              enableCardResizing={enableCardResizing}
+            />
           ))}
 
           {/* Add new service card - spans 2 cols like standard card */}

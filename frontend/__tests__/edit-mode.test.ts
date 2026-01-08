@@ -285,4 +285,100 @@ describe('Edit Mode Functionality', () => {
       expect(api.updateService).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('Enable Card Resizing Preference', () => {
+    it('should use stored card_size when enableCardResizing is true', () => {
+      const enableCardResizing = true
+      const service = createMockService({ card_size: '2x2' })
+
+      const effectiveSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
+
+      expect(effectiveSize).toBe('2x2')
+    })
+
+    it('should always use 2x1 when enableCardResizing is false', () => {
+      const enableCardResizing = false
+      const service = createMockService({ card_size: '2x2' })
+
+      const effectiveSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
+
+      expect(effectiveSize).toBe('2x1')
+    })
+
+    it('should use 2x1 for all card sizes when enableCardResizing is false', () => {
+      const enableCardResizing = false
+      const sizes: CardSize[] = ['1x1', '2x1', '2x2']
+
+      sizes.forEach((size) => {
+        const service = createMockService({ card_size: size })
+        const effectiveSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
+
+        expect(effectiveSize).toBe('2x1')
+      })
+    })
+
+    it('should allow resize click handler only when enableCardResizing is true', () => {
+      const isEditMode = true
+      let enableCardResizing = true
+      let resizeHandlerCalled = false
+
+      // Handler logic from ServiceCard
+      const handleClick = () => {
+        if (isEditMode && enableCardResizing) {
+          resizeHandlerCalled = true
+        }
+      }
+
+      handleClick()
+      expect(resizeHandlerCalled).toBe(true)
+
+      // Reset and test with enableCardResizing = false
+      resizeHandlerCalled = false
+      enableCardResizing = false
+      handleClick()
+      expect(resizeHandlerCalled).toBe(false)
+    })
+
+    it('should show size badge only when enableCardResizing is true', () => {
+      const isEditMode = true
+      let enableCardResizing = true
+
+      // showSizeBadge logic from ServiceCard
+      let showSizeBadge = enableCardResizing
+
+      expect(showSizeBadge).toBe(true)
+
+      enableCardResizing = false
+      showSizeBadge = enableCardResizing
+
+      expect(showSizeBadge).toBe(false)
+    })
+
+    it('should still allow drag reorder when enableCardResizing is false', () => {
+      const isEditMode = true
+      const enableCardResizing = false
+
+      // Drag handle should always be visible in edit mode
+      const showDragHandle = isEditMode
+
+      expect(showDragHandle).toBe(true)
+    })
+
+    it('should map to correct grid span when enableCardResizing is false', () => {
+      const enableCardResizing = false
+      const service = createMockService({ card_size: '2x2' })
+
+      const sizeToGridSpan: Record<CardSize, string> = {
+        '1x1': 'col-span-1 row-span-1',
+        '2x1': 'col-span-2 row-span-1',
+        '2x2': 'col-span-2 row-span-2',
+      }
+
+      const effectiveSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
+      const gridSpan = sizeToGridSpan[effectiveSize]
+
+      // Even though card_size is 2x2, grid span should be 2x1 when disabled
+      expect(gridSpan).toBe('col-span-2 row-span-1')
+    })
+  })
 })

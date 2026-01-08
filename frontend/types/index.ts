@@ -99,6 +99,7 @@ export interface UserPreferences {
   theme_background?: string
   theme_accent_color?: string
   open_in_new_tab: boolean
+  enable_card_resizing: boolean
   updated_at?: string
 }
 
@@ -107,6 +108,7 @@ export interface PreferencesUpdateRequest {
   theme_background?: string | null
   theme_accent_color?: string | null
   open_in_new_tab?: boolean
+  enable_card_resizing?: boolean
 }
 
 // API response types

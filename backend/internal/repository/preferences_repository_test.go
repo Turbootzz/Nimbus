@@ -77,6 +77,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			theme_background TEXT,
 			theme_accent_color TEXT,
 			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
+			enable_card_resizing BOOLEAN NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -669,6 +670,118 @@ func TestPreferencesRepository_OpenInNewTab(t *testing.T) {
 		// OpenInNewTab should still be false (preserved from first update)
 		if preferences.OpenInNewTab {
 			t.Errorf("OpenInNewTab = %v, want false (preserved from previous value)", preferences.OpenInNewTab)
+		}
+	})
+}
+
+func TestPreferencesRepository_EnableCardResizing(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("default value is true", func(t *testing.T) {
+		// Create preferences without specifying EnableCardResizing
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if !preferences.EnableCardResizing {
+			t.Errorf("EnableCardResizing = %v, want true (default)", preferences.EnableCardResizing)
+		}
+	})
+
+	t.Run("can set to false", func(t *testing.T) {
+		enableCardResizingFalse := false
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode:          stringPtr("light"),
+			EnableCardResizing: &enableCardResizingFalse,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.EnableCardResizing {
+			t.Errorf("EnableCardResizing = %v, want false", preferences.EnableCardResizing)
+		}
+	})
+
+	t.Run("can set to true explicitly", func(t *testing.T) {
+		enableCardResizingTrue := true
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode:          stringPtr("dark"),
+			EnableCardResizing: &enableCardResizingTrue,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if !preferences.EnableCardResizing {
+			t.Errorf("EnableCardResizing = %v, want true", preferences.EnableCardResizing)
+		}
+	})
+
+	t.Run("nil value preserves existing", func(t *testing.T) {
+		// Set to false explicitly
+		enableCardResizingFalse := false
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode:          stringPtr("light"),
+			EnableCardResizing: &enableCardResizingFalse,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Verify it's false
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after first upsert failed: %v", err)
+		}
+		if preferences.EnableCardResizing {
+			t.Errorf("EnableCardResizing = %v, want false", preferences.EnableCardResizing)
+		}
+
+		// Update with nil EnableCardResizing (should preserve existing value)
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			// EnableCardResizing not set (nil), should preserve existing value (false)
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err = repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after second upsert failed: %v", err)
+		}
+
+		// EnableCardResizing should still be false (preserved from first update)
+		if preferences.EnableCardResizing {
+			t.Errorf("EnableCardResizing = %v, want false (preserved from previous value)", preferences.EnableCardResizing)
 		}
 	})
 }
