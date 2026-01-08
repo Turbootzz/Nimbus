@@ -106,7 +106,7 @@ function CompactCard({
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
-  const dragClasses = isDragging ? 'opacity-50' : ''
+  const dragClasses = isDragging ? 'scale-105 shadow-2xl ring-2 ring-primary' : ''
 
   const content = (
     <>
@@ -171,7 +171,7 @@ function StandardCard({
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
-  const dragClasses = isDragging ? 'opacity-50' : ''
+  const dragClasses = isDragging ? 'scale-105 shadow-2xl ring-2 ring-primary' : ''
 
   const content = (
     <>
@@ -241,7 +241,7 @@ function LargeCard({
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
-  const dragClasses = isDragging ? 'opacity-50' : ''
+  const dragClasses = isDragging ? 'scale-105 shadow-2xl ring-2 ring-primary' : ''
 
   const content = (
     <>

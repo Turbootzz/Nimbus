@@ -56,7 +56,10 @@ function SortableServiceCard({
 
   // Don't apply transforms - with dense grid and variable sizes, transforms cause
   // weird stretching/compression. Cards stay in place, only reorder after drop.
-  const style = { opacity: isDragging ? 0.3 : 1 }
+  const style = {
+    opacity: isDragging ? 0.4 : 1,
+    transition: 'opacity 150ms ease',
+  }
 
   return (
     <div ref={setNodeRef} style={style} className={`${gridSpan} h-full`}>
@@ -317,21 +320,15 @@ export default function DashboardPage() {
             </div>
           </SortableContext>
 
-          <DragOverlay>
+          <DragOverlay dropAnimation={null}>
             {activeId ? (
-              <div
-                className={
-                  sizeToGridSpan[services.find((s) => s.id === activeId)?.card_size || '2x1']
-                }
-              >
-                <ServiceCard
-                  service={services.find((s) => s.id === activeId)!}
-                  openInNewTab={openInNewTab}
-                  isEditMode={true}
-                  onSizeChange={() => {}}
-                  isDragging={false}
-                />
-              </div>
+              <ServiceCard
+                service={services.find((s) => s.id === activeId)!}
+                openInNewTab={openInNewTab}
+                isEditMode={true}
+                onSizeChange={() => {}}
+                isDragging={true}
+              />
             ) : null}
           </DragOverlay>
         </DndContext>
