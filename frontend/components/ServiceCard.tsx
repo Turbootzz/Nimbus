@@ -99,8 +99,9 @@ function CompactCard({
         <div className="absolute top-1 right-1 left-1 z-10 flex items-center justify-between">
           <div
             {...dragHandleProps}
-            className="bg-card/90 cursor-grab rounded p-1 active:cursor-grabbing"
+            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <Bars3Icon className="text-text-muted h-4 w-4" />
           </div>
@@ -164,8 +165,9 @@ function StandardCard({
         <div className="absolute top-2 right-2 left-2 z-10 flex items-center justify-between">
           <div
             {...dragHandleProps}
-            className="bg-card/90 cursor-grab rounded p-1 active:cursor-grabbing"
+            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <Bars3Icon className="text-text-muted h-5 w-5" />
           </div>
@@ -234,8 +236,9 @@ function LargeCard({
         <div className="absolute top-2 right-2 left-2 z-10 flex items-center justify-between">
           <div
             {...dragHandleProps}
-            className="bg-card/90 cursor-grab rounded p-1 active:cursor-grabbing"
+            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             <Bars3Icon className="text-text-muted h-5 w-5" />
           </div>
