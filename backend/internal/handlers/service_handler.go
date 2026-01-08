@@ -111,6 +111,17 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		}
 	}
 
+	// Validate and set card_size
+	cardSize := req.CardSize
+	if cardSize == "" {
+		cardSize = models.DefaultCardSize
+	}
+	if !models.IsValidCardSize(cardSize) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
+		})
+	}
+
 	// Create service
 	service := &models.Service{
 		UserID:        userID,
@@ -121,6 +132,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		IconImagePath: iconImagePath,
 		Description:   req.Description,
 		Status:        models.StatusUnknown, // Initial status
+		CardSize:      cardSize,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -348,6 +360,17 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		}
 	}
 
+	// Validate and set card_size - preserve existing if not provided
+	cardSize := req.CardSize
+	if cardSize == "" {
+		cardSize = existingService.CardSize
+	}
+	if !models.IsValidCardSize(cardSize) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
+		})
+	}
+
 	// Update service
 	existingService.Name = req.Name
 	existingService.URL = req.URL
@@ -355,6 +378,7 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	existingService.IconType = iconType
 	existingService.IconImagePath = iconImagePath
 	existingService.Description = req.Description
+	existingService.CardSize = cardSize
 	existingService.UpdatedAt = time.Now()
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {

@@ -1,30 +1,107 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ServerIcon,
   ClockIcon,
   CheckCircleIcon,
   ExclamationCircleIcon,
   PlusIcon,
+  PencilIcon,
+  CheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import {
+  DndContext,
+  closestCenter,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, CardSize } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
-import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
-import ServiceIcon from '@/components/ServiceIcon'
+import { sizeToGridSpan } from '@/lib/card-utils'
+import ServiceCard from '@/components/ServiceCard'
+
+// Sortable wrapper for ServiceCard in edit mode
+function SortableServiceCard({
+  service,
+  openInNewTab,
+  isEditMode,
+  onSizeChange,
+  enableCardResizing,
+}: {
+  service: Service
+  openInNewTab: boolean
+  isEditMode: boolean
+  onSizeChange: (id: string, newSize: CardSize) => void
+  enableCardResizing: boolean
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+    id: service.id,
+  })
+
+  // When card resizing is disabled, always use 2x1
+  const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
+  const gridSpan = sizeToGridSpan[cardSize]
+
+  // Don't apply transforms - with dense grid and variable sizes, transforms cause
+  // weird stretching/compression. Cards stay in place, only reorder after drop.
+  const style = {
+    opacity: isDragging ? 0.4 : 1,
+    transition: 'opacity 150ms ease',
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className={`${gridSpan} h-full`}>
+      <ServiceCard
+        service={service}
+        openInNewTab={openInNewTab}
+        isEditMode={isEditMode}
+        onSizeChange={onSizeChange}
+        dragHandleProps={{ ...attributes, ...listeners }}
+        isDragging={false}
+        enableCardResizing={enableCardResizing}
+      />
+    </div>
+  )
+}
 
 export default function DashboardPage() {
-  const { openInNewTab } = useTheme()
+  const { openInNewTab, enableCardResizing } = useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isEditMode, setIsEditMode] = useState(false)
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [resizingId, setResizingId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
     offline: 0,
     avgResponseTime: 0,
   })
+
+  // Memoize active service for drag overlay
+  const activeService = useMemo(
+    () => (activeId ? services.find((s) => s.id === activeId) : null),
+    [activeId, services]
+  )
+
+  // DnD sensors for mouse and touch
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 150, tolerance: 5 },
+    })
+  )
 
   useEffect(() => {
     fetchServices()
@@ -62,6 +139,79 @@ export default function DashboardPage() {
       console.error('Failed to fetch services:', error)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string)
+  }
+
+  const handleDragCancel = () => {
+    setActiveId(null)
+  }
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    setActiveId(null)
+    if (!over || active.id === over.id) return
+
+    const oldIndex = services.findIndex((s) => s.id === active.id)
+    const newIndex = services.findIndex((s) => s.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+
+    // Capture current state for rollback
+    const previousServices = services
+
+    // Optimistic update
+    const reordered = arrayMove(services, oldIndex, newIndex)
+    setServices(reordered)
+
+    // Persist to backend
+    try {
+      await api.reorderServices({
+        services: reordered.map((s, i) => ({ id: s.id, position: i })),
+      })
+    } catch (error) {
+      console.error('Failed to save order:', error)
+      setServices(previousServices)
+    }
+  }
+
+  const handleSizeChange = async (id: string, newSize: CardSize) => {
+    // Prevent rapid clicks while already resizing
+    if (resizingId) return
+
+    // Capture current state for rollback
+    const previousServices = services
+
+    // Optimistic update with loading state
+    setResizingId(id)
+    setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
+
+    // Fetch fresh service data to avoid overwriting concurrent updates
+    try {
+      const response = await api.getService(id)
+      if (response.error || !response.data) {
+        console.error('Failed to fetch service:', response.error?.message)
+        setServices(previousServices)
+        return
+      }
+
+      const freshService = response.data
+      await api.updateService(id, {
+        name: freshService.name,
+        url: freshService.url,
+        description: freshService.description || '',
+        icon: freshService.icon || '',
+        icon_type: freshService.icon_type || 'emoji',
+        icon_image_path: freshService.icon_image_path || '',
+        card_size: newSize,
+      })
+    } catch (error) {
+      console.error('Failed to update card size:', error)
+      setServices(previousServices)
+    } finally {
+      setResizingId(null)
     }
   }
 
@@ -130,55 +280,100 @@ export default function DashboardPage() {
       {/* Services grid */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-text-primary text-xl font-semibold">Services</h2>
-        <Link
-          href="/services/new"
-          className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-        >
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Add Service
-        </Link>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {services.map((service) => (
-          <a
-            key={service.id}
-            href={service.url}
-            target={openInNewTab ? '_blank' : '_self'}
-            {...(openInNewTab && { rel: 'noopener noreferrer' })}
-            className="bg-card border-card-border hover:border-primary block rounded-lg border p-6 transition-all hover:shadow-lg"
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsEditMode(!isEditMode)}
+            className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
+              isEditMode
+                ? 'bg-success hover:bg-success/80 text-white'
+                : 'border-card-border text-text-primary hover:bg-card-hover border'
+            }`}
           >
-            <div className="mb-4 flex items-start justify-between">
-              <ServiceIcon service={service} size="md" />
-              <div className={`flex items-center ${getStatusColor(service.status)}`}>
-                {getStatusIcon(service.status)}
-                <span className="ml-1 text-sm capitalize">{service.status}</span>
-              </div>
-            </div>
-
-            <h3 className="text-text-primary mb-1 text-lg font-semibold">{service.name}</h3>
-            <p className="text-text-secondary mb-3 text-sm">{service.description}</p>
-
-            {service.response_time !== undefined && service.response_time !== null && (
-              <div
-                className={`flex items-center text-xs ${getResponseTimeColor(service.response_time)}`}
-              >
-                <ClockIcon className="mr-1 h-3 w-3" />
-                {service.response_time}ms
-              </div>
+            {isEditMode ? (
+              <>
+                <CheckIcon className="mr-2 h-4 w-4" />
+                Done
+              </>
+            ) : (
+              <>
+                <PencilIcon className="mr-2 h-4 w-4" />
+                Edit
+              </>
             )}
-          </a>
-        ))}
-
-        {/* Add new service card */}
-        <Link
-          href="/services/new"
-          className="bg-card border-card-border hover:border-primary hover:bg-primary-light flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
-        >
-          <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-          <span className="text-text-secondary">Add Service</span>
-        </Link>
+          </button>
+          <Link
+            href="/services/new"
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Service
+          </Link>
+        </div>
       </div>
+
+      {isEditMode ? (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
+        >
+          <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
+            <div
+              className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+              style={{ gridAutoFlow: 'dense' }}
+            >
+              {services.map((service) => (
+                <SortableServiceCard
+                  key={service.id}
+                  service={service}
+                  openInNewTab={openInNewTab}
+                  isEditMode={isEditMode}
+                  onSizeChange={handleSizeChange}
+                  enableCardResizing={enableCardResizing}
+                />
+              ))}
+            </div>
+          </SortableContext>
+
+          <DragOverlay dropAnimation={null}>
+            {activeService && (
+              <ServiceCard
+                service={activeService}
+                openInNewTab={openInNewTab}
+                isEditMode={true}
+                onSizeChange={() => {}}
+                isDragging={true}
+                enableCardResizing={enableCardResizing}
+              />
+            )}
+          </DragOverlay>
+        </DndContext>
+      ) : (
+        <div
+          className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+          style={{ gridAutoFlow: 'dense' }}
+        >
+          {services.map((service) => (
+            <ServiceCard
+              key={service.id}
+              service={service}
+              openInNewTab={openInNewTab}
+              enableCardResizing={enableCardResizing}
+            />
+          ))}
+
+          {/* Add new service card - spans 2 cols like standard card */}
+          <Link
+            href="/services/new"
+            className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+          >
+            <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
+            <span className="text-text-secondary">Add Service</span>
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

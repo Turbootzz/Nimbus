@@ -7,15 +7,28 @@ import { getApiUrl } from '@/lib/utils/api-url'
 
 interface ServiceIconProps {
   service: Service
-  size?: 'sm' | 'md' | 'lg' | 'xl'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
   className?: string
 }
 
+// Container dimensions for all icon types
 const sizeClasses = {
-  sm: 'text-3xl w-12 h-12',
-  md: 'text-5xl w-16 h-16',
-  lg: 'text-6xl w-20 h-20',
-  xl: 'text-7xl w-24 h-24',
+  sm: 'w-12 h-12',
+  md: 'w-16 h-16',
+  lg: 'w-20 h-20',
+  xl: 'w-24 h-24',
+  '2xl': 'w-32 h-32',
+  '3xl': 'w-48 h-48',
+}
+
+// Emoji text sizes - slightly larger to fill container height
+const emojiSizeClasses = {
+  sm: 'text-4xl',
+  md: 'text-6xl',
+  lg: 'text-7xl',
+  xl: 'text-8xl',
+  '2xl': 'text-[7rem]',
+  '3xl': 'text-[11rem]',
 }
 
 const sizeDimensions = {
@@ -23,6 +36,8 @@ const sizeDimensions = {
   md: 64,
   lg: 80,
   xl: 96,
+  '2xl': 128,
+  '3xl': 192,
 }
 
 export default function ServiceIcon({ service, size = 'md', className = '' }: ServiceIconProps) {
@@ -31,9 +46,15 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
   const dimension = sizeDimensions[size]
   const apiUrl = getApiUrl()
 
+  const emojiClass = emojiSizeClasses[size]
+
   // Fallback to emoji if image fails to load
   if (imageError) {
-    return <span className={`${sizeClass} ${className}`}>{service.icon || '🔗'}</span>
+    return (
+      <div className={`${sizeClass} flex items-center justify-center ${className}`}>
+        <span className={emojiClass}>{service.icon || '🔗'}</span>
+      </div>
+    )
   }
 
   // Render uploaded image
@@ -68,6 +89,10 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
     )
   }
 
-  // Render emoji (default)
-  return <span className={`${sizeClass} ${className}`}>{service.icon || '🔗'}</span>
+  // Render emoji (default) - wrap in div for consistent sizing with images
+  return (
+    <div className={`${sizeClass} flex items-center justify-center ${className}`}>
+      <span className={emojiClass}>{service.icon || '🔗'}</span>
+    </div>
+  )
 }
