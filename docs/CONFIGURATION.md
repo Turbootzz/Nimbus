@@ -278,11 +278,40 @@ The frontend auto-detects the API URL at runtime. Override only if needed.
 
 **Auto-detection behavior:**
 - Localhost → `http://localhost:8080/api/v1`
+- IP address → `http://YOUR_IP:8080/api/v1`
 - Production domain → `https://yourdomain.com/api/v1`
 
-**Manual override example:**
+### Docker Network Configuration
+
+> **Important:** When deploying with Docker, you must set `NEXT_PUBLIC_API_URL` correctly.
+
+**Common mistake:** Using `http://backend:8080` will NOT work!
+- `backend` is a Docker internal hostname
+- Browsers run on your machine, not inside Docker, so they cannot resolve Docker hostnames
+
+**Correct configurations:**
+
+1. **Local network access** (accessing via IP like `192.168.1.100:3000`):
+   ```bash
+   NEXT_PUBLIC_API_URL=http://192.168.1.100:8080
+   CORS_ORIGINS=http://192.168.1.100:3000
+   ```
+
+2. **Reverse proxy (same domain)** — proxy routes `/api/v1/*` to backend:
+   ```bash
+   NEXT_PUBLIC_API_URL=https://nimbus.yourdomain.com
+   CORS_ORIGINS=https://nimbus.yourdomain.com
+   ```
+
+3. **Reverse proxy (API subdomain)**:
+   ```bash
+   NEXT_PUBLIC_API_URL=https://api.nimbus.yourdomain.com
+   CORS_ORIGINS=https://nimbus.yourdomain.com
+   ```
+
+After changing these values, restart Docker:
 ```bash
-NEXT_PUBLIC_API_URL=https://api.nimbus.yourdomain.com/api/v1
+docker-compose down && docker-compose up -d
 ```
 
 ---
@@ -333,3 +362,33 @@ PROMETHEUS_API_KEY=
 # COOKIE_SECURE=true
 # CORS_ORIGINS=https://nimbus.yourdomain.com
 ```
+
+---
+
+## Troubleshooting
+
+### "Unexpected token" or API connection errors
+
+If you see errors like "Unexpected token" or "Cannot reach API server" when trying to log in or register:
+
+1. **Check `NEXT_PUBLIC_API_URL`** — this is the most common cause
+   - Do NOT use `http://backend:8080` (Docker internal hostname)
+   - Use your actual server IP: `http://192.168.1.100:8080`
+
+2. **Check `CORS_ORIGINS`** — must include your frontend URL
+   - If frontend is at `http://192.168.1.100:3000`, add that to CORS_ORIGINS
+
+3. **Restart containers** after changing `.env`:
+   ```bash
+   docker-compose down && docker-compose up -d
+   ```
+
+4. **Check browser console** for the actual error URL being called
+
+### OAuth callback errors
+
+If OAuth login fails with a redirect error:
+
+1. Ensure redirect URLs match exactly (including protocol and port)
+2. For production, update all OAuth redirect URLs to use HTTPS
+3. Check that `FRONTEND_URL` is set correctly for the post-login redirect
