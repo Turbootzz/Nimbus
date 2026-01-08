@@ -71,7 +71,29 @@ class ApiClient {
         credentials: 'include', // Always send httpOnly cookies with requests
       })
 
-      const data = await response.json()
+      // Parse response as text first to handle non-JSON responses gracefully
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        // Check for common HTML error responses (reverse proxy errors, 404 pages, etc.)
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          console.error('[API Client] Received HTML instead of JSON. API URL may be misconfigured.')
+          return {
+            error: {
+              message:
+                'Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not "http://backend:8080".',
+            },
+          }
+        }
+        console.error('[API Client] Invalid JSON response:', text.substring(0, 200))
+        return {
+          error: {
+            message: 'API returned an invalid response. Check server logs for details.',
+          },
+        }
+      }
 
       if (!response.ok) {
         // Handle 401 Unauthorized - token is invalid or user doesn't exist
@@ -155,7 +177,20 @@ class ApiClient {
         body: formData,
       })
 
-      const data = await response.json()
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          return {
+            error: {
+              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
+            },
+          }
+        }
+        return { error: { message: 'API returned an invalid response' } }
+      }
 
       if (!response.ok) {
         return {
@@ -234,7 +269,20 @@ class ApiClient {
         credentials: 'include', // Send httpOnly cookies
       })
 
-      const data = await response.json()
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          return {
+            error: {
+              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
+            },
+          }
+        }
+        return { error: { message: 'API returned an invalid response' } }
+      }
 
       if (!response.ok) {
         return {

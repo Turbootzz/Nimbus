@@ -65,7 +65,21 @@ function LoginForm() {
         body: JSON.stringify({ email, password, remember_me: rememberMe }),
       })
 
-      const data = await response.json()
+      // Parse response as text first to handle non-JSON responses
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
+          setError(
+            'Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not "http://backend:8080".'
+          )
+        } else {
+          setError('API returned an invalid response. Check server configuration.')
+        }
+        return
+      }
 
       if (!response.ok) {
         setError(data.error || 'Invalid email or password')
