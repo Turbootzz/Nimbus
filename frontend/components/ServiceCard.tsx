@@ -279,9 +279,11 @@ function LargeCard({
         <h3 className="text-text-primary mt-4 text-center text-2xl font-semibold">
           {service.name}
         </h3>
-        <p className="text-text-secondary mt-2 line-clamp-2 text-center text-sm">
-          {service.description}
-        </p>
+        {service.description && (
+          <p className="text-text-secondary mt-2 line-clamp-2 text-center text-sm">
+            {service.description}
+          </p>
+        )}
       </div>
 
       {/* Footer with URL and response time */}

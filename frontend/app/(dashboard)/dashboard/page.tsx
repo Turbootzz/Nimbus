@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   ServerIcon,
   ClockIcon,
@@ -79,12 +79,19 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [resizingId, setResizingId] = useState<string | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     online: 0,
     offline: 0,
     avgResponseTime: 0,
   })
+
+  // Memoize active service for drag overlay
+  const activeService = useMemo(
+    () => (activeId ? services.find((s) => s.id === activeId) : null),
+    [activeId, services]
+  )
 
   // DnD sensors for mouse and touch
   const sensors = useSensors(
@@ -171,10 +178,14 @@ export default function DashboardPage() {
   }
 
   const handleSizeChange = async (id: string, newSize: CardSize) => {
+    // Prevent rapid clicks while already resizing
+    if (resizingId) return
+
     // Capture current state for rollback
     const previousServices = services
 
-    // Optimistic update
+    // Optimistic update with loading state
+    setResizingId(id)
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
 
     // Fetch fresh service data to avoid overwriting concurrent updates
@@ -199,6 +210,8 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to update card size:', error)
       setServices(previousServices)
+    } finally {
+      setResizingId(null)
     }
   }
 
@@ -325,19 +338,16 @@ export default function DashboardPage() {
           </SortableContext>
 
           <DragOverlay dropAnimation={null}>
-            {(() => {
-              const activeService = activeId ? services.find((s) => s.id === activeId) : null
-              return activeService ? (
-                <ServiceCard
-                  service={activeService}
-                  openInNewTab={openInNewTab}
-                  isEditMode={true}
-                  onSizeChange={() => {}}
-                  isDragging={true}
-                  enableCardResizing={enableCardResizing}
-                />
-              ) : null
-            })()}
+            {activeService && (
+              <ServiceCard
+                service={activeService}
+                openInNewTab={openInNewTab}
+                isEditMode={true}
+                onSizeChange={() => {}}
+                isDragging={true}
+                enableCardResizing={enableCardResizing}
+              />
+            )}
           </DragOverlay>
         </DndContext>
       ) : (

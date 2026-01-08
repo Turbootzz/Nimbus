@@ -341,16 +341,20 @@ describe('Edit Mode Functionality', () => {
 
     it('should show size badge only when enableCardResizing is true', () => {
       // showSizeBadge logic from ServiceCard - badge visibility equals enableCardResizing
-      expect(true).toBe(true) // enableCardResizing = true -> showSizeBadge = true
-      expect(false).toBe(false) // enableCardResizing = false -> showSizeBadge = false
+      const getShowSizeBadge = (enableCardResizing: boolean) => enableCardResizing
+
+      expect(getShowSizeBadge(true)).toBe(true)
+      expect(getShowSizeBadge(false)).toBe(false)
     })
 
     it('should still allow drag reorder when enableCardResizing is false', () => {
-      // Drag handle is always visible in edit mode, regardless of enableCardResizing
-      const isEditMode = true
-      const showDragHandle = isEditMode // drag handle depends only on edit mode
+      // Drag handle visibility depends only on edit mode, not enableCardResizing
+      const getShowDragHandle = (isEditMode: boolean) => isEditMode
 
-      expect(showDragHandle).toBe(true)
+      // Drag handle visible in edit mode regardless of enableCardResizing setting
+      expect(getShowDragHandle(true)).toBe(true)
+      // Drag handle hidden when not in edit mode
+      expect(getShowDragHandle(false)).toBe(false)
     })
 
     it('should map to correct grid span when enableCardResizing is false', () => {
