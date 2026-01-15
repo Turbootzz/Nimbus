@@ -643,15 +643,6 @@ export default function DashboardPage() {
                 enableCardResizing={enableCardResizing}
               />
             ))}
-
-            {/* Add new service card - spans 2 cols like standard card */}
-            <Link
-              href="/services/new"
-              className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
-            >
-              <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-              <span className="text-text-secondary">Add Service</span>
-            </Link>
           </div>
         </>
       )}
