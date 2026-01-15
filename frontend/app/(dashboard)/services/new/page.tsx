@@ -1,18 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
-import type { IconType } from '@/types'
+import type { IconType, Group } from '@/types'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function NewServicePage() {
   const router = useRouter()
+  const { enableServiceGrouping } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [groups, setGroups] = useState<Group[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -21,7 +25,36 @@ export default function NewServicePage() {
     icon_type: 'emoji' as IconType,
     icon_image_path: '',
     description: '',
+    group_id: '' as string,
   })
+
+  // Fetch groups when grouping is enabled
+  useEffect(() => {
+    const fetchGroups = async () => {
+      if (!enableServiceGrouping) {
+        setGroupsLoading(false)
+        return
+      }
+
+      try {
+        const response = await api.getGroups()
+        if (response.data) {
+          setGroups(response.data)
+          // Auto-select default group
+          const defaultGroup = response.data.find((g) => g.is_default)
+          if (defaultGroup) {
+            setFormData((prev) => ({ ...prev, group_id: defaultGroup.id }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch groups:', error)
+      } finally {
+        setGroupsLoading(false)
+      }
+    }
+
+    fetchGroups()
+  }, [enableServiceGrouping])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,6 +104,7 @@ export default function NewServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
+        group_id: enableServiceGrouping && formData.group_id ? formData.group_id : undefined,
       })
 
       if (response.error) {
@@ -89,7 +123,9 @@ export default function NewServicePage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -195,6 +231,64 @@ export default function NewServicePage() {
             }
             onFileSelect={(file) => setUploadedFile(file)}
           />
+
+          {/* Group Selector (only when grouping is enabled) */}
+          {enableServiceGrouping && (
+            <div>
+              <label
+                htmlFor="group_id"
+                className="text-text-secondary mb-2 block text-sm font-medium"
+              >
+                Group
+              </label>
+              <div className="relative">
+                <select
+                  id="group_id"
+                  name="group_id"
+                  value={formData.group_id}
+                  onChange={handleChange}
+                  className="border-card-border focus:border-primary focus:ring-opacity-50 w-full appearance-none rounded-md border px-4 py-2 pr-10 transition focus:ring-2 focus:outline-none"
+                  style={{
+                    backgroundColor: 'var(--color-background)',
+                    color: 'var(--color-text-primary)',
+                  }}
+                  disabled={isLoading || groupsLoading}
+                >
+                  {groupsLoading ? (
+                    <option value="">Loading groups...</option>
+                  ) : groups.length === 0 ? (
+                    <option value="">No groups available</option>
+                  ) : (
+                    groups.map((group) => (
+                      <option key={group.id} value={group.id}>
+                        {group.name}
+                        {group.is_default ? ' (Default)' : ''}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {/* Dropdown arrow */}
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
+                  <svg
+                    className="text-text-muted h-4 w-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-text-muted mt-1 text-xs">
+                Assign this service to a group for organization
+              </p>
+            </div>
+          )}
 
           {/* Service Description */}
           <div>

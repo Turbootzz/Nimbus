@@ -133,6 +133,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		Description:   req.Description,
 		Status:        models.StatusUnknown, // Initial status
 		CardSize:      cardSize,
+		GroupID:       req.GroupID,
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
@@ -379,6 +380,7 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	existingService.IconImagePath = iconImagePath
 	existingService.Description = req.Description
 	existingService.CardSize = cardSize
+	existingService.GroupID = req.GroupID
 	existingService.UpdatedAt = time.Now()
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {

@@ -45,6 +45,7 @@ export interface Service {
   response_time?: number
   position: number
   card_size: CardSize
+  group_id?: string
   created_at: string
   updated_at?: string
 }
@@ -57,6 +58,7 @@ export interface ServiceCreateRequest {
   icon_image_path?: string
   description?: string
   card_size?: CardSize
+  group_id?: string
 }
 
 export interface ServiceUpdateRequest {
@@ -67,6 +69,7 @@ export interface ServiceUpdateRequest {
   icon_image_path?: string
   description?: string
   card_size?: CardSize
+  group_id?: string | null
 }
 
 export interface ServicePosition {
@@ -76,6 +79,36 @@ export interface ServicePosition {
 
 export interface ServiceReorderRequest {
   services: ServicePosition[]
+}
+
+// Group types
+export interface Group {
+  id: string
+  name: string
+  color: string
+  position: number
+  is_default: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export interface GroupCreateRequest {
+  name: string
+  color?: string
+}
+
+export interface GroupUpdateRequest {
+  name?: string
+  color?: string
+}
+
+export interface GroupPosition {
+  id: string
+  position: number
+}
+
+export interface GroupReorderRequest {
+  groups: GroupPosition[]
 }
 
 // Health check types
@@ -100,6 +133,7 @@ export interface UserPreferences {
   theme_accent_color?: string
   open_in_new_tab: boolean
   enable_card_resizing: boolean
+  enable_service_grouping: boolean
   updated_at?: string
 }
 
@@ -109,6 +143,7 @@ export interface PreferencesUpdateRequest {
   theme_accent_color?: string | null
   open_in_new_tab?: boolean
   enable_card_resizing?: boolean
+  enable_service_grouping?: boolean
 }
 
 // API response types

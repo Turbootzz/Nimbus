@@ -7,6 +7,10 @@ import type {
   ServiceCreateRequest,
   ServiceUpdateRequest,
   ServiceReorderRequest,
+  Group,
+  GroupCreateRequest,
+  GroupUpdateRequest,
+  GroupReorderRequest,
   ApiResponse,
   HealthCheck,
   UserPreferences,
@@ -300,6 +304,45 @@ class ApiClient {
         },
       }
     }
+  }
+
+  // ============================================
+  // Groups
+  // ============================================
+
+  async getGroups(): Promise<ApiResponse<Group[]>> {
+    return this.request<Group[]>('/groups')
+  }
+
+  async getGroup(id: string): Promise<ApiResponse<Group>> {
+    return this.request<Group>(`/groups/${id}`)
+  }
+
+  async createGroup(data: GroupCreateRequest): Promise<ApiResponse<Group>> {
+    return this.request<Group>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateGroup(id: string, data: GroupUpdateRequest): Promise<ApiResponse<Group>> {
+    return this.request<Group>(`/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteGroup(id: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>(`/groups/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async reorderGroups(data: GroupReorderRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/groups/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
   }
 
   // ============================================
