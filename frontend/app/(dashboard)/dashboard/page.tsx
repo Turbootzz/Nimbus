@@ -14,6 +14,8 @@ import Link from 'next/link'
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
+  CollisionDetection,
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
@@ -30,6 +32,19 @@ import { sizeToGridSpan } from '@/lib/card-utils'
 import ServiceCard from '@/components/ServiceCard'
 import GroupTabs from '@/components/GroupTabs'
 import GroupForm from '@/components/GroupForm'
+
+// Custom collision detection: prioritize group tabs (pointer-based), then service grid (center-based)
+const customCollisionDetection: CollisionDetection = (args) => {
+  // First check if pointer is within any group tabs
+  const pointerCollisions = pointerWithin(args)
+  const groupTabCollision = pointerCollisions.find((c) => String(c.id).startsWith('group-'))
+  if (groupTabCollision) {
+    return [groupTabCollision]
+  }
+
+  // Fall back to closestCenter for service card reordering
+  return closestCenter(args)
+}
 
 // Sortable wrapper for ServiceCard in edit mode
 function SortableServiceCard({
@@ -234,7 +249,62 @@ export default function DashboardPage() {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
-    if (!over || active.id === over.id) return
+    if (!over) return
+
+    const activeServiceId = active.id as string
+
+    // Check if dropped on a group tab (IDs prefixed with "group-")
+    const overId = over.id as string
+    if (overId.startsWith('group-')) {
+      const targetGroupId = overId.replace('group-', '')
+      const draggedService = services.find((s) => s.id === activeServiceId)
+      if (!draggedService) return
+
+      // Find target group to check if it's the default
+      const targetGroup = groups.find((g) => g.id === targetGroupId)
+      const isTargetDefault = targetGroup?.is_default
+
+      // For default group: set group_id to null (ungrouped services appear there)
+      // For other groups: set group_id to the target group's ID
+      const newGroupId = isTargetDefault ? null : targetGroupId
+
+      // Check if already in the target group
+      // Service is in default if: group_id is null/undefined OR matches default group ID
+      const isCurrentlyInDefault =
+        !draggedService.group_id || draggedService.group_id === targetGroupId
+      if (isTargetDefault && isCurrentlyInDefault && !draggedService.group_id) return
+      if (!isTargetDefault && draggedService.group_id === targetGroupId) return
+
+      // Capture current state for rollback
+      const previousServices = services
+
+      // Optimistic update - move service to new group
+      setServices(
+        services.map((s) =>
+          s.id === activeServiceId ? { ...s, group_id: newGroupId ?? undefined } : s
+        )
+      )
+
+      // Persist to backend
+      try {
+        await api.updateService(activeServiceId, {
+          name: draggedService.name,
+          url: draggedService.url,
+          description: draggedService.description || '',
+          icon: draggedService.icon || '',
+          icon_type: draggedService.icon_type || 'emoji',
+          icon_image_path: draggedService.icon_image_path || '',
+          group_id: newGroupId,
+        })
+      } catch (error) {
+        console.error('Failed to move service to group:', error)
+        setServices(previousServices)
+      }
+      return
+    }
+
+    // Normal reorder within the same group
+    if (active.id === over.id) return
 
     // Use filtered services for the reorder operation
     const servicesToReorder = enableServiceGrouping ? filteredServices : services
@@ -252,7 +322,7 @@ export default function DashboardPage() {
     let reorderedAll: Service[]
     if (enableServiceGrouping && selectedGroupId) {
       // Replace filtered services in their positions
-      const otherServices = services.filter((s) => s.group_id !== selectedGroupId)
+      const otherServices = services.filter((s) => !servicesToReorder.some((fs) => fs.id === s.id))
       reorderedAll = [...otherServices, ...reorderedFiltered]
     } else {
       reorderedAll = reorderedFiltered
@@ -328,23 +398,6 @@ export default function DashboardPage() {
   const handleDeleteGroup = useCallback((group: Group) => {
     setDeletingGroup(group)
   }, [])
-
-  const handleReorderGroups = useCallback(
-    async (reorderedGroups: Group[]) => {
-      const previousGroups = groups
-      setGroups(reorderedGroups)
-
-      try {
-        await api.reorderGroups({
-          groups: reorderedGroups.map((g, i) => ({ id: g.id, position: i })),
-        })
-      } catch (error) {
-        console.error('Failed to reorder groups:', error)
-        setGroups(previousGroups)
-      }
-    },
-    [groups]
-  )
 
   const handleGroupFormSubmit = async (data: { name?: string; color?: string }) => {
     setGroupFormLoading(true)
@@ -460,65 +513,53 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Tabs and action buttons row */}
-      <div className="mb-4 flex items-center justify-between">
-        {/* Group tabs (only show when grouping is enabled and groups exist) */}
-        <div className="flex-1">
-          {enableServiceGrouping && groups.length > 0 && (
-            <GroupTabs
-              groups={groups}
-              selectedGroupId={selectedGroupId}
-              onSelectGroup={handleSelectGroup}
-              onCreateGroup={handleCreateGroup}
-              onEditGroup={handleEditGroup}
-              onDeleteGroup={handleDeleteGroup}
-              onReorderGroups={handleReorderGroups}
-              isEditMode={isEditMode}
-            />
-          )}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsEditMode(!isEditMode)}
-            className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              isEditMode
-                ? 'bg-success hover:bg-success/80 text-white'
-                : 'border-card-border text-text-primary hover:bg-card-hover border'
-            }`}
-          >
-            {isEditMode ? (
-              <>
-                <CheckIcon className="mr-2 h-4 w-4" />
-                Done
-              </>
-            ) : (
-              <>
-                <PencilIcon className="mr-2 h-4 w-4" />
-                Edit
-              </>
-            )}
-          </button>
-          <Link
-            href="/services/new"
-            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Add Service
-          </Link>
-        </div>
-      </div>
-
-      {/* Services grid */}
+      {/* Edit mode: wrap tabs and grid in single DndContext for drag-to-tab functionality */}
       {isEditMode ? (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={customCollisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
+          {/* Tabs and action buttons row */}
+          <div className="mb-4 flex items-center justify-between">
+            {/* Group tabs (only show when grouping is enabled and groups exist) */}
+            <div className="flex-1">
+              {enableServiceGrouping && groups.length > 0 && (
+                <GroupTabs
+                  groups={groups}
+                  selectedGroupId={selectedGroupId}
+                  onSelectGroup={handleSelectGroup}
+                  onCreateGroup={handleCreateGroup}
+                  onEditGroup={handleEditGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  isEditMode={isEditMode}
+                  isDraggingService={!!activeId}
+                />
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <CheckIcon className="mr-2 h-4 w-4" />
+                Done
+              </button>
+              <Link
+                href="/services/new"
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Service
+              </Link>
+            </div>
+          </div>
+
+          {/* Services grid */}
           <SortableContext items={filteredServices.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div
               className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
@@ -551,28 +592,68 @@ export default function DashboardPage() {
           </DragOverlay>
         </DndContext>
       ) : (
-        <div
-          className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
-          style={{ gridAutoFlow: 'dense' }}
-        >
-          {filteredServices.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              openInNewTab={openInNewTab}
-              enableCardResizing={enableCardResizing}
-            />
-          ))}
+        <>
+          {/* Tabs and action buttons row (non-edit mode) */}
+          <div className="mb-4 flex items-center justify-between">
+            {/* Group tabs (only show when grouping is enabled and groups exist) */}
+            <div className="flex-1">
+              {enableServiceGrouping && groups.length > 0 && (
+                <GroupTabs
+                  groups={groups}
+                  selectedGroupId={selectedGroupId}
+                  onSelectGroup={handleSelectGroup}
+                  onCreateGroup={handleCreateGroup}
+                  onEditGroup={handleEditGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  isEditMode={isEditMode}
+                  isDraggingService={false}
+                />
+              )}
+            </div>
 
-          {/* Add new service card - spans 2 cols like standard card */}
-          <Link
-            href="/services/new"
-            className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+            {/* Action buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+              >
+                <PencilIcon className="mr-2 h-4 w-4" />
+                Edit
+              </button>
+              <Link
+                href="/services/new"
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+              >
+                <PlusIcon className="mr-2 h-4 w-4" />
+                Add Service
+              </Link>
+            </div>
+          </div>
+
+          {/* Services grid (non-edit mode) */}
+          <div
+            className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+            style={{ gridAutoFlow: 'dense' }}
           >
-            <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-            <span className="text-text-secondary">Add Service</span>
-          </Link>
-        </div>
+            {filteredServices.map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                openInNewTab={openInNewTab}
+                enableCardResizing={enableCardResizing}
+              />
+            ))}
+
+            {/* Add new service card - spans 2 cols like standard card */}
+            <Link
+              href="/services/new"
+              className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+            >
+              <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
+              <span className="text-text-secondary">Add Service</span>
+            </Link>
+          </div>
+        </>
       )}
 
       {/* Empty state for groups with no services */}
