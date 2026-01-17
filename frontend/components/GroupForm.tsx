@@ -135,12 +135,12 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Enter group name"
-              maxLength={100}
+              maxLength={35}
               className="bg-background border-card-border text-text-primary placeholder:text-text-muted focus:border-primary focus:ring-primary w-full rounded-md border px-3 py-2 text-sm focus:ring-1 focus:outline-none"
               autoFocus
               disabled={isLoading}
             />
-            <p className="text-text-muted mt-1 text-xs">{name.length}/100 characters</p>
+            <p className="text-text-muted mt-1 text-xs">{name.length}/35 characters</p>
           </div>
 
           {/* Color picker */}

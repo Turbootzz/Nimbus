@@ -8,7 +8,7 @@ import (
 // Group constants
 const (
 	DefaultGroupColor = "#0ea5e9" // Nimbus default blue
-	MaxGroupNameLen   = 100
+	MaxGroupNameLen   = 35
 	DefaultGroupName  = "Default"
 )
 
@@ -34,13 +34,13 @@ type Group struct {
 
 // GroupCreateRequest represents the data needed to create a new group
 type GroupCreateRequest struct {
-	Name  string `json:"name" validate:"required,max=100"`
+	Name  string `json:"name" validate:"required,max=35"`
 	Color string `json:"color"` // Optional, defaults to DefaultGroupColor
 }
 
 // GroupUpdateRequest represents the data needed to update a group
 type GroupUpdateRequest struct {
-	Name  string `json:"name" validate:"omitempty,max=100"`
+	Name  string `json:"name" validate:"omitempty,max=35"`
 	Color string `json:"color"` // Optional, preserves existing if empty
 }
 
