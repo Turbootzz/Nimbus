@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
+import ScrollArea from '@/components/ui/ScrollArea'
 
 interface GroupTabsProps {
   groups: Group[]
@@ -123,9 +124,10 @@ export default function GroupTabs({
 
   return (
     <div>
-      <div
+      <ScrollArea
         ref={scrollRef}
-        className="border-card-border -mx-4 flex items-end gap-1 overflow-x-auto border-b px-4 pb-0 sm:mx-0 sm:px-0"
+        orientation="horizontal"
+        className="border-card-border -mx-4 flex items-end gap-1 border-b px-4 pb-0 sm:mx-0 sm:px-0"
       >
         {groups.map((group) => (
           <DroppableTab
@@ -151,7 +153,7 @@ export default function GroupTabs({
             <span className="text-sm">Add</span>
           </button>
         )}
-      </div>
+      </ScrollArea>
     </div>
   )
 }
