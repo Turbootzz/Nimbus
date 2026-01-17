@@ -332,8 +332,12 @@ class ApiClient {
     })
   }
 
-  async deleteGroup(id: string): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>(`/groups/${id}`, {
+  async deleteGroup(
+    id: string,
+    deleteServices: boolean = false
+  ): Promise<ApiResponse<{ message: string }>> {
+    const query = deleteServices ? '?delete_services=true' : ''
+    return this.request<{ message: string }>(`/groups/${id}${query}`, {
       method: 'DELETE',
     })
   }

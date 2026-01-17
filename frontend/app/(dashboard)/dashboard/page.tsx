@@ -107,6 +107,7 @@ export default function DashboardPage() {
 
   // Delete confirmation state
   const [deletingGroup, setDeletingGroup] = useState<Group | null>(null)
+  const [deleteGroupServices, setDeleteGroupServices] = useState(false)
 
   const [stats, setStats] = useState({
     total: 0,
@@ -432,7 +433,7 @@ export default function DashboardPage() {
     if (!deletingGroup) return
 
     try {
-      const response = await api.deleteGroup(deletingGroup.id)
+      const response = await api.deleteGroup(deletingGroup.id, deleteGroupServices)
       if (response.error) {
         console.error('Failed to delete group:', response.error.message)
         return
@@ -448,12 +449,19 @@ export default function DashboardPage() {
         setSelectedGroupId(defaultGroup?.id || newGroups[0]?.id || null)
       }
 
-      // Move services from deleted group to null (ungrouped) locally
-      setServices(
-        services.map((s) => (s.group_id === deletingGroup.id ? { ...s, group_id: undefined } : s))
-      )
+      // Update services state based on whether they were deleted or moved
+      if (deleteGroupServices) {
+        // Remove services that were in the deleted group
+        setServices(services.filter((s) => s.group_id !== deletingGroup.id))
+      } else {
+        // Move services from deleted group to null (ungrouped) locally
+        setServices(
+          services.map((s) => (s.group_id === deletingGroup.id ? { ...s, group_id: undefined } : s))
+        )
+      }
     } finally {
       setDeletingGroup(null)
+      setDeleteGroupServices(false)
     }
   }
 
@@ -683,18 +691,46 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={() => setDeletingGroup(null)}
+            onClick={() => {
+              setDeletingGroup(null)
+              setDeleteGroupServices(false)
+            }}
             aria-hidden="true"
           />
           <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg">
             <h3 className="text-text-primary mb-2 text-lg font-semibold">Delete Group</h3>
             <p className="text-text-secondary mb-4">
-              Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;? Services in this
-              group will be moved to the default group.
+              Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;?
+              {!deleteGroupServices &&
+                ' Services in this group will be moved to the default group.'}
             </p>
+
+            {/* Checkbox to delete services */}
+            <label className="mb-4 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={deleteGroupServices}
+                onChange={(e) => setDeleteGroupServices(e.target.checked)}
+                className="text-error focus:ring-error mt-0.5 h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-text-secondary text-sm">
+                Permanently delete all services in this group
+              </span>
+            </label>
+
+            {deleteGroupServices && (
+              <p className="text-error mb-4 text-sm">
+                Warning: This will permanently delete all services in this group. This action cannot
+                be undone.
+              </p>
+            )}
+
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setDeletingGroup(null)}
+                onClick={() => {
+                  setDeletingGroup(null)
+                  setDeleteGroupServices(false)
+                }}
                 className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
               >
                 Cancel

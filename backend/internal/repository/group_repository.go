@@ -248,7 +248,8 @@ func (r *GroupRepository) Update(ctx context.Context, group *models.Group) error
 }
 
 // Delete deletes a group (cannot delete default group)
-func (r *GroupRepository) Delete(ctx context.Context, id, userID string) error {
+// If deleteServices is true, also deletes all services in the group
+func (r *GroupRepository) Delete(ctx context.Context, id, userID string, deleteServices bool) error {
 	// First check if it's the default group
 	group, err := r.GetByID(ctx, id)
 	if err != nil {
@@ -263,9 +264,26 @@ func (r *GroupRepository) Delete(ctx context.Context, id, userID string) error {
 		return ErrCannotDeleteDefaultGroup
 	}
 
+	// Use transaction to ensure atomicity
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// If deleteServices is true, delete all services in this group
+	if deleteServices {
+		deleteServicesQuery := `DELETE FROM services WHERE group_id = $1 AND user_id = $2`
+		_, err = tx.ExecContext(ctx, deleteServicesQuery, id, userID)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Delete the group
 	query := `DELETE FROM groups WHERE id = $1 AND user_id = $2`
 
-	result, err := r.db.ExecContext(ctx, query, id, userID)
+	result, err := tx.ExecContext(ctx, query, id, userID)
 	if err != nil {
 		return err
 	}
@@ -279,7 +297,7 @@ func (r *GroupRepository) Delete(ctx context.Context, id, userID string) error {
 		return sql.ErrNoRows
 	}
 
-	return nil
+	return tx.Commit()
 }
 
 // UpdatePositions updates positions for multiple groups in a transaction

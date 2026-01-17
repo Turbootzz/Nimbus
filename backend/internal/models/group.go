@@ -7,9 +7,9 @@ import (
 
 // Group constants
 const (
-	DefaultGroupColor = "#6366f1" // Indigo
+	DefaultGroupColor = "#0ea5e9" // Nimbus default blue
 	MaxGroupNameLen   = 100
-	DefaultGroupName  = "All Services"
+	DefaultGroupName  = "Default"
 )
 
 // hexColorRegex validates hex color format #RRGGBB

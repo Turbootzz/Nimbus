@@ -221,6 +221,7 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 }
 
 // DeleteGroup handles group deletion (default group cannot be deleted)
+// Query param: delete_services=true to also delete all services in the group
 func (h *GroupHandler) DeleteGroup(c *fiber.Ctx) error {
 	userID, ok := c.Locals("user_id").(string)
 	if !ok || userID == "" {
@@ -236,7 +237,10 @@ func (h *GroupHandler) DeleteGroup(c *fiber.Ctx) error {
 		})
 	}
 
-	if err := h.groupRepo.Delete(c.Context(), groupID, userID); err != nil {
+	// Check if services should be deleted with the group
+	deleteServices := c.Query("delete_services") == "true"
+
+	if err := h.groupRepo.Delete(c.Context(), groupID, userID, deleteServices); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Group not found or access denied",
