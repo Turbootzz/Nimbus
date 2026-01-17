@@ -558,7 +558,11 @@ export default function DashboardPage() {
                 <span className="hidden sm:inline">Done</span>
               </button>
               <Link
-                href="/services/new"
+                href={
+                  enableServiceGrouping && selectedGroupId
+                    ? `/services/new?group=${selectedGroupId}`
+                    : '/services/new'
+                }
                 className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
               >
                 <PlusIcon className="h-4 w-4 sm:mr-2" />
@@ -629,7 +633,11 @@ export default function DashboardPage() {
                 <span className="hidden sm:inline">Edit</span>
               </button>
               <Link
-                href="/services/new"
+                href={
+                  enableServiceGrouping && selectedGroupId
+                    ? `/services/new?group=${selectedGroupId}`
+                    : '/services/new'
+                }
                 className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
               >
                 <PlusIcon className="h-4 w-4 sm:mr-2" />
@@ -664,7 +672,11 @@ export default function DashboardPage() {
             Add a service and assign it to this group to see it here.
           </p>
           <Link
-            href="/services/new"
+            href={
+              enableServiceGrouping && selectedGroupId
+                ? `/services/new?group=${selectedGroupId}`
+                : '/services/new'
+            }
             className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             <PlusIcon className="mr-2 h-4 w-4" />

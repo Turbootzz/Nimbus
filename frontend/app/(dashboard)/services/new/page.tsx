@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
@@ -11,6 +11,8 @@ import { useTheme } from '@/contexts/ThemeContext'
 
 export default function NewServicePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedGroupId = searchParams.get('group')
   const { enableServiceGrouping } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -40,10 +42,14 @@ export default function NewServicePage() {
         const response = await api.getGroups()
         if (response.data) {
           setGroups(response.data)
-          // Auto-select default group
+          // Use preselected group from URL if valid, otherwise use default group
+          const preselectedGroup = preselectedGroupId
+            ? response.data.find((g) => g.id === preselectedGroupId)
+            : null
           const defaultGroup = response.data.find((g) => g.is_default)
-          if (defaultGroup) {
-            setFormData((prev) => ({ ...prev, group_id: defaultGroup.id }))
+          const groupToSelect = preselectedGroup || defaultGroup
+          if (groupToSelect) {
+            setFormData((prev) => ({ ...prev, group_id: groupToSelect.id }))
           }
         }
       } catch (error) {
@@ -54,7 +60,7 @@ export default function NewServicePage() {
     }
 
     fetchGroups()
-  }, [enableServiceGrouping])
+  }, [enableServiceGrouping, preselectedGroupId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
