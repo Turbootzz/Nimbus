@@ -522,10 +522,10 @@ export default function DashboardPage() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          {/* Tabs and action buttons row */}
-          <div className="mb-4 flex items-center justify-between">
+          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Group tabs (only show when grouping is enabled and groups exist) */}
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               {enableServiceGrouping && groups.length > 0 && (
                 <GroupTabs
                   groups={groups}
@@ -541,20 +541,20 @@ export default function DashboardPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
-                className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+                className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
               >
-                <CheckIcon className="mr-2 h-4 w-4" />
-                Done
+                <CheckIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Done</span>
               </button>
               <Link
                 href="/services/new"
-                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
               >
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add Service
+                <PlusIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Service</span>
               </Link>
             </div>
           </div>
@@ -593,10 +593,10 @@ export default function DashboardPage() {
         </DndContext>
       ) : (
         <>
-          {/* Tabs and action buttons row (non-edit mode) */}
-          <div className="mb-4 flex items-center justify-between">
+          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             {/* Group tabs (only show when grouping is enabled and groups exist) */}
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               {enableServiceGrouping && groups.length > 0 && (
                 <GroupTabs
                   groups={groups}
@@ -612,20 +612,20 @@ export default function DashboardPage() {
             </div>
 
             {/* Action buttons */}
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               <button
                 onClick={() => setIsEditMode(!isEditMode)}
-                className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-4 py-2 text-sm font-medium transition-colors"
+                className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
               >
-                <PencilIcon className="mr-2 h-4 w-4" />
-                Edit
+                <PencilIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit</span>
               </button>
               <Link
                 href="/services/new"
-                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
               >
-                <PlusIcon className="mr-2 h-4 w-4" />
-                Add Service
+                <PlusIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Service</span>
               </Link>
             </div>
           </div>

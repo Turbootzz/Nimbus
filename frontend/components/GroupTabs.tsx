@@ -47,7 +47,7 @@ function DroppableTab({
     <div
       ref={setNodeRef}
       data-group-id={group.id}
-      className={`group relative flex items-center gap-2 rounded-t-lg px-4 py-2 transition-colors ${
+      className={`group relative flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 whitespace-nowrap transition-colors sm:px-4 ${
         isSelected
           ? 'bg-card border-card-border border-b-card border-t border-r border-l'
           : 'bg-card-hover/50 hover:bg-card-hover'
@@ -122,10 +122,10 @@ export default function GroupTabs({
   }
 
   return (
-    <div className="mb-4">
+    <div>
       <div
         ref={scrollRef}
-        className="border-card-border flex items-end gap-1 overflow-x-auto border-b pb-0"
+        className="border-card-border -mx-4 flex items-end gap-1 overflow-x-auto border-b px-4 pb-0 sm:mx-0 sm:px-0"
       >
         {groups.map((group) => (
           <DroppableTab
