@@ -43,14 +43,14 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
     e.preventDefault()
     setError(null)
 
-    // Validation
+    // Validation - must match backend MaxGroupNameLen (35 chars)
     const trimmedName = name.trim()
     if (!trimmedName) {
       setError('Group name is required')
       return
     }
-    if (trimmedName.length > 100) {
-      setError('Group name must be 100 characters or less')
+    if (trimmedName.length > 35) {
+      setError('Group name must be 35 characters or less')
       return
     }
 

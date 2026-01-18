@@ -1,8 +1,9 @@
 -- Create service groups table
+-- Note: name limit matches models.MaxGroupNameLen constant (35 chars)
 CREATE TABLE IF NOT EXISTS groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(35) NOT NULL,
     color VARCHAR(7) DEFAULT '#6366f1',
     position INTEGER DEFAULT 0,
     is_default BOOLEAN DEFAULT FALSE,

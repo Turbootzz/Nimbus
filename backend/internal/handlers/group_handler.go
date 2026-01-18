@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -44,7 +45,7 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	}
 	if len(req.Name) > models.MaxGroupNameLen {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name must be 100 characters or less",
+			"error": fmt.Sprintf("Name must be %d characters or less", models.MaxGroupNameLen),
 		})
 	}
 
@@ -193,7 +194,7 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 	if req.Name != "" {
 		if len(req.Name) > models.MaxGroupNameLen {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Name must be 100 characters or less",
+				"error": fmt.Sprintf("Name must be %d characters or less", models.MaxGroupNameLen),
 			})
 		}
 		existingGroup.Name = req.Name

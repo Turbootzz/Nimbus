@@ -69,6 +69,7 @@ export default function EditServicePage() {
         return
       }
 
+      setGroupsLoading(true)
       try {
         const response = await api.getGroups()
         if (response.data) {

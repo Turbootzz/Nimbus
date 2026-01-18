@@ -38,8 +38,13 @@ function NewServiceContent() {
         return
       }
 
+      setGroupsLoading(true)
       try {
         const response = await api.getGroups()
+        if (response.error) {
+          setError(`Failed to load groups: ${response.error.message}`)
+          return
+        }
         if (response.data) {
           setGroups(response.data)
           // Use preselected group from URL if valid, otherwise use default group
@@ -54,6 +59,7 @@ function NewServiceContent() {
         }
       } catch (error) {
         console.error('Failed to fetch groups:', error)
+        setError('Failed to load groups. Please try again.')
       } finally {
         setGroupsLoading(false)
       }

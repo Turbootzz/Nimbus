@@ -44,9 +44,20 @@ function DroppableTab({
   // Highlight when a service is being dragged over this tab
   const showDropIndicator = isDraggingService && isOver
 
+  // Handle keyboard navigation for accessibility
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSelect()
+    }
+  }
+
   return (
     <div
       ref={setNodeRef}
+      role="tab"
+      tabIndex={0}
+      aria-selected={isSelected}
       data-group-id={group.id}
       className={`group relative flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 whitespace-nowrap transition-colors sm:px-4 ${
         isSelected
@@ -54,6 +65,7 @@ function DroppableTab({
           : 'bg-card-hover/50 hover:bg-card-hover'
       } ${showDropIndicator ? 'ring-primary ring-2' : ''} cursor-pointer`}
       onClick={onSelect}
+      onKeyDown={handleKeyDown}
     >
       {/* Color indicator */}
       <div className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: group.color }} />
@@ -69,6 +81,7 @@ function DroppableTab({
       {isEditMode && (
         <div className="ml-2 flex items-center gap-1">
           <button
+            type="button"
             onClick={(e) => {
               e.stopPropagation()
               onEdit()
@@ -80,6 +93,7 @@ function DroppableTab({
           </button>
           {!group.is_default && (
             <button
+              type="button"
               onClick={(e) => {
                 e.stopPropagation()
                 onDelete()
@@ -145,6 +159,7 @@ export default function GroupTabs({
         {/* Add group button */}
         {isEditMode && (
           <button
+            type="button"
             onClick={onCreateGroup}
             className="text-text-muted hover:text-primary hover:bg-card-hover mb-0 flex items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
             title="Add new group"

@@ -319,10 +319,10 @@ export default function DashboardPage() {
     // Reorder within filtered list
     const reorderedFiltered = arrayMove(servicesToReorder, oldIndex, newIndex)
 
-    // Merge back into full services list
+    // Merge back into full services list while preserving absolute positions
     let reorderedAll: Service[]
     if (enableServiceGrouping && selectedGroupId) {
-      // Replace filtered services in their positions
+      // Replace filtered services in their original positions within the full list
       const otherServices = services.filter((s) => !servicesToReorder.some((fs) => fs.id === s.id))
       reorderedAll = [...otherServices, ...reorderedFiltered]
     } else {
@@ -332,10 +332,15 @@ export default function DashboardPage() {
     // Optimistic update
     setServices(reorderedAll)
 
-    // Persist to backend (send all services with new positions)
+    // Persist to backend with absolute positions from the full services list
+    // This ensures positions are unique across all groups
     try {
+      const positionsToUpdate = reorderedFiltered.map((s) => ({
+        id: s.id,
+        position: reorderedAll.findIndex((rs) => rs.id === s.id),
+      }))
       await api.reorderServices({
-        services: reorderedFiltered.map((s, i) => ({ id: s.id, position: i })),
+        services: positionsToUpdate,
       })
     } catch (error) {
       console.error('Failed to save order:', error)
