@@ -526,7 +526,7 @@ func TestGroupRepository_Delete(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.Delete(ctx, tt.id, tt.userID)
+			err := repo.Delete(ctx, tt.id, tt.userID, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Delete() error = %v, wantErr %v", err, tt.wantErr)
 			}

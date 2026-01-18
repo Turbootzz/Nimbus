@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
@@ -9,7 +9,7 @@ import IconSelector from '@/components/IconSelector'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
-export default function NewServicePage() {
+function NewServiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedGroupId = searchParams.get('group')
@@ -342,5 +342,13 @@ export default function NewServicePage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewServicePage() {
+  return (
+    <Suspense fallback={<div className="text-text-secondary">Loading...</div>}>
+      <NewServiceContent />
+    </Suspense>
   )
 }
