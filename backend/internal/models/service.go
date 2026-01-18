@@ -54,30 +54,33 @@ type Service struct {
 	ResponseTime  *int      `json:"response_time" db:"response_time"` // Response time in milliseconds (nil if never checked)
 	Position      int       `json:"position" db:"position"`           // User-defined position for dashboard ordering
 	CardSize      string    `json:"card_size" db:"card_size"`         // '1x1', '2x1', or '2x2'
+	GroupID       *string   `json:"group_id" db:"group_id"`           // Optional group for organizing services
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ServiceCreateRequest represents the data needed to create a new service
 type ServiceCreateRequest struct {
-	Name          string `json:"name" validate:"required"`
-	URL           string `json:"url" validate:"required,url"`
-	Icon          string `json:"icon"`
-	IconType      string `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
-	IconImagePath string `json:"icon_image_path"` // File path or URL for image icons
-	Description   string `json:"description"`
-	CardSize      string `json:"card_size"` // '1x1', '2x1', or '2x2' (defaults to '2x1')
+	Name          string  `json:"name" validate:"required"`
+	URL           string  `json:"url" validate:"required,url"`
+	Icon          string  `json:"icon"`
+	IconType      string  `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
+	IconImagePath string  `json:"icon_image_path"` // File path or URL for image icons
+	Description   string  `json:"description"`
+	CardSize      string  `json:"card_size"` // '1x1', '2x1', or '2x2' (defaults to '2x1')
+	GroupID       *string `json:"group_id"`  // Optional group ID
 }
 
 // ServiceUpdateRequest represents the data needed to update a service
 type ServiceUpdateRequest struct {
-	Name          string `json:"name" validate:"required"`
-	URL           string `json:"url" validate:"required,url"`
-	Icon          string `json:"icon"`
-	IconType      string `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
-	IconImagePath string `json:"icon_image_path"` // File path or URL for image icons
-	Description   string `json:"description"`
-	CardSize      string `json:"card_size"` // '1x1', '2x1', or '2x2' (preserves existing if empty)
+	Name          string  `json:"name" validate:"required"`
+	URL           string  `json:"url" validate:"required,url"`
+	Icon          string  `json:"icon"`
+	IconType      string  `json:"icon_type"`       // 'emoji', 'image_upload', or 'image_url'
+	IconImagePath string  `json:"icon_image_path"` // File path or URL for image icons
+	Description   string  `json:"description"`
+	CardSize      string  `json:"card_size"` // '1x1', '2x1', or '2x2' (preserves existing if empty)
+	GroupID       *string `json:"group_id"`  // Optional group ID (nil clears the group)
 }
 
 // ServiceResponse is the safe service data to return to clients
@@ -93,6 +96,7 @@ type ServiceResponse struct {
 	ResponseTime  *int      `json:"response_time,omitempty"` // Response time in milliseconds (omitted if nil)
 	Position      int       `json:"position"`
 	CardSize      string    `json:"card_size"`
+	GroupID       *string   `json:"group_id,omitempty"` // Optional group ID
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
 }
@@ -111,6 +115,7 @@ func (s *Service) ToResponse() ServiceResponse {
 		ResponseTime:  s.ResponseTime,
 		Position:      s.Position,
 		CardSize:      s.CardSize,
+		GroupID:       s.GroupID,
 		CreatedAt:     s.CreatedAt,
 		UpdatedAt:     s.UpdatedAt,
 	}

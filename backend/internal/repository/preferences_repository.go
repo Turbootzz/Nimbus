@@ -31,11 +31,19 @@ func getEnableCardResizingValue(value *bool) bool {
 	return true
 }
 
+// getEnableServiceGroupingValue returns the enable_service_grouping value, defaulting to true if nil
+func getEnableServiceGroupingValue(value *bool) bool {
+	if value != nil {
+		return *value
+	}
+	return true
+}
+
 // GetByUserID retrieves preferences for a specific user
 func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) (*models.UserPreferences, error) {
 	preferences := &models.UserPreferences{}
 	query := `
-		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, created_at, updated_at
+		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -48,6 +56,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.ThemeAccentColor,
 		&preferences.OpenInNewTab,
 		&preferences.EnableCardResizing,
+		&preferences.EnableServiceGrouping,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -62,8 +71,8 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 // Create creates default preferences for a new user
 func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.UserPreferences) error {
 	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 
@@ -76,6 +85,7 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 		preferences.ThemeAccentColor,
 		preferences.OpenInNewTab,
 		preferences.EnableCardResizing,
+		preferences.EnableServiceGrouping,
 		preferences.CreatedAt,
 		preferences.UpdatedAt,
 	).Scan(&preferences.ID)
@@ -87,8 +97,8 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 func (r *PreferencesRepository) Update(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
 	query := `
 		UPDATE user_preferences
-		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, open_in_new_tab = $4, enable_card_resizing = $5, updated_at = CURRENT_TIMESTAMP
-		WHERE user_id = $6
+		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, open_in_new_tab = $4, enable_card_resizing = $5, enable_service_grouping = $6, updated_at = CURRENT_TIMESTAMP
+		WHERE user_id = $7
 	`
 
 	result, err := r.db.ExecContext(
@@ -99,6 +109,7 @@ func (r *PreferencesRepository) Update(ctx context.Context, userID string, prefe
 		preferences.ThemeAccentColor.GetValue(),
 		getOpenInNewTabValue(preferences.OpenInNewTab),
 		getEnableCardResizingValue(preferences.EnableCardResizing),
+		getEnableServiceGroupingValue(preferences.EnableServiceGrouping),
 		userID,
 	)
 
@@ -131,20 +142,21 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, prefe
 	// For INSERT: use provided values or defaults
 	// For UPDATE: use COALESCE to keep existing values when new value is NULL
 	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		ON CONFLICT (user_id) DO UPDATE SET
-			theme_mode = COALESCE($7, user_preferences.theme_mode),
+			theme_mode = COALESCE($8, user_preferences.theme_mode),
 			theme_background = CASE
-				WHEN $8::boolean THEN $3
+				WHEN $9::boolean THEN $3
 				ELSE user_preferences.theme_background
 			END,
 			theme_accent_color = CASE
-				WHEN $9::boolean THEN $4
+				WHEN $10::boolean THEN $4
 				ELSE user_preferences.theme_accent_color
 			END,
-			open_in_new_tab = COALESCE($10, user_preferences.open_in_new_tab),
-			enable_card_resizing = COALESCE($11, user_preferences.enable_card_resizing),
+			open_in_new_tab = COALESCE($11, user_preferences.open_in_new_tab),
+			enable_card_resizing = COALESCE($12, user_preferences.enable_card_resizing),
+			enable_service_grouping = COALESCE($13, user_preferences.enable_service_grouping),
 			updated_at = CURRENT_TIMESTAMP
 	`
 
@@ -159,13 +171,15 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, prefe
 		insertThemeMode,                         // $2 (for INSERT)
 		preferences.ThemeBackground.GetValue(),  // $3 (for both INSERT and UPDATE)
 		preferences.ThemeAccentColor.GetValue(), // $4 (for both INSERT and UPDATE)
-		getOpenInNewTabValue(preferences.OpenInNewTab),             // $5 (for INSERT)
-		getEnableCardResizingValue(preferences.EnableCardResizing), // $6 (for INSERT)
-		preferences.ThemeMode,                                      // $7 (for UPDATE - COALESCE)
-		hasBackground,                                              // $8 (flag: was background provided?)
-		hasAccentColor,                                             // $9 (flag: was accent color provided?)
-		preferences.OpenInNewTab,                                   // $10 (for UPDATE - COALESCE)
-		preferences.EnableCardResizing,                             // $11 (for UPDATE - COALESCE)
+		getOpenInNewTabValue(preferences.OpenInNewTab),                   // $5 (for INSERT)
+		getEnableCardResizingValue(preferences.EnableCardResizing),       // $6 (for INSERT)
+		getEnableServiceGroupingValue(preferences.EnableServiceGrouping), // $7 (for INSERT)
+		preferences.ThemeMode,             // $8 (for UPDATE - COALESCE)
+		hasBackground,                     // $9 (flag: was background provided?)
+		hasAccentColor,                    // $10 (flag: was accent color provided?)
+		preferences.OpenInNewTab,          // $11 (for UPDATE - COALESCE)
+		preferences.EnableCardResizing,    // $12 (for UPDATE - COALESCE)
+		preferences.EnableServiceGrouping, // $13 (for UPDATE - COALESCE)
 	)
 
 	return err

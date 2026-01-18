@@ -20,11 +20,13 @@ interface ThemeContextType {
   background?: string
   openInNewTab: boolean
   enableCardResizing: boolean
+  enableServiceGrouping: boolean
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
   setOpenInNewTab: (openInNewTab: boolean) => void
   setEnableCardResizing: (enableCardResizing: boolean) => void
+  setEnableServiceGrouping: (enableServiceGrouping: boolean) => void
   loading: boolean
 }
 
@@ -38,6 +40,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [background, setBackgroundState] = useState<string | undefined>()
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
   const [enableCardResizing, setEnableCardResizingState] = useState<boolean>(true)
+  const [enableServiceGrouping, setEnableServiceGroupingState] = useState<boolean>(true)
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
@@ -79,6 +82,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setOpenInNewTabState(e.newValue === 'true')
       } else if (e.key === 'enableCardResizing' && e.newValue !== null) {
         setEnableCardResizingState(e.newValue === 'true')
+      } else if (e.key === 'enableServiceGrouping' && e.newValue !== null) {
+        setEnableServiceGroupingState(e.newValue === 'true')
       }
     }
 
@@ -95,6 +100,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const savedBackground = localStorage.getItem('background')
       const savedOpenInNewTab = localStorage.getItem('openInNewTab')
       const savedEnableCardResizing = localStorage.getItem('enableCardResizing')
+      const savedEnableServiceGrouping = localStorage.getItem('enableServiceGrouping')
 
       if (savedTheme) setThemeState(savedTheme)
       if (savedAccent) setAccentColorState(savedAccent)
@@ -102,6 +108,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedOpenInNewTab !== null) setOpenInNewTabState(savedOpenInNewTab === 'true')
       if (savedEnableCardResizing !== null)
         setEnableCardResizingState(savedEnableCardResizing === 'true')
+      if (savedEnableServiceGrouping !== null)
+        setEnableServiceGroupingState(savedEnableServiceGrouping === 'true')
 
       // Step 2: Try to load from API and sync
       try {
@@ -114,17 +122,20 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           const apiBackground = response.data.theme_background
           const apiOpenInNewTab = response.data.open_in_new_tab ?? true
           const apiEnableCardResizing = response.data.enable_card_resizing ?? true
+          const apiEnableServiceGrouping = response.data.enable_service_grouping ?? true
 
           setThemeState(apiTheme)
           setAccentColorState(apiAccent)
           setBackgroundState(apiBackground)
           setOpenInNewTabState(apiOpenInNewTab)
           setEnableCardResizingState(apiEnableCardResizing)
+          setEnableServiceGroupingState(apiEnableServiceGrouping)
 
           // Update localStorage cache with API data
           localStorage.setItem('theme', apiTheme)
           localStorage.setItem('openInNewTab', String(apiOpenInNewTab))
           localStorage.setItem('enableCardResizing', String(apiEnableCardResizing))
+          localStorage.setItem('enableServiceGrouping', String(apiEnableServiceGrouping))
           if (apiAccent) {
             localStorage.setItem('accentColor', apiAccent)
           } else {
@@ -217,6 +228,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     if (updates.enable_card_resizing !== undefined) {
       localStorage.setItem('enableCardResizing', String(updates.enable_card_resizing))
+    }
+    if (updates.enable_service_grouping !== undefined) {
+      localStorage.setItem('enableServiceGrouping', String(updates.enable_service_grouping))
     }
     if (updates.theme_accent_color !== undefined) {
       if (updates.theme_accent_color) {
@@ -313,6 +327,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [savePreferences]
   )
 
+  const setEnableServiceGrouping = useCallback(
+    (value: boolean) => {
+      setEnableServiceGroupingState(value)
+      savePreferences({ enable_service_grouping: value })
+    },
+    [savePreferences]
+  )
+
   const value = useMemo(
     () => ({
       theme,
@@ -321,11 +343,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       background,
       openInNewTab,
       enableCardResizing,
+      enableServiceGrouping,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
       setEnableCardResizing,
+      setEnableServiceGrouping,
       loading,
     }),
     [
@@ -335,11 +359,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       background,
       openInNewTab,
       enableCardResizing,
+      enableServiceGrouping,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
       setEnableCardResizing,
+      setEnableServiceGrouping,
       loading,
     ]
   )

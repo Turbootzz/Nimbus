@@ -38,6 +38,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			response_time INTEGER,
 			position INTEGER DEFAULT 0,
 			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -53,8 +54,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 // createServiceDirectly inserts a service for testing
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	iconType := service.IconType
 	if iconType == "" {
@@ -78,6 +79,7 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.ResponseTime,
 		service.Position,
 		cardSize,
+		service.GroupID,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)

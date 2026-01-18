@@ -44,6 +44,7 @@ func main() {
 	serviceRepo := repository.NewServiceRepository(database)
 	preferencesRepo := repository.NewPreferencesRepository(database)
 	statusLogRepo := repository.NewStatusLogRepository(database)
+	groupRepo := repository.NewGroupRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -74,6 +75,7 @@ func main() {
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
 	uploadHandler := handlers.NewUploadHandler(userRepo)
 	staticHandler := handlers.NewStaticHandler()
+	groupHandler := handlers.NewGroupHandler(groupRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -127,6 +129,15 @@ func main() {
 	services.Delete("/:id", serviceHandler.DeleteService)
 	services.Post("/:id/check", serviceHandler.CheckService)
 	services.Get("/:id/status-logs", metricsHandler.GetRecentStatusLogs)
+
+	// Group routes (all protected)
+	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo))
+	groups.Post("/", groupHandler.CreateGroup)
+	groups.Get("/", groupHandler.GetGroups)
+	groups.Put("/reorder", groupHandler.ReorderGroups) // Must be before /:id routes
+	groups.Get("/:id", groupHandler.GetGroup)
+	groups.Put("/:id", groupHandler.UpdateGroup)
+	groups.Delete("/:id", groupHandler.DeleteGroup)
 
 	// Static file serving (public, but files are only accessible if you know the filename)
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware

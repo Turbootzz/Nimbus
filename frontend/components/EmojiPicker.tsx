@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import ScrollArea from '@/components/ui/ScrollArea'
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void
@@ -113,7 +114,7 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
 
         {/* Category Tabs */}
         <div className="border-card-border border-b px-4">
-          <div className="scrollbar-thin -mb-px flex gap-2 overflow-x-auto">
+          <ScrollArea orientation="horizontal" className="-mb-px flex gap-2">
             {categories.map((category) => (
               <button
                 key={category}
@@ -126,7 +127,7 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
                 {category}
               </button>
             ))}
-          </div>
+          </ScrollArea>
         </div>
 
         {/* Emoji Grid */}

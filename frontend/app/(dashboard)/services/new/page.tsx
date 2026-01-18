@@ -1,18 +1,25 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
-import type { IconType } from '@/types'
+import GroupSelector from '@/components/GroupSelector'
+import type { IconType, Group } from '@/types'
+import { useTheme } from '@/contexts/ThemeContext'
 
-export default function NewServicePage() {
+function NewServiceContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedGroupId = searchParams.get('group')
+  const { enableServiceGrouping } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [groups, setGroups] = useState<Group[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -21,7 +28,46 @@ export default function NewServicePage() {
     icon_type: 'emoji' as IconType,
     icon_image_path: '',
     description: '',
+    group_id: '' as string,
   })
+
+  // Fetch groups when grouping is enabled
+  useEffect(() => {
+    const fetchGroups = async () => {
+      if (!enableServiceGrouping) {
+        setGroupsLoading(false)
+        return
+      }
+
+      setGroupsLoading(true)
+      try {
+        const response = await api.getGroups()
+        if (response.error) {
+          setError(`Failed to load groups: ${response.error.message}`)
+          return
+        }
+        if (response.data) {
+          setGroups(response.data)
+          // Use preselected group from URL if valid, otherwise use default group
+          const preselectedGroup = preselectedGroupId
+            ? response.data.find((g) => g.id === preselectedGroupId)
+            : null
+          const defaultGroup = response.data.find((g) => g.is_default)
+          const groupToSelect = preselectedGroup || defaultGroup
+          if (groupToSelect) {
+            setFormData((prev) => ({ ...prev, group_id: groupToSelect.id }))
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch groups:', error)
+        setError('Failed to load groups. Please try again.')
+      } finally {
+        setGroupsLoading(false)
+      }
+    }
+
+    fetchGroups()
+  }, [enableServiceGrouping, preselectedGroupId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -71,6 +117,7 @@ export default function NewServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
+        group_id: enableServiceGrouping && formData.group_id ? formData.group_id : undefined,
       })
 
       if (response.error) {
@@ -89,7 +136,9 @@ export default function NewServicePage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -196,6 +245,17 @@ export default function NewServicePage() {
             onFileSelect={(file) => setUploadedFile(file)}
           />
 
+          {/* Group Selector (only when grouping is enabled) */}
+          {enableServiceGrouping && (
+            <GroupSelector
+              value={formData.group_id}
+              onChange={(value) => setFormData((prev) => ({ ...prev, group_id: value }))}
+              groups={groups}
+              isLoading={groupsLoading}
+              disabled={isLoading}
+            />
+          )}
+
           {/* Service Description */}
           <div>
             <label
@@ -242,5 +302,13 @@ export default function NewServicePage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function NewServicePage() {
+  return (
+    <Suspense fallback={<div className="text-text-secondary">Loading...</div>}>
+      <NewServiceContent />
+    </Suspense>
   )
 }

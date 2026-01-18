@@ -6,17 +6,22 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
-import type { IconType } from '@/types'
+import GroupSelector from '@/components/GroupSelector'
+import type { IconType, Group } from '@/types'
+import { useTheme } from '@/contexts/ThemeContext'
 
 export default function EditServicePage() {
   const router = useRouter()
   const params = useParams()
   const serviceId = params.id as string
+  const { enableServiceGrouping } = useTheme()
 
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
+  const [groups, setGroups] = useState<Group[]>([])
+  const [groupsLoading, setGroupsLoading] = useState(true)
 
   const [formData, setFormData] = useState({
     name: '',
@@ -25,8 +30,10 @@ export default function EditServicePage() {
     icon_type: 'emoji' as IconType,
     icon_image_path: '',
     description: '',
+    group_id: '' as string,
   })
 
+  // Fetch service data
   useEffect(() => {
     const fetchService = async () => {
       setIsLoading(true)
@@ -45,6 +52,7 @@ export default function EditServicePage() {
           icon_type: service.icon_type || 'emoji',
           icon_image_path: service.icon_image_path || '',
           description: service.description || '',
+          group_id: service.group_id || '',
         })
       }
 
@@ -53,6 +61,35 @@ export default function EditServicePage() {
 
     fetchService()
   }, [serviceId])
+
+  // Fetch groups when grouping is enabled
+  useEffect(() => {
+    const fetchGroups = async () => {
+      if (!enableServiceGrouping) {
+        setGroupsLoading(false)
+        return
+      }
+
+      setGroupsLoading(true)
+      try {
+        const response = await api.getGroups()
+        if (response.error) {
+          setError(`Failed to load groups: ${response.error.message}`)
+          return
+        }
+        if (response.data) {
+          setGroups(response.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch groups:', error)
+        setError('Failed to load groups. Please try again.')
+      } finally {
+        setGroupsLoading(false)
+      }
+    }
+
+    fetchGroups()
+  }, [enableServiceGrouping])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -102,6 +139,7 @@ export default function EditServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
+        group_id: enableServiceGrouping ? formData.group_id || null : undefined,
       })
 
       if (response.error) {
@@ -120,7 +158,9 @@ export default function EditServicePage() {
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -235,6 +275,17 @@ export default function EditServicePage() {
             }
             onFileSelect={(file) => setUploadedFile(file)}
           />
+
+          {/* Group Selector (only when grouping is enabled) */}
+          {enableServiceGrouping && (
+            <GroupSelector
+              value={formData.group_id}
+              onChange={(value) => setFormData((prev) => ({ ...prev, group_id: value }))}
+              groups={groups}
+              isLoading={groupsLoading}
+              disabled={isSaving}
+            />
+          )}
 
           {/* Service Description */}
           <div>

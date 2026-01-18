@@ -33,6 +33,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			response_time INTEGER,
 			position INTEGER,
 			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)

@@ -12,11 +12,13 @@ export default function ThemePage() {
     background,
     openInNewTab,
     enableCardResizing,
+    enableServiceGrouping,
     setTheme,
     setAccentColor,
     setBackground,
     setOpenInNewTab,
     setEnableCardResizing,
+    setEnableServiceGrouping,
   } = useTheme()
 
   const presetColors = [
@@ -178,6 +180,21 @@ export default function ThemePage() {
             onChange={setEnableCardResizing}
             label="Enable card resizing"
             description="When enabled, you can resize cards in edit mode by clicking them. When disabled, all cards display as standard size (2x1)"
+          />
+        </div>
+
+        {/* Service Grouping */}
+        <div className="bg-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Service Grouping</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Organize your services into groups with a tabbed interface
+          </p>
+
+          <Toggle
+            enabled={enableServiceGrouping}
+            onChange={setEnableServiceGrouping}
+            label="Enable service grouping"
+            description="When enabled, you can organize services into groups displayed as tabs. Create, rename, and reorder groups in edit mode. When disabled, all services are shown in a single view"
           />
         </div>
 

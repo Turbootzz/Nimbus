@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ServerIcon,
   ClockIcon,
@@ -14,6 +14,8 @@ import Link from 'next/link'
 import {
   DndContext,
   closestCenter,
+  pointerWithin,
+  CollisionDetection,
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
@@ -24,10 +26,34 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import type { Service, CardSize } from '@/types'
+import type { Service, CardSize, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { sizeToGridSpan } from '@/lib/card-utils'
 import ServiceCard from '@/components/ServiceCard'
+import GroupTabs from '@/components/GroupTabs'
+import GroupForm from '@/components/GroupForm'
+
+// Factory for custom collision detection based on drag type
+function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): CollisionDetection {
+  return (args) => {
+    const activeId = String(args.active.id)
+
+    // If dragging a tab, only collide with other tabs
+    if (isDraggingTab || groupIds.includes(activeId)) {
+      return closestCenter(args)
+    }
+
+    // For service drags: prioritize group tabs (pointer-based), then service grid (center-based)
+    const pointerCollisions = pointerWithin(args)
+    const groupTabCollision = pointerCollisions.find((c) => String(c.id).startsWith('group-'))
+    if (groupTabCollision) {
+      return [groupTabCollision]
+    }
+
+    // Fall back to closestCenter for service card reordering
+    return closestCenter(args)
+  }
+}
 
 // Sortable wrapper for ServiceCard in edit mode
 function SortableServiceCard({
@@ -74,23 +100,77 @@ function SortableServiceCard({
 }
 
 export default function DashboardPage() {
-  const { openInNewTab, enableCardResizing } = useTheme()
+  const { openInNewTab, enableCardResizing, enableServiceGrouping } = useTheme()
   const [services, setServices] = useState<Service[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
-  const [stats, setStats] = useState({
-    total: 0,
-    online: 0,
-    offline: 0,
-    avgResponseTime: 0,
-  })
+  const [isDraggingTab, setIsDraggingTab] = useState(false)
+
+  // Group form modal state
+  const [showGroupForm, setShowGroupForm] = useState(false)
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null)
+  const [groupFormLoading, setGroupFormLoading] = useState(false)
+
+  // Delete confirmation state
+  const [deletingGroup, setDeletingGroup] = useState<Group | null>(null)
+  const [deleteGroupServices, setDeleteGroupServices] = useState(false)
+
+  // Filter services by selected group
+  // When grouping is disabled: show all services
+  // When grouping is enabled:
+  //   - Default group: show services with this group_id OR no group_id (backwards compat)
+  //   - Other groups: show only services with this specific group_id
+  const filteredServices = useMemo(() => {
+    if (!enableServiceGrouping) {
+      return services
+    }
+    if (!selectedGroupId) {
+      return services
+    }
+    const selectedGroup = groups.find((g) => g.id === selectedGroupId)
+    if (selectedGroup?.is_default) {
+      // Default group includes ungrouped services for backwards compatibility
+      return services.filter((s) => s.group_id === selectedGroupId || !s.group_id)
+    }
+    return services.filter((s) => s.group_id === selectedGroupId)
+  }, [services, selectedGroupId, enableServiceGrouping, groups])
+
+  // Calculate stats from filtered services using useMemo for efficiency
+  const stats = useMemo(() => {
+    const servicesToCount = enableServiceGrouping ? filteredServices : services
+    const online = servicesToCount.filter((s) => s.status === 'online').length
+    const offline = servicesToCount.filter((s) => s.status === 'offline').length
+    const responseTimes = servicesToCount
+      .filter((s) => s.response_time !== undefined && s.response_time !== null)
+      .map((s) => s.response_time as number)
+    const avgResponseTime =
+      responseTimes.length > 0
+        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+        : 0
+
+    return {
+      total: servicesToCount.length,
+      online,
+      offline,
+      avgResponseTime,
+    }
+  }, [services, filteredServices, enableServiceGrouping])
 
   // Memoize active service for drag overlay
   const activeService = useMemo(
     () => (activeId ? services.find((s) => s.id === activeId) : null),
     [activeId, services]
+  )
+
+  // Create collision detection that handles both tab and service drags
+  const groupIds = useMemo(() => groups.map((g) => g.id), [groups])
+  const collisionDetection = useMemo(
+    () => createCollisionDetection(isDraggingTab, groupIds),
+    [isDraggingTab, groupIds]
   )
 
   // DnD sensors for mouse and touch
@@ -103,73 +183,233 @@ export default function DashboardPage() {
     })
   )
 
+  // Load selected group from localStorage
   useEffect(() => {
-    fetchServices()
+    const saved = localStorage.getItem('selectedGroupId')
+    if (saved) {
+      setSelectedGroupId(saved)
+    }
   }, [])
 
+  // Save selected group to localStorage
   useEffect(() => {
-    // Calculate stats
-    const online = services.filter((s) => s.status === 'online').length
-    const offline = services.filter((s) => s.status === 'offline').length
-    const responseTimes = services
-      .filter((s) => s.response_time !== undefined && s.response_time !== null)
-      .map((s) => s.response_time as number)
-    const avgResponseTime =
-      responseTimes.length > 0
-        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-        : 0
+    if (selectedGroupId) {
+      localStorage.setItem('selectedGroupId', selectedGroupId)
+    } else {
+      localStorage.removeItem('selectedGroupId')
+    }
+  }, [selectedGroupId])
 
-    setStats({
-      total: services.length,
-      online,
-      offline,
-      avgResponseTime,
-    })
-  }, [services])
+  // Fetch services and groups
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-  const fetchServices = async () => {
+  // Auto-select default group when groups load
+  useEffect(() => {
+    if (enableServiceGrouping && groups.length > 0 && !selectedGroupId) {
+      const defaultGroup = groups.find((g) => g.is_default)
+      if (defaultGroup) {
+        setSelectedGroupId(defaultGroup.id)
+      } else {
+        setSelectedGroupId(groups[0].id)
+      }
+    }
+  }, [groups, enableServiceGrouping, selectedGroupId])
+
+  // Validate selected group still exists
+  useEffect(() => {
+    if (selectedGroupId && groups.length > 0) {
+      const exists = groups.some((g) => g.id === selectedGroupId)
+      if (!exists) {
+        const defaultGroup = groups.find((g) => g.is_default)
+        setSelectedGroupId(defaultGroup?.id || groups[0]?.id || null)
+      }
+    }
+  }, [groups, selectedGroupId])
+
+  const fetchData = async () => {
     setIsLoading(true)
     try {
-      const response = await api.getServices()
+      const [servicesResponse, groupsResponse] = await Promise.all([
+        api.getServices(),
+        api.getGroups(),
+      ])
 
-      if (response.data) {
-        setServices(response.data)
+      if (servicesResponse.data) {
+        setServices(servicesResponse.data)
+      }
+      if (groupsResponse.data) {
+        setGroups(groupsResponse.data)
       }
     } catch (error) {
-      console.error('Failed to fetch services:', error)
+      console.error('Failed to fetch data:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
+    const activeId = String(event.active.id)
+
+    // Check if dragging a tab (ID matches a group ID)
+    const isTabDrag = groupIds.includes(activeId)
+    setIsDraggingTab(isTabDrag)
+
+    if (!isTabDrag) {
+      // Service drag - set active ID for drag overlay
+      setActiveId(activeId)
+    }
   }
 
   const handleDragCancel = () => {
     setActiveId(null)
+    setIsDraggingTab(false)
+  }
+
+  // Handle tab reorder
+  const handleTabReorder = async (activeId: string, overId: string) => {
+    const oldIndex = groups.findIndex((g) => g.id === activeId)
+    const newIndex = groups.findIndex((g) => g.id === overId)
+
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+
+    const reorderedGroups = arrayMove(groups, oldIndex, newIndex)
+
+    // Optimistic update
+    const previousGroups = groups
+    setGroups(reorderedGroups)
+
+    try {
+      await api.reorderGroups({
+        groups: reorderedGroups.map((g, index) => ({
+          id: g.id,
+          position: index,
+        })),
+      })
+    } catch (error) {
+      console.error('Failed to reorder groups:', error)
+      setGroups(previousGroups)
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
-    if (!over || active.id === over.id) return
+    setIsDraggingTab(false)
+    if (!over) return
 
-    const oldIndex = services.findIndex((s) => s.id === active.id)
-    const newIndex = services.findIndex((s) => s.id === over.id)
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // Check if this is a tab reorder (both active and over are group IDs)
+    const isTabDrag = groupIds.includes(activeId)
+    const isTabTarget = groupIds.includes(overId)
+
+    if (isTabDrag && isTabTarget && activeId !== overId) {
+      await handleTabReorder(activeId, overId)
+      return
+    }
+
+    // Skip if it was a tab drag that didn't land on another tab
+    if (isTabDrag) return
+
+    const activeServiceId = activeId
+
+    // Check if dropped on a group tab (IDs prefixed with "group-")
+    if (overId.startsWith('group-')) {
+      const targetGroupId = overId.replace('group-', '')
+      const draggedService = services.find((s) => s.id === activeServiceId)
+      if (!draggedService) return
+
+      // Find target group to check if it's the default
+      const targetGroup = groups.find((g) => g.id === targetGroupId)
+      const isTargetDefault = targetGroup?.is_default
+
+      // For default group: set group_id to null (ungrouped services appear there)
+      // For other groups: set group_id to the target group's ID
+      const newGroupId = isTargetDefault ? null : targetGroupId
+
+      // Check if already in the target group
+      // Service is in default if: group_id is null/undefined OR matches default group ID
+      const isCurrentlyInDefault =
+        !draggedService.group_id || draggedService.group_id === targetGroupId
+      if (isTargetDefault && isCurrentlyInDefault && !draggedService.group_id) return
+      if (!isTargetDefault && draggedService.group_id === targetGroupId) return
+
+      // Capture current state for rollback
+      const previousServices = services
+
+      // Optimistic update - move service to new group
+      setServices(
+        services.map((s) =>
+          s.id === activeServiceId ? { ...s, group_id: newGroupId ?? undefined } : s
+        )
+      )
+
+      // Persist to backend
+      try {
+        await api.updateService(activeServiceId, {
+          name: draggedService.name,
+          url: draggedService.url,
+          description: draggedService.description || '',
+          icon: draggedService.icon || '',
+          icon_type: draggedService.icon_type || 'emoji',
+          icon_image_path: draggedService.icon_image_path || '',
+          group_id: newGroupId,
+        })
+      } catch (error) {
+        console.error('Failed to move service to group:', error)
+        setServices(previousServices)
+      }
+      return
+    }
+
+    // Normal reorder within the same group
+    if (active.id === over.id) return
+
+    // Use filtered services for the reorder operation
+    const servicesToReorder = enableServiceGrouping ? filteredServices : services
+    const oldIndex = servicesToReorder.findIndex((s) => s.id === active.id)
+    const newIndex = servicesToReorder.findIndex((s) => s.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
 
     // Capture current state for rollback
     const previousServices = services
 
-    // Optimistic update
-    const reordered = arrayMove(services, oldIndex, newIndex)
-    setServices(reordered)
+    // Reorder within filtered list
+    const reorderedFiltered = arrayMove(servicesToReorder, oldIndex, newIndex)
 
-    // Persist to backend
+    // Merge reordered group services back into the full list.
+    // When grouping is enabled, we only reorder services within the selected group.
+    // Algorithm: iterate through all services, replacing group members with their
+    // new order while keeping non-group services in their original positions.
+    let reorderedAll: Service[]
+    if (enableServiceGrouping && selectedGroupId) {
+      const reorderingIds = new Set(servicesToReorder.map((s) => s.id))
+      let filteredIndex = 0
+      reorderedAll = services.map((s) => {
+        if (reorderingIds.has(s.id)) {
+          return reorderedFiltered[filteredIndex++]
+        }
+        return s
+      })
+    } else {
+      reorderedAll = reorderedFiltered
+    }
+
+    // Optimistic update
+    setServices(reorderedAll)
+
+    // Persist to backend with absolute positions from the full services list
+    // This ensures positions are unique across all groups
     try {
+      const positionsToUpdate = reorderedFiltered.map((s) => ({
+        id: s.id,
+        position: reorderedAll.findIndex((rs) => rs.id === s.id),
+      }))
       await api.reorderServices({
-        services: reordered.map((s, i) => ({ id: s.id, position: i })),
+        services: positionsToUpdate,
       })
     } catch (error) {
       console.error('Failed to save order:', error)
@@ -215,6 +455,90 @@ export default function DashboardPage() {
     }
   }
 
+  // Group handlers
+  const handleSelectGroup = useCallback((groupId: string | null) => {
+    setSelectedGroupId(groupId)
+  }, [])
+
+  const handleCreateGroup = useCallback(() => {
+    setEditingGroup(null)
+    setShowGroupForm(true)
+  }, [])
+
+  const handleEditGroup = useCallback((group: Group) => {
+    setEditingGroup(group)
+    setShowGroupForm(true)
+  }, [])
+
+  const handleDeleteGroup = useCallback((group: Group) => {
+    setDeletingGroup(group)
+  }, [])
+
+  const handleGroupFormSubmit = async (data: { name?: string; color?: string }) => {
+    setGroupFormLoading(true)
+    try {
+      if (editingGroup) {
+        const response = await api.updateGroup(editingGroup.id, data)
+        if (response.error) {
+          throw new Error(response.error.message)
+        }
+        if (response.data) {
+          setGroups(groups.map((g) => (g.id === editingGroup.id ? response.data! : g)))
+        }
+      } else {
+        const response = await api.createGroup({ name: data.name!, color: data.color })
+        if (response.error) {
+          throw new Error(response.error.message)
+        }
+        if (response.data) {
+          setGroups([...groups, response.data])
+          // Select the newly created group
+          setSelectedGroupId(response.data.id)
+        }
+      }
+      setShowGroupForm(false)
+      setEditingGroup(null)
+    } finally {
+      setGroupFormLoading(false)
+    }
+  }
+
+  const handleConfirmDeleteGroup = async () => {
+    if (!deletingGroup) return
+
+    try {
+      const response = await api.deleteGroup(deletingGroup.id, deleteGroupServices)
+      if (response.error) {
+        console.error('Failed to delete group:', response.error.message)
+        return
+      }
+
+      // Remove from state
+      const newGroups = groups.filter((g) => g.id !== deletingGroup.id)
+      setGroups(newGroups)
+
+      // If deleted group was selected, select default
+      if (selectedGroupId === deletingGroup.id) {
+        const defaultGroup = newGroups.find((g) => g.is_default)
+        setSelectedGroupId(defaultGroup?.id || newGroups[0]?.id || null)
+      }
+
+      // Update services state based on whether they were deleted or moved
+      if (deleteGroupServices) {
+        // Remove services that were in the deleted group
+        setServices(services.filter((s) => s.group_id !== deletingGroup.id))
+      } else {
+        // Move services from deleted group to null (ungrouped) locally
+        setServices(
+          services.map((s) => (s.group_id === deletingGroup.id ? { ...s, group_id: undefined } : s))
+        )
+      }
+    } finally {
+      setDeletingGroup(null)
+      setDeleteGroupServices(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center">
@@ -228,12 +552,6 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Page header */}
-      <div className="mb-8">
-        <h1 className="text-text-primary text-3xl font-bold">Welcome to Nimbus</h1>
-        <p className="text-text-secondary mt-2">Monitor and manage your homelab services</p>
-      </div>
-
       {/* Stats cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="bg-card border-card-border rounded-lg border p-6">
@@ -277,54 +595,63 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Services grid */}
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-text-primary text-xl font-semibold">Services</h2>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setIsEditMode(!isEditMode)}
-            className={`inline-flex items-center rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              isEditMode
-                ? 'bg-success hover:bg-success/80 text-white'
-                : 'border-card-border text-text-primary hover:bg-card-hover border'
-            }`}
-          >
-            {isEditMode ? (
-              <>
-                <CheckIcon className="mr-2 h-4 w-4" />
-                Done
-              </>
-            ) : (
-              <>
-                <PencilIcon className="mr-2 h-4 w-4" />
-                Edit
-              </>
-            )}
-          </button>
-          <Link
-            href="/services/new"
-            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Add Service
-          </Link>
-        </div>
-      </div>
-
+      {/* Edit mode: wrap tabs and grid in single DndContext for drag-to-tab functionality */}
       {isEditMode ? (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <SortableContext items={services.map((s) => s.id)} strategy={rectSortingStrategy}>
+          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              {enableServiceGrouping && groups.length > 0 && (
+                <GroupTabs
+                  groups={groups}
+                  selectedGroupId={selectedGroupId}
+                  onSelectGroup={handleSelectGroup}
+                  onCreateGroup={handleCreateGroup}
+                  onEditGroup={handleEditGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  isEditMode={isEditMode}
+                  isDraggingService={!!activeId && !isDraggingTab}
+                  isDraggingTab={isDraggingTab}
+                />
+              )}
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
+              >
+                <CheckIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Done</span>
+              </button>
+              <Link
+                href={
+                  enableServiceGrouping && selectedGroupId
+                    ? `/services/new?group=${selectedGroupId}`
+                    : '/services/new'
+                }
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
+              >
+                <PlusIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Service</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Services grid */}
+          <SortableContext items={filteredServices.map((s) => s.id)} strategy={rectSortingStrategy}>
             <div
               className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
               style={{ gridAutoFlow: 'dense' }}
             >
-              {services.map((service) => (
+              {filteredServices.map((service) => (
                 <SortableServiceCard
                   key={service.id}
                   service={service}
@@ -351,27 +678,157 @@ export default function DashboardPage() {
           </DragOverlay>
         </DndContext>
       ) : (
-        <div
-          className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
-          style={{ gridAutoFlow: 'dense' }}
-        >
-          {services.map((service) => (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              openInNewTab={openInNewTab}
-              enableCardResizing={enableCardResizing}
-            />
-          ))}
+        <>
+          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0 flex-1">
+              {enableServiceGrouping && groups.length > 0 && (
+                <GroupTabs
+                  groups={groups}
+                  selectedGroupId={selectedGroupId}
+                  onSelectGroup={handleSelectGroup}
+                  onCreateGroup={handleCreateGroup}
+                  onEditGroup={handleEditGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  isEditMode={isEditMode}
+                  isDraggingService={false}
+                  isDraggingTab={false}
+                />
+              )}
+            </div>
 
-          {/* Add new service card - spans 2 cols like standard card */}
-          <Link
-            href="/services/new"
-            className="bg-card border-card-border hover:border-primary hover:bg-primary-light col-span-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-all"
+            {/* Action buttons */}
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
+              >
+                <PencilIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Edit</span>
+              </button>
+              <Link
+                href={
+                  enableServiceGrouping && selectedGroupId
+                    ? `/services/new?group=${selectedGroupId}`
+                    : '/services/new'
+                }
+                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
+              >
+                <PlusIcon className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Add Service</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Services grid (non-edit mode) */}
+          <div
+            className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
+            style={{ gridAutoFlow: 'dense' }}
           >
-            <PlusIcon className="text-text-muted mb-2 h-12 w-12" />
-            <span className="text-text-secondary">Add Service</span>
+            {filteredServices.map((service) => (
+              <ServiceCard
+                key={service.id}
+                service={service}
+                openInNewTab={openInNewTab}
+                enableCardResizing={enableCardResizing}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Empty state for groups with no services */}
+      {enableServiceGrouping && filteredServices.length === 0 && !isLoading && (
+        <div className="bg-card border-card-border rounded-lg border p-12 text-center">
+          <ServerIcon className="text-text-muted mx-auto mb-4 h-12 w-12" />
+          <h3 className="text-text-primary mb-2 text-lg font-medium">No services in this group</h3>
+          <p className="text-text-secondary mb-4">
+            Add a service and assign it to this group to see it here.
+          </p>
+          <Link
+            href={
+              enableServiceGrouping && selectedGroupId
+                ? `/services/new?group=${selectedGroupId}`
+                : '/services/new'
+            }
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Service
           </Link>
+        </div>
+      )}
+
+      {/* Group form modal */}
+      {showGroupForm && (
+        <GroupForm
+          group={editingGroup}
+          onSubmit={handleGroupFormSubmit}
+          onClose={() => {
+            setShowGroupForm(false)
+            setEditingGroup(null)
+          }}
+          isLoading={groupFormLoading}
+        />
+      )}
+
+      {/* Delete confirmation modal */}
+      {deletingGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => {
+              setDeletingGroup(null)
+              setDeleteGroupServices(false)
+            }}
+            aria-hidden="true"
+          />
+          <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg">
+            <h3 className="text-text-primary mb-2 text-lg font-semibold">Delete Group</h3>
+            <p className="text-text-secondary mb-4">
+              Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;?
+              {!deleteGroupServices &&
+                ' Services in this group will be moved to the default group.'}
+            </p>
+
+            {/* Checkbox to delete services */}
+            <label className="mb-4 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={deleteGroupServices}
+                onChange={(e) => setDeleteGroupServices(e.target.checked)}
+                className="text-error focus:ring-error mt-0.5 h-4 w-4 rounded border-gray-300"
+              />
+              <span className="text-text-secondary text-sm">
+                Permanently delete all services in this group
+              </span>
+            </label>
+
+            {deleteGroupServices && (
+              <p className="text-error mb-4 text-sm">
+                Warning: This will permanently delete all services in this group. This action cannot
+                be undone.
+              </p>
+            )}
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setDeletingGroup(null)
+                  setDeleteGroupServices(false)
+                }}
+                className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDeleteGroup}
+                className="bg-error hover:bg-error/80 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
