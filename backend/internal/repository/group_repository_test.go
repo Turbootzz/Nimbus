@@ -23,7 +23,7 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
-			color TEXT DEFAULT '#6366f1',
+			color TEXT DEFAULT '#0ea5e9',
 			position INTEGER DEFAULT 0,
 			is_default INTEGER DEFAULT 0,
 			created_at TIMESTAMP NOT NULL,

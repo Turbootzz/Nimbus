@@ -92,8 +92,12 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      {/* Backdrop - disabled during loading to prevent accidental closes */}
+      <div
+        className={`absolute inset-0 bg-black/50 ${isLoading ? 'cursor-not-allowed' : ''}`}
+        onClick={isLoading ? undefined : onClose}
+        aria-hidden="true"
+      />
 
       {/* Modal */}
       <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg">

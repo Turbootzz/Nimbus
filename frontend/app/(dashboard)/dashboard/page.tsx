@@ -380,12 +380,20 @@ export default function DashboardPage() {
     // Reorder within filtered list
     const reorderedFiltered = arrayMove(servicesToReorder, oldIndex, newIndex)
 
-    // Merge back into full services list while preserving absolute positions
+    // Merge back into full services list while preserving original indices
     let reorderedAll: Service[]
     if (enableServiceGrouping && selectedGroupId) {
-      // Replace filtered services in their original positions within the full list
-      const otherServices = services.filter((s) => !servicesToReorder.some((fs) => fs.id === s.id))
-      reorderedAll = [...otherServices, ...reorderedFiltered]
+      // Build a set of IDs that are being reordered
+      const reorderingIds = new Set(servicesToReorder.map((s) => s.id))
+      // Iterator for pulling items from reorderedFiltered in order
+      let filteredIndex = 0
+      // Reconstruct by iterating original services, replacing matching items
+      reorderedAll = services.map((s) => {
+        if (reorderingIds.has(s.id)) {
+          return reorderedFiltered[filteredIndex++]
+        }
+        return s
+      })
     } else {
       reorderedAll = reorderedFiltered
     }

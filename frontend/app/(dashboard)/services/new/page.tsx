@@ -271,12 +271,15 @@ function NewServiceContent() {
                   ) : groups.length === 0 ? (
                     <option value="">No groups available</option>
                   ) : (
-                    groups.map((group) => (
-                      <option key={group.id} value={group.id}>
-                        {group.name}
-                        {group.is_default ? ' (Default)' : ''}
-                      </option>
-                    ))
+                    <>
+                      <option value="">No group</option>
+                      {groups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name}
+                          {group.is_default ? ' (Default)' : ''}
+                        </option>
+                      ))}
+                    </>
                   )}
                 </select>
                 {/* Dropdown arrow */}
