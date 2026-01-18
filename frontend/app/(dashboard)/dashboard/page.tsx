@@ -33,17 +33,26 @@ import ServiceCard from '@/components/ServiceCard'
 import GroupTabs from '@/components/GroupTabs'
 import GroupForm from '@/components/GroupForm'
 
-// Custom collision detection: prioritize group tabs (pointer-based), then service grid (center-based)
-const customCollisionDetection: CollisionDetection = (args) => {
-  // First check if pointer is within any group tabs
-  const pointerCollisions = pointerWithin(args)
-  const groupTabCollision = pointerCollisions.find((c) => String(c.id).startsWith('group-'))
-  if (groupTabCollision) {
-    return [groupTabCollision]
-  }
+// Factory for custom collision detection based on drag type
+function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): CollisionDetection {
+  return (args) => {
+    const activeId = String(args.active.id)
 
-  // Fall back to closestCenter for service card reordering
-  return closestCenter(args)
+    // If dragging a tab, only collide with other tabs
+    if (isDraggingTab || groupIds.includes(activeId)) {
+      return closestCenter(args)
+    }
+
+    // For service drags: prioritize group tabs (pointer-based), then service grid (center-based)
+    const pointerCollisions = pointerWithin(args)
+    const groupTabCollision = pointerCollisions.find((c) => String(c.id).startsWith('group-'))
+    if (groupTabCollision) {
+      return [groupTabCollision]
+    }
+
+    // Fall back to closestCenter for service card reordering
+    return closestCenter(args)
+  }
 }
 
 // Sortable wrapper for ServiceCard in edit mode
@@ -99,6 +108,7 @@ export default function DashboardPage() {
   const [isEditMode, setIsEditMode] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
+  const [isDraggingTab, setIsDraggingTab] = useState(false)
 
   // Group form modal state
   const [showGroupForm, setShowGroupForm] = useState(false)
@@ -108,13 +118,6 @@ export default function DashboardPage() {
   // Delete confirmation state
   const [deletingGroup, setDeletingGroup] = useState<Group | null>(null)
   const [deleteGroupServices, setDeleteGroupServices] = useState(false)
-
-  const [stats, setStats] = useState({
-    total: 0,
-    online: 0,
-    offline: 0,
-    avgResponseTime: 0,
-  })
 
   // Filter services by selected group
   // When grouping is disabled: show all services
@@ -136,10 +139,38 @@ export default function DashboardPage() {
     return services.filter((s) => s.group_id === selectedGroupId)
   }, [services, selectedGroupId, enableServiceGrouping, groups])
 
+  // Calculate stats from filtered services using useMemo for efficiency
+  const stats = useMemo(() => {
+    const servicesToCount = enableServiceGrouping ? filteredServices : services
+    const online = servicesToCount.filter((s) => s.status === 'online').length
+    const offline = servicesToCount.filter((s) => s.status === 'offline').length
+    const responseTimes = servicesToCount
+      .filter((s) => s.response_time !== undefined && s.response_time !== null)
+      .map((s) => s.response_time as number)
+    const avgResponseTime =
+      responseTimes.length > 0
+        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
+        : 0
+
+    return {
+      total: servicesToCount.length,
+      online,
+      offline,
+      avgResponseTime,
+    }
+  }, [services, filteredServices, enableServiceGrouping])
+
   // Memoize active service for drag overlay
   const activeService = useMemo(
     () => (activeId ? services.find((s) => s.id === activeId) : null),
     [activeId, services]
+  )
+
+  // Create collision detection that handles both tab and service drags
+  const groupIds = useMemo(() => groups.map((g) => g.id), [groups])
+  const collisionDetection = useMemo(
+    () => createCollisionDetection(isDraggingTab, groupIds),
+    [isDraggingTab, groupIds]
   )
 
   // DnD sensors for mouse and touch
@@ -197,27 +228,6 @@ export default function DashboardPage() {
     }
   }, [groups, selectedGroupId])
 
-  useEffect(() => {
-    // Calculate stats from filtered services
-    const servicesToCount = enableServiceGrouping ? filteredServices : services
-    const online = servicesToCount.filter((s) => s.status === 'online').length
-    const offline = servicesToCount.filter((s) => s.status === 'offline').length
-    const responseTimes = servicesToCount
-      .filter((s) => s.response_time !== undefined && s.response_time !== null)
-      .map((s) => s.response_time as number)
-    const avgResponseTime =
-      responseTimes.length > 0
-        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-        : 0
-
-    setStats({
-      total: servicesToCount.length,
-      online,
-      offline,
-      avgResponseTime,
-    })
-  }, [services, filteredServices, enableServiceGrouping])
-
   const fetchData = async () => {
     setIsLoading(true)
     try {
@@ -240,22 +250,73 @@ export default function DashboardPage() {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string)
+    const activeId = String(event.active.id)
+
+    // Check if dragging a tab (ID matches a group ID)
+    const isTabDrag = groupIds.includes(activeId)
+    setIsDraggingTab(isTabDrag)
+
+    if (!isTabDrag) {
+      // Service drag - set active ID for drag overlay
+      setActiveId(activeId)
+    }
   }
 
   const handleDragCancel = () => {
     setActiveId(null)
+    setIsDraggingTab(false)
+  }
+
+  // Handle tab reorder
+  const handleTabReorder = async (activeId: string, overId: string) => {
+    const oldIndex = groups.findIndex((g) => g.id === activeId)
+    const newIndex = groups.findIndex((g) => g.id === overId)
+
+    if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
+
+    const reorderedGroups = arrayMove(groups, oldIndex, newIndex)
+
+    // Optimistic update
+    const previousGroups = groups
+    setGroups(reorderedGroups)
+
+    try {
+      await api.reorderGroups({
+        groups: reorderedGroups.map((g, index) => ({
+          id: g.id,
+          position: index,
+        })),
+      })
+    } catch (error) {
+      console.error('Failed to reorder groups:', error)
+      setGroups(previousGroups)
+    }
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
     setActiveId(null)
+    setIsDraggingTab(false)
     if (!over) return
 
-    const activeServiceId = active.id as string
+    const activeId = String(active.id)
+    const overId = String(over.id)
+
+    // Check if this is a tab reorder (both active and over are group IDs)
+    const isTabDrag = groupIds.includes(activeId)
+    const isTabTarget = groupIds.includes(overId)
+
+    if (isTabDrag && isTabTarget && activeId !== overId) {
+      await handleTabReorder(activeId, overId)
+      return
+    }
+
+    // Skip if it was a tab drag that didn't land on another tab
+    if (isTabDrag) return
+
+    const activeServiceId = activeId
 
     // Check if dropped on a group tab (IDs prefixed with "group-")
-    const overId = over.id as string
     if (overId.startsWith('group-')) {
       const targetGroupId = overId.replace('group-', '')
       const draggedService = services.find((s) => s.id === activeServiceId)
@@ -530,14 +591,13 @@ export default function DashboardPage() {
       {isEditMode ? (
         <DndContext
           sensors={sensors}
-          collisionDetection={customCollisionDetection}
+          collisionDetection={collisionDetection}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
           {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Group tabs (only show when grouping is enabled and groups exist) */}
             <div className="min-w-0 flex-1">
               {enableServiceGrouping && groups.length > 0 && (
                 <GroupTabs
@@ -548,7 +608,8 @@ export default function DashboardPage() {
                   onEditGroup={handleEditGroup}
                   onDeleteGroup={handleDeleteGroup}
                   isEditMode={isEditMode}
-                  isDraggingService={!!activeId}
+                  isDraggingService={!!activeId && !isDraggingTab}
+                  isDraggingTab={isDraggingTab}
                 />
               )}
             </div>
@@ -612,7 +673,6 @@ export default function DashboardPage() {
         <>
           {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            {/* Group tabs (only show when grouping is enabled and groups exist) */}
             <div className="min-w-0 flex-1">
               {enableServiceGrouping && groups.length > 0 && (
                 <GroupTabs
@@ -624,6 +684,7 @@ export default function DashboardPage() {
                   onDeleteGroup={handleDeleteGroup}
                   isEditMode={isEditMode}
                   isDraggingService={false}
+                  isDraggingTab={false}
                 />
               )}
             </div>

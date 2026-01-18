@@ -109,7 +109,7 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 			name:   "Name too long",
 			userID: "user-1",
 			requestBody: models.GroupCreateRequest{
-				Name:  string(make([]byte, 101)), // 101 chars
+				Name:  string(make([]byte, 36)),
 				Color: "#ff0000",
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -408,7 +408,7 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 			userID:  "user-1",
 			groupID: "group-1",
 			requestBody: models.GroupUpdateRequest{
-				Name: string(make([]byte, 101)),
+				Name: string(make([]byte, 36)), // 36 chars exceeds MaxGroupNameLen (35)
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
@@ -636,7 +636,7 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 			userID: "user-1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-1", Position: 5},
+					{ID: "group-1", Position: 1}, // Valid position within bounds (user-1 has 2 groups)
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -647,10 +647,21 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 			userID: "user-1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-3", Position: 10},
+					{ID: "group-3", Position: 0}, // Valid position, but wrong user
 				},
 			},
 			expectedStatus: http.StatusNotFound,
+			expectError:    true,
+		},
+		{
+			name:   "Position out of bounds",
+			userID: "user-1",
+			requestBody: models.GroupReorderRequest{
+				Groups: []models.GroupPosition{
+					{ID: "group-1", Position: 10}, // Invalid: user-1 only has 2 groups (positions 0-1)
+				},
+			},
+			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 		},
 		{

@@ -284,6 +284,15 @@ func (h *GroupHandler) ReorderGroups(c *fiber.Ctx) error {
 		})
 	}
 
+	// Get group count for bounds validation
+	existingGroups, err := h.groupRepo.GetAllByUserID(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to fetch groups",
+		})
+	}
+	groupCount := len(existingGroups)
+
 	positions := make(map[string]int)
 	for _, gp := range req.Groups {
 		if gp.ID == "" {
@@ -291,9 +300,9 @@ func (h *GroupHandler) ReorderGroups(c *fiber.Ctx) error {
 				"error": "Group ID cannot be empty",
 			})
 		}
-		if gp.Position < 0 {
+		if gp.Position < 0 || gp.Position >= groupCount {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Position must be non-negative",
+				"error": fmt.Sprintf("Position must be between 0 and %d", groupCount-1),
 			})
 		}
 		positions[gp.ID] = gp.Position

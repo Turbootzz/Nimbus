@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lib/pq"
 	"github.com/nimbus/backend/internal/models"
 )
@@ -178,20 +179,11 @@ func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string)
 	return group, err
 }
 
-// EnsureDefaultGroup creates a default group for the user if one doesn't exist
+// EnsureDefaultGroup creates a default group for the user if one doesn't exist (atomic)
 func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string) (*models.Group, error) {
-	// First check if default group exists
-	existing, err := r.GetDefaultByUserID(ctx, userID)
-	if err == nil {
-		return existing, nil
-	}
-	if err != sql.ErrNoRows {
-		return nil, err
-	}
-
-	// Create default group
 	now := time.Now()
 	group := &models.Group{
+		ID:        uuid.New().String(),
 		UserID:    userID,
 		Name:      models.DefaultGroupName,
 		Color:     models.DefaultGroupColor,
@@ -199,6 +191,43 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 		IsDefault: true,
 		CreatedAt: now,
 		UpdatedAt: now,
+	}
+
+	if r.isPostgreSQL {
+		// Use INSERT ... ON CONFLICT for atomic upsert
+		query := `
+			INSERT INTO groups (id, user_id, name, color, position, is_default, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+			ON CONFLICT (user_id) WHERE is_default = TRUE
+			DO NOTHING
+		`
+		result, err := r.db.ExecContext(ctx, query,
+			group.ID, group.UserID, group.Name, group.Color,
+			group.Position, group.IsDefault, group.CreatedAt, group.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		rowsAffected, err := result.RowsAffected()
+		if err != nil {
+			return nil, err
+		}
+
+		if rowsAffected == 0 {
+			// ON CONFLICT DO NOTHING means a default already exists
+			return r.GetDefaultByUserID(ctx, userID)
+		}
+		return group, nil
+	}
+
+	// SQLite fallback - use check-then-create pattern
+	existing, err := r.GetDefaultByUserID(ctx, userID)
+	if err == nil {
+		return existing, nil
+	}
+	if err != sql.ErrNoRows {
+		return nil, err
 	}
 
 	if err := r.Create(ctx, group); err != nil {

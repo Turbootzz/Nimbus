@@ -2,6 +2,8 @@
 
 import { useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
+import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import ScrollArea from '@/components/ui/ScrollArea'
@@ -15,14 +17,18 @@ interface GroupTabsProps {
   onDeleteGroup: (group: Group) => void
   isEditMode: boolean
   isDraggingService?: boolean
+  isDraggingTab?: boolean
 }
 
-// Droppable tab component - accepts service drops to move services between groups
-function DroppableTab({
+// Sortable + Droppable tab component
+// - Sortable: allows reordering tabs in edit mode
+// - Droppable: accepts service drops to move services between groups
+function SortableDroppableTab({
   group,
   isSelected,
   isEditMode,
   isDraggingService,
+  isDraggingTab,
   onSelect,
   onEdit,
   onDelete,
@@ -31,18 +37,45 @@ function DroppableTab({
   isSelected: boolean
   isEditMode: boolean
   isDraggingService?: boolean
+  isDraggingTab?: boolean
   onSelect: () => void
   onEdit: () => void
   onDelete: () => void
 }) {
-  // Use droppable with group- prefix to distinguish from service IDs
-  const { setNodeRef, isOver } = useDroppable({
+  // Sortable hook for tab reordering (only in edit mode)
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setSortableRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: group.id,
+    disabled: !isEditMode,
+  })
+
+  // Droppable hook for receiving service drops (group- prefix to distinguish)
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `group-${group.id}`,
     data: { type: 'group', groupId: group.id },
   })
 
-  // Highlight when a service is being dragged over this tab
-  const showDropIndicator = isDraggingService && isOver
+  // Combine refs for both sortable and droppable
+  const setNodeRef = (node: HTMLElement | null) => {
+    setSortableRef(node)
+    setDroppableRef(node)
+  }
+
+  // Apply transform for tab dragging
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  // Show drop indicator when a service (not a tab) is being dragged over this tab
+  const showDropIndicator = isDraggingService && !isDraggingTab && isOver
 
   // Handle keyboard navigation for accessibility
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -55,6 +88,8 @@ function DroppableTab({
   return (
     <div
       ref={setNodeRef}
+      style={style}
+      {...(isEditMode ? { ...attributes, ...listeners } : {})}
       role="tab"
       tabIndex={0}
       aria-selected={isSelected}
@@ -63,7 +98,7 @@ function DroppableTab({
         isSelected
           ? 'bg-card border-card-border border-b-card border-t border-r border-l'
           : 'bg-card-hover/50 hover:bg-card-hover'
-      } ${showDropIndicator ? 'ring-primary ring-2' : ''} cursor-pointer`}
+      } ${showDropIndicator ? 'ring-primary ring-2' : ''} ${isDragging ? 'z-50' : ''} cursor-pointer`}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
     >
@@ -119,6 +154,7 @@ export default function GroupTabs({
   onDeleteGroup,
   isEditMode,
   isDraggingService,
+  isDraggingTab,
 }: GroupTabsProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -143,20 +179,23 @@ export default function GroupTabs({
         orientation="horizontal"
         className="border-card-border -mx-4 flex items-end gap-1 border-b px-4 pb-0 sm:mx-0 sm:px-0"
       >
-        {groups.map((group) => (
-          <DroppableTab
-            key={group.id}
-            group={group}
-            isSelected={selectedGroupId === group.id}
-            isEditMode={isEditMode}
-            isDraggingService={isDraggingService}
-            onSelect={() => onSelectGroup(group.id)}
-            onEdit={() => onEditGroup(group)}
-            onDelete={() => onDeleteGroup(group)}
-          />
-        ))}
+        <SortableContext items={groups.map((g) => g.id)} strategy={horizontalListSortingStrategy}>
+          {groups.map((group) => (
+            <SortableDroppableTab
+              key={group.id}
+              group={group}
+              isSelected={selectedGroupId === group.id}
+              isEditMode={isEditMode}
+              isDraggingService={isDraggingService}
+              isDraggingTab={isDraggingTab}
+              onSelect={() => onSelectGroup(group.id)}
+              onEdit={() => onEditGroup(group)}
+              onDelete={() => onDeleteGroup(group)}
+            />
+          ))}
+        </SortableContext>
 
-        {/* Add group button */}
+        {/* Add group button - outside SortableContext */}
         {isEditMode && (
           <button
             type="button"
