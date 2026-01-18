@@ -7,7 +7,7 @@ interface ToggleProps {
 
 export function Toggle({ enabled, onChange, label, description }: ToggleProps) {
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center justify-between gap-4">
       <div className="flex-1">
         <p className="text-text-primary text-sm font-medium">{label}</p>
         {description && <p className="text-text-muted mt-1 text-xs">{description}</p>}

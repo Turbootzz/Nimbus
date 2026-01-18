@@ -9,7 +9,7 @@ import (
 const (
 	DefaultGroupColor = "#0ea5e9" // Nimbus default blue
 	MaxGroupNameLen   = 35
-	DefaultGroupName  = "Default"
+	DefaultGroupName  = "Services"
 )
 
 // hexColorRegex validates hex color format #RRGGBB
