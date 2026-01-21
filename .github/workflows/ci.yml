@@ -154,13 +154,14 @@ jobs:
   docker-prod:
     name: Build Prod Image
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, docker-scripts]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       github.repository_owner == 'Turbootzz' &&
       needs.backend.result == 'success' &&
-      needs.frontend.result == 'success'
+      needs.frontend.result == 'success' &&
+      needs.docker-scripts.result == 'success'
     permissions:
       contents: read
       packages: write
@@ -197,13 +198,14 @@ jobs:
   docker:
     name: Build and Push Docker Images
     runs-on: ubuntu-latest
-    needs: [backend, frontend]
+    needs: [backend, frontend, docker-scripts]
     if: |
       github.ref == 'refs/heads/main' &&
       github.event_name == 'push' &&
       github.repository_owner == 'Turbootzz' &&
       needs.backend.result == 'success' &&
-      needs.frontend.result == 'success'
+      needs.frontend.result == 'success' &&
+      needs.docker-scripts.result == 'success'
 
     steps:
       - name: Checkout code
