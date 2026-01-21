@@ -173,7 +173,7 @@ Variables can be set in your `.env` file or directly in `docker-compose.yml`.
 ## 💻 Local Development
 
 ### Prerequisites
-- Node.js 20+ / Go 1.21+ / PostgreSQL
+- Node.js 20+ / Go 1.25+ / PostgreSQL
 
 ### Quick Start
 
