@@ -107,9 +107,10 @@ const scaleIconSizes: Record<
 }
 
 // Padding classes based on cardScale
+// Mobile always uses large padding, scale-specific padding kicks in at sm breakpoint
 const scalePadding: Record<CardScale, { standard: string; compact: string }> = {
-  small: { standard: 'p-3', compact: 'p-1.5' },
-  medium: { standard: 'p-4', compact: 'p-2' },
+  small: { standard: 'p-6 sm:p-3', compact: 'p-2 sm:p-1.5' },
+  medium: { standard: 'p-6 sm:p-4', compact: 'p-2' },
   large: { standard: 'p-6', compact: 'p-2' },
 }
 
