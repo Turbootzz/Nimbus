@@ -64,7 +64,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 ## 🚀 Quick Start
 
-Deploy Nimbus in under 2 minutes with Docker. **Only 2 environment variables required!**
+Deploy Nimbus in under 1 minute with Docker. **Only 2 environment variables required!**
 
 ### 1. Make a directory
 
@@ -105,32 +105,20 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    image: turboot/nimbus-backend:latest
-    container_name: nimbus-backend
+  nimbus:
+    image: turboot/nimbus:latest
+    container_name: nimbus
     restart: unless-stopped
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
     volumes:
-      - uploads_data:/app/uploads
-    ports:
-      - "8080:8080"
-    depends_on:
-      db:
-        condition: service_healthy
-
-  frontend:
-    image: turboot/nimbus-frontend:latest
-    container_name: nimbus-frontend
-    restart: unless-stopped
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
+      - uploads_data:/app/backend/uploads
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:
@@ -147,6 +135,8 @@ docker-compose up -d
 
 Navigate to **http://localhost:3000** and create your first account!
 
+> **Note:** Using the all-in-one `turboot/nimbus` image means no CORS or API URL configuration needed!
+
 ---
 
 ## ⚙️ Configuration
@@ -159,14 +149,24 @@ Variables can be set in your `.env` file or directly in `docker-compose.yml`.
 |----------|---------|-------------|
 | `DB_PASSWORD` | *required* | PostgreSQL password |
 | `JWT_SECRET` | *required* | Auth secret (32+ chars) |
-| `PORT` | `8080` | Backend API port |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |
 | `DB_NAME` | `nimbus` | Database name |
-| `CORS_ORIGINS` | `http://localhost:3000` | Allowed origins |
 
 **Need OAuth, Prometheus, or custom domains?** See the [Advanced Configuration Guide](docs/CONFIGURATION.md).
+
+<details>
+<summary><b>Advanced: Separate Container Deployment</b></summary>
+
+For users who prefer separate frontend/backend containers (e.g., for custom reverse proxy setups), use `docker-compose.deprecated.yml`:
+
+```bash
+docker-compose -f docker-compose.deprecated.yml up -d
+```
+
+This requires configuring `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` manually.
+</details>
 
 ---
 
