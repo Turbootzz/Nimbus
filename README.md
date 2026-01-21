@@ -137,6 +137,8 @@ Navigate to **http://localhost:3000** and create your first account!
 
 > **Note:** Using the all-in-one `turboot/nimbus` image means no CORS or API URL configuration needed!
 
+> **Upgrading?** If you're migrating from separate containers, note the volume path changed from `/app/uploads` to `/app/backend/uploads`.
+
 ---
 
 ## ⚙️ Configuration
@@ -173,7 +175,7 @@ This requires configuring `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` manually.
 ## 💻 Local Development
 
 ### Prerequisites
-- Node.js 20+ / Go 1.25+ / PostgreSQL
+- Node.js 24+ / Go 1.25+ / PostgreSQL
 
 ### Quick Start
 

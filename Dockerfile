@@ -53,7 +53,8 @@ RUN apk add --no-cache \
     npm \
     supervisor \
     ca-certificates \
-    tzdata
+    tzdata \
+    netcat-openbsd
 
 # Create required directories
 RUN mkdir -p /app/backend /app/frontend /app/backend/uploads/service-icons /app/backend/uploads/avatars \
