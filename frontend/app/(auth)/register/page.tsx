@@ -4,6 +4,7 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { getApiUrl } from '@/lib/utils/api-url'
 import { ThemedInput } from '@/components/ui/ThemedInput'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -12,6 +13,8 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
+  const linkHover = useHoverStyle(hoverStyles.primaryLink)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -195,14 +198,7 @@ export default function RegisterPage() {
           style={{
             backgroundColor: 'var(--color-primary)',
           }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-primary)'
-          }}
+          {...buttonHover}
         >
           {isLoading ? 'Creating account...' : 'Create account'}
         </button>
@@ -214,12 +210,7 @@ export default function RegisterPage() {
           href="/login"
           className="font-medium transition"
           style={{ color: 'var(--color-primary)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary-hover)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary)'
-          }}
+          {...linkHover}
         >
           Sign in
         </Link>

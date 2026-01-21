@@ -2,9 +2,11 @@
 
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function ThemeToggle() {
   const { theme, effectiveTheme, setTheme } = useTheme()
+  const iconHover = useHoverStyle(hoverStyles.iconButton)
 
   const toggleTheme = () => {
     // If auto mode is on, switch to manual mode with the opposite of current effective theme
@@ -21,14 +23,7 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       className="rounded-md p-2 transition-colors focus:outline-none"
       style={{ color: 'var(--color-text-secondary)' }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'var(--color-card-border)'
-        e.currentTarget.style.color = 'var(--color-text-primary)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'transparent'
-        e.currentTarget.style.color = 'var(--color-text-secondary)'
-      }}
+      {...iconHover}
       aria-label={theme === 'auto' ? 'Toggle theme (currently auto)' : 'Toggle theme'}
       title={theme === 'auto' ? 'Auto mode - click to switch to manual' : undefined}
     >

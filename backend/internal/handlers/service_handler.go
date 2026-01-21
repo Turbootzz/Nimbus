@@ -197,12 +197,6 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 		})
 	}
 
-	if service == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
-		})
-	}
-
 	// Verify service belongs to user
 	if service.UserID != userID {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
@@ -262,12 +256,6 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
-		})
-	}
-
-	if existingService == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
 		})
 	}
 
@@ -469,12 +457,6 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
-		})
-	}
-
-	if service == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
 		})
 	}
 

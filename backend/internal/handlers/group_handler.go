@@ -272,14 +272,13 @@ func (h *GroupHandler) ReorderGroups(c *fiber.Ctx) error {
 		})
 	}
 
-	// Get group count for bounds validation
-	existingGroups, err := h.groupRepo.GetAllByUserID(c.Context(), userID)
+	// Get group count for bounds validation (efficient COUNT query)
+	groupCount, err := h.groupRepo.CountByUserID(c.Context(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to fetch groups",
 		})
 	}
-	groupCount := len(existingGroups)
 
 	positions := make(map[string]int)
 	for _, gp := range req.Groups {

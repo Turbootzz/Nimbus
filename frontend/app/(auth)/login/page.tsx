@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation'
 import { getApiUrl } from '@/lib/utils/api-url'
 import OAuthButton from '@/components/OAuthButton'
 import { ThemedInput } from '@/components/ui/ThemedInput'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
 import type { OAuthProvider } from '@/types'
 
@@ -17,6 +18,8 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [oauthProviders, setOAuthProviders] = useState<OAuthProvider[]>([])
+  const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
+  const linkHover = useHoverStyle(hoverStyles.primaryLink)
 
   // Check for OAuth error in query params
   useEffect(() => {
@@ -192,12 +195,7 @@ function LoginForm() {
             href="#"
             className="transition"
             style={{ color: 'var(--color-primary)' }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = 'var(--color-primary-hover)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = 'var(--color-primary)'
-            }}
+            {...linkHover}
           >
             Forgot password?
           </a>
@@ -210,14 +208,7 @@ function LoginForm() {
           style={{
             backgroundColor: 'var(--color-primary)',
           }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-primary)'
-          }}
+          {...buttonHover}
         >
           {isLoading ? 'Signing in...' : 'Sign in'}
         </button>
@@ -265,12 +256,7 @@ function LoginForm() {
           href="/register"
           className="font-medium transition"
           style={{ color: 'var(--color-primary)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary-hover)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary)'
-          }}
+          {...linkHover}
         >
           Sign up
         </Link>

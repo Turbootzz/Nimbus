@@ -107,6 +107,14 @@ func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group
 	return group, err
 }
 
+// CountByUserID returns the number of groups for a specific user (efficient for validation)
+func (r *GroupRepository) CountByUserID(ctx context.Context, userID string) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM groups WHERE user_id = $1`
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	return count, err
+}
+
 // GetAllByUserID retrieves all groups for a specific user ordered by position
 func (r *GroupRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Group, error) {
 	query := `
