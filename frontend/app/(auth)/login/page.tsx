@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { getApiUrl } from '@/lib/utils/api-url'
 import OAuthButton from '@/components/OAuthButton'
+import { ThemedInput } from '@/components/ui/ThemedInput'
 import { api } from '@/lib/api'
 import type { OAuthProvider } from '@/types'
 
@@ -140,23 +141,11 @@ function LoginForm() {
           >
             Email
           </label>
-          <input
+          <ThemedInput
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="you@example.com"
             required
             disabled={isLoading}
@@ -171,23 +160,11 @@ function LoginForm() {
           >
             Password
           </label>
-          <input
+          <ThemedInput
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="••••••••"
             required
             disabled={isLoading}

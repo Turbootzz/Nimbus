@@ -1,17 +1,13 @@
 package handlers
 
-import (
-	"errors"
+import "github.com/gofiber/fiber/v2"
 
-	"github.com/gofiber/fiber/v2"
-)
-
-// getUserID extracts and validates the user ID from the request context
-// Returns an error if the user ID is not found or invalid
-func getUserID(c *fiber.Ctx) (string, error) {
+// RequireUserID extracts the user ID from context. If not found, it sends a 401 response
+// and returns a fiber error that stops the handler chain.
+func RequireUserID(c *fiber.Ctx) (string, error) {
 	userID, ok := c.Locals("user_id").(string)
 	if !ok || userID == "" {
-		return "", errors.New("user ID not found in context")
+		return "", fiber.NewError(fiber.StatusUnauthorized, "Unauthorized: user ID not found")
 	}
 	return userID, nil
 }

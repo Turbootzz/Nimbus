@@ -117,7 +117,10 @@ func (h *AdminHandler) UpdateUserRole(c *fiber.Ctx) error {
 	}
 
 	// Prevent admin from demoting themselves
-	currentUserID := c.Locals("user_id").(string)
+	currentUserID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
 	if currentUserID == userID && req.Role != "admin" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Cannot change your own role",
@@ -125,7 +128,7 @@ func (h *AdminHandler) UpdateUserRole(c *fiber.Ctx) error {
 	}
 
 	// Update role
-	err := h.userRepo.UpdateRole(userID, req.Role)
+	err = h.userRepo.UpdateRole(userID, req.Role)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update user role",
@@ -153,7 +156,10 @@ func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
 	}
 
 	// Prevent admin from deleting themselves
-	currentUserID := c.Locals("user_id").(string)
+	currentUserID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
 	if currentUserID == userID {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Cannot delete your own account",
@@ -161,7 +167,7 @@ func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
 	}
 
 	// Delete user
-	err := h.userRepo.Delete(userID)
+	err = h.userRepo.Delete(userID)
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{

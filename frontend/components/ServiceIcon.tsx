@@ -59,15 +59,19 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
 
   // Render uploaded image
   if (service.icon_type === 'image_upload' && service.icon_image_path) {
+    const imageUrl = `${apiUrl}/uploads/service-icons/${service.icon_image_path}`
+    // Use unoptimized for localhost to avoid Next.js blocking private IPs
+    const isLocalhost = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')
     return (
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
-          src={`${apiUrl}/uploads/service-icons/${service.icon_image_path}`}
+          src={imageUrl}
           alt={`${service.name} icon`}
           width={dimension}
           height={dimension}
           className="h-full w-full object-contain"
           onError={() => setImageError(true)}
+          unoptimized={isLocalhost}
         />
       </div>
     )

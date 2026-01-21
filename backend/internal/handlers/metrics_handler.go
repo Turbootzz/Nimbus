@@ -31,9 +31,9 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 	}
 
 	// Get authenticated user
-	userID, err := getUserID(c)
+	userID, err := RequireUserID(c)
 	if err != nil {
-		return Unauthorized(c, "Unauthorized")
+		return err
 	}
 
 	// Verify service belongs to user
@@ -92,9 +92,9 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	}
 
 	// Get authenticated user
-	userID, err := getUserID(c)
+	userID, err := RequireUserID(c)
 	if err != nil {
-		return Unauthorized(c, "Unauthorized")
+		return err
 	}
 
 	// Verify service belongs to user
