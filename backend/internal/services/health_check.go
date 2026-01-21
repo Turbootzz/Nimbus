@@ -27,6 +27,23 @@ var (
 	dnsCacheTTL = 5 * time.Minute
 )
 
+// CleanupDNSCache removes expired entries from the DNS cache.
+// Called periodically to prevent memory growth from stale entries.
+func CleanupDNSCache() int {
+	dnsCacheMu.Lock()
+	defer dnsCacheMu.Unlock()
+
+	now := time.Now()
+	removed := 0
+	for host, entry := range dnsCache {
+		if now.After(entry.expireAt) {
+			delete(dnsCache, host)
+			removed++
+		}
+	}
+	return removed
+}
+
 // HealthCheckService handles health checking of services
 type HealthCheckService struct {
 	serviceRepo   repository.ServiceRepositoryInterface

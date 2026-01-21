@@ -24,6 +24,27 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
+// userColumns is the standard SELECT column list for user queries
+const userColumns = `id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at`
+
+// scanUser scans a row into a User struct
+func scanUser(row interface{ Scan(...interface{}) error }, user *models.User) error {
+	return row.Scan(
+		&user.ID,
+		&user.Email,
+		&user.Name,
+		&user.Password,
+		&user.Role,
+		&user.Provider,
+		&user.ProviderID,
+		&user.AvatarURL,
+		&user.EmailVerified,
+		&user.LastActivityAt,
+		&user.CreatedAt,
+		&user.UpdatedAt,
+	)
+}
+
 // Create creates a new user in the database
 func (r *UserRepository) Create(user *models.User) error {
 	query := `
@@ -58,28 +79,10 @@ func (r *UserRepository) Create(user *models.User) error {
 
 // GetByEmail retrieves a user by email
 func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
-	query := `
-		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
-		FROM users
-		WHERE email = $1
-	`
+	query := `SELECT ` + userColumns + ` FROM users WHERE email = $1`
 
 	user := &models.User{}
-	err := r.db.QueryRow(query, email).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Name,
-		&user.Password,
-		&user.Role,
-		&user.Provider,
-		&user.ProviderID,
-		&user.AvatarURL,
-		&user.EmailVerified,
-		&user.LastActivityAt,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
+	err := scanUser(r.db.QueryRow(query, email), user)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserNotFound
 	}
@@ -92,28 +95,10 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(id string) (*models.User, error) {
-	query := `
-		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
-		FROM users
-		WHERE id = $1
-	`
+	query := `SELECT ` + userColumns + ` FROM users WHERE id = $1`
 
 	user := &models.User{}
-	err := r.db.QueryRow(query, id).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Name,
-		&user.Password,
-		&user.Role,
-		&user.Provider,
-		&user.ProviderID,
-		&user.AvatarURL,
-		&user.EmailVerified,
-		&user.LastActivityAt,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
+	err := scanUser(r.db.QueryRow(query, id), user)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserNotFound
 	}
@@ -155,11 +140,7 @@ type UserListResult struct {
 
 // GetAll retrieves all users (for admin purposes)
 func (r *UserRepository) GetAll() ([]*models.User, error) {
-	query := `
-		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
-		FROM users
-		ORDER BY created_at DESC
-	`
+	query := `SELECT ` + userColumns + ` FROM users ORDER BY created_at DESC`
 
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -170,21 +151,7 @@ func (r *UserRepository) GetAll() ([]*models.User, error) {
 	var users []*models.User
 	for rows.Next() {
 		user := &models.User{}
-		err := rows.Scan(
-			&user.ID,
-			&user.Email,
-			&user.Name,
-			&user.Password,
-			&user.Role,
-			&user.Provider,
-			&user.ProviderID,
-			&user.AvatarURL,
-			&user.EmailVerified,
-			&user.LastActivityAt,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		)
-		if err != nil {
+		if err := scanUser(rows, user); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, user)
@@ -227,13 +194,8 @@ func (r *UserRepository) GetFiltered(filter UserFilter) (*UserListResult, error)
 	}
 
 	// Build main query with pagination
-	query := fmt.Sprintf(`
-		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
-		FROM users
-		%s
-		ORDER BY created_at DESC
-		LIMIT $%d OFFSET $%d
-	`, where, argCount+1, argCount+2)
+	query := fmt.Sprintf(`SELECT `+userColumns+` FROM users %s ORDER BY created_at DESC LIMIT $%d OFFSET $%d`,
+		where, argCount+1, argCount+2)
 
 	args = append(args, filter.Limit, filter.Offset)
 
@@ -246,20 +208,7 @@ func (r *UserRepository) GetFiltered(filter UserFilter) (*UserListResult, error)
 	var users []*models.User
 	for rows.Next() {
 		user := &models.User{}
-		if err := rows.Scan(
-			&user.ID,
-			&user.Email,
-			&user.Name,
-			&user.Password,
-			&user.Role,
-			&user.Provider,
-			&user.ProviderID,
-			&user.AvatarURL,
-			&user.EmailVerified,
-			&user.LastActivityAt,
-			&user.CreatedAt,
-			&user.UpdatedAt,
-		); err != nil {
+		if err := scanUser(rows, user); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, user)
@@ -434,28 +383,10 @@ func (r *UserRepository) UpdateLastActivity(userID string) error {
 
 // GetByProviderID retrieves a user by OAuth provider and provider ID
 func (r *UserRepository) GetByProviderID(provider string, providerID string) (*models.User, error) {
-	query := `
-		SELECT id, email, name, password, role, provider, provider_id, avatar_url, email_verified, last_activity_at, created_at, updated_at
-		FROM users
-		WHERE provider = $1 AND provider_id = $2
-	`
+	query := `SELECT ` + userColumns + ` FROM users WHERE provider = $1 AND provider_id = $2`
 
 	user := &models.User{}
-	err := r.db.QueryRow(query, provider, providerID).Scan(
-		&user.ID,
-		&user.Email,
-		&user.Name,
-		&user.Password,
-		&user.Role,
-		&user.Provider,
-		&user.ProviderID,
-		&user.AvatarURL,
-		&user.EmailVerified,
-		&user.LastActivityAt,
-		&user.CreatedAt,
-		&user.UpdatedAt,
-	)
-
+	err := scanUser(r.db.QueryRow(query, provider, providerID), user)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserNotFound
 	}

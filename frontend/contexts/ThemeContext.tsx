@@ -287,50 +287,51 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [syncing]
   )
 
+  // Setters that update local state and sync to API
   const setTheme = useCallback(
-    (newTheme: 'light' | 'dark' | 'auto') => {
-      setThemeState(newTheme)
-      savePreferences({ theme_mode: newTheme })
+    (v: 'light' | 'dark' | 'auto') => {
+      setThemeState(v)
+      savePreferences({ theme_mode: v })
     },
     [savePreferences]
   )
 
   const setAccentColor = useCallback(
-    (color: string | undefined) => {
-      setAccentColorState(color)
-      savePreferences({ theme_accent_color: color ? color : null })
+    (v: string | undefined) => {
+      setAccentColorState(v)
+      savePreferences({ theme_accent_color: v ?? null })
     },
     [savePreferences]
   )
 
   const setBackground = useCallback(
-    (bg: string | undefined) => {
-      setBackgroundState(bg)
-      savePreferences({ theme_background: bg ? bg : null })
+    (v: string | undefined) => {
+      setBackgroundState(v)
+      savePreferences({ theme_background: v ?? null })
     },
     [savePreferences]
   )
 
   const setOpenInNewTab = useCallback(
-    (value: boolean) => {
-      setOpenInNewTabState(value)
-      savePreferences({ open_in_new_tab: value })
+    (v: boolean) => {
+      setOpenInNewTabState(v)
+      savePreferences({ open_in_new_tab: v })
     },
     [savePreferences]
   )
 
   const setEnableCardResizing = useCallback(
-    (value: boolean) => {
-      setEnableCardResizingState(value)
-      savePreferences({ enable_card_resizing: value })
+    (v: boolean) => {
+      setEnableCardResizingState(v)
+      savePreferences({ enable_card_resizing: v })
     },
     [savePreferences]
   )
 
   const setEnableServiceGrouping = useCallback(
-    (value: boolean) => {
-      setEnableServiceGroupingState(value)
-      savePreferences({ enable_service_grouping: value })
+    (v: boolean) => {
+      setEnableServiceGroupingState(v)
+      savePreferences({ enable_service_grouping: v })
     },
     [savePreferences]
   )
