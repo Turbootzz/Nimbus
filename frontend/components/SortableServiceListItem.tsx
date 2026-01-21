@@ -1,6 +1,7 @@
 'use client'
 
 import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { Service } from '@/types'
 import ServiceListItem from '@/components/ServiceListItem'
 
@@ -13,13 +14,15 @@ export default function SortableServiceListItem({
   service,
   openInNewTab,
 }: SortableServiceListItemProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
   })
 
+  // List items are uniform size, so CSS transforms work well for smooth animations
   const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
     opacity: isDragging ? 0.4 : 1,
-    transition: 'opacity 150ms ease',
   }
 
   return (
