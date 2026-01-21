@@ -1,7 +1,7 @@
 'use client'
 
 import { useSortable } from '@dnd-kit/sortable'
-import type { Service, CardSize } from '@/types'
+import type { Service, CardSize, CardScale } from '@/types'
 import { sizeToGridSpan } from '@/lib/card-utils'
 import ServiceCard from '@/components/ServiceCard'
 
@@ -11,6 +11,7 @@ interface SortableServiceCardProps {
   isEditMode: boolean
   onSizeChange: (id: string, newSize: CardSize) => void
   enableCardResizing: boolean
+  cardScale: CardScale
 }
 
 export default function SortableServiceCard({
@@ -19,6 +20,7 @@ export default function SortableServiceCard({
   isEditMode,
   onSizeChange,
   enableCardResizing,
+  cardScale,
 }: SortableServiceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: service.id,
@@ -45,6 +47,7 @@ export default function SortableServiceCard({
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={false}
         enableCardResizing={enableCardResizing}
+        cardScale={cardScale}
       />
     </div>
   )

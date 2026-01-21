@@ -2,7 +2,7 @@ import React from 'react'
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/solid'
 
 /**
- * Returns the Tailwind CSS color class for a service status
+ * Returns the Tailwind CSS text color class for a service status
  */
 export const getStatusColor = (status: string): string => {
   switch (status) {
@@ -12,6 +12,20 @@ export const getStatusColor = (status: string): string => {
       return 'text-error'
     default:
       return 'text-warning'
+  }
+}
+
+/**
+ * Returns the Tailwind CSS background color class for a service status
+ */
+export const getStatusBgColor = (status: string): string => {
+  switch (status) {
+    case 'online':
+      return 'bg-success'
+    case 'offline':
+      return 'bg-error'
+    default:
+      return 'bg-warning'
   }
 }
 

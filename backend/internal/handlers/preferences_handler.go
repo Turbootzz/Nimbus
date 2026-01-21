@@ -60,6 +60,8 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			OpenInNewTab:          true,
 			EnableCardResizing:    true,
 			EnableServiceGrouping: true,
+			CardScale:             "large",
+			ViewMode:              "grid",
 			UpdatedAt:             time.Time{}, // Zero value for time
 		})
 	}

@@ -32,6 +32,8 @@ export interface AuthResponse {
 // Service types
 export type IconType = 'emoji' | 'image_upload' | 'image_url'
 export type CardSize = '1x1' | '2x1' | '2x2'
+export type CardScale = 'small' | 'medium' | 'large'
+export type ViewMode = 'grid' | 'list'
 
 export interface Service {
   id: string
@@ -134,6 +136,8 @@ export interface UserPreferences {
   open_in_new_tab: boolean
   enable_card_resizing: boolean
   enable_service_grouping: boolean
+  card_scale: CardScale
+  view_mode: ViewMode
   updated_at?: string
 }
 
@@ -144,6 +148,8 @@ export interface PreferencesUpdateRequest {
   open_in_new_tab?: boolean
   enable_card_resizing?: boolean
   enable_service_grouping?: boolean
+  card_scale?: CardScale
+  view_mode?: ViewMode
 }
 
 // API response types

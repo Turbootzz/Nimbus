@@ -79,6 +79,8 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
 			enable_card_resizing BOOLEAN NOT NULL DEFAULT 1,
 			enable_service_grouping BOOLEAN NOT NULL DEFAULT 1,
+			card_scale TEXT NOT NULL DEFAULT 'large',
+			view_mode TEXT NOT NULL DEFAULT 'grid',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

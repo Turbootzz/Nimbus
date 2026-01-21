@@ -13,12 +13,16 @@ export default function ThemePage() {
     openInNewTab,
     enableCardResizing,
     enableServiceGrouping,
+    cardScale,
+    viewMode,
     setTheme,
     setAccentColor,
     setBackground,
     setOpenInNewTab,
     setEnableCardResizing,
     setEnableServiceGrouping,
+    setCardScale,
+    setViewMode,
   } = useTheme()
 
   const presetColors = [
@@ -140,7 +144,7 @@ export default function ThemePage() {
                 value={accentColor || ''}
                 onChange={(e) => setAccentColor(e.target.value)}
                 placeholder="#0ea5e9"
-                className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-[150px]"
+                className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-36"
                 maxLength={7}
               />
               {accentColor && (
@@ -198,6 +202,45 @@ export default function ThemePage() {
           />
         </div>
 
+        {/* Card Display */}
+        <div className="bg-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Display</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Customize how service cards are displayed
+          </p>
+
+          {/* Card Scale */}
+          <div className="mb-6">
+            <label className="text-text-primary mb-2 block text-sm font-medium">Card Size</label>
+            <div className="flex gap-2">
+              {(['small', 'medium', 'large'] as const).map((scale) => (
+                <button
+                  key={scale}
+                  onClick={() => setCardScale(scale)}
+                  className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
+                    cardScale === scale
+                      ? 'bg-primary text-white'
+                      : 'bg-background border-card-border text-text-primary hover:border-primary border'
+                  }`}
+                >
+                  {scale}
+                </button>
+              ))}
+            </div>
+            <p className="text-text-muted mt-2 text-xs">
+              Adjust the grid density - smaller cards show more services per row
+            </p>
+          </div>
+
+          {/* View Mode */}
+          <Toggle
+            enabled={viewMode === 'list'}
+            onChange={(enabled) => setViewMode(enabled ? 'list' : 'grid')}
+            label="List view"
+            description="Display services in a compact list instead of a grid"
+          />
+        </div>
+
         {/* Background Image */}
         <div className="bg-card border-card-border rounded-lg border p-6">
           <h2 className="text-text-primary mb-2 text-xl font-semibold">Background Image</h2>
@@ -209,7 +252,7 @@ export default function ThemePage() {
               value={background || ''}
               onChange={(e) => setBackground(e.target.value)}
               placeholder="https://example.com/image.jpg"
-              className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-[200px]"
+              className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-50"
             />
             {background && (
               <button

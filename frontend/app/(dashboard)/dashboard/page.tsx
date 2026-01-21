@@ -58,7 +58,8 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
 }
 
 export default function DashboardPage() {
-  const { openInNewTab, enableCardResizing, enableServiceGrouping } = useTheme()
+  const { openInNewTab, enableCardResizing, enableServiceGrouping, cardScale, viewMode } =
+    useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
@@ -595,6 +596,8 @@ export default function DashboardPage() {
               services={filteredServices}
               openInNewTab={openInNewTab}
               enableCardResizing={enableCardResizing}
+              cardScale={cardScale}
+              viewMode={viewMode}
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
             />
@@ -634,6 +637,8 @@ export default function DashboardPage() {
             services={filteredServices}
             openInNewTab={openInNewTab}
             enableCardResizing={enableCardResizing}
+            cardScale={cardScale}
+            viewMode={viewMode}
           />
         </>
       )}
