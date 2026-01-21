@@ -63,11 +63,10 @@ RUN mkdir -p /app/backend /app/frontend /app/backend/uploads/service-icons /app/
 COPY --from=backend-builder /build/server /app/backend/server
 COPY --from=backend-builder /build/internal/db/migrations /app/backend/internal/db/migrations
 
-# Copy frontend build
+# Copy frontend build (only compiled assets and package files needed for production)
 COPY --from=frontend-builder /build/.next /app/frontend/.next
 COPY --from=frontend-builder /build/public /app/frontend/public
 COPY --from=frontend-builder /build/package*.json /app/frontend/
-COPY --from=frontend-builder /build/next.config.ts /app/frontend/
 
 # Install frontend production dependencies
 WORKDIR /app/frontend

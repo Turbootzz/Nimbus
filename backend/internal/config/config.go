@@ -12,13 +12,13 @@ import (
 )
 
 // Default values for environment variables (Convention over Configuration)
+// Note: CORS_ORIGINS is intentionally not in defaults - when unset, same-origin mode is used
 var defaults = map[string]string{
-	"PORT":         "8080",
-	"DB_HOST":      "db",
-	"DB_PORT":      "5432",
-	"DB_USER":      "nimbus",
-	"DB_NAME":      "nimbus",
-	"CORS_ORIGINS": "http://localhost:3000",
+	"PORT":    "8080",
+	"DB_HOST": "db",
+	"DB_PORT": "5432",
+	"DB_USER": "nimbus",
+	"DB_NAME": "nimbus",
 }
 
 // applyDefaults sets default values for environment variables if not already set
