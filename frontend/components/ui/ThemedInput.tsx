@@ -2,9 +2,7 @@
 
 import { forwardRef, InputHTMLAttributes } from 'react'
 
-interface ThemedInputProps extends InputHTMLAttributes<HTMLInputElement> {
-  // All standard input props are inherited
-}
+type ThemedInputProps = InputHTMLAttributes<HTMLInputElement>
 
 export const ThemedInput = forwardRef<HTMLInputElement, ThemedInputProps>(
   ({ className = '', ...props }, ref) => {
