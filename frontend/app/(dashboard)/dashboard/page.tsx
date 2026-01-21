@@ -27,6 +27,7 @@ import { api } from '@/lib/api'
 import type { Service, CardSize, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceCard from '@/components/ServiceCard'
+import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
@@ -604,16 +605,24 @@ export default function DashboardPage() {
           </SortableContext>
 
           <DragOverlay dropAnimation={null}>
-            {activeService && (
-              <ServiceCard
-                service={activeService}
-                openInNewTab={openInNewTab}
-                isEditMode={true}
-                onSizeChange={() => {}}
-                isDragging={true}
-                enableCardResizing={enableCardResizing}
-              />
-            )}
+            {activeService &&
+              (viewMode === 'list' ? (
+                <ServiceListItem
+                  service={activeService}
+                  openInNewTab={openInNewTab}
+                  isEditMode={true}
+                  isDragging={true}
+                />
+              ) : (
+                <ServiceCard
+                  service={activeService}
+                  openInNewTab={openInNewTab}
+                  isEditMode={true}
+                  onSizeChange={() => {}}
+                  isDragging={true}
+                  enableCardResizing={enableCardResizing}
+                />
+              ))}
           </DragOverlay>
         </DndContext>
       ) : (

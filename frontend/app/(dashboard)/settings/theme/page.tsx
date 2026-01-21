@@ -209,36 +209,41 @@ export default function ThemePage() {
             Customize how service cards are displayed
           </p>
 
-          {/* Card Scale */}
+          {/* View Mode */}
           <div className="mb-6">
+            <Toggle
+              enabled={viewMode === 'list'}
+              onChange={(enabled) => setViewMode(enabled ? 'list' : 'grid')}
+              label="List view"
+              description="Display services in a compact list instead of a grid"
+            />
+          </div>
+
+          {/* Card Scale - disabled when list view is enabled */}
+          <div className={viewMode === 'list' ? 'opacity-50' : ''}>
             <label className="text-text-primary mb-2 block text-sm font-medium">Card Size</label>
             <div className="flex gap-2">
               {(['small', 'medium', 'large'] as const).map((scale) => (
                 <button
                   key={scale}
                   onClick={() => setCardScale(scale)}
+                  disabled={viewMode === 'list'}
                   className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
                     cardScale === scale
                       ? 'bg-primary text-white'
                       : 'bg-background border-card-border text-text-primary hover:border-primary border'
-                  }`}
+                  } ${viewMode === 'list' ? 'cursor-not-allowed' : ''}`}
                 >
                   {scale}
                 </button>
               ))}
             </div>
             <p className="text-text-muted mt-2 text-xs">
-              Adjust the grid density - smaller cards show more services per row
+              {viewMode === 'list'
+                ? 'Card size only applies to grid view'
+                : 'Adjust the grid density - smaller cards show more services per row'}
             </p>
           </div>
-
-          {/* View Mode */}
-          <Toggle
-            enabled={viewMode === 'list'}
-            onChange={(enabled) => setViewMode(enabled ? 'list' : 'grid')}
-            label="List view"
-            description="Display services in a compact list instead of a grid"
-          />
         </div>
 
         {/* Background Image */}
