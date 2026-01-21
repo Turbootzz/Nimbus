@@ -40,6 +40,39 @@ const sizeDimensions = {
   '3xl': 192,
 }
 
+// Check if a hostname is a local/private address
+function isLocalHostname(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname
+
+    // Check common local hostnames
+    if (hostname === 'localhost' || hostname === '[::1]' || hostname.endsWith('.local')) {
+      return true
+    }
+
+    // Check IPv4 loopback
+    if (hostname.startsWith('127.')) {
+      return true
+    }
+
+    // Check private IPv4 ranges
+    const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/)
+    if (ipv4Match) {
+      const [, first, second] = ipv4Match.map(Number)
+      // 10.0.0.0/8
+      if (first === 10) return true
+      // 172.16.0.0/12
+      if (first === 172 && second >= 16 && second <= 31) return true
+      // 192.168.0.0/16
+      if (first === 192 && second === 168) return true
+    }
+
+    return false
+  } catch {
+    return false
+  }
+}
+
 export default function ServiceIcon({ service, size = 'md', className = '' }: ServiceIconProps) {
   const [imageError, setImageError] = useState(false)
   const sizeClass = sizeClasses[size]
@@ -61,11 +94,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
   if (service.icon_type === 'image_upload' && service.icon_image_path) {
     const imageUrl = `${apiUrl}/uploads/service-icons/${service.icon_image_path}`
     // Use unoptimized for local addresses to avoid Next.js blocking private IPs
-    const isLocalAddress =
-      apiUrl.includes('localhost') ||
-      apiUrl.includes('127.0.0.1') ||
-      apiUrl.includes('[::1]') ||
-      apiUrl.includes('.local')
+    const isLocalAddress = isLocalHostname(apiUrl)
     return (
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
