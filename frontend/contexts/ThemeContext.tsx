@@ -11,7 +11,7 @@ import {
   ReactNode,
 } from 'react'
 import { api } from '@/lib/api'
-import type { PreferencesUpdateRequest } from '@/types'
+import type { PreferencesUpdateRequest, CardScale, ViewMode } from '@/types'
 
 interface ThemeContextType {
   theme: 'light' | 'dark' | 'auto'
@@ -21,12 +21,16 @@ interface ThemeContextType {
   openInNewTab: boolean
   enableCardResizing: boolean
   enableServiceGrouping: boolean
+  cardScale: CardScale
+  viewMode: ViewMode
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
   setOpenInNewTab: (openInNewTab: boolean) => void
   setEnableCardResizing: (enableCardResizing: boolean) => void
   setEnableServiceGrouping: (enableServiceGrouping: boolean) => void
+  setCardScale: (cardScale: CardScale) => void
+  setViewMode: (viewMode: ViewMode) => void
   loading: boolean
 }
 
@@ -41,6 +45,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
   const [enableCardResizing, setEnableCardResizingState] = useState<boolean>(true)
   const [enableServiceGrouping, setEnableServiceGroupingState] = useState<boolean>(true)
+  const [cardScale, setCardScaleState] = useState<CardScale>('large')
+  const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
 
@@ -84,6 +90,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setEnableCardResizingState(e.newValue === 'true')
       } else if (e.key === 'enableServiceGrouping' && e.newValue !== null) {
         setEnableServiceGroupingState(e.newValue === 'true')
+      } else if (e.key === 'cardScale' && e.newValue) {
+        setCardScaleState(e.newValue as CardScale)
+      } else if (e.key === 'viewMode' && e.newValue) {
+        setViewModeState(e.newValue as ViewMode)
       }
     }
 
@@ -101,6 +111,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const savedOpenInNewTab = localStorage.getItem('openInNewTab')
       const savedEnableCardResizing = localStorage.getItem('enableCardResizing')
       const savedEnableServiceGrouping = localStorage.getItem('enableServiceGrouping')
+      const savedCardScale = localStorage.getItem('cardScale') as CardScale | null
+      const savedViewMode = localStorage.getItem('viewMode') as ViewMode | null
 
       if (savedTheme) setThemeState(savedTheme)
       if (savedAccent) setAccentColorState(savedAccent)
@@ -110,6 +122,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setEnableCardResizingState(savedEnableCardResizing === 'true')
       if (savedEnableServiceGrouping !== null)
         setEnableServiceGroupingState(savedEnableServiceGrouping === 'true')
+      if (savedCardScale) setCardScaleState(savedCardScale)
+      if (savedViewMode) setViewModeState(savedViewMode)
 
       // Step 2: Try to load from API and sync
       try {
@@ -123,6 +137,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           const apiOpenInNewTab = response.data.open_in_new_tab ?? true
           const apiEnableCardResizing = response.data.enable_card_resizing ?? true
           const apiEnableServiceGrouping = response.data.enable_service_grouping ?? true
+          const apiCardScale = response.data.card_scale ?? 'large'
+          const apiViewMode = response.data.view_mode ?? 'grid'
 
           setThemeState(apiTheme)
           setAccentColorState(apiAccent)
@@ -130,12 +146,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setOpenInNewTabState(apiOpenInNewTab)
           setEnableCardResizingState(apiEnableCardResizing)
           setEnableServiceGroupingState(apiEnableServiceGrouping)
+          setCardScaleState(apiCardScale)
+          setViewModeState(apiViewMode)
 
           // Update localStorage cache with API data
           localStorage.setItem('theme', apiTheme)
           localStorage.setItem('openInNewTab', String(apiOpenInNewTab))
           localStorage.setItem('enableCardResizing', String(apiEnableCardResizing))
           localStorage.setItem('enableServiceGrouping', String(apiEnableServiceGrouping))
+          localStorage.setItem('cardScale', apiCardScale)
+          localStorage.setItem('viewMode', apiViewMode)
           if (apiAccent) {
             localStorage.setItem('accentColor', apiAccent)
           } else {
@@ -232,6 +252,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (updates.enable_service_grouping !== undefined) {
       localStorage.setItem('enableServiceGrouping', String(updates.enable_service_grouping))
     }
+    if (updates.card_scale) localStorage.setItem('cardScale', updates.card_scale)
+    if (updates.view_mode) localStorage.setItem('viewMode', updates.view_mode)
     if (updates.theme_accent_color !== undefined) {
       if (updates.theme_accent_color) {
         localStorage.setItem('accentColor', updates.theme_accent_color)
@@ -336,6 +358,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [savePreferences]
   )
 
+  const setCardScale = useCallback(
+    (v: CardScale) => {
+      setCardScaleState(v)
+      savePreferences({ card_scale: v })
+    },
+    [savePreferences]
+  )
+
+  const setViewMode = useCallback(
+    (v: ViewMode) => {
+      setViewModeState(v)
+      savePreferences({ view_mode: v })
+    },
+    [savePreferences]
+  )
+
   const value = useMemo(
     () => ({
       theme,
@@ -345,12 +383,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       openInNewTab,
       enableCardResizing,
       enableServiceGrouping,
+      cardScale,
+      viewMode,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
       setEnableCardResizing,
       setEnableServiceGrouping,
+      setCardScale,
+      setViewMode,
       loading,
     }),
     [
@@ -361,12 +403,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       openInNewTab,
       enableCardResizing,
       enableServiceGrouping,
+      cardScale,
+      viewMode,
       setTheme,
       setAccentColor,
       setBackground,
       setOpenInNewTab,
       setEnableCardResizing,
       setEnableServiceGrouping,
+      setCardScale,
+      setViewMode,
       loading,
     ]
   )

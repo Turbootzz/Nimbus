@@ -2,8 +2,13 @@
 
 import { ClockIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
-import type { Service, CardSize } from '@/types'
-import { getStatusColor, getStatusIcon, getResponseTimeColor } from '@/lib/status-utils'
+import type { Service, CardSize, CardScale } from '@/types'
+import {
+  getStatusColor,
+  getStatusBgColor,
+  getStatusIcon,
+  getResponseTimeColor,
+} from '@/lib/status-utils'
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
 
@@ -15,6 +20,7 @@ interface ServiceCardProps {
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   enableCardResizing?: boolean
+  cardScale?: CardScale
 }
 
 export default function ServiceCard({
@@ -25,6 +31,7 @@ export default function ServiceCard({
   dragHandleProps,
   isDragging = false,
   enableCardResizing = true,
+  cardScale = 'large',
 }: ServiceCardProps) {
   // When card resizing is disabled, always use 2x1
   const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
@@ -54,6 +61,7 @@ export default function ServiceCard({
     isDragging,
     cardSize,
     showSizeBadge: enableCardResizing,
+    cardScale,
   }
 
   // When resizing is disabled, always use StandardCard (2x1)
@@ -85,6 +93,32 @@ interface CardVariantProps {
   isDragging: boolean
   cardSize: CardSize
   showSizeBadge: boolean
+  cardScale: CardScale
+}
+
+// Icon sizes based on cardScale - icons shrink with denser grids
+const scaleIconSizes: Record<
+  CardScale,
+  { standard: 'sm' | 'md' | 'lg'; large: 'lg' | 'xl' | '2xl' }
+> = {
+  small: { standard: 'sm', large: 'lg' },
+  medium: { standard: 'sm', large: 'xl' },
+  large: { standard: 'md', large: '2xl' },
+}
+
+// Padding classes based on cardScale
+// Mobile always uses large padding, scale-specific padding kicks in at sm breakpoint
+const scalePadding: Record<CardScale, { standard: string; compact: string }> = {
+  small: { standard: 'p-6 sm:p-3', compact: 'p-2 sm:p-1.5' },
+  medium: { standard: 'p-6 sm:p-4', compact: 'p-2' },
+  large: { standard: 'p-6', compact: 'p-2' },
+}
+
+// Text sizes based on cardScale
+const scaleText: Record<CardScale, { title: string; description: string }> = {
+  small: { title: 'text-sm', description: 'text-xs' },
+  medium: { title: 'text-base', description: 'text-sm' },
+  large: { title: 'text-lg', description: 'text-sm' },
 }
 
 // Reusable edit mode overlay with drag handle and size badge
@@ -132,8 +166,14 @@ function CompactCard({
   isDragging,
   cardSize,
   showSizeBadge,
+  cardScale,
 }: CardVariantProps) {
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border p-2 transition-all relative`
+  const padding = scalePadding[cardScale].compact
+  const iconSize = scaleIconSizes[cardScale].large
+  const titleSize = scaleText[cardScale].title
+  const statusDotSize = cardScale === 'small' ? 'h-2 w-2' : 'h-3 w-3'
+
+  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -150,20 +190,14 @@ function CompactCard({
         />
       )}
       <div className="flex flex-1 items-center justify-center">
-        <ServiceIcon service={service} size="2xl" />
+        <ServiceIcon service={service} size={iconSize} />
       </div>
       {/* Title with inline status indicator */}
       <div className="flex w-full items-center justify-center gap-1.5">
         <div
-          className={`h-3 w-3 shrink-0 rounded-full ${
-            service.status === 'online'
-              ? 'bg-success'
-              : service.status === 'offline'
-                ? 'bg-error'
-                : 'bg-warning'
-          }`}
+          className={`${statusDotSize} shrink-0 rounded-full ${getStatusBgColor(service.status)}`}
         />
-        <h3 className="text-text-primary text-md truncate font-semibold">{service.name}</h3>
+        <h3 className={`text-text-primary ${titleSize} truncate font-semibold`}>{service.name}</h3>
       </div>
     </>
   )
@@ -194,8 +228,15 @@ function StandardCard({
   isDragging,
   cardSize,
   showSizeBadge,
+  cardScale,
 }: CardVariantProps) {
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border p-6 transition-all relative`
+  const padding = scalePadding[cardScale].standard
+  const iconSize = scaleIconSizes[cardScale].standard
+  const titleSize = scaleText[cardScale].title
+  const descSize = scaleText[cardScale].description
+  const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
+
+  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -210,17 +251,19 @@ function StandardCard({
           showSizeBadge={showSizeBadge}
         />
       )}
-      <div className="mb-4 flex items-start justify-between">
-        <ServiceIcon service={service} size="md" />
+      <div className={`${marginBottom} flex items-start justify-between`}>
+        <ServiceIcon service={service} size={iconSize} />
         <div className={`flex items-center ${getStatusColor(service.status)}`}>
           {getStatusIcon(service.status)}
           <span className="ml-1 text-sm capitalize">{service.status}</span>
         </div>
       </div>
 
-      <h3 className="text-text-primary mb-1 truncate text-lg font-semibold">{service.name}</h3>
+      <h3 className={`text-text-primary mb-1 truncate ${titleSize} font-semibold`}>
+        {service.name}
+      </h3>
       {service.description && (
-        <p className="text-text-secondary line-clamp-1 text-sm">{service.description}</p>
+        <p className={`text-text-secondary line-clamp-1 ${descSize}`}>{service.description}</p>
       )}
 
       <div
@@ -260,8 +303,21 @@ function LargeCard({
   isDragging,
   cardSize,
   showSizeBadge,
+  cardScale,
 }: CardVariantProps) {
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border p-6 transition-all relative`
+  const padding = scalePadding[cardScale].standard
+  const iconSize = scaleIconSizes[cardScale].large
+  const largeTitleSizes: Record<CardScale, string> = {
+    small: 'text-base',
+    medium: 'text-xl',
+    large: 'text-2xl',
+  }
+  const titleSize = largeTitleSizes[cardScale]
+  const descSize = scaleText[cardScale].description
+  const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
+  const marginTop = cardScale === 'small' ? 'mt-2' : 'mt-4'
+
+  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -277,7 +333,7 @@ function LargeCard({
         />
       )}
       {/* Status in top right */}
-      <div className="mb-4 flex justify-end">
+      <div className={`${marginBottom} flex justify-end`}>
         <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
           {getStatusIcon(service.status)}
           <span className="ml-1 capitalize">{service.status}</span>
@@ -286,19 +342,19 @@ function LargeCard({
 
       {/* Centered icon and title */}
       <div className="flex flex-1 flex-col items-center justify-center">
-        <ServiceIcon service={service} size="2xl" />
-        <h3 className="text-text-primary mt-4 text-center text-2xl font-semibold">
+        <ServiceIcon service={service} size={iconSize} />
+        <h3 className={`text-text-primary ${marginTop} text-center ${titleSize} font-semibold`}>
           {service.name}
         </h3>
         {service.description && (
-          <p className="text-text-secondary mt-2 line-clamp-2 text-center text-sm">
+          <p className={`text-text-secondary mt-2 line-clamp-2 text-center ${descSize}`}>
             {service.description}
           </p>
         )}
       </div>
 
       {/* Footer with URL and response time */}
-      <div className="mt-4 space-y-2">
+      <div className={`${marginTop} space-y-2`}>
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
         {service.response_time !== undefined && service.response_time !== null && (
           <div

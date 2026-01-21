@@ -79,6 +79,8 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
 			enable_card_resizing BOOLEAN NOT NULL DEFAULT 1,
 			enable_service_grouping BOOLEAN NOT NULL DEFAULT 1,
+			card_scale TEXT NOT NULL DEFAULT 'large',
+			view_mode TEXT NOT NULL DEFAULT 'grid',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -783,6 +785,363 @@ func TestPreferencesRepository_EnableCardResizing(t *testing.T) {
 		// EnableCardResizing should still be false (preserved from first update)
 		if preferences.EnableCardResizing {
 			t.Errorf("EnableCardResizing = %v, want false (preserved from previous value)", preferences.EnableCardResizing)
+		}
+	})
+}
+
+func TestPreferencesRepository_CardScale(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("default value is large", func(t *testing.T) {
+		// Create preferences without specifying CardScale
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "large" {
+			t.Errorf("CardScale = %v, want large (default)", preferences.CardScale)
+		}
+	})
+
+	t.Run("can set to small", func(t *testing.T) {
+		cardScaleSmall := "small"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			CardScale: &cardScaleSmall,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "small" {
+			t.Errorf("CardScale = %v, want small", preferences.CardScale)
+		}
+	})
+
+	t.Run("can set to medium", func(t *testing.T) {
+		cardScaleMedium := "medium"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			CardScale: &cardScaleMedium,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "medium" {
+			t.Errorf("CardScale = %v, want medium", preferences.CardScale)
+		}
+	})
+
+	t.Run("can set to large explicitly", func(t *testing.T) {
+		cardScaleLarge := "large"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			CardScale: &cardScaleLarge,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "large" {
+			t.Errorf("CardScale = %v, want large", preferences.CardScale)
+		}
+	})
+
+	t.Run("nil value preserves existing", func(t *testing.T) {
+		// Set to small explicitly
+		cardScaleSmall := "small"
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			CardScale: &cardScaleSmall,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Verify it's small
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after first upsert failed: %v", err)
+		}
+		if preferences.CardScale != "small" {
+			t.Errorf("CardScale = %v, want small", preferences.CardScale)
+		}
+
+		// Update with nil CardScale (should preserve existing value)
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			// CardScale not set (nil), should preserve existing value (small)
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err = repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after second upsert failed: %v", err)
+		}
+
+		// CardScale should still be small (preserved from first update)
+		if preferences.CardScale != "small" {
+			t.Errorf("CardScale = %v, want small (preserved from previous value)", preferences.CardScale)
+		}
+	})
+}
+
+func TestPreferencesRepository_ViewMode(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("default value is grid", func(t *testing.T) {
+		// Create preferences without specifying ViewMode
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.ViewMode != "grid" {
+			t.Errorf("ViewMode = %v, want grid (default)", preferences.ViewMode)
+		}
+	})
+
+	t.Run("can set to list", func(t *testing.T) {
+		viewModeList := "list"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			ViewMode:  &viewModeList,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list", preferences.ViewMode)
+		}
+	})
+
+	t.Run("can set to grid explicitly", func(t *testing.T) {
+		viewModeGrid := "grid"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			ViewMode:  &viewModeGrid,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.ViewMode != "grid" {
+			t.Errorf("ViewMode = %v, want grid", preferences.ViewMode)
+		}
+	})
+
+	t.Run("nil value preserves existing", func(t *testing.T) {
+		// Set to list explicitly
+		viewModeList := "list"
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			ViewMode:  &viewModeList,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Verify it's list
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after first upsert failed: %v", err)
+		}
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list", preferences.ViewMode)
+		}
+
+		// Update with nil ViewMode (should preserve existing value)
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			// ViewMode not set (nil), should preserve existing value (list)
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err = repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() after second upsert failed: %v", err)
+		}
+
+		// ViewMode should still be list (preserved from first update)
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list (preserved from previous value)", preferences.ViewMode)
+		}
+	})
+}
+
+func TestPreferencesRepository_CardScaleAndViewMode_Combined(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("can set both card_scale and view_mode together", func(t *testing.T) {
+		cardScale := "small"
+		viewMode := "list"
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			CardScale: &cardScale,
+			ViewMode:  &viewMode,
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "small" {
+			t.Errorf("CardScale = %v, want small", preferences.CardScale)
+		}
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list", preferences.ViewMode)
+		}
+	})
+
+	t.Run("card_scale preserved when only view_mode updated", func(t *testing.T) {
+		// First, set both
+		cardScale := "medium"
+		viewMode := "grid"
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			CardScale: &cardScale,
+			ViewMode:  &viewMode,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Then update only ViewMode
+		viewModeList := "list"
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			ViewMode:  &viewModeList,
+			// CardScale not set (nil)
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "medium" {
+			t.Errorf("CardScale = %v, want medium (should be preserved)", preferences.CardScale)
+		}
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list (should be updated)", preferences.ViewMode)
+		}
+	})
+
+	t.Run("view_mode preserved when only card_scale updated", func(t *testing.T) {
+		// First, set both
+		cardScale := "large"
+		viewMode := "list"
+		req1 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			CardScale: &cardScale,
+			ViewMode:  &viewMode,
+		}
+		err := repo.Upsert(ctx, "user-1", req1)
+		if err != nil {
+			t.Fatalf("First Upsert() failed: %v", err)
+		}
+
+		// Then update only CardScale
+		cardScaleSmall := "small"
+		req2 := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("dark"),
+			CardScale: &cardScaleSmall,
+			// ViewMode not set (nil)
+		}
+		err = repo.Upsert(ctx, "user-1", req2)
+		if err != nil {
+			t.Fatalf("Second Upsert() failed: %v", err)
+		}
+
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		if preferences.CardScale != "small" {
+			t.Errorf("CardScale = %v, want small (should be updated)", preferences.CardScale)
+		}
+		if preferences.ViewMode != "list" {
+			t.Errorf("ViewMode = %v, want list (should be preserved)", preferences.ViewMode)
 		}
 	})
 }

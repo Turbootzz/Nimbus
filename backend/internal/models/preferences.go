@@ -54,6 +54,8 @@ type UserPreferences struct {
 	OpenInNewTab          bool      `json:"open_in_new_tab" db:"open_in_new_tab"`       // Whether to open services in new tab
 	EnableCardResizing    bool      `json:"enable_card_resizing" db:"enable_card_resizing"`
 	EnableServiceGrouping bool      `json:"enable_service_grouping" db:"enable_service_grouping"`
+	CardScale             string    `json:"card_scale" db:"card_scale"` // "small", "medium", or "large"
+	ViewMode              string    `json:"view_mode" db:"view_mode"`   // "grid" or "list"
 	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -66,6 +68,8 @@ type PreferencesUpdateRequest struct {
 	OpenInNewTab          *bool          `json:"open_in_new_tab"`         // Optional, defaults to true if not provided
 	EnableCardResizing    *bool          `json:"enable_card_resizing"`    // Optional, defaults to true if not provided
 	EnableServiceGrouping *bool          `json:"enable_service_grouping"` // Optional, defaults to true if not provided
+	CardScale             *string        `json:"card_scale" validate:"omitempty,oneof=small medium large"`
+	ViewMode              *string        `json:"view_mode" validate:"omitempty,oneof=grid list"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -76,6 +80,8 @@ type PreferencesResponse struct {
 	OpenInNewTab          bool      `json:"open_in_new_tab"`
 	EnableCardResizing    bool      `json:"enable_card_resizing"`
 	EnableServiceGrouping bool      `json:"enable_service_grouping"`
+	CardScale             string    `json:"card_scale"`
+	ViewMode              string    `json:"view_mode"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
@@ -88,6 +94,8 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		OpenInNewTab:          p.OpenInNewTab,
 		EnableCardResizing:    p.EnableCardResizing,
 		EnableServiceGrouping: p.EnableServiceGrouping,
+		CardScale:             p.CardScale,
+		ViewMode:              p.ViewMode,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }
