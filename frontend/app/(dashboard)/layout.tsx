@@ -23,7 +23,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
-      r.exact ? pathname === r.path : pathname.startsWith(r.path)
+      r.exact
+        ? pathname === r.path
+        : pathname === r.path || pathname.startsWith(r.path + '/')
     )
     return route?.title ?? 'Dashboard'
   }, [pathname])
