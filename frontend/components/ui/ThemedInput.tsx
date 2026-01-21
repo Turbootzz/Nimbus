@@ -5,7 +5,17 @@ import { forwardRef, InputHTMLAttributes } from 'react'
 type ThemedInputProps = InputHTMLAttributes<HTMLInputElement>
 
 export const ThemedInput = forwardRef<HTMLInputElement, ThemedInputProps>(
-  ({ className = '', ...props }, ref) => {
+  ({ className = '', onFocus, onBlur, ...rest }, ref) => {
+    const handleFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = 'var(--color-primary)'
+      onFocus?.(e)
+    }
+
+    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = 'var(--color-card-border)'
+      onBlur?.(e)
+    }
+
     return (
       <input
         ref={ref}
@@ -15,13 +25,9 @@ export const ThemedInput = forwardRef<HTMLInputElement, ThemedInputProps>(
           borderColor: 'var(--color-card-border)',
           color: 'var(--color-text-primary)',
         }}
-        onFocus={(e) => {
-          e.currentTarget.style.borderColor = 'var(--color-primary)'
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.borderColor = 'var(--color-card-border)'
-        }}
-        {...props}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        {...rest}
       />
     )
   }
