@@ -621,6 +621,7 @@ export default function DashboardPage() {
                   onSizeChange={() => {}}
                   isDragging={true}
                   enableCardResizing={enableCardResizing}
+                  cardScale={cardScale}
                 />
               ))}
           </DragOverlay>

@@ -31,7 +31,7 @@ export default function ServiceListItem({
   const baseClasses =
     'bg-card border-card-border flex items-center gap-2 sm:gap-3 rounded-lg border p-2 sm:p-3 transition-all'
   const hoverClasses = isEditMode ? '' : 'hover:border-primary hover:shadow-md'
-  const editClasses = isEditMode ? 'border-dashed border-2 cursor-pointer hover:border-primary' : ''
+  const editClasses = isEditMode ? 'border-dashed border-2 cursor-pointer' : ''
   const dragClasses = isDragging ? 'ring-2 ring-primary' : ''
 
   const content = (
