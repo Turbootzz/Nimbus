@@ -122,7 +122,9 @@ export default function ThemePage() {
                 <button
                   key={color.value}
                   onClick={() => setAccentColor(color.value)}
-                  className={`h-12 w-12 rounded-lg border-2 transition-all hover:scale-110 sm:h-18 sm:w-18 ${
+                  aria-label={color.name}
+                  aria-pressed={accentColor === color.value}
+                  className={`h-12 w-12 rounded-lg border-2 transition-all hover:scale-110 sm:h-16 sm:w-16 ${
                     accentColor === color.value
                       ? 'border-text-primary ring-primary scale-110 ring-2 ring-offset-2'
                       : 'border-card-border'
