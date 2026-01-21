@@ -12,13 +12,13 @@ import (
 )
 
 // Default values for environment variables (Convention over Configuration)
+// Note: CORS_ORIGINS is intentionally not in defaults - when unset, same-origin mode is used
 var defaults = map[string]string{
-	"PORT":         "8080",
-	"DB_HOST":      "db",
-	"DB_PORT":      "5432",
-	"DB_USER":      "nimbus",
-	"DB_NAME":      "nimbus",
-	"CORS_ORIGINS": "http://localhost:3000",
+	"PORT":    "8080",
+	"DB_HOST": "db",
+	"DB_PORT": "5432",
+	"DB_USER": "nimbus",
+	"DB_NAME": "nimbus",
 }
 
 // applyDefaults sets default values for environment variables if not already set
@@ -127,10 +127,11 @@ func validateRequiredEnvVars() error {
 		}
 	}
 
-	// Validate CORS origins (critical for security)
+	// CORS_ORIGINS is optional - when not set, same-origin mode is used (no CORS middleware)
+	// This enables the unified Docker image where nginx proxies both frontend and backend
 	corsOrigins := strings.TrimSpace(os.Getenv("CORS_ORIGINS"))
 	if corsOrigins == "" {
-		errors = append(errors, "CORS_ORIGINS is required (security risk if misconfigured)")
+		log.Println("CORS_ORIGINS not set - same-origin mode (CORS middleware will be skipped)")
 	}
 
 	// Return all validation errors

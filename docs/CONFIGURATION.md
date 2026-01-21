@@ -19,7 +19,6 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
   - [Discord OAuth](#discord-oauth)
 - [Prometheus Integration](#prometheus-integration)
 - [Production Deployment](#production-deployment)
-- [Frontend Configuration](#frontend-configuration)
 
 ---
 
@@ -62,11 +61,13 @@ postgres://nimbus:password@localhost:5432/nimbus?sslmode=disable
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | `8080` | Backend API port |
-| `CORS_ORIGINS` | `http://localhost:3000` | Comma-separated allowed origins |
+| `CORS_ORIGINS` | *none* | Comma-separated allowed origins (optional in unified mode) |
 | `COOKIE_SECURE` | `false` | Set to `true` for HTTPS |
 | `COOKIE_DOMAIN` | - | Cookie domain restriction |
 
-**Production CORS example:**
+> **Note:** When using the unified `turboot/nimbus` Docker image, `CORS_ORIGINS` is not needed — the built-in nginx proxy handles same-origin requests.
+
+**Production CORS example (separate containers only):**
 ```bash
 CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
 ```
@@ -213,30 +214,25 @@ docker run -d \
 
 ## Production Deployment
 
-### HTTPS Configuration
+### Unified Image (Recommended)
 
-For production with HTTPS:
-
-```bash
-COOKIE_SECURE=true
-CORS_ORIGINS=https://nimbus.yourdomain.com
-```
-
-### Custom Domain
-
-Update your docker-compose.yml backend environment:
+The `turboot/nimbus` unified image is the easiest way to deploy. It includes nginx, frontend, and backend in a single container:
 
 ```yaml
-environment:
-  DB_PASSWORD: ${DB_PASSWORD}
-  JWT_SECRET: ${JWT_SECRET}
-  CORS_ORIGINS: https://nimbus.yourdomain.com
-  COOKIE_SECURE: true
+services:
+  nimbus:
+    image: turboot/nimbus:latest
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECURE: "true"  # Enable for HTTPS
+    ports:
+      - "3000:3000"
 ```
 
-### Reverse Proxy (nginx)
+### HTTPS with Reverse Proxy
 
-Example nginx configuration:
+For HTTPS, place a reverse proxy (Traefik, Caddy, nginx) in front of the unified container:
 
 ```nginx
 server {
@@ -252,66 +248,29 @@ server {
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-
-    location /api/ {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
 
----
+### Separate Containers (Advanced)
 
-## Frontend Configuration
+For users who prefer separate frontend/backend containers, use `docker-compose.deprecated.yml`:
 
-The frontend auto-detects the API URL at runtime. Override only if needed.
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `NEXT_PUBLIC_API_URL` | Auto-detected | Full backend API URL |
-| `NEXT_PUBLIC_API_PORT` | `8080` | Backend port for runtime detection |
-| `NEXT_PUBLIC_APP_NAME` | `Nimbus` | Application name |
-| `JWT_SECRET` | *required* | Must match backend JWT_SECRET |
-
-**Auto-detection behavior:**
-- Localhost → `http://localhost:8080/api/v1`
-- IP address → `http://YOUR_IP:8080/api/v1`
-- Production domain → `https://yourdomain.com/api/v1`
-
-### Docker Network Configuration
-
-> **Important:** When deploying with Docker, you must set `NEXT_PUBLIC_API_URL` correctly.
-
-**Common mistake:** Using `http://backend:8080` will NOT work!
-- `backend` is a Docker internal hostname
-- Browsers run on your machine, not inside Docker, so they cannot resolve Docker hostnames
-
-**Correct configurations:**
-
-1. **Local network access** (accessing via IP like `192.168.1.100:3000`):
-   ```bash
-   NEXT_PUBLIC_API_URL=http://192.168.1.100:8080
-   CORS_ORIGINS=http://192.168.1.100:3000
-   ```
-
-2. **Reverse proxy (same domain)** — proxy routes `/api/v1/*` to backend:
-   ```bash
-   NEXT_PUBLIC_API_URL=https://nimbus.yourdomain.com
-   CORS_ORIGINS=https://nimbus.yourdomain.com
-   ```
-
-3. **Reverse proxy (API subdomain)**:
-   ```bash
-   NEXT_PUBLIC_API_URL=https://api.nimbus.yourdomain.com
-   CORS_ORIGINS=https://nimbus.yourdomain.com
-   ```
-
-After changing these values, restart Docker:
 ```bash
-docker-compose down && docker-compose up -d
+docker-compose -f docker-compose.deprecated.yml up -d
+```
+
+This requires additional configuration:
+
+```yaml
+environment:
+  DB_PASSWORD: ${DB_PASSWORD}
+  JWT_SECRET: ${JWT_SECRET}
+  CORS_ORIGINS: https://nimbus.yourdomain.com
+  COOKIE_SECURE: "true"
 ```
 
 ---
@@ -340,7 +299,7 @@ JWT_SECRET=your-32-character-minimum-secret-key
 
 # Server (all have defaults)
 # PORT=8080
-# CORS_ORIGINS=http://localhost:3000
+# CORS_ORIGINS=http://localhost:3000  # Not needed for unified image
 
 # OAuth (optional)
 GOOGLE_CLIENT_ID=
@@ -367,24 +326,6 @@ PROMETHEUS_API_KEY=
 
 ## Troubleshooting
 
-### "Unexpected token" or API connection errors
-
-If you see errors like "Unexpected token" or "Cannot reach API server" when trying to log in or register:
-
-1. **Check `NEXT_PUBLIC_API_URL`** — this is the most common cause
-   - Do NOT use `http://backend:8080` (Docker internal hostname)
-   - Use your actual server IP: `http://192.168.1.100:8080`
-
-2. **Check `CORS_ORIGINS`** — must include your frontend URL
-   - If frontend is at `http://192.168.1.100:3000`, add that to CORS_ORIGINS
-
-3. **Restart containers** after changing `.env`:
-   ```bash
-   docker-compose down && docker-compose up -d
-   ```
-
-4. **Check browser console** for the actual error URL being called
-
 ### OAuth callback errors
 
 If OAuth login fails with a redirect error:
@@ -392,3 +333,11 @@ If OAuth login fails with a redirect error:
 1. Ensure redirect URLs match exactly (including protocol and port)
 2. For production, update all OAuth redirect URLs to use HTTPS
 3. Check that `FRONTEND_URL` is set correctly for the post-login redirect
+
+### API connection errors (separate containers only)
+
+If using `docker-compose.deprecated.yml` and seeing "Cannot reach API server":
+
+1. **Check `NEXT_PUBLIC_API_URL`** — use your actual server IP, not `http://backend:8080`
+2. **Check `CORS_ORIGINS`** — must include your frontend URL
+3. **Restart containers** after changing `.env`

@@ -3,7 +3,9 @@
  * Determines the URL at runtime based on the browser's location.
  *
  * Priority:
- * 1. NEXT_PUBLIC_API_URL environment variable (full API URL)
+ * 1. NEXT_PUBLIC_API_URL environment variable:
+ *    - Empty string ('') = same-origin mode (unified Docker) → /api/v1
+ *    - Non-empty = full API URL (normalized to include /api/v1)
  * 2. Runtime detection using window.location:
  *    - Production (custom domain): Same origin path-based routing → /api/v1
  *    - Development (localhost/IP): Different port → http://localhost:8080/api/v1
@@ -14,10 +16,16 @@ export const getApiUrl = (): string => {
   const defaultPort = '8080'
   const apiPath = '/api/v1'
 
-  // Priority 1: Use environment variable if set, normalize to include /api/v1
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    let url = process.env.NEXT_PUBLIC_API_URL.trim()
-    url = url.replace(/\/$/, '')
+  // Priority 1: Check environment variable (can be empty string for same-origin)
+  const envUrl = process.env.NEXT_PUBLIC_API_URL
+
+  // Empty string explicitly means same-origin mode (unified Docker image)
+  if (envUrl !== undefined) {
+    if (envUrl === '' || envUrl.trim() === '') {
+      return apiPath // Same-origin: relative path /api/v1
+    }
+    // Non-empty: normalize to include /api/v1
+    let url = envUrl.trim().replace(/\/$/, '')
     if (!url.endsWith(apiPath)) {
       url = `${url}${apiPath}`
     }

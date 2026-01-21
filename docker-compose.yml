@@ -1,4 +1,4 @@
-# Nimbus Self-Hosted Dashboard
+# Nimbus Self-Hosted Dashboard - Unified Deployment
 # Quick Start: Only DB_PASSWORD and JWT_SECRET are required!
 #
 # 1. Create a .env file with:
@@ -7,7 +7,9 @@
 #
 # 2. Run: docker-compose up -d
 #
-# All other settings have sensible defaults. See .env.example for optional overrides.
+# That's it! Access Nimbus at http://localhost:3000
+#
+# For advanced users who prefer separate containers, see docker-compose.deprecated.yml
 
 services:
   db:
@@ -28,57 +30,33 @@ services:
     networks:
       - nimbus-network
 
-  backend:
-    image: turboot/nimbus-backend:latest
-    container_name: nimbus-backend
+  nimbus:
+    image: turboot/nimbus:latest
+    container_name: nimbus
     restart: unless-stopped
-    volumes:
-      - uploads_data:/app/uploads
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
-      # Optional overrides (uncomment to customize):
-      # PORT: 8080
-      # DB_HOST: db
+      DB_HOST: db
+      # No CORS_ORIGINS needed - same-origin mode!
+      # No NEXT_PUBLIC_API_URL needed - same-origin mode!
+      # Optional overrides:
       # DB_PORT: 5432
       # DB_USER: nimbus
       # DB_NAME: nimbus
+    volumes:
+      - uploads_data:/app/backend/uploads
     ports:
-      - "8080:8080"
+      - "3000:3000"
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/api/v1/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 40s
-    networks:
-      - nimbus-network
-
-  frontend:
-    image: turboot/nimbus-frontend:latest
-    container_name: nimbus-frontend
-    restart: unless-stopped
-    environment:
-      JWT_SECRET: ${JWT_SECRET}
-      # IMPORTANT: Set NEXT_PUBLIC_API_URL to your backend's external URL
-      # - For local network: http://YOUR_SERVER_IP:8080 (e.g., http://192.168.1.100:8080)
-      # - For reverse proxy: https://your-domain.com (proxy must route /api/v1/* to backend)
-      # - Do NOT use "http://backend:8080" - browsers cannot resolve Docker internal hostnames!
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3000/', (r) => {if (r.statusCode !== 200 && r.statusCode !== 307) throw new Error(r.statusCode)})\""]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      start_period: 60s
     networks:
       - nimbus-network
 

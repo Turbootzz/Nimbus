@@ -6,7 +6,8 @@ import (
 )
 
 // TestValidateRequiredEnvVars tests environment variable validation
-// Note: PORT, DB_HOST, DB_PORT, DB_USER, DB_NAME, CORS_ORIGINS now have defaults
+// Note: PORT, DB_HOST, DB_PORT, DB_USER, DB_NAME have defaults
+// CORS_ORIGINS intentionally has no default (enables same-origin mode in unified Docker image)
 // Only JWT_SECRET and DB_PASSWORD are strictly required
 func TestValidateRequiredEnvVars(t *testing.T) {
 	tests := []struct {
@@ -210,19 +211,24 @@ func TestApplyDefaults(t *testing.T) {
 
 		applyDefaults()
 
+		// Note: CORS_ORIGINS intentionally has no default - enables same-origin mode
 		expectedDefaults := map[string]string{
-			"PORT":         "8080",
-			"DB_HOST":      "db",
-			"DB_PORT":      "5432",
-			"DB_USER":      "nimbus",
-			"DB_NAME":      "nimbus",
-			"CORS_ORIGINS": "http://localhost:3000",
+			"PORT":    "8080",
+			"DB_HOST": "db",
+			"DB_PORT": "5432",
+			"DB_USER": "nimbus",
+			"DB_NAME": "nimbus",
 		}
 
 		for key, expected := range expectedDefaults {
 			if got := os.Getenv(key); got != expected {
 				t.Errorf("%s = %q, want %q", key, got, expected)
 			}
+		}
+
+		// CORS_ORIGINS should remain empty (same-origin mode)
+		if got := os.Getenv("CORS_ORIGINS"); got != "" {
+			t.Errorf("CORS_ORIGINS = %q, want empty (same-origin mode)", got)
 		}
 
 		clearEnv()

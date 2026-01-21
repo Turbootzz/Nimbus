@@ -84,11 +84,19 @@ func main() {
 
 	// Middleware
 	app.Use(logger.New())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     os.Getenv("CORS_ORIGINS"),
-		AllowCredentials: true,
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-	}))
+
+	// CORS middleware - only enabled when CORS_ORIGINS is set
+	// In unified mode (nginx proxy), same-origin requests don't need CORS
+	if corsOrigins := os.Getenv("CORS_ORIGINS"); corsOrigins != "" {
+		log.Printf("CORS enabled for origins: %s", corsOrigins)
+		app.Use(cors.New(cors.Config{
+			AllowOrigins:     corsOrigins,
+			AllowCredentials: true,
+			AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		}))
+	} else {
+		log.Println("CORS disabled (same-origin mode)")
+	}
 
 	// Routes
 	api := app.Group("/api")

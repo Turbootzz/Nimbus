@@ -22,8 +22,8 @@ Complete guide for setting up and developing Nimbus locally.
 
 | Requirement | Version | Notes |
 |-------------|---------|-------|
-| **Node.js** | 20+ | For frontend development |
-| **Go** | 1.21+ | For backend development |
+| **Node.js** | 24+ | For frontend development |
+| **Go** | 1.25+ | For backend development |
 | **PostgreSQL** | 15+ | Database (18 recommended) |
 | **Make** | Any | Build automation |
 | **Docker** | Optional | For production testing |

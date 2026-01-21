@@ -207,6 +207,31 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Unified all-in-one image (recommended for most users)
+      - name: Extract metadata for unified image
+        id: meta-unified
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/nimbus
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix={{branch}}-
+
+      - name: Build and push unified image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta-unified.outputs.tags }}
+          labels: ${{ steps.meta-unified.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_APP_NAME=Nimbus
+
+      # Separate images (for advanced users using docker-compose.deprecated.yml)
       - name: Extract metadata for backend
         id: meta-backend
         uses: docker/metadata-action@v5
