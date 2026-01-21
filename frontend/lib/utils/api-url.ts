@@ -4,8 +4,9 @@
  *
  * Priority:
  * 1. NEXT_PUBLIC_API_URL environment variable:
- *    - Empty string ('') = same-origin mode (unified Docker) → /api/v1
- *    - Non-empty = full API URL (normalized to include /api/v1)
+ *    - "same-origin" = same-origin mode (unified Docker) → /api/v1
+ *    - Non-empty URL = full API URL (normalized to include /api/v1)
+ *    - Empty string or undefined = use runtime detection
  * 2. Runtime detection using window.location:
  *    - Production (custom domain): Same origin path-based routing → /api/v1
  *    - Development (localhost/IP): Different port → http://localhost:8080/api/v1
@@ -16,15 +17,17 @@ export const getApiUrl = (): string => {
   const defaultPort = '8080'
   const apiPath = '/api/v1'
 
-  // Priority 1: Check environment variable (can be empty string for same-origin)
+  // Priority 1: Check environment variable
+  // - "same-origin" = explicit same-origin mode (for unified Docker image)
+  // - Empty string or undefined = use runtime detection (backwards compatible)
   const envUrl = process.env.NEXT_PUBLIC_API_URL
 
-  // Empty string explicitly means same-origin mode (unified Docker image)
-  if (envUrl !== undefined) {
-    if (envUrl === '' || envUrl.trim() === '') {
-      return apiPath // Same-origin: relative path /api/v1
+  if (envUrl && envUrl.trim() !== '') {
+    // Explicit same-origin mode for unified Docker image
+    if (envUrl.trim().toLowerCase() === 'same-origin') {
+      return apiPath
     }
-    // Non-empty: normalize to include /api/v1
+    // Non-empty URL: normalize to include /api/v1
     let url = envUrl.trim().replace(/\/$/, '')
     if (!url.endsWith(apiPath)) {
       url = `${url}${apiPath}`

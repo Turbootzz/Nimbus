@@ -30,8 +30,8 @@ ARG NEXT_PUBLIC_APP_NAME
 ARG NEXT_PUBLIC_SITE_URL
 ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
-# Empty API URL = same-origin mode (nginx proxy)
-ENV NEXT_PUBLIC_API_URL=""
+# Explicit same-origin mode for unified image (nginx proxy handles /api/*)
+ENV NEXT_PUBLIC_API_URL="same-origin"
 
 COPY frontend/package*.json ./
 RUN npm ci

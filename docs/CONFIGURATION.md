@@ -67,6 +67,19 @@ postgres://nimbus:password@localhost:5432/nimbus?sslmode=disable
 
 > **Note:** When using the unified `turboot/nimbus` Docker image, `CORS_ORIGINS` is not needed — the built-in nginx proxy handles same-origin requests.
 
+### Frontend API URL
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `NEXT_PUBLIC_API_URL` | *auto-detect* | Backend API URL for browser requests |
+
+**Values:**
+- `same-origin` — Use relative `/api/v1` path (unified Docker image)
+- `http://server:8080` — Full URL (separate containers)
+- *empty/unset* — Auto-detect based on browser location
+
+> **Note:** The unified image sets this automatically. Only configure manually for separate container deployments.
+
 **Production CORS example (separate containers only):**
 ```bash
 CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
