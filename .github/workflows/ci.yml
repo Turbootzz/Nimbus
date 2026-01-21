@@ -308,7 +308,7 @@ jobs:
             echo "Some CI jobs failed"
             echo "Backend: ${{ needs.backend.result }}"
             echo "Frontend: ${{ needs.frontend.result }}"
-            echo "Docker Scripts: ${{ needs.docker-setup.result }}"
+            echo "Docker Setup: ${{ needs.docker-setup.result }}"
             echo "Docker: ${{ needs.docker.result }}"
             echo "Docker Prod: ${{ needs.docker-prod.result }}"
             exit 1

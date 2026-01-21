@@ -6,8 +6,20 @@ import type { Service } from '@/types'
 
 // Mock ServiceListItem
 vi.mock('@/components/ServiceListItem', () => ({
-  default: ({ service, isEditMode }: { service: Service; isEditMode?: boolean }) => (
-    <div data-testid={`service-item-${service.id}`} data-edit-mode={isEditMode}>
+  default: ({
+    service,
+    isEditMode,
+    openInNewTab,
+  }: {
+    service: Service
+    isEditMode?: boolean
+    openInNewTab: boolean
+  }) => (
+    <div
+      data-testid={`service-item-${service.id}`}
+      data-edit-mode={isEditMode}
+      data-open-in-new-tab={String(openInNewTab)}
+    >
       {service.name}
     </div>
   ),
@@ -114,10 +126,18 @@ describe('ServicesList', () => {
   describe('Props forwarding', () => {
     it('should forward openInNewTab to ServiceListItem', () => {
       const services = createMockServices(1)
-      // This test verifies the prop is passed - actual behavior tested in ServiceListItem tests
       render(<ServicesList services={services} openInNewTab={true} />)
 
-      expect(screen.getByTestId('service-item-service-1')).toBeInTheDocument()
+      const item = screen.getByTestId('service-item-service-1')
+      expect(item).toHaveAttribute('data-open-in-new-tab', 'true')
+    })
+
+    it('should forward openInNewTab=false to ServiceListItem', () => {
+      const services = createMockServices(1)
+      render(<ServicesList services={services} openInNewTab={false} />)
+
+      const item = screen.getByTestId('service-item-service-1')
+      expect(item).toHaveAttribute('data-open-in-new-tab', 'false')
     })
 
     it('should default isEditMode to false', () => {
