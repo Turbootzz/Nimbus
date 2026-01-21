@@ -60,8 +60,12 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
   // Render uploaded image
   if (service.icon_type === 'image_upload' && service.icon_image_path) {
     const imageUrl = `${apiUrl}/uploads/service-icons/${service.icon_image_path}`
-    // Use unoptimized for localhost to avoid Next.js blocking private IPs
-    const isLocalhost = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1')
+    // Use unoptimized for local addresses to avoid Next.js blocking private IPs
+    const isLocalAddress =
+      apiUrl.includes('localhost') ||
+      apiUrl.includes('127.0.0.1') ||
+      apiUrl.includes('[::1]') ||
+      apiUrl.includes('.local')
     return (
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
@@ -71,7 +75,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
           height={dimension}
           className="h-full w-full object-contain"
           onError={() => setImageError(true)}
-          unoptimized={isLocalhost}
+          unoptimized={isLocalAddress}
         />
       </div>
     )
