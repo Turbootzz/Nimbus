@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/lib/pq"
+	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/models"
 )
 
@@ -19,19 +20,10 @@ type GroupRepository struct {
 	isPostgreSQL bool
 }
 
-func NewGroupRepository(db *sql.DB) *GroupRepository {
-	isPostgreSQL := false
-	if db != nil {
-		var version string
-		err := db.QueryRow("SELECT version()").Scan(&version)
-		if err == nil {
-			isPostgreSQL = len(version) > 10 && version[:10] == "PostgreSQL"
-		}
-	}
-
+func NewGroupRepository(sqlDB *sql.DB) *GroupRepository {
 	return &GroupRepository{
-		db:           db,
-		isPostgreSQL: isPostgreSQL,
+		db:           sqlDB,
+		isPostgreSQL: db.IsPostgreSQL(sqlDB),
 	}
 }
 
@@ -113,6 +105,14 @@ func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group
 	}
 
 	return group, err
+}
+
+// CountByUserID returns the number of groups for a specific user (efficient for validation)
+func (r *GroupRepository) CountByUserID(ctx context.Context, userID string) (int, error) {
+	var count int
+	query := `SELECT COUNT(*) FROM groups WHERE user_id = $1`
+	err := r.db.QueryRowContext(ctx, query, userID).Scan(&count)
+	return count, err
 }
 
 // GetAllByUserID retrieves all groups for a specific user ordered by position

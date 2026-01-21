@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { getApiUrl } from '@/lib/utils/api-url'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
 export default function UserMenu() {
@@ -19,6 +20,7 @@ export default function UserMenu() {
   const [isLoading, setIsLoading] = useState(true)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+  const menuItemHover = useHoverStyle(hoverStyles.menuItem)
 
   useEffect(() => {
     // Fetch current user
@@ -42,15 +44,15 @@ export default function UserMenu() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const handleSignOut = () => {
+  const handleSignOut = useCallback(() => {
     api.logout()
     router.push('/login')
-  }
+  }, [router])
 
-  const handleProfile = () => {
+  const handleProfile = useCallback(() => {
     setIsOpen(false)
     router.push('/settings/profile')
-  }
+  }, [router])
 
   const getAvatarUrl = (avatarUrl: string | undefined) => {
     if (!avatarUrl) return undefined
@@ -137,12 +139,7 @@ export default function UserMenu() {
               onClick={handleProfile}
               className="flex w-full items-center px-4 py-2 text-sm transition-colors"
               style={{ color: 'var(--color-text-primary)' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-card-border)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
+              {...menuItemHover}
             >
               <UserIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
               Profile Settings
@@ -156,12 +153,7 @@ export default function UserMenu() {
               onClick={handleSignOut}
               className="flex w-full items-center px-4 py-2 text-sm transition-colors"
               style={{ color: 'var(--color-error)' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-card-border)'
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent'
-              }}
+              {...menuItemHover}
             >
               <ArrowRightOnRectangleIcon
                 className="mr-3 h-5 w-5"

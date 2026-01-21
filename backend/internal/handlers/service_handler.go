@@ -31,12 +31,9 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository, healthCheckSer
 
 // CreateService handles service creation
 func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	var req models.ServiceCreateRequest
@@ -150,12 +147,9 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 
 // GetServices retrieves all services for the authenticated user
 func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get all services for user
@@ -177,12 +171,9 @@ func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 
 // GetService retrieves a single service by ID
 func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get service ID from URL params
@@ -206,12 +197,6 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 		})
 	}
 
-	if service == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
-		})
-	}
-
 	// Verify service belongs to user
 	if service.UserID != userID {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
@@ -224,12 +209,9 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 
 // UpdateService handles service updates
 func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get service ID from URL params
@@ -274,12 +256,6 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
-		})
-	}
-
-	if existingService == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
 		})
 	}
 
@@ -394,12 +370,9 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 
 // DeleteService handles service deletion
 func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get service ID from URL params
@@ -461,12 +434,9 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 
 // CheckService manually triggers a health check for a specific service
 func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get service ID from URL params
@@ -487,12 +457,6 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve service",
-		})
-	}
-
-	if service == nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Service not found",
 		})
 	}
 
@@ -526,12 +490,9 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 
 // ReorderServices handles bulk position updates for services
 func (h *ServiceHandler) ReorderServices(c *fiber.Ctx) error {
-	// Get user ID from context
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	var req models.ServiceReorderRequest

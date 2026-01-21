@@ -3,6 +3,7 @@
 import { Bars3Icon } from '@heroicons/react/24/outline'
 import UserMenu from './UserMenu'
 import ThemeToggle from './ThemeToggle'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 interface HeaderProps {
   onMenuClick: () => void
@@ -10,6 +11,8 @@ interface HeaderProps {
 }
 
 export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps) {
+  const iconHover = useHoverStyle(hoverStyles.iconButton)
+
   return (
     <header
       className="sticky top-0 z-30 border-b"
@@ -26,14 +29,7 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
           aria-label="Open navigation menu"
           aria-expanded={false}
           style={{ color: 'var(--color-text-secondary)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-card-border)'
-            e.currentTarget.style.color = 'var(--color-text-primary)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent'
-            e.currentTarget.style.color = 'var(--color-text-secondary)'
-          }}
+          {...iconHover}
         >
           <Bars3Icon className="h-6 w-6" />
         </button>

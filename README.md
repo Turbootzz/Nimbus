@@ -5,7 +5,7 @@
 ### Your Homelab, Beautifully Organized
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
+[![Go Version](https://img.shields.io/badge/Go-1.25+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
@@ -173,7 +173,7 @@ Variables can be set in your `.env` file or directly in `docker-compose.yml`.
 ## 💻 Local Development
 
 ### Prerequisites
-- Node.js 20+ / Go 1.21+ / PostgreSQL
+- Node.js 20+ / Go 1.25+ / PostgreSQL
 
 ### Quick Start
 

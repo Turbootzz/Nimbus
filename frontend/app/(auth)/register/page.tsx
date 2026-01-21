@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { getApiUrl } from '@/lib/utils/api-url'
+import { ThemedInput } from '@/components/ui/ThemedInput'
+import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -11,6 +13,8 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
+  const linkHover = useHoverStyle(hoverStyles.primaryLink)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -115,23 +119,11 @@ export default function RegisterPage() {
           >
             Full Name
           </label>
-          <input
+          <ThemedInput
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="John Doe"
             required
             disabled={isLoading}
@@ -146,23 +138,11 @@ export default function RegisterPage() {
           >
             Email
           </label>
-          <input
+          <ThemedInput
             id="email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="you@example.com"
             required
             disabled={isLoading}
@@ -177,23 +157,11 @@ export default function RegisterPage() {
           >
             Password
           </label>
-          <input
+          <ThemedInput
             id="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="••••••••"
             required
             disabled={isLoading}
@@ -212,23 +180,11 @@ export default function RegisterPage() {
           >
             Confirm Password
           </label>
-          <input
+          <ThemedInput
             id="confirmPassword"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none"
-            style={{
-              backgroundColor: 'var(--color-background)',
-              borderColor: 'var(--color-card-border)',
-              color: 'var(--color-text-primary)',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-card-border)'
-            }}
             placeholder="••••••••"
             required
             disabled={isLoading}
@@ -242,14 +198,7 @@ export default function RegisterPage() {
           style={{
             backgroundColor: 'var(--color-primary)',
           }}
-          onMouseEnter={(e) => {
-            if (!isLoading) {
-              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-primary)'
-          }}
+          {...buttonHover}
         >
           {isLoading ? 'Creating account...' : 'Create account'}
         </button>
@@ -261,12 +210,7 @@ export default function RegisterPage() {
           href="/login"
           className="font-medium transition"
           style={{ color: 'var(--color-primary)' }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary-hover)'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--color-primary)'
-          }}
+          {...linkHover}
         >
           Sign in
         </Link>

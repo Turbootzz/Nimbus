@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -26,6 +27,23 @@ var (
 	dnsCache    = make(map[string]dnsCacheEntry)
 	dnsCacheTTL = 5 * time.Minute
 )
+
+// CleanupDNSCache removes expired entries from the DNS cache.
+// Called periodically to prevent memory growth from stale entries.
+func CleanupDNSCache() int {
+	dnsCacheMu.Lock()
+	defer dnsCacheMu.Unlock()
+
+	now := time.Now()
+	removed := 0
+	for host, entry := range dnsCache {
+		if now.After(entry.expireAt) {
+			delete(dnsCache, host)
+			removed++
+		}
+	}
+	return removed
+}
 
 // HealthCheckService handles health checking of services
 type HealthCheckService struct {
@@ -289,7 +307,7 @@ func (h *HealthCheckService) CheckAllServices(ctx context.Context, userID string
 
 		if err := h.CheckService(ctx, service); err != nil {
 			// Log error but continue checking other services
-			fmt.Printf("Failed to check service %s (%s): %v\n", service.Name, service.ID, err)
+			log.Printf("Failed to check service %s (%s): %v", service.Name, service.ID, err)
 		}
 	}
 
@@ -329,7 +347,7 @@ func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status
 
 		// Log creation errors but don't fail the health check
 		if err := h.statusLogRepo.Create(updateCtx, statusLog); err != nil {
-			fmt.Printf("Failed to create status log for service %s: %v\n", serviceID, err)
+			log.Printf("Failed to create status log for service %s: %v", serviceID, err)
 		}
 	}
 

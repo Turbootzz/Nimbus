@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
@@ -42,17 +42,20 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     loadUser()
   }, [])
 
-  const navigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-    { name: 'Services', href: '/services', icon: ServerIcon },
-    { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
-    ...(currentUser?.role === 'admin'
-      ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
-      : []),
-    { name: 'Settings', href: '/settings', icon: CogIcon },
-  ]
+  const navigation = useMemo(
+    () => [
+      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
+      { name: 'Services', href: '/services', icon: ServerIcon },
+      { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
+      ...(currentUser?.role === 'admin'
+        ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
+        : []),
+      { name: 'Settings', href: '/settings', icon: CogIcon },
+    ],
+    [currentUser?.role]
+  )
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL
     if (!apiUrl) {
       console.error('NEXT_PUBLIC_API_URL is not configured')
@@ -71,16 +74,19 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     } finally {
       router.push('/login')
     }
-  }
+  }, [router])
 
-  const isActive = (href: string) => {
-    // Dashboard should only match exactly to avoid matching /dashboard-something
-    if (href === '/dashboard') {
-      return pathname === href
-    }
-    // Other routes should match if pathname starts with href (e.g., /services matches /services/123)
-    return pathname.startsWith(href)
-  }
+  const isActive = useCallback(
+    (href: string) => {
+      // Dashboard should only match exactly to avoid matching /dashboard-something
+      if (href === '/dashboard') {
+        return pathname === href
+      }
+      // Other routes should match if pathname starts with href (e.g., /services matches /services/123)
+      return pathname.startsWith(href)
+    },
+    [pathname]
+  )
 
   // Shared navigation rendering function
   // onNavigate callback is called when a link is clicked (used to close mobile sidebar)

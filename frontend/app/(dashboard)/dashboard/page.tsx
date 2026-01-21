@@ -7,8 +7,6 @@ import {
   CheckCircleIcon,
   ExclamationCircleIcon,
   PlusIcon,
-  PencilIcon,
-  CheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import {
@@ -24,19 +22,23 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { arrayMove, SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
 import type { Service, CardSize, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
-import { sizeToGridSpan } from '@/lib/card-utils'
 import ServiceCard from '@/components/ServiceCard'
-import GroupTabs from '@/components/GroupTabs'
 import GroupForm from '@/components/GroupForm'
+import DashboardHeader from '@/components/DashboardHeader'
+import ServicesGrid from '@/components/ServicesGrid'
+
+function toStringId(id: string | number): string {
+  return typeof id === 'string' ? id : String(id)
+}
 
 // Factory for custom collision detection based on drag type
 function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): CollisionDetection {
   return (args) => {
-    const activeId = String(args.active.id)
+    const activeId = toStringId(args.active.id)
 
     // If dragging a tab, only collide with other tabs
     if (isDraggingTab || groupIds.includes(activeId)) {
@@ -45,7 +47,7 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
 
     // For service drags: prioritize group tabs (pointer-based), then service grid (center-based)
     const pointerCollisions = pointerWithin(args)
-    const groupTabCollision = pointerCollisions.find((c) => String(c.id).startsWith('group-'))
+    const groupTabCollision = pointerCollisions.find((c) => toStringId(c.id).startsWith('group-'))
     if (groupTabCollision) {
       return [groupTabCollision]
     }
@@ -53,50 +55,6 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
     // Fall back to closestCenter for service card reordering
     return closestCenter(args)
   }
-}
-
-// Sortable wrapper for ServiceCard in edit mode
-function SortableServiceCard({
-  service,
-  openInNewTab,
-  isEditMode,
-  onSizeChange,
-  enableCardResizing,
-}: {
-  service: Service
-  openInNewTab: boolean
-  isEditMode: boolean
-  onSizeChange: (id: string, newSize: CardSize) => void
-  enableCardResizing: boolean
-}) {
-  const { attributes, listeners, setNodeRef, isDragging } = useSortable({
-    id: service.id,
-  })
-
-  // When card resizing is disabled, always use 2x1
-  const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
-  const gridSpan = sizeToGridSpan[cardSize]
-
-  // Don't apply transforms - with dense grid and variable sizes, transforms cause
-  // weird stretching/compression. Cards stay in place, only reorder after drop.
-  const style = {
-    opacity: isDragging ? 0.4 : 1,
-    transition: 'opacity 150ms ease',
-  }
-
-  return (
-    <div ref={setNodeRef} style={style} className={`${gridSpan} h-full`}>
-      <ServiceCard
-        service={service}
-        openInNewTab={openInNewTab}
-        isEditMode={isEditMode}
-        onSizeChange={onSizeChange}
-        dragHandleProps={{ ...attributes, ...listeners }}
-        isDragging={false}
-        enableCardResizing={enableCardResizing}
-      />
-    </div>
-  )
 }
 
 export default function DashboardPage() {
@@ -250,15 +208,15 @@ export default function DashboardPage() {
   }
 
   const handleDragStart = (event: DragStartEvent) => {
-    const activeId = String(event.active.id)
+    const id = toStringId(event.active.id)
 
     // Check if dragging a tab (ID matches a group ID)
-    const isTabDrag = groupIds.includes(activeId)
+    const isTabDrag = groupIds.includes(id)
     setIsDraggingTab(isTabDrag)
 
     if (!isTabDrag) {
       // Service drag - set active ID for drag overlay
-      setActiveId(activeId)
+      setActiveId(id)
     }
   }
 
@@ -299,8 +257,8 @@ export default function DashboardPage() {
     setIsDraggingTab(false)
     if (!over) return
 
-    const activeId = String(active.id)
-    const overId = String(over.id)
+    const activeId = toStringId(active.id)
+    const overId = toStringId(over.id)
 
     // Check if this is a tab reorder (both active and over are group IDs)
     const isTabDrag = groupIds.includes(activeId)
@@ -474,6 +432,19 @@ export default function DashboardPage() {
     setDeletingGroup(group)
   }, [])
 
+  const handleToggleEditMode = useCallback(() => {
+    setIsEditMode((prev) => !prev)
+  }, [])
+
+  // Memoize add service href to avoid recalculating on every render
+  const addServiceHref = useMemo(
+    () =>
+      enableServiceGrouping && selectedGroupId
+        ? `/services/new?group=${selectedGroupId}`
+        : '/services/new',
+    [enableServiceGrouping, selectedGroupId]
+  )
+
   const handleGroupFormSubmit = async (data: { name?: string; color?: string }) => {
     setGroupFormLoading(true)
     try {
@@ -595,7 +566,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Edit mode: wrap tabs and grid in single DndContext for drag-to-tab functionality */}
+      {/* Header with group tabs and action buttons */}
       {isEditMode ? (
         <DndContext
           sensors={sensors}
@@ -604,64 +575,29 @@ export default function DashboardPage() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 flex-1">
-              {enableServiceGrouping && groups.length > 0 && (
-                <GroupTabs
-                  groups={groups}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={handleSelectGroup}
-                  onCreateGroup={handleCreateGroup}
-                  onEditGroup={handleEditGroup}
-                  onDeleteGroup={handleDeleteGroup}
-                  isEditMode={isEditMode}
-                  isDraggingService={!!activeId && !isDraggingTab}
-                  isDraggingTab={isDraggingTab}
-                />
-              )}
-            </div>
+          <DashboardHeader
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            onSelectGroup={handleSelectGroup}
+            onCreateGroup={handleCreateGroup}
+            onEditGroup={handleEditGroup}
+            onDeleteGroup={handleDeleteGroup}
+            isEditMode={isEditMode}
+            onToggleEditMode={handleToggleEditMode}
+            enableServiceGrouping={enableServiceGrouping}
+            activeId={activeId}
+            isDraggingTab={isDraggingTab}
+            addServiceHref={addServiceHref}
+          />
 
-            {/* Action buttons */}
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
-              >
-                <CheckIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Done</span>
-              </button>
-              <Link
-                href={
-                  enableServiceGrouping && selectedGroupId
-                    ? `/services/new?group=${selectedGroupId}`
-                    : '/services/new'
-                }
-                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
-              >
-                <PlusIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Add Service</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Services grid */}
           <SortableContext items={filteredServices.map((s) => s.id)} strategy={rectSortingStrategy}>
-            <div
-              className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
-              style={{ gridAutoFlow: 'dense' }}
-            >
-              {filteredServices.map((service) => (
-                <SortableServiceCard
-                  key={service.id}
-                  service={service}
-                  openInNewTab={openInNewTab}
-                  isEditMode={isEditMode}
-                  onSizeChange={handleSizeChange}
-                  enableCardResizing={enableCardResizing}
-                />
-              ))}
-            </div>
+            <ServicesGrid
+              services={filteredServices}
+              openInNewTab={openInNewTab}
+              enableCardResizing={enableCardResizing}
+              isEditMode={isEditMode}
+              onSizeChange={handleSizeChange}
+            />
           </SortableContext>
 
           <DragOverlay dropAnimation={null}>
@@ -679,61 +615,26 @@ export default function DashboardPage() {
         </DndContext>
       ) : (
         <>
-          {/* Tabs and action buttons - stacked on mobile, row on larger screens */}
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0 flex-1">
-              {enableServiceGrouping && groups.length > 0 && (
-                <GroupTabs
-                  groups={groups}
-                  selectedGroupId={selectedGroupId}
-                  onSelectGroup={handleSelectGroup}
-                  onCreateGroup={handleCreateGroup}
-                  onEditGroup={handleEditGroup}
-                  onDeleteGroup={handleDeleteGroup}
-                  isEditMode={isEditMode}
-                  isDraggingService={false}
-                  isDraggingTab={false}
-                />
-              )}
-            </div>
+          <DashboardHeader
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            onSelectGroup={handleSelectGroup}
+            onCreateGroup={handleCreateGroup}
+            onEditGroup={handleEditGroup}
+            onDeleteGroup={handleDeleteGroup}
+            isEditMode={isEditMode}
+            onToggleEditMode={handleToggleEditMode}
+            enableServiceGrouping={enableServiceGrouping}
+            activeId={activeId}
+            isDraggingTab={isDraggingTab}
+            addServiceHref={addServiceHref}
+          />
 
-            {/* Action buttons */}
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                onClick={() => setIsEditMode(!isEditMode)}
-                className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
-              >
-                <PencilIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Edit</span>
-              </button>
-              <Link
-                href={
-                  enableServiceGrouping && selectedGroupId
-                    ? `/services/new?group=${selectedGroupId}`
-                    : '/services/new'
-                }
-                className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
-              >
-                <PlusIcon className="h-4 w-4 sm:mr-2" />
-                <span className="hidden sm:inline">Add Service</span>
-              </Link>
-            </div>
-          </div>
-
-          {/* Services grid (non-edit mode) */}
-          <div
-            className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8"
-            style={{ gridAutoFlow: 'dense' }}
-          >
-            {filteredServices.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                openInNewTab={openInNewTab}
-                enableCardResizing={enableCardResizing}
-              />
-            ))}
-          </div>
+          <ServicesGrid
+            services={filteredServices}
+            openInNewTab={openInNewTab}
+            enableCardResizing={enableCardResizing}
+          />
         </>
       )}
 
@@ -746,11 +647,7 @@ export default function DashboardPage() {
             Add a service and assign it to this group to see it here.
           </p>
           <Link
-            href={
-              enableServiceGrouping && selectedGroupId
-                ? `/services/new?group=${selectedGroupId}`
-                : '/services/new'
-            }
+            href={addServiceHref}
             className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             <PlusIcon className="mr-2 h-4 w-4" />

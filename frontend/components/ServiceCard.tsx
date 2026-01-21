@@ -87,6 +87,40 @@ interface CardVariantProps {
   showSizeBadge: boolean
 }
 
+// Reusable edit mode overlay with drag handle and size badge
+interface EditOverlayProps {
+  dragHandleProps?: Record<string, unknown>
+  cardSize: CardSize
+  showSizeBadge: boolean
+  compact?: boolean
+}
+
+function EditOverlay({
+  dragHandleProps,
+  cardSize,
+  showSizeBadge,
+  compact = false,
+}: EditOverlayProps) {
+  const position = compact ? 'top-1 right-1 left-1' : 'top-2 right-2 left-2'
+  const iconSize = compact ? 'h-4 w-4' : 'h-5 w-5'
+
+  return (
+    <div className={`absolute ${position} z-10 flex items-center justify-between`}>
+      <div
+        {...dragHandleProps}
+        className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
+        onClick={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+      >
+        <Bars3Icon className={`text-text-muted ${iconSize}`} />
+      </div>
+      {showSizeBadge && (
+        <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
+      )}
+    </div>
+  )
+}
+
 // 1x1 - Compact: large icon centered, name below, status indicator dot
 function CompactCard({
   service,
@@ -108,19 +142,12 @@ function CompactCard({
   const content = (
     <>
       {isEditMode && (
-        <div className="absolute top-1 right-1 left-1 z-10 flex items-center justify-between">
-          <div
-            {...dragHandleProps}
-            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <Bars3Icon className="text-text-muted h-4 w-4" />
-          </div>
-          {showSizeBadge && (
-            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-          )}
-        </div>
+        <EditOverlay
+          dragHandleProps={dragHandleProps}
+          cardSize={cardSize}
+          showSizeBadge={showSizeBadge}
+          compact
+        />
       )}
       <div className="flex flex-1 items-center justify-center">
         <ServiceIcon service={service} size="2xl" />
@@ -177,19 +204,11 @@ function StandardCard({
   const content = (
     <>
       {isEditMode && (
-        <div className="absolute top-2 right-2 left-2 z-10 flex items-center justify-between">
-          <div
-            {...dragHandleProps}
-            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <Bars3Icon className="text-text-muted h-5 w-5" />
-          </div>
-          {showSizeBadge && (
-            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-          )}
-        </div>
+        <EditOverlay
+          dragHandleProps={dragHandleProps}
+          cardSize={cardSize}
+          showSizeBadge={showSizeBadge}
+        />
       )}
       <div className="mb-4 flex items-start justify-between">
         <ServiceIcon service={service} size="md" />
@@ -251,19 +270,11 @@ function LargeCard({
   const content = (
     <>
       {isEditMode && (
-        <div className="absolute top-2 right-2 left-2 z-10 flex items-center justify-between">
-          <div
-            {...dragHandleProps}
-            className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
-            onClick={(e) => e.stopPropagation()}
-            onTouchStart={(e) => e.stopPropagation()}
-          >
-            <Bars3Icon className="text-text-muted h-5 w-5" />
-          </div>
-          {showSizeBadge && (
-            <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-          )}
-        </div>
+        <EditOverlay
+          dragHandleProps={dragHandleProps}
+          cardSize={cardSize}
+          showSizeBadge={showSizeBadge}
+        />
       )}
       {/* Status in top right */}
       <div className="mb-4 flex justify-end">

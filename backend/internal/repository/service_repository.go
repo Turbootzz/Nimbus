@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lib/pq"
+	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/models"
 )
 
@@ -14,22 +15,10 @@ type ServiceRepository struct {
 	isPostgreSQL bool
 }
 
-func NewServiceRepository(db *sql.DB) *ServiceRepository {
-	// Detect if we're using PostgreSQL by checking the driver
-	isPostgreSQL := false
-	if db != nil {
-		// Try a simple query that only PostgreSQL supports
-		var version string
-		err := db.QueryRow("SELECT version()").Scan(&version)
-		if err == nil {
-			// Check if it contains "PostgreSQL"
-			isPostgreSQL = len(version) > 10 && version[:10] == "PostgreSQL"
-		}
-	}
-
+func NewServiceRepository(sqlDB *sql.DB) *ServiceRepository {
 	return &ServiceRepository{
-		db:           db,
-		isPostgreSQL: isPostgreSQL,
+		db:           sqlDB,
+		isPostgreSQL: db.IsPostgreSQL(sqlDB),
 	}
 }
 

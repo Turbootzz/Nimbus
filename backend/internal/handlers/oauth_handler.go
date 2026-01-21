@@ -12,12 +12,14 @@ import (
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 type OAuthHandler struct {
 	oauthService *services.OAuthService
 	authService  *services.AuthService
 	userRepo     *repository.UserRepository
+	cookieConfig utils.CookieConfig
 }
 
 func NewOAuthHandler(
@@ -29,21 +31,8 @@ func NewOAuthHandler(
 		oauthService: oauthService,
 		authService:  authService,
 		userRepo:     userRepo,
+		cookieConfig: utils.GetCookieConfig(),
 	}
-}
-
-// getCookieSecure returns whether cookies should be secure based on environment
-// Returns true for production (HTTPS), false for local development (HTTP)
-func (h *OAuthHandler) getCookieSecure() bool {
-	// Check COOKIE_SECURE env var (defaults to true for production safety)
-	secure := os.Getenv("COOKIE_SECURE")
-	return secure != "false" // Default to true unless explicitly set to "false"
-}
-
-// getCookieDomain returns the domain for cookies based on environment
-func (h *OAuthHandler) getCookieDomain() string {
-	// Check COOKIE_DOMAIN env var (empty for default same-site behavior)
-	return os.Getenv("COOKIE_DOMAIN")
 }
 
 // InitiateOAuth starts the OAuth flow by redirecting to the provider
@@ -178,16 +167,11 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 // LinkProvider links an OAuth provider to the currently logged-in user
 // POST /api/v1/auth/oauth/link/:provider
 func (h *OAuthHandler) LinkProvider(c *fiber.Ctx) error {
-	// Get current user from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	// Note: userID will be needed when linking is fully implemented
+	// to store in the state token and link provider in callback
+	if _, err := RequireUserID(c); err != nil {
+		return err
 	}
-
-	// Avoid "declared but not used" error for userID (will be used when linking is implemented)
-	_ = userID
 
 	providerStr := c.Params("provider")
 	provider := models.OAuthProvider(providerStr)
@@ -218,12 +202,9 @@ func (h *OAuthHandler) LinkProvider(c *fiber.Ctx) error {
 // UnlinkProvider removes an OAuth provider link from the current user
 // DELETE /api/v1/auth/oauth/unlink/:provider
 func (h *OAuthHandler) UnlinkProvider(c *fiber.Ctx) error {
-	// Get current user from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	providerStr := c.Params("provider")
@@ -237,7 +218,7 @@ func (h *OAuthHandler) UnlinkProvider(c *fiber.Ctx) error {
 	}
 
 	// Unlink the provider
-	err := h.userRepo.UnlinkOAuthProvider(userID, string(provider))
+	err = h.userRepo.UnlinkOAuthProvider(userID, string(provider))
 	if err != nil {
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
@@ -317,16 +298,8 @@ func (h *OAuthHandler) loginUser(c *fiber.Ctx, user *models.User, rememberMe boo
 		return h.redirectWithError(c, "Failed to generate auth token")
 	}
 
-	// Set httpOnly cookie using consistent security settings
-	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		MaxAge:   maxAge,
-		HTTPOnly: true,
-		Secure:   h.getCookieSecure(),
-		SameSite: "Lax",
-		Domain:   h.getCookieDomain(),
-	})
+	// Set httpOnly cookie
+	c.Cookie(utils.NewAuthCookie(token, maxAge, h.cookieConfig))
 
 	// Update last activity
 	_ = h.userRepo.UpdateLastActivity(user.ID)

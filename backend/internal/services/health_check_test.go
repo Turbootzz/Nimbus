@@ -486,3 +486,140 @@ func TestIsLocalURL_SecurityMixedIPs(t *testing.T) {
 		t.Log("3. Integration tests with controlled DNS records")
 	})
 }
+
+// TestCleanupDNSCache tests the DNS cache cleanup functionality
+func TestCleanupDNSCache(t *testing.T) {
+	// Clear the cache before testing
+	dnsCacheMu.Lock()
+	dnsCache = make(map[string]dnsCacheEntry)
+	dnsCacheMu.Unlock()
+
+	// Add expired entries
+	dnsCacheMu.Lock()
+	dnsCache["expired1.local"] = dnsCacheEntry{
+		isLocal:  true,
+		expireAt: time.Now().Add(-10 * time.Minute), // Expired
+	}
+	dnsCache["expired2.local"] = dnsCacheEntry{
+		isLocal:  false,
+		expireAt: time.Now().Add(-5 * time.Minute), // Expired
+	}
+	// Add non-expired entries
+	dnsCache["valid1.local"] = dnsCacheEntry{
+		isLocal:  true,
+		expireAt: time.Now().Add(5 * time.Minute), // Still valid
+	}
+	dnsCache["valid2.local"] = dnsCacheEntry{
+		isLocal:  false,
+		expireAt: time.Now().Add(10 * time.Minute), // Still valid
+	}
+	dnsCacheMu.Unlock()
+
+	// Run cleanup
+	removed := CleanupDNSCache()
+
+	// Should have removed 2 expired entries
+	if removed != 2 {
+		t.Errorf("Expected 2 removed entries, got %d", removed)
+	}
+
+	// Verify remaining entries
+	dnsCacheMu.RLock()
+	remaining := len(dnsCache)
+	_, hasValid1 := dnsCache["valid1.local"]
+	_, hasValid2 := dnsCache["valid2.local"]
+	_, hasExpired1 := dnsCache["expired1.local"]
+	_, hasExpired2 := dnsCache["expired2.local"]
+	dnsCacheMu.RUnlock()
+
+	if remaining != 2 {
+		t.Errorf("Expected 2 remaining entries, got %d", remaining)
+	}
+
+	if !hasValid1 || !hasValid2 {
+		t.Error("Valid entries should still be in cache")
+	}
+
+	if hasExpired1 || hasExpired2 {
+		t.Error("Expired entries should be removed from cache")
+	}
+}
+
+// TestCleanupDNSCache_EmptyCache tests cleanup on empty cache
+func TestCleanupDNSCache_EmptyCache(t *testing.T) {
+	// Clear the cache
+	dnsCacheMu.Lock()
+	dnsCache = make(map[string]dnsCacheEntry)
+	dnsCacheMu.Unlock()
+
+	// Run cleanup on empty cache
+	removed := CleanupDNSCache()
+
+	if removed != 0 {
+		t.Errorf("Expected 0 removed from empty cache, got %d", removed)
+	}
+}
+
+// TestCleanupDNSCache_AllExpired tests cleanup when all entries are expired
+func TestCleanupDNSCache_AllExpired(t *testing.T) {
+	// Clear the cache
+	dnsCacheMu.Lock()
+	dnsCache = make(map[string]dnsCacheEntry)
+	// Add only expired entries
+	for i := 0; i < 5; i++ {
+		key := "expired" + string(rune('a'+i)) + ".local"
+		dnsCache[key] = dnsCacheEntry{
+			isLocal:  true,
+			expireAt: time.Now().Add(-1 * time.Minute),
+		}
+	}
+	dnsCacheMu.Unlock()
+
+	// Run cleanup
+	removed := CleanupDNSCache()
+
+	if removed != 5 {
+		t.Errorf("Expected 5 removed entries, got %d", removed)
+	}
+
+	// Verify cache is empty
+	dnsCacheMu.RLock()
+	remaining := len(dnsCache)
+	dnsCacheMu.RUnlock()
+
+	if remaining != 0 {
+		t.Errorf("Expected empty cache, got %d remaining", remaining)
+	}
+}
+
+// TestCleanupDNSCache_NoneExpired tests cleanup when no entries are expired
+func TestCleanupDNSCache_NoneExpired(t *testing.T) {
+	// Clear the cache
+	dnsCacheMu.Lock()
+	dnsCache = make(map[string]dnsCacheEntry)
+	// Add only valid entries
+	for i := 0; i < 5; i++ {
+		key := "valid" + string(rune('a'+i)) + ".local"
+		dnsCache[key] = dnsCacheEntry{
+			isLocal:  true,
+			expireAt: time.Now().Add(10 * time.Minute),
+		}
+	}
+	dnsCacheMu.Unlock()
+
+	// Run cleanup
+	removed := CleanupDNSCache()
+
+	if removed != 0 {
+		t.Errorf("Expected 0 removed entries, got %d", removed)
+	}
+
+	// Verify all entries remain
+	dnsCacheMu.RLock()
+	remaining := len(dnsCache)
+	dnsCacheMu.RUnlock()
+
+	if remaining != 5 {
+		t.Errorf("Expected 5 remaining entries, got %d", remaining)
+	}
+}
