@@ -167,12 +167,11 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 // LinkProvider links an OAuth provider to the currently logged-in user
 // POST /api/v1/auth/oauth/link/:provider
 func (h *OAuthHandler) LinkProvider(c *fiber.Ctx) error {
-	userID, err := RequireUserID(c)
-	if err != nil {
+	// Note: userID will be needed when linking is fully implemented
+	// to store in the state token and link provider in callback
+	if _, err := RequireUserID(c); err != nil {
 		return err
 	}
-	// TODO: userID will be used when linking is implemented
-	_ = userID
 
 	providerStr := c.Params("provider")
 	provider := models.OAuthProvider(providerStr)

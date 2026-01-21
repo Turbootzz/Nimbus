@@ -5,7 +5,9 @@ import (
 	"strings"
 )
 
-// IsPostgreSQL detects if the database connection is PostgreSQL
+// IsPostgreSQL detects if the database connection is PostgreSQL by querying
+// the database version. This runs a query on each call, so it should be called
+// once at repository initialization time and the result cached.
 func IsPostgreSQL(db *sql.DB) bool {
 	if db == nil {
 		return false

@@ -12,7 +12,9 @@ type CookieConfig struct {
 	Domain string
 }
 
-// GetCookieConfig returns cookie configuration from environment variables
+// GetCookieConfig returns cookie configuration from environment variables.
+// This should be called once at handler initialization time (not per-request)
+// as it reads from environment variables.
 func GetCookieConfig() CookieConfig {
 	return CookieConfig{
 		Secure: os.Getenv("COOKIE_SECURE") != "false", // Default to true unless explicitly "false"
