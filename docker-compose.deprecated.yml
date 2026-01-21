@@ -1,13 +1,18 @@
-# Nimbus Self-Hosted Dashboard
-# Quick Start: Only DB_PASSWORD and JWT_SECRET are required!
+# Nimbus Self-Hosted Dashboard (Separate Containers)
+# For most users, the unified image is recommended. See docker-compose.yml instead.
 #
-# 1. Create a .env file with:
-#    DB_PASSWORD=your-secure-password
-#    JWT_SECRET=your-32-character-minimum-secret-key
+# Required environment variables for split-container deployment:
+#   DB_PASSWORD=your-secure-password
+#   JWT_SECRET=your-32-character-minimum-secret-key
+#   NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:8080  # Required! Use your server's IP, not "backend"
 #
-# 2. Run: docker-compose up -d
+# Example .env:
+#   DB_PASSWORD=mysecretpassword
+#   JWT_SECRET=your-32-character-minimum-secret-key
+#   NEXT_PUBLIC_API_URL=http://192.168.1.100:8080
+#   CORS_ORIGINS=http://192.168.1.100:3000
 #
-# All other settings have sensible defaults. See .env.example for optional overrides.
+# Run: docker-compose -f docker-compose.deprecated.yml up -d
 
 services:
   db:

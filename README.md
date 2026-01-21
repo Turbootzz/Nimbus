@@ -136,7 +136,7 @@ docker-compose up -d
 Navigate to **http://localhost:3000** and create your first account!
 
 > **Note:** Using the all-in-one `turboot/nimbus` image means no CORS or API URL configuration needed!
-
+>
 > **Upgrading?** If you're migrating from separate containers, note the volume path changed from `/app/uploads` to `/app/backend/uploads`.
 
 ---
