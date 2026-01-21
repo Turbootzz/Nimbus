@@ -190,8 +190,10 @@ func getExtensionFromMimeType(mimeType string) string {
 
 // UploadAvatar handles user avatar uploads (local users only)
 func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID := c.Locals("user_id").(string)
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
 
 	// Get user to check provider
 	user, err := h.userRepo.GetByID(userID)

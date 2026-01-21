@@ -2,38 +2,27 @@ package handlers
 
 import (
 	"log"
-	"os"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 type AuthHandler struct {
-	userRepo    *repository.UserRepository
-	authService *services.AuthService
+	userRepo     *repository.UserRepository
+	authService  *services.AuthService
+	cookieConfig utils.CookieConfig
 }
 
 func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService) *AuthHandler {
 	return &AuthHandler{
-		userRepo:    userRepo,
-		authService: authService,
+		userRepo:     userRepo,
+		authService:  authService,
+		cookieConfig: utils.GetCookieConfig(),
 	}
-}
-
-// getCookieSecure returns whether cookies should be secure based on environment
-// Returns true for production (HTTPS), false for local development (HTTP)
-func (h *AuthHandler) getCookieSecure() bool {
-	// Check COOKIE_SECURE env var (defaults to true for production safety)
-	secure := os.Getenv("COOKIE_SECURE")
-	return secure != "false" // Default to true unless explicitly set to "false"
-}
-
-// getCookieDomain returns the domain for cookies based on environment
-func (h *AuthHandler) getCookieDomain() string {
-	return os.Getenv("COOKIE_DOMAIN")
 }
 
 // Register handles user registration
@@ -101,18 +90,8 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 		})
 	}
 
-	// Set httpOnly cookie (default: session cookie, cleared when browser closes)
-	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only, sameSite prevents CSRF
-	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		Path:     "/",
-		Domain:   h.getCookieDomain(),
-		HTTPOnly: true,
-		Secure:   h.getCookieSecure(), // Controlled by COOKIE_SECURE env var
-		SameSite: "Lax",
-		MaxAge:   0, // Session cookie (cleared when browser closes)
-	})
+	// Set httpOnly cookie (session cookie, cleared when browser closes)
+	c.Cookie(utils.NewAuthCookie(token, 0, h.cookieConfig))
 
 	// Return response without token in body (cookie handles authentication)
 	return c.Status(fiber.StatusCreated).JSON(models.AuthResponse{
@@ -186,17 +165,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	// Set httpOnly cookie
-	// SECURITY: httpOnly prevents XSS attacks, secure ensures HTTPS-only
-	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    token,
-		Path:     "/",
-		Domain:   h.getCookieDomain(),
-		HTTPOnly: true,
-		Secure:   h.getCookieSecure(),
-		SameSite: "Lax",
-		MaxAge:   maxAge,
-	})
+	c.Cookie(utils.NewAuthCookie(token, maxAge, h.cookieConfig))
 
 	// Return response without token in body (cookie handles authentication)
 	return c.JSON(models.AuthResponse{
@@ -207,18 +176,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 // Logout handles user logout by clearing the httpOnly cookie
 func (h *AuthHandler) Logout(c *fiber.Ctx) error {
-	// Clear the auth_token cookie by setting MaxAge to -1
-	c.Cookie(&fiber.Cookie{
-		Name:     "auth_token",
-		Value:    "",
-		Path:     "/",
-		Domain:   h.getCookieDomain(),
-		HTTPOnly: true,
-		Secure:   h.getCookieSecure(),
-		SameSite: "Lax",
-		MaxAge:   -1, // Delete the cookie
-	})
-
+	c.Cookie(utils.ClearAuthCookie(h.cookieConfig))
 	return c.JSON(fiber.Map{
 		"message": "Logged out successfully",
 	})
@@ -226,12 +184,9 @@ func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 
 // GetMe returns the current authenticated user
 func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Get user from database

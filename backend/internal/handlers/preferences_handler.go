@@ -45,22 +45,22 @@ func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *P
 
 // GetPreferences retrieves the current user's preferences
 func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	preferences, err := h.preferencesRepo.GetByUserID(c.Context(), userID)
 	if err == sql.ErrNoRows {
 		// Return default preferences if user hasn't set any yet
 		return c.JSON(models.PreferencesResponse{
-			ThemeMode:        "light",
-			ThemeBackground:  nil,
-			ThemeAccentColor: nil,
-			UpdatedAt:        time.Time{}, // Zero value for time
+			ThemeMode:             "light",
+			ThemeBackground:       nil,
+			ThemeAccentColor:      nil,
+			OpenInNewTab:          true,
+			EnableCardResizing:    true,
+			EnableServiceGrouping: true,
+			UpdatedAt:             time.Time{}, // Zero value for time
 		})
 	}
 	if err != nil {
@@ -74,12 +74,9 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 
 // UpdatePreferences updates the current user's preferences
 func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
-	// Get user ID from context (set by auth middleware)
-	userID, ok := c.Locals("user_id").(string)
-	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Parse request body

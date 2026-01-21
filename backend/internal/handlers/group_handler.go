@@ -23,11 +23,9 @@ func NewGroupHandler(groupRepo *repository.GroupRepository) *GroupHandler {
 
 // CreateGroup handles group creation
 func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	var req models.GroupCreateRequest
@@ -81,15 +79,13 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 
 // GetGroups retrieves all groups for the authenticated user
 func (h *GroupHandler) GetGroups(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	// Ensure default group exists
-	_, err := h.groupRepo.EnsureDefaultGroup(c.Context(), userID)
+	_, err = h.groupRepo.EnsureDefaultGroup(c.Context(), userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to ensure default group",
@@ -113,11 +109,9 @@ func (h *GroupHandler) GetGroups(c *fiber.Ctx) error {
 
 // GetGroup retrieves a single group by ID
 func (h *GroupHandler) GetGroup(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	groupID := c.Params("id")
@@ -150,11 +144,9 @@ func (h *GroupHandler) GetGroup(c *fiber.Ctx) error {
 
 // UpdateGroup handles group updates (name and color only)
 func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	groupID := c.Params("id")
@@ -224,11 +216,9 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 // DeleteGroup handles group deletion (default group cannot be deleted)
 // Query param: delete_services=true to also delete all services in the group
 func (h *GroupHandler) DeleteGroup(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	groupID := c.Params("id")
@@ -264,11 +254,9 @@ func (h *GroupHandler) DeleteGroup(c *fiber.Ctx) error {
 
 // ReorderGroups handles bulk position updates for groups
 func (h *GroupHandler) ReorderGroups(c *fiber.Ctx) error {
-	userID, ok := c.Locals("user_id").(string)
-	if !ok || userID == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"error": "Unauthorized: user ID not found",
-		})
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
 	}
 
 	var req models.GroupReorderRequest
