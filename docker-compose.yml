@@ -1,13 +1,13 @@
 # Nimbus Self-Hosted Dashboard - Unified Deployment
-# Quick Start: Only DB_PASSWORD and JWT_SECRET are required!
 #
-# 1. Create a .env file with:
-#    DB_PASSWORD=your-secure-password
-#    JWT_SECRET=your-32-character-minimum-secret-key
-#
-# 2. Run: docker-compose up -d
+# Quick Start - No configuration required!
+#   docker-compose up -d
 #
 # That's it! Access Nimbus at http://localhost:3000
+#
+# Optional: Create a .env file to customize:
+#   DB_PASSWORD=your-custom-password    # Default: nimbus-default-password
+#   JWT_SECRET=your-custom-secret       # Auto-generated if not set
 #
 # For advanced users who prefer separate containers, see docker-compose.deprecated.yml
 
@@ -19,7 +19,7 @@ services:
     environment:
       POSTGRES_DB: nimbus
       POSTGRES_USER: nimbus
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -35,11 +35,9 @@ services:
     container_name: nimbus
     restart: unless-stopped
     environment:
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
+      JWT_SECRET: ${JWT_SECRET:-}
       DB_HOST: db
-      # No CORS_ORIGINS needed - same-origin mode!
-      # No NEXT_PUBLIC_API_URL needed - same-origin mode!
       # Optional overrides:
       # DB_PORT: 5432
       # DB_USER: nimbus

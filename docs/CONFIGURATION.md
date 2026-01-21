@@ -28,17 +28,25 @@ Nimbus uses **convention over configuration**. Most variables have sensible defa
 
 ### Required Variables
 
-These are the only variables you **must** set:
+**None!** Nimbus works out of the box with sensible defaults.
 
-| Variable | Description |
-|----------|-------------|
-| `DB_PASSWORD` | PostgreSQL password |
-| `JWT_SECRET` | Authentication secret key (minimum 32 characters) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
+| `JWT_SECRET` | *auto-generated* | Authentication secret (persisted in uploads volume) |
 
-**Generate a secure JWT secret:**
+> **Security note:** The default database password is safe because PostgreSQL is only accessible within the Docker network (not exposed externally). For shared hosting environments, set a custom password.
+
+**For production**, set custom secrets:
 ```bash
-openssl rand -base64 32
+# Create .env file with secure passwords
+cat > .env << EOF
+DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
+JWT_SECRET=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
+EOF
 ```
+
+> **⚠️ Password Character Warning:** Avoid special characters (`%`, `@`, `&`, `*`, `#`, `^`) in `DB_PASSWORD`. These can cause connection issues with PostgreSQL. Use alphanumeric characters and `-` or `_` only.
 
 ### Database Configuration
 

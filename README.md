@@ -64,28 +64,19 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 ## 🚀 Quick Start
 
-Deploy Nimbus in under 1 minute with Docker. **Only 2 environment variables required!**
+Deploy Nimbus in under 30 seconds with Docker. **Zero configuration required!**
 
-### 1. Make a directory
+### 1. Create `docker-compose.yml`
 
 ```bash
 mkdir nimbus && cd nimbus
+curl -O https://raw.githubusercontent.com/Turbootzz/Nimbus/main/docker-compose.yml
 ```
 
-### 2. Create a `.env` file
+Or create it manually:
 
-```bash
-# Generate a secure JWT secret
-JWT_SECRET=$(openssl rand -base64 32)
-
-# Create .env with required variables
-cat > .env << EOF
-DB_PASSWORD=your-secure-database-password
-JWT_SECRET=$JWT_SECRET
-EOF
-```
-
-### 3. Create `docker-compose.yml`
+<details>
+<summary>docker-compose.yml</summary>
 
 ```yaml
 services:
@@ -96,7 +87,7 @@ services:
     environment:
       POSTGRES_DB: nimbus
       POSTGRES_USER: nimbus
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -110,8 +101,8 @@ services:
     container_name: nimbus
     restart: unless-stopped
     environment:
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
+      DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
+      JWT_SECRET: ${JWT_SECRET:-}
     volumes:
       - uploads_data:/app/backend/uploads
     ports:
@@ -125,17 +116,19 @@ volumes:
   uploads_data:
 ```
 
-### 4. Start Nimbus
+</details>
+
+### 2. Start Nimbus
 
 ```bash
 docker-compose up -d
 ```
 
-### 5. Open your browser
+### 3. Open your browser
 
 Navigate to **http://localhost:3000** and create your first account!
 
-> **Note:** Using the all-in-one `turboot/nimbus` image means no CORS or API URL configuration needed!
+> **Note:** Secrets are auto-generated on first run. For production, see [Configuration](docs/CONFIGURATION.md) to set custom passwords.
 >
 > **Upgrading?** If you're migrating from separate containers, note the volume path changed from `/app/uploads` to `/app/backend/uploads`.
 
@@ -145,16 +138,20 @@ Navigate to **http://localhost:3000** and create your first account!
 
 Nimbus uses **convention over configuration** — sensible defaults are applied automatically.
 
-Variables can be set in your `.env` file or directly in `docker-compose.yml`.
-
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DB_PASSWORD` | *required* | PostgreSQL password |
-| `JWT_SECRET` | *required* | Auth secret (32+ chars) |
+| `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
+| `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |
 | `DB_NAME` | `nimbus` | Database name |
+
+**For production**, set custom secrets in a `.env` file:
+```bash
+DB_PASSWORD=your-secure-password
+JWT_SECRET=your-32-char-secret
+```
 
 **Need OAuth, Prometheus, or custom domains?** See the [Advanced Configuration Guide](docs/CONFIGURATION.md).
 

@@ -139,6 +139,17 @@ jobs:
           flags: frontend
           fail_ci_if_error: false
 
+  docker-scripts:
+    name: Docker Scripts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Test entrypoint script
+        run: sh docker/entrypoint.test.sh
+
   # nimbus.turboot.com prod image
   docker-prod:
     name: Build Prod Image
@@ -279,22 +290,23 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend, frontend, docker, docker-prod]
+    needs: [backend, frontend, docker-scripts, docker, docker-prod]
     if: always()
     steps:
       - name: Check all jobs
         run: |
-          # Docker jobs are skipped on non-main branches, so treat 'skipped' as success
+          # Docker build jobs are skipped on non-main branches, so treat 'skipped' as success
           docker_ok=$([[ "${{ needs.docker.result }}" == "success" ]] || [[ "${{ needs.docker.result }}" == "skipped" ]] && echo "true" || echo "false")
           prod_ok=$([[ "${{ needs.docker-prod.result }}" == "success" ]] || [[ "${{ needs.docker-prod.result }}" == "skipped" ]] && echo "true" || echo "false")
 
-          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$prod_ok" == "true" ]]; then
+          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "${{ needs.docker-scripts.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$prod_ok" == "true" ]]; then
             echo "All CI jobs passed!"
             exit 0
           else
             echo "Some CI jobs failed"
             echo "Backend: ${{ needs.backend.result }}"
             echo "Frontend: ${{ needs.frontend.result }}"
+            echo "Docker Scripts: ${{ needs.docker-scripts.result }}"
             echo "Docker: ${{ needs.docker.result }}"
             echo "Docker Prod: ${{ needs.docker-prod.result }}"
             exit 1

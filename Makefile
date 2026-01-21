@@ -1,4 +1,4 @@
-.PHONY: help setup dev-backend dev-frontend testdb migrate migrate-down seed kill-ports clean install ci-check
+.PHONY: help setup dev-backend dev-frontend testdb migrate migrate-down seed kill-ports clean install ci-check test-docker
 
 # Default target
 help:
@@ -118,10 +118,16 @@ clean:
 	@cd frontend && rm -rf .next node_modules/.cache
 	@echo "✓ Done"
 
+# Test Docker entrypoint scripts
+test-docker:
+	@echo "🐳 Testing Docker scripts..."
+	@sh docker/entrypoint.test.sh
+	@echo ""
+
 # Run all CI checks locally (same as GitHub Actions)
 ci-check:
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-	@echo "🚀 Running CI Checks (Backend + Frontend)"
+	@echo "🚀 Running CI Checks (Backend + Frontend + Docker)"
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo ""
 	@echo "📦 Backend checks..."
@@ -129,6 +135,9 @@ ci-check:
 	@echo ""
 	@echo "📦 Frontend checks..."
 	@cd frontend && npm run ci-check
+	@echo ""
+	@echo "🐳 Docker script checks..."
+	@sh docker/entrypoint.test.sh
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "✅ All CI checks passed!"
