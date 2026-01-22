@@ -157,6 +157,18 @@ func ValidateWebhookURL(urlStr string) error {
 		if isCloudMetadataIP(ip) {
 			return fmt.Errorf("cloud metadata endpoints are not allowed")
 		}
+	} else {
+		// For domain names, check if they resolve to cloud metadata IPs
+		// This prevents DNS rebinding attacks targeting cloud metadata
+		ips, err := net.LookupIP(hostname)
+		if err == nil {
+			for _, ip := range ips {
+				if isCloudMetadataIP(ip) {
+					return fmt.Errorf("URL resolves to cloud metadata endpoint")
+				}
+			}
+		}
+		// If DNS lookup fails, allow the request - the webhook delivery will fail naturally
 	}
 
 	return nil

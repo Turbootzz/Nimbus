@@ -543,3 +543,51 @@ func TestWebhookNotifier_SlackBlocksStructure(t *testing.T) {
 		t.Error("Expected a context block")
 	}
 }
+
+func TestRedactWebhookURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{
+			name:     "Discord webhook URL",
+			url:      "https://discord.com/api/webhooks/123456789/abcdefghijk",
+			expected: "discord.com",
+		},
+		{
+			name:     "Slack webhook URL",
+			url:      "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXX",
+			expected: "hooks.slack.com",
+		},
+		{
+			name:     "Generic webhook URL",
+			url:      "https://example.com:8080/webhook?token=secret123",
+			expected: "example.com:8080",
+		},
+		{
+			name:     "HTTP localhost",
+			url:      "http://localhost:3000/notify",
+			expected: "localhost:3000",
+		},
+		{
+			name:     "Invalid URL",
+			url:      "not-a-valid-url",
+			expected: "<invalid-url>",
+		},
+		{
+			name:     "URL with userinfo",
+			url:      "https://user:pass@example.com/webhook",
+			expected: "example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := redactWebhookURL(tt.url)
+			if result != tt.expected {
+				t.Errorf("redactWebhookURL(%q) = %q, expected %q", tt.url, result, tt.expected)
+			}
+		})
+	}
+}

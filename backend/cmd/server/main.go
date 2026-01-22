@@ -209,6 +209,10 @@ func main() {
 	dnsCleanup := workers.NewDNSCleanupWorker()
 	dnsCleanup.Start()
 
+	// Start rate limit cache cleanup worker
+	rateLimitCleanup := workers.NewRateLimitCleanupWorker()
+	rateLimitCleanup.Start()
+
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
@@ -247,6 +251,7 @@ func main() {
 	healthMonitor.Stop()
 	metricsCleanup.Stop()
 	dnsCleanup.Stop()
+	rateLimitCleanup.Stop()
 
 	// Shutdown Fiber app
 	if err := app.Shutdown(); err != nil {

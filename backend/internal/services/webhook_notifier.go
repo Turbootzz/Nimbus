@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -172,11 +173,22 @@ func (w *WebhookNotifier) recordResult(ctx context.Context, webhook *models.Webh
 		log.Printf("Failed to create webhook log: %v", err)
 	}
 
+	// Log with redacted URL (host only) to avoid leaking secrets in webhook URLs
+	redactedHost := redactWebhookURL(webhook.URL)
 	if success {
-		log.Printf("Webhook %s delivered successfully to %s in %dms", webhook.Name, webhook.URL, responseTimeMs)
+		log.Printf("Webhook %s delivered successfully to %s in %dms", webhook.Name, redactedHost, responseTimeMs)
 	} else {
-		log.Printf("Webhook %s delivery failed to %s: %s", webhook.Name, webhook.URL, errMsg)
+		log.Printf("Webhook %s delivery failed to %s: %s", webhook.Name, redactedHost, errMsg)
 	}
+}
+
+// redactWebhookURL extracts only the host from a webhook URL to avoid logging secrets
+func redactWebhookURL(webhookURL string) string {
+	parsed, err := url.Parse(webhookURL)
+	if err != nil || parsed.Host == "" {
+		return "<invalid-url>"
+	}
+	return parsed.Host
 }
 
 // buildPayload builds the webhook payload based on format

@@ -298,6 +298,101 @@ func TestIsCloudMetadataIP(t *testing.T) {
 	}
 }
 
+// ValidateWebhookURL tests
+
+func TestValidateWebhookURL_ValidURLs(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"HTTPS URL", "https://discord.com/api/webhooks/123/abc"},
+		{"HTTP URL", "http://localhost:3000/webhook"},
+		{"HTTP internal IP", "http://192.168.1.100/webhook"},
+		{"Slack webhook", "https://hooks.slack.com/services/T00/B00/XXX"},
+		{"Generic webhook", "https://example.com/webhook"},
+		{"Internal service", "http://10.0.0.5:8080/notify"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWebhookURL(tt.url)
+			if err != nil {
+				t.Errorf("ValidateWebhookURL(%q) returned error: %v, expected nil", tt.url, err)
+			}
+		})
+	}
+}
+
+func TestValidateWebhookURL_InvalidURLs(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		errContains string
+	}{
+		{"Empty URL", "", "invalid URL format"},
+		{"No scheme", "discord.com/webhook", "invalid URL format"},
+		{"FTP protocol", "ftp://example.com/webhook", "only HTTP/HTTPS protocols are allowed"},
+		{"File protocol", "file:///etc/passwd", "only HTTP/HTTPS protocols are allowed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWebhookURL(tt.url)
+			if err == nil {
+				t.Errorf("ValidateWebhookURL(%q) expected error containing %q, got nil", tt.url, tt.errContains)
+				return
+			}
+			if tt.errContains != "" && !contains(err.Error(), tt.errContains) {
+				t.Errorf("ValidateWebhookURL(%q) error = %q, expected to contain %q", tt.url, err.Error(), tt.errContains)
+			}
+		})
+	}
+}
+
+func TestValidateWebhookURL_CloudMetadataBlocked(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"AWS/GCP metadata direct IP", "http://169.254.169.254/latest/meta-data/"},
+		{"AWS metadata HTTPS", "https://169.254.169.254/latest/meta-data/"},
+		{"Azure metadata direct IP", "http://168.63.129.16/metadata/instance"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWebhookURL(tt.url)
+			if err == nil {
+				t.Errorf("ValidateWebhookURL(%q) expected error for cloud metadata endpoint, got nil", tt.url)
+			}
+		})
+	}
+}
+
+func TestValidateWebhookURL_AllowsInternalNetworks(t *testing.T) {
+	// Unlike ValidateExternalImageURL, ValidateWebhookURL should allow internal networks
+	// (for self-hosted notification services) but still block cloud metadata
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"localhost", "http://localhost:3000/webhook"},
+		{"127.0.0.1", "http://127.0.0.1:8080/webhook"},
+		{"Private 10.x.x.x", "http://10.0.0.5/webhook"},
+		{"Private 192.168.x.x", "http://192.168.1.100:9000/notify"},
+		{"Private 172.16.x.x", "http://172.16.0.1/webhook"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateWebhookURL(tt.url)
+			if err != nil {
+				t.Errorf("ValidateWebhookURL(%q) expected nil for internal network, got error: %v", tt.url, err)
+			}
+		})
+	}
+}
+
 // Helper functions
 
 func contains(s, substr string) bool {
