@@ -61,13 +61,13 @@ export default function SettingsPage() {
           <Link
             key={section.href}
             href={section.href}
-            className="bg-card border-card-border hover:border-primary/50 block rounded-lg border p-6 transition-all hover:shadow-lg"
+            className="bg-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="flex items-start gap-4">
               <div className="text-primary shrink-0">{section.icon}</div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-text-primary mb-1 text-lg font-semibold">{section.title}</h2>
-                <p className="text-text-secondary text-sm">{section.description}</p>
+                <p className="text-text-secondary min-h-10 text-sm">{section.description}</p>
               </div>
               <svg
                 className="text-text-muted h-5 w-5 shrink-0"

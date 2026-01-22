@@ -80,8 +80,19 @@ class ApiClient {
         credentials: 'include', // Always send httpOnly cookies with requests
       })
 
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204) {
+        return { data: undefined as T }
+      }
+
       // Parse response as text first to handle non-JSON responses gracefully
       const text = await response.text()
+
+      // Handle empty successful responses
+      if (!text && response.ok) {
+        return { data: undefined as T }
+      }
+
       let data
       try {
         data = JSON.parse(text)
