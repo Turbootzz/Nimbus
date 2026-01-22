@@ -222,6 +222,13 @@ Run `make help` for all available commands.
 - [x] Admin panel & RBAC
 - [x] Prometheus metrics export
 - [x] Mobile responsive design
+- [x] Service groups
+- [x] Card resizing & dashboard scaling
+- [x] List view mode
+- [x] Custom service icons (image uploads)
+- [x] Uptime webhook notifications
+- [x] Optional landing page
+- [x] Zero-config Docker deployment
 - [ ] Widget/plugin system
 - [ ] PWA support
 
