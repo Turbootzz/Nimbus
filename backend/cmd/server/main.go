@@ -201,8 +201,8 @@ func main() {
 	healthMonitor := workers.NewHealthMonitor(healthCheckService, serviceRepo, healthCheckInterval)
 	healthMonitor.Start()
 
-	// Start metrics cleanup worker
-	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService)
+	// Start metrics cleanup worker (also cleans up webhook logs)
+	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService, webhookRepo)
 	metricsCleanup.Start()
 
 	// Start DNS cache cleanup worker

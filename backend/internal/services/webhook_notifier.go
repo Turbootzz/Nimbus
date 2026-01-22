@@ -80,22 +80,19 @@ func (w *WebhookNotifier) shouldTrigger(webhook *models.Webhook, event Notificat
 	return false
 }
 
-// isRateLimited checks if this webhook/service/status combo is rate limited
+// isRateLimited checks if this webhook/service/status combo is rate limited.
+// Uses a single lock to prevent race conditions between check and update.
 func (w *WebhookNotifier) isRateLimited(webhookID, serviceID, status string) bool {
 	key := rateLimitKey{WebhookID: webhookID, ServiceID: serviceID, Status: status}
 
-	rateLimitMu.RLock()
-	lastSent, exists := rateLimitCache[key]
-	rateLimitMu.RUnlock()
+	rateLimitMu.Lock()
+	defer rateLimitMu.Unlock()
 
-	if exists && time.Since(lastSent) < rateLimitTTL {
+	if lastSent, exists := rateLimitCache[key]; exists && time.Since(lastSent) < rateLimitTTL {
 		return true
 	}
 
-	rateLimitMu.Lock()
 	rateLimitCache[key] = time.Now()
-	rateLimitMu.Unlock()
-
 	return false
 }
 

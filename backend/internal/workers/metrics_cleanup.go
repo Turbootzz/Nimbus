@@ -9,12 +9,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 )
 
-// MetricsCleanupWorker handles periodic cleanup of old status logs
+// MetricsCleanupWorker handles periodic cleanup of old status logs and webhook logs
 type MetricsCleanupWorker struct {
 	metricsService  *services.MetricsService
+	webhookRepo     *repository.WebhookRepository
 	retentionDays   int
 	cleanupInterval time.Duration
 	stopChan        chan struct{}
@@ -23,7 +25,7 @@ type MetricsCleanupWorker struct {
 }
 
 // NewMetricsCleanupWorker creates a new metrics cleanup worker
-func NewMetricsCleanupWorker(metricsService *services.MetricsService) *MetricsCleanupWorker {
+func NewMetricsCleanupWorker(metricsService *services.MetricsService, webhookRepo *repository.WebhookRepository) *MetricsCleanupWorker {
 	// Get retention days from env (default: 30 days)
 	retentionDays := 30
 	if days := os.Getenv("METRICS_RETENTION_DAYS"); days != "" {
@@ -37,6 +39,7 @@ func NewMetricsCleanupWorker(metricsService *services.MetricsService) *MetricsCl
 
 	return &MetricsCleanupWorker{
 		metricsService:  metricsService,
+		webhookRepo:     webhookRepo,
 		retentionDays:   retentionDays,
 		cleanupInterval: cleanupInterval,
 		stopChan:        make(chan struct{}),
@@ -91,18 +94,29 @@ func (w *MetricsCleanupWorker) runCleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	log.Printf("Running metrics cleanup (deleting logs older than %d days)...", w.retentionDays)
+	log.Printf("Running cleanup (deleting logs older than %d days)...", w.retentionDays)
 
-	deletedCount, err := w.metricsService.CleanupOldLogs(ctx, w.retentionDays)
+	// Clean up status logs
+	statusDeleted, err := w.metricsService.CleanupOldLogs(ctx, w.retentionDays)
 	if err != nil {
-		log.Printf("Error during metrics cleanup: %v", err)
-		return
+		log.Printf("Error during status logs cleanup: %v", err)
+	} else if statusDeleted > 0 {
+		log.Printf("Status logs cleanup: deleted %d old entries", statusDeleted)
 	}
 
-	if deletedCount > 0 {
-		log.Printf("Metrics cleanup completed: deleted %d old status log entries", deletedCount)
-	} else {
-		log.Println("Metrics cleanup completed: no old logs to delete")
+	// Clean up webhook logs
+	if w.webhookRepo != nil {
+		cutoff := time.Now().AddDate(0, 0, -w.retentionDays)
+		webhookDeleted, err := w.webhookRepo.DeleteLogsOlderThan(ctx, cutoff)
+		if err != nil {
+			log.Printf("Error during webhook logs cleanup: %v", err)
+		} else if webhookDeleted > 0 {
+			log.Printf("Webhook logs cleanup: deleted %d old entries", webhookDeleted)
+		}
+	}
+
+	if statusDeleted == 0 {
+		log.Println("Cleanup completed: no old logs to delete")
 	}
 }
 
@@ -111,11 +125,20 @@ func (w *MetricsCleanupWorker) RunNow() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	deletedCount, err := w.metricsService.CleanupOldLogs(ctx, w.retentionDays)
+	statusDeleted, err := w.metricsService.CleanupOldLogs(ctx, w.retentionDays)
 	if err != nil {
-		return fmt.Errorf("cleanup failed: %w", err)
+		return fmt.Errorf("status logs cleanup failed: %w", err)
 	}
 
-	log.Printf("Manual cleanup completed: deleted %d old status log entries", deletedCount)
+	var webhookDeleted int64
+	if w.webhookRepo != nil {
+		cutoff := time.Now().AddDate(0, 0, -w.retentionDays)
+		webhookDeleted, err = w.webhookRepo.DeleteLogsOlderThan(ctx, cutoff)
+		if err != nil {
+			return fmt.Errorf("webhook logs cleanup failed: %w", err)
+		}
+	}
+
+	log.Printf("Manual cleanup completed: deleted %d status logs, %d webhook logs", statusDeleted, webhookDeleted)
 	return nil
 }
