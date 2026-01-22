@@ -108,7 +108,9 @@ export default function DashboardPage() {
     const online = servicesToCount.filter((s) => s.status === 'online').length
     const offline = servicesToCount.filter((s) => s.status === 'offline').length
     const responseTimes = servicesToCount
-      .filter((s) => s.response_time !== undefined && s.response_time !== null)
+      .filter(
+        (s) => s.status === 'online' && s.response_time !== undefined && s.response_time !== null
+      )
       .map((s) => s.response_time as number)
     const avgResponseTime =
       responseTimes.length > 0

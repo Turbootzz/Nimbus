@@ -52,14 +52,16 @@ export function ServiceManagementCardPresentation({
 
       {/* Response time and last checked */}
       <div className="text-text-muted mb-4 space-y-1 text-xs">
-        {service.response_time !== undefined && service.response_time !== null && (
-          <div className="flex items-center">
-            <span className="mr-2">Response:</span>
-            <span className={`${getResponseTimeColor(service.response_time)} font-medium`}>
-              {service.response_time}ms
-            </span>
-          </div>
-        )}
+        {service.status === 'online' &&
+          service.response_time !== undefined &&
+          service.response_time !== null && (
+            <div className="flex items-center">
+              <span className="mr-2">Response:</span>
+              <span className={`${getResponseTimeColor(service.response_time)} font-medium`}>
+                {service.response_time}ms
+              </span>
+            </div>
+          )}
         {service.updated_at && service.status !== 'unknown' && (
           <div className="flex items-center">
             <ClockIcon className="mr-1 h-3 w-3" />
