@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   ServerIcon,
   ClockIcon,
@@ -69,6 +69,9 @@ export default function DashboardPage() {
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
+
+  // Track last fetch time for polling coordination
+  const lastPollTime = useRef<number>(Date.now())
 
   // Group form modal state
   const [showGroupForm, setShowGroupForm] = useState(false)
@@ -165,6 +168,46 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
+  // Poll health status every 30 seconds for live updates
+  useEffect(() => {
+    const pollHealth = async () => {
+      // Skip if we just did a full fetch (within last 5 seconds)
+      if (Date.now() - lastPollTime.current < 5000) return
+
+      try {
+        const response = await api.getServices()
+        if (response.data) {
+          // Only update status and response_time to avoid disrupting UI state
+          setServices((prev) => {
+            const newHealthMap = new Map(
+              response.data!.map((s) => [
+                s.id,
+                { status: s.status, response_time: s.response_time },
+              ])
+            )
+            return prev.map((service) => {
+              const health = newHealthMap.get(service.id)
+              if (
+                health &&
+                (health.status !== service.status || health.response_time !== service.response_time)
+              ) {
+                return { ...service, status: health.status, response_time: health.response_time }
+              }
+              return service
+            })
+          })
+        }
+      } catch (error) {
+        console.error('Failed to poll health:', error)
+      }
+    }
+
+    // Poll every 30 seconds
+    const interval = setInterval(pollHealth, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   // Auto-select default group when groups load
   useEffect(() => {
     if (enableServiceGrouping && groups.length > 0 && !selectedGroupId) {
@@ -202,6 +245,8 @@ export default function DashboardPage() {
       if (groupsResponse.data) {
         setGroups(groupsResponse.data)
       }
+      // Track when we did a full fetch to avoid immediate poll overlap
+      lastPollTime.current = Date.now()
     } catch (error) {
       console.error('Failed to fetch data:', error)
     } finally {
