@@ -84,8 +84,8 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 
-# Health check via nginx
+# Health check - verifies nginx can reach backend
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/v1/health || exit 1
+    CMD wget -q -O /dev/null http://localhost:3000/api/v1/health || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -60,11 +60,13 @@ export default function MetricsPage() {
   const offlineServices = services.filter((s) => s.status === 'offline').length
 
   const avgResponseTime = services
-    .filter((s) => s.response_time !== null && s.response_time !== undefined)
+    .filter(
+      (s) => s.status === 'online' && s.response_time !== null && s.response_time !== undefined
+    )
     .reduce((sum, s) => sum + (s.response_time || 0), 0)
 
   const servicesWithResponse = services.filter(
-    (s) => s.response_time !== null && s.response_time !== undefined
+    (s) => s.status === 'online' && s.response_time !== null && s.response_time !== undefined
   ).length
 
   const avgResponse = servicesWithResponse > 0 ? avgResponseTime / servicesWithResponse : 0
@@ -184,7 +186,7 @@ export default function MetricsPage() {
                     <tr key={service.id} className="hover:bg-card-hover transition-colors">
                       <td className="px-4 py-4 align-top">
                         <div className="flex items-start gap-3">
-                          <div className="mt-0.5 flex-shrink-0">
+                          <div className="mt-0.5 shrink-0">
                             <ServiceIcon service={service} size="sm" />
                           </div>
                           <div className="min-w-0">
@@ -216,7 +218,9 @@ export default function MetricsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-4 align-top">
-                        {service.response_time !== null && service.response_time !== undefined ? (
+                        {service.status === 'online' &&
+                        service.response_time !== null &&
+                        service.response_time !== undefined ? (
                           <span
                             className={`text-sm font-medium ${
                               service.response_time < 200
@@ -268,7 +272,7 @@ export default function MetricsPage() {
                   <div className="mb-3 flex items-start gap-3">
                     <ServiceIcon service={service} size="md" />
                     <div className="min-w-0 flex-1">
-                      <h3 className="text-text-primary text-base font-semibold break-words">
+                      <h3 className="text-text-primary text-base font-semibold wrap-break-word">
                         {service.name}
                       </h3>
                       {service.description && (
@@ -305,7 +309,9 @@ export default function MetricsPage() {
                     {/* Response Time */}
                     <div className="flex items-center justify-between">
                       <span className="text-text-secondary text-sm">Response Time</span>
-                      {service.response_time !== null && service.response_time !== undefined ? (
+                      {service.status === 'online' &&
+                      service.response_time !== null &&
+                      service.response_time !== undefined ? (
                         <span
                           className={`text-sm font-medium ${
                             service.response_time < 200

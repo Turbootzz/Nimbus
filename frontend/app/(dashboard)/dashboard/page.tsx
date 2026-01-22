@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import {
   ServerIcon,
   ClockIcon,
@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
+import { mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
 import type { Service, CardSize, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceCard from '@/components/ServiceCard'
@@ -70,6 +71,9 @@ export default function DashboardPage() {
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
 
+  // Track last fetch time for polling coordination
+  const lastPollTime = useRef<number>(Date.now())
+
   // Group form modal state
   const [showGroupForm, setShowGroupForm] = useState(false)
   const [editingGroup, setEditingGroup] = useState<Group | null>(null)
@@ -105,7 +109,9 @@ export default function DashboardPage() {
     const online = servicesToCount.filter((s) => s.status === 'online').length
     const offline = servicesToCount.filter((s) => s.status === 'offline').length
     const responseTimes = servicesToCount
-      .filter((s) => s.response_time !== undefined && s.response_time !== null)
+      .filter(
+        (s) => s.status === 'online' && s.response_time !== undefined && s.response_time !== null
+      )
       .map((s) => s.response_time as number)
     const avgResponseTime =
       responseTimes.length > 0
@@ -165,6 +171,29 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
+  // Poll health status every 30 seconds for live updates
+  useEffect(() => {
+    const pollHealth = async () => {
+      // Skip if we just did a full fetch (within last 5 seconds)
+      if (shouldSkipPoll(lastPollTime.current)) return
+
+      try {
+        const response = await api.getServices()
+        if (response.data) {
+          // Only update status and response_time to avoid disrupting UI state
+          setServices((prev) => mergeServicesHealth(prev, response.data!))
+        }
+      } catch (error) {
+        console.error('Failed to poll health:', error)
+      }
+    }
+
+    // Poll every 30 seconds
+    const interval = setInterval(pollHealth, 30000)
+
+    return () => clearInterval(interval)
+  }, [])
+
   // Auto-select default group when groups load
   useEffect(() => {
     if (enableServiceGrouping && groups.length > 0 && !selectedGroupId) {
@@ -202,6 +231,8 @@ export default function DashboardPage() {
       if (groupsResponse.data) {
         setGroups(groupsResponse.data)
       }
+      // Track when we did a full fetch to avoid immediate poll overlap
+      lastPollTime.current = Date.now()
     } catch (error) {
       console.error('Failed to fetch data:', error)
     } finally {

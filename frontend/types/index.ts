@@ -235,3 +235,65 @@ export interface OAuthProviderStatus {
   enabled: boolean
   configure: boolean
 }
+
+// Webhook types
+export type WebhookFormat = 'generic' | 'discord' | 'slack'
+
+export interface WebhookTriggers {
+  on_offline: boolean
+  on_online: boolean
+}
+
+export interface Webhook {
+  id: string
+  name: string
+  url: string
+  enabled: boolean
+  triggers: WebhookTriggers
+  format: WebhookFormat
+  last_triggered_at?: string
+  last_success_at?: string
+  consecutive_failures: number
+  total_sent: number
+  total_failed: number
+  created_at: string
+  updated_at: string
+}
+
+export interface WebhookCreateRequest {
+  name: string
+  url: string
+  enabled?: boolean
+  triggers?: WebhookTriggers
+  format?: WebhookFormat
+}
+
+export interface WebhookUpdateRequest {
+  name?: string
+  url?: string
+  enabled?: boolean
+  triggers?: WebhookTriggers
+  format?: WebhookFormat
+}
+
+export interface WebhookLog {
+  id: string
+  webhook_id: string
+  service_id: string
+  service_name: string
+  old_status: string
+  new_status: string
+  success: boolean
+  status_code?: number
+  error_message?: string
+  response_time_ms?: number
+  created_at: string
+}
+
+export interface WebhookTestResult {
+  success: boolean
+  message?: string
+  status_code?: number
+  response_time_ms?: number
+  error?: string
+}

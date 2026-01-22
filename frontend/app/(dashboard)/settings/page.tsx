@@ -32,6 +32,21 @@ export default function SettingsPage() {
         </svg>
       ),
     },
+    {
+      title: 'Notifications',
+      description: 'Configure webhooks for service status alerts',
+      href: '/settings/notifications',
+      icon: (
+        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+          />
+        </svg>
+      ),
+    },
   ]
 
   return (
@@ -46,16 +61,16 @@ export default function SettingsPage() {
           <Link
             key={section.href}
             href={section.href}
-            className="bg-card border-card-border hover:border-primary/50 block rounded-lg border p-6 transition-all hover:shadow-lg"
+            className="bg-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="flex items-start gap-4">
-              <div className="text-primary flex-shrink-0">{section.icon}</div>
+              <div className="text-primary shrink-0">{section.icon}</div>
               <div className="min-w-0 flex-1">
                 <h2 className="text-text-primary mb-1 text-lg font-semibold">{section.title}</h2>
-                <p className="text-text-secondary text-sm">{section.description}</p>
+                <p className="text-text-secondary min-h-10 text-sm">{section.description}</p>
               </div>
               <svg
-                className="text-text-muted h-5 w-5 flex-shrink-0"
+                className="text-text-muted h-5 w-5 shrink-0"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"

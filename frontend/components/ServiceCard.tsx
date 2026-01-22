@@ -267,10 +267,12 @@ function StandardCard({
       )}
 
       <div
-        className={`mt-auto flex items-center py-1 text-xs ${service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
+        className={`mt-auto flex items-center py-1 text-xs ${service.status === 'online' && service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
       >
         <ClockIcon className="mr-1 h-3 w-3" />
-        {service.response_time !== undefined && service.response_time !== null
+        {service.status === 'online' &&
+        service.response_time !== undefined &&
+        service.response_time !== null
           ? `${service.response_time}ms`
           : '-'}
       </div>
@@ -356,14 +358,16 @@ function LargeCard({
       {/* Footer with URL and response time */}
       <div className={`${marginTop} space-y-2`}>
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
-        {service.response_time !== undefined && service.response_time !== null && (
-          <div
-            className={`flex items-center justify-center text-sm ${getResponseTimeColor(service.response_time)}`}
-          >
-            <ClockIcon className="mr-1 h-4 w-4" />
-            {service.response_time}ms
-          </div>
-        )}
+        {service.status === 'online' &&
+          service.response_time !== undefined &&
+          service.response_time !== null && (
+            <div
+              className={`flex items-center justify-center text-sm ${getResponseTimeColor(service.response_time)}`}
+            >
+              <ClockIcon className="mr-1 h-4 w-4" />
+              {service.response_time}ms
+            </div>
+          )}
       </div>
     </>
   )

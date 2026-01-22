@@ -19,6 +19,11 @@ import type {
   UserFilterParams,
   OAuthProvider,
   OAuthProviderStatus,
+  Webhook,
+  WebhookCreateRequest,
+  WebhookUpdateRequest,
+  WebhookLog,
+  WebhookTestResult,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -75,8 +80,19 @@ class ApiClient {
         credentials: 'include', // Always send httpOnly cookies with requests
       })
 
+      // Handle 204 No Content responses (empty body)
+      if (response.status === 204) {
+        return { data: undefined as T }
+      }
+
       // Parse response as text first to handle non-JSON responses gracefully
       const text = await response.text()
+
+      // Handle empty successful responses
+      if (!text && response.ok) {
+        return { data: undefined as T }
+      }
+
       let data
       try {
         data = JSON.parse(text)
@@ -445,6 +461,49 @@ class ApiClient {
     return this.request<{ message: string; user: User }>(`/auth/oauth/unlink/${provider}`, {
       method: 'DELETE',
     })
+  }
+
+  // ============================================
+  // Webhooks
+  // ============================================
+
+  async getWebhooks(): Promise<ApiResponse<Webhook[]>> {
+    return this.request<Webhook[]>('/webhooks')
+  }
+
+  async getWebhook(id: string): Promise<ApiResponse<Webhook>> {
+    return this.request<Webhook>(`/webhooks/${id}`)
+  }
+
+  async createWebhook(data: WebhookCreateRequest): Promise<ApiResponse<Webhook>> {
+    return this.request<Webhook>('/webhooks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateWebhook(id: string, data: WebhookUpdateRequest): Promise<ApiResponse<Webhook>> {
+    return this.request<Webhook>(`/webhooks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteWebhook(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/webhooks/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async testWebhook(id: string): Promise<ApiResponse<WebhookTestResult>> {
+    return this.request<WebhookTestResult>(`/webhooks/${id}/test`, {
+      method: 'POST',
+    })
+  }
+
+  async getWebhookLogs(id: string, limit?: number): Promise<ApiResponse<WebhookLog[]>> {
+    const query = limit ? `?limit=${limit}` : ''
+    return this.request<WebhookLog[]>(`/webhooks/${id}/logs${query}`)
   }
 }
 

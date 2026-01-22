@@ -180,7 +180,7 @@ export default function ServiceDetailPage() {
           <div className="flex items-start gap-3 sm:gap-4">
             <ServiceIcon service={service} size="lg" />
             <div className="min-w-0 flex-1">
-              <h1 className="text-text-primary text-2xl font-bold break-words sm:text-3xl">
+              <h1 className="text-text-primary text-2xl font-bold wrap-break-word sm:text-3xl">
                 {service.name}
               </h1>
               <a
@@ -236,7 +236,7 @@ export default function ServiceDetailPage() {
               {service.status}
             </span>
           </div>
-          {service.response_time !== undefined && (
+          {service.status === 'online' && service.response_time !== undefined && (
             <div className="flex flex-wrap items-baseline gap-1">
               <span className="text-text-secondary text-sm">Response Time: </span>
               <span className={`font-semibold ${getResponseTimeColor(service.response_time)}`}>

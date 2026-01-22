@@ -69,16 +69,18 @@ export default function ServiceListItem({
         </span>
       </div>
 
-      {/* Response time */}
-      {service.response_time !== undefined && service.response_time !== null && (
-        <div
-          className={`flex shrink-0 items-center gap-1 text-xs ${getResponseTimeColor(service.response_time)}`}
-        >
-          <ClockIcon className="h-3 w-3" />
-          <span className="hidden sm:inline">{service.response_time}ms</span>
-          <span className="sm:hidden">{service.response_time}</span>
-        </div>
-      )}
+      {/* Response time - only show for online services */}
+      {service.status === 'online' &&
+        service.response_time !== undefined &&
+        service.response_time !== null && (
+          <div
+            className={`flex shrink-0 items-center gap-1 text-xs ${getResponseTimeColor(service.response_time)}`}
+          >
+            <ClockIcon className="h-3 w-3" />
+            <span className="hidden sm:inline">{service.response_time}ms</span>
+            <span className="sm:hidden">{service.response_time}</span>
+          </div>
+        )}
     </>
   )
 
