@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -211,31 +212,48 @@ func (w *WebhookNotifier) buildGenericPayload(event NotificationEvent) map[strin
 
 // buildDiscordPayload creates a Discord webhook payload with embeds
 func (w *WebhookNotifier) buildDiscordPayload(event NotificationEvent) map[string]interface{} {
-	color := 0x10B981 // Green for online
-	title := fmt.Sprintf("%s is now online", event.ServiceName)
+	var color int
+	var statusEmoji string
+	var statusText string
+	var description string
 
 	if event.NewStatus == models.StatusOffline {
-		color = 0xEF4444 // Red for offline
-		title = fmt.Sprintf("%s is now offline", event.ServiceName)
+		color = 0xED4245 // Discord red
+		statusEmoji = "🔴"
+		statusText = "Offline"
+		if event.ErrorMsg != nil {
+			description = fmt.Sprintf("```%s```", *event.ErrorMsg)
+		}
+	} else {
+		color = 0x57F287 // Discord green
+		statusEmoji = "🟢"
+		statusText = "Online"
+		description = "Service is back up and responding normally."
 	}
+
+	title := fmt.Sprintf("%s %s is now %s", statusEmoji, event.ServiceName, strings.ToLower(statusText))
 
 	embed := map[string]interface{}{
 		"title":     title,
+		"url":       event.ServiceURL,
 		"color":     color,
 		"timestamp": event.Timestamp.Format(time.RFC3339),
-		"fields": []map[string]interface{}{
-			{"name": "Service", "value": event.ServiceName, "inline": true},
-			{"name": "URL", "value": event.ServiceURL, "inline": true},
-			{"name": "Status", "value": event.NewStatus, "inline": true},
-		},
-		"footer": map[string]string{
+		"footer": map[string]interface{}{
 			"text": "Nimbus Dashboard",
 		},
 	}
 
-	if event.ErrorMsg != nil {
-		embed["description"] = *event.ErrorMsg
+	if description != "" {
+		embed["description"] = description
 	}
+
+	// Add fields for additional context
+	fields := []map[string]interface{}{
+		{"name": "Status", "value": fmt.Sprintf("`%s`", statusText), "inline": true},
+		{"name": "Service", "value": fmt.Sprintf("[%s](%s)", event.ServiceName, event.ServiceURL), "inline": true},
+	}
+
+	embed["fields"] = fields
 
 	return map[string]interface{}{
 		"embeds": []map[string]interface{}{embed},
@@ -244,43 +262,81 @@ func (w *WebhookNotifier) buildDiscordPayload(event NotificationEvent) map[strin
 
 // buildSlackPayload creates a Slack webhook payload with blocks
 func (w *WebhookNotifier) buildSlackPayload(event NotificationEvent) map[string]interface{} {
-	emoji := ":white_check_mark:"
+	var emoji string
+	var color string
+	var statusText string
+
 	if event.NewStatus == models.StatusOffline {
-		emoji = ":x:"
+		emoji = ":red_circle:"
+		color = "#ED4245" // Red
+		statusText = "offline"
+	} else {
+		emoji = ":large_green_circle:"
+		color = "#57F287" // Green
+		statusText = "online"
 	}
 
-	text := fmt.Sprintf("%s *%s* is now *%s*", emoji, event.ServiceName, event.NewStatus)
+	headerText := fmt.Sprintf("%s *%s* is now %s", emoji, event.ServiceName, statusText)
 
 	blocks := []map[string]interface{}{
 		{
 			"type": "section",
-			"text": map[string]string{
+			"text": map[string]interface{}{
 				"type": "mrkdwn",
-				"text": text,
+				"text": headerText,
 			},
-		},
-		{
-			"type": "context",
-			"elements": []map[string]string{
-				{"type": "mrkdwn", "text": fmt.Sprintf("*URL:* <%s>", event.ServiceURL)},
-				{"type": "mrkdwn", "text": fmt.Sprintf("*Time:* %s", event.Timestamp.Format(time.RFC822))},
+			"accessory": map[string]interface{}{
+				"type": "button",
+				"text": map[string]interface{}{
+					"type":  "plain_text",
+					"text":  "View Service",
+					"emoji": true,
+				},
+				"url": event.ServiceURL,
 			},
 		},
 	}
 
-	if event.ErrorMsg != nil {
+	// Add error message or recovery message
+	if event.NewStatus == models.StatusOffline && event.ErrorMsg != nil {
 		blocks = append(blocks, map[string]interface{}{
 			"type": "section",
-			"text": map[string]string{
+			"text": map[string]interface{}{
 				"type": "mrkdwn",
-				"text": fmt.Sprintf("*Error:* %s", *event.ErrorMsg),
+				"text": fmt.Sprintf("```%s```", *event.ErrorMsg),
+			},
+		})
+	} else if event.NewStatus == models.StatusOnline {
+		blocks = append(blocks, map[string]interface{}{
+			"type": "section",
+			"text": map[string]interface{}{
+				"type": "mrkdwn",
+				"text": "_Service is back up and responding normally._",
 			},
 		})
 	}
 
+	// Add divider and context
+	blocks = append(blocks,
+		map[string]interface{}{"type": "divider"},
+		map[string]interface{}{
+			"type": "context",
+			"elements": []map[string]interface{}{
+				{"type": "mrkdwn", "text": fmt.Sprintf("*Service:* <%s|%s>", event.ServiceURL, event.ServiceName)},
+				{"type": "mrkdwn", "text": fmt.Sprintf("*Status:* `%s`", strings.ToUpper(statusText))},
+				{"type": "mrkdwn", "text": fmt.Sprintf("*Time:* %s", event.Timestamp.Format(time.RFC822))},
+			},
+		},
+	)
+
+	// Use attachments for the color sidebar
 	return map[string]interface{}{
-		"text":   text,
-		"blocks": blocks,
+		"attachments": []map[string]interface{}{
+			{
+				"color":  color,
+				"blocks": blocks,
+			},
+		},
 	}
 }
 
