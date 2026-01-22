@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { api } from '@/lib/api'
+import {
+  mergeHealthData,
+  mergeServicesHealth,
+  buildHealthMap,
+  hasHealthChanged,
+  shouldSkipPoll,
+  shouldShowResponseTime,
+  calculateAverageResponseTime,
+} from '@/lib/polling'
 import type { Service } from '@/types'
 
 // Mock the api module
@@ -101,16 +110,7 @@ describe('Dashboard Polling Functionality', () => {
         card_size: '1x1', // This should NOT be updated
       })
 
-      // Simulate the merge logic used in dashboard polling
-      const mergeHealthData = (
-        existing: Service,
-        polled: { status: Service['status']; response_time?: number }
-      ): Service => ({
-        ...existing,
-        status: polled.status,
-        response_time: polled.response_time,
-      })
-
+      // Use the real merge function from lib/polling
       const merged = mergeHealthData(originalService, {
         status: polledService.status,
         response_time: polledService.response_time,
@@ -139,15 +139,13 @@ describe('Dashboard Polling Functionality', () => {
         position: 0,
       })
 
-      const polled = {
+      const health = {
         status: 'online' as const,
         response_time: 100,
       }
 
-      const hasChanged =
-        polled.status !== existing.status || polled.response_time !== existing.response_time
-
-      expect(hasChanged).toBe(false)
+      // Use the real hasHealthChanged function from lib/polling
+      expect(hasHealthChanged(existing, health)).toBe(false)
     })
 
     it('should trigger update when status changes', () => {
@@ -160,15 +158,13 @@ describe('Dashboard Polling Functionality', () => {
         position: 0,
       })
 
-      const polled = {
+      const health = {
         status: 'offline' as const,
         response_time: 100,
       }
 
-      const hasChanged =
-        polled.status !== existing.status || polled.response_time !== existing.response_time
-
-      expect(hasChanged).toBe(true)
+      // Use the real hasHealthChanged function from lib/polling
+      expect(hasHealthChanged(existing, health)).toBe(true)
     })
 
     it('should trigger update when response_time changes', () => {
@@ -181,37 +177,29 @@ describe('Dashboard Polling Functionality', () => {
         position: 0,
       })
 
-      const polled = {
+      const health = {
         status: 'online' as const,
         response_time: 150,
       }
 
-      const hasChanged =
-        polled.status !== existing.status || polled.response_time !== existing.response_time
-
-      expect(hasChanged).toBe(true)
+      // Use the real hasHealthChanged function from lib/polling
+      expect(hasHealthChanged(existing, health)).toBe(true)
     })
   })
 
   describe('Polling Coordination', () => {
     it('should skip poll if within overlap window after full fetch', () => {
-      const lastPollTime = Date.now()
-      const currentTime = lastPollTime + 3000 // 3 seconds later
-      const overlapWindow = 5000 // 5 seconds
-
-      const shouldSkipPoll = currentTime - lastPollTime < overlapWindow
-
-      expect(shouldSkipPoll).toBe(true)
+      // Use the real shouldSkipPoll function from lib/polling
+      // With a recent timestamp (now), it should skip
+      const recentTime = Date.now()
+      expect(shouldSkipPoll(recentTime, 5000)).toBe(true)
     })
 
     it('should allow poll after overlap window expires', () => {
-      const lastPollTime = Date.now()
-      const currentTime = lastPollTime + 6000 // 6 seconds later
-      const overlapWindow = 5000 // 5 seconds
-
-      const shouldSkipPoll = currentTime - lastPollTime < overlapWindow
-
-      expect(shouldSkipPoll).toBe(false)
+      // Use the real shouldSkipPoll function from lib/polling
+      // With an old timestamp (6 seconds ago), it should not skip
+      const oldTime = Date.now() - 6000
+      expect(shouldSkipPoll(oldTime, 5000)).toBe(false)
     })
 
     it('should update lastPollTime after full fetch', () => {
@@ -288,9 +276,8 @@ describe('Dashboard Polling Functionality', () => {
         }),
       ]
 
-      const healthMap = new Map(
-        polledServices.map((s) => [s.id, { status: s.status, response_time: s.response_time }])
-      )
+      // Use the real buildHealthMap function from lib/polling
+      const healthMap = buildHealthMap(polledServices)
 
       expect(healthMap.get('service-1')).toEqual({ status: 'online', response_time: 100 })
       expect(healthMap.get('service-2')).toEqual({ status: 'offline', response_time: undefined })
@@ -328,23 +315,10 @@ describe('Dashboard Polling Functionality', () => {
         }),
       ]
 
-      const healthMap = new Map(
-        polledServices.map((s) => [s.id, { status: s.status, response_time: s.response_time }])
-      )
+      // Use the real mergeServicesHealth function from lib/polling
+      const mergedServices = mergeServicesHealth(existingServices, polledServices)
 
-      // Merge logic should only update existing services, not add new ones
-      const mergedServices = existingServices.map((service) => {
-        const health = healthMap.get(service.id)
-        if (
-          health &&
-          (health.status !== service.status || health.response_time !== service.response_time)
-        ) {
-          return { ...service, status: health.status, response_time: health.response_time }
-        }
-        return service
-      })
-
-      // Should still only have the original service
+      // Should still only have the original service (merge doesn't add new services)
       expect(mergedServices.length).toBe(1)
       // But with updated health status
       expect(mergedServices[0].status).toBe('offline')
@@ -382,23 +356,10 @@ describe('Dashboard Polling Functionality', () => {
         }),
       ]
 
-      const healthMap = new Map(
-        polledServices.map((s) => [s.id, { status: s.status, response_time: s.response_time }])
-      )
+      // Use the real mergeServicesHealth function from lib/polling
+      const mergedServices = mergeServicesHealth(existingServices, polledServices)
 
-      // Merge logic preserves existing services even if not in poll
-      const mergedServices = existingServices.map((service) => {
-        const health = healthMap.get(service.id)
-        if (
-          health &&
-          (health.status !== service.status || health.response_time !== service.response_time)
-        ) {
-          return { ...service, status: health.status, response_time: health.response_time }
-        }
-        return service
-      })
-
-      // Should preserve both services
+      // Should preserve both services (merge doesn't remove services)
       expect(mergedServices.length).toBe(2)
       // service-1 is updated
       expect(mergedServices[0].status).toBe('offline')
@@ -452,11 +413,7 @@ describe('Response Time Display Logic', () => {
       position: 1,
     })
 
-    const shouldShowResponseTime = (service: Service) =>
-      service.status === 'online' &&
-      service.response_time !== undefined &&
-      service.response_time !== null
-
+    // Use the real shouldShowResponseTime function from lib/polling
     expect(shouldShowResponseTime(onlineService)).toBe(true)
     expect(shouldShowResponseTime(offlineService)).toBe(false)
   })
@@ -471,9 +428,7 @@ describe('Response Time Display Logic', () => {
       position: 0,
     })
 
-    const shouldShowResponseTime = (s: Service) =>
-      s.status === 'online' && s.response_time !== undefined && s.response_time !== null
-
+    // Use the real shouldShowResponseTime function from lib/polling
     expect(shouldShowResponseTime(service)).toBe(false)
   })
 
@@ -505,18 +460,8 @@ describe('Response Time Display Logic', () => {
       }),
     ]
 
-    const responseTimes = services
-      .filter(
-        (s) => s.status === 'online' && s.response_time !== undefined && s.response_time !== null
-      )
-      .map((s) => s.response_time as number)
-
-    const avgResponseTime =
-      responseTimes.length > 0
-        ? Math.round(responseTimes.reduce((a, b) => a + b, 0) / responseTimes.length)
-        : 0
-
-    // Should average only 100 and 200, not include 1004
-    expect(avgResponseTime).toBe(150)
+    // Use the real calculateAverageResponseTime function from lib/polling
+    // Should average only 100 and 200, not include 1004 (offline service)
+    expect(calculateAverageResponseTime(services)).toBe(150)
   })
 })

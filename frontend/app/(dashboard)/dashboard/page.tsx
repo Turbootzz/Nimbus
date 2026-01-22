@@ -24,6 +24,7 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
+import { mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
 import type { Service, CardSize, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceCard from '@/components/ServiceCard'
@@ -174,30 +175,13 @@ export default function DashboardPage() {
   useEffect(() => {
     const pollHealth = async () => {
       // Skip if we just did a full fetch (within last 5 seconds)
-      if (Date.now() - lastPollTime.current < 5000) return
+      if (shouldSkipPoll(lastPollTime.current)) return
 
       try {
         const response = await api.getServices()
         if (response.data) {
           // Only update status and response_time to avoid disrupting UI state
-          setServices((prev) => {
-            const newHealthMap = new Map(
-              response.data!.map((s) => [
-                s.id,
-                { status: s.status, response_time: s.response_time },
-              ])
-            )
-            return prev.map((service) => {
-              const health = newHealthMap.get(service.id)
-              if (
-                health &&
-                (health.status !== service.status || health.response_time !== service.response_time)
-              ) {
-                return { ...service, status: health.status, response_time: health.response_time }
-              }
-              return service
-            })
-          })
+          setServices((prev) => mergeServicesHealth(prev, response.data!))
         }
       } catch (error) {
         console.error('Failed to poll health:', error)
