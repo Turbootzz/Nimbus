@@ -133,3 +133,31 @@ func isCGNATRange(ip net.IP) bool {
 	// 100.64.0.0/10: 100.64.0.0 - 100.127.255.255
 	return ip4[0] == 100 && (ip4[1]&0xC0) == 64
 }
+
+// ValidateWebhookURL validates that a URL is safe for webhook delivery
+// Allows internal URLs (for self-hosted notification services) but blocks cloud metadata
+func ValidateWebhookURL(urlStr string) error {
+	parsedURL, err := url.ParseRequestURI(urlStr)
+	if err != nil {
+		return fmt.Errorf("invalid URL format")
+	}
+
+	// Only allow HTTP/HTTPS
+	if parsedURL.Scheme != "https" && parsedURL.Scheme != "http" {
+		return fmt.Errorf("only HTTP/HTTPS protocols are allowed")
+	}
+
+	hostname := parsedURL.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("URL must have a hostname")
+	}
+
+	// Block cloud metadata endpoints (critical for SSRF protection)
+	if ip := net.ParseIP(hostname); ip != nil {
+		if isCloudMetadataIP(ip) {
+			return fmt.Errorf("cloud metadata endpoints are not allowed")
+		}
+	}
+
+	return nil
+}

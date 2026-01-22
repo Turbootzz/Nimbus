@@ -47,9 +47,10 @@ func CleanupDNSCache() int {
 
 // HealthCheckService handles health checking of services
 type HealthCheckService struct {
-	serviceRepo   repository.ServiceRepositoryInterface
-	statusLogRepo *repository.StatusLogRepository
-	httpClient    *http.Client
+	serviceRepo         repository.ServiceRepositoryInterface
+	statusLogRepo       *repository.StatusLogRepository
+	notificationService *NotificationService
+	httpClient          *http.Client
 }
 
 // isPrivateIP checks if an IP address is in a private/local range
@@ -217,7 +218,7 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 }
 
 // NewHealthCheckService creates a new health check service
-func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, timeout time.Duration) *HealthCheckService {
+func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, notificationService *NotificationService, timeout time.Duration) *HealthCheckService {
 	baseTransport := &http.Transport{
 		DialContext: customDialContext, // Use custom dialer for .local domain support
 		TLSClientConfig: &tls.Config{
@@ -233,8 +234,9 @@ func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, st
 	}
 
 	return &HealthCheckService{
-		serviceRepo:   serviceRepo,
-		statusLogRepo: statusLogRepo,
+		serviceRepo:         serviceRepo,
+		statusLogRepo:       statusLogRepo,
+		notificationService: notificationService,
 		httpClient: &http.Client{
 			Timeout: timeout,
 			Transport: &customTransport{
@@ -330,6 +332,17 @@ func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status
 	updateCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	// Fetch current service to get old status for notification comparison
+	var oldStatus string
+	var service *models.Service
+	if h.notificationService != nil {
+		var err error
+		service, err = h.serviceRepo.GetByID(updateCtx, serviceID)
+		if err == nil {
+			oldStatus = service.Status
+		}
+	}
+
 	// Update the service's current status
 	if err := h.serviceRepo.UpdateStatusWithResponseTime(updateCtx, serviceID, status, responseTime); err != nil {
 		return err
@@ -349,6 +362,22 @@ func (h *HealthCheckService) updateStatus(ctx context.Context, serviceID, status
 		if err := h.statusLogRepo.Create(updateCtx, statusLog); err != nil {
 			log.Printf("Failed to create status log for service %s: %v", serviceID, err)
 		}
+	}
+
+	// Send notification if status changed
+	if h.notificationService != nil && service != nil && oldStatus != status {
+		event := NotificationEvent{
+			ServiceID:   serviceID,
+			ServiceName: service.Name,
+			ServiceURL:  service.URL,
+			OldStatus:   oldStatus,
+			NewStatus:   status,
+			UserID:      service.UserID,
+			Timestamp:   time.Now(),
+			ErrorMsg:    errorMessage,
+		}
+		// Run notification asynchronously to avoid blocking health checks
+		go h.notificationService.NotifyStatusChange(context.Background(), event)
 	}
 
 	return nil

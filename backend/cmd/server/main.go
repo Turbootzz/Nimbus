@@ -45,6 +45,7 @@ func main() {
 	preferencesRepo := repository.NewPreferencesRepository(database)
 	statusLogRepo := repository.NewStatusLogRepository(database)
 	groupRepo := repository.NewGroupRepository(database)
+	webhookRepo := repository.NewWebhookRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -59,9 +60,12 @@ func main() {
 	}
 	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
 
+	// Initialize notification service
+	notificationService := services.NewNotificationService(webhookRepo)
+
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
-	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, healthCheckTimeout)
+	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, notificationService, healthCheckTimeout)
 
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
@@ -76,6 +80,7 @@ func main() {
 	uploadHandler := handlers.NewUploadHandler(userRepo)
 	staticHandler := handlers.NewStaticHandler()
 	groupHandler := handlers.NewGroupHandler(groupRepo)
+	webhookHandler := handlers.NewWebhookHandler(webhookRepo, notificationService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -146,6 +151,16 @@ func main() {
 	groups.Get("/:id", groupHandler.GetGroup)
 	groups.Put("/:id", groupHandler.UpdateGroup)
 	groups.Delete("/:id", groupHandler.DeleteGroup)
+
+	// Webhook routes (all protected)
+	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo))
+	webhooks.Post("/", webhookHandler.CreateWebhook)
+	webhooks.Get("/", webhookHandler.GetWebhooks)
+	webhooks.Get("/:id", webhookHandler.GetWebhook)
+	webhooks.Put("/:id", webhookHandler.UpdateWebhook)
+	webhooks.Delete("/:id", webhookHandler.DeleteWebhook)
+	webhooks.Post("/:id/test", webhookHandler.TestWebhook)
+	webhooks.Get("/:id/logs", webhookHandler.GetWebhookLogs)
 
 	// Static file serving (public, but files are only accessible if you know the filename)
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
