@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
 import GroupSelector from '@/components/GroupSelector'
+import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -315,38 +316,16 @@ export default function EditServicePage() {
           </div>
 
           {/* Monitoring Toggle */}
-          <div className="flex items-center justify-between">
-            <div className="flex-1">
-              <label
-                htmlFor="monitoring_enabled"
-                className="text-text-secondary text-sm font-medium"
-              >
-                Enable Monitoring
-              </label>
-              <p className="text-text-muted mt-1 text-xs">
-                When disabled, this service won&apos;t be health-checked and won&apos;t appear in
-                metrics or trigger webhooks
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={formData.monitoring_enabled}
-              onClick={() =>
-                setFormData((prev) => ({ ...prev, monitoring_enabled: !prev.monitoring_enabled }))
-              }
-              disabled={isSaving}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                formData.monitoring_enabled ? 'bg-primary' : 'bg-gray-400'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  formData.monitoring_enabled ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
-          </div>
+          <Toggle
+            id="monitoring_enabled"
+            enabled={formData.monitoring_enabled}
+            onChange={(enabled) =>
+              setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
+            }
+            label="Enable Monitoring"
+            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
+            disabled={isSaving}
+          />
 
           {/* Form Actions */}
           <div

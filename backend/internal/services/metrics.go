@@ -167,17 +167,12 @@ func (m *MetricsService) GetPrometheusMetricsByUser(ctx context.Context, userID 
 }
 
 // buildPrometheusMetrics converts service models to Prometheus metrics format
-// Only includes services where monitoring is enabled
+// Services are pre-filtered by GetAllForMonitoring/GetAllForMonitoringByUserID
 func (m *MetricsService) buildPrometheusMetrics(services []*models.Service) *PrometheusMetrics {
 	onlineServices := 0
 	serviceMetrics := make([]ServiceMetric, 0, len(services))
 
 	for _, service := range services {
-		// Skip services with monitoring disabled
-		if !service.MonitoringEnabled {
-			continue
-		}
-
 		isOnline := 0
 		if service.Status == models.StatusOnline {
 			isOnline = 1

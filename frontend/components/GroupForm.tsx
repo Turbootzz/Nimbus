@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Toggle } from '@/components/ui/Toggle'
 import type { Group, GroupCreateRequest, GroupUpdateRequest } from '@/types'
 
 interface GroupFormProps {
@@ -209,32 +210,15 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
           </div>
 
           {/* Monitoring Toggle */}
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex-1">
-              <label htmlFor="monitoring_enabled" className="text-text-primary text-sm font-medium">
-                Enable Monitoring
-              </label>
-              <p className="text-text-muted mt-0.5 text-xs">
-                When disabled, services in this group won&apos;t be health-checked and won&apos;t
-                appear in metrics
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={monitoringEnabled}
-              onClick={() => setMonitoringEnabled(!monitoringEnabled)}
+          <div className="mb-4">
+            <Toggle
+              id="monitoring_enabled"
+              enabled={monitoringEnabled}
+              onChange={setMonitoringEnabled}
+              label="Enable Monitoring"
+              description="When disabled, services in this group won't be health-checked and won't appear in metrics"
               disabled={isLoading}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
-                monitoringEnabled ? 'bg-primary' : 'bg-gray-400'
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  monitoringEnabled ? 'translate-x-5' : 'translate-x-0'
-                }`}
-              />
-            </button>
+            />
           </div>
 
           {/* Actions */}

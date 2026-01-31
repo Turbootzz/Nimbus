@@ -4,7 +4,7 @@ import { useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, TrashIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import ScrollArea from '@/components/ui/ScrollArea'
 
@@ -111,6 +111,14 @@ function SortableDroppableTab({
       >
         {group.name}
       </span>
+
+      {/* Monitoring disabled indicator */}
+      {!group.monitoring_enabled && (
+        <EyeSlashIcon
+          className="text-text-muted h-3.5 w-3.5 shrink-0"
+          title="Monitoring disabled for this group"
+        />
+      )}
 
       {/* Edit/delete buttons in edit mode */}
       {isEditMode && (
