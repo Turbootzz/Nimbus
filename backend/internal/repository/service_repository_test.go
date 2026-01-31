@@ -386,51 +386,69 @@ func TestServiceRepository_GetAll(t *testing.T) {
 }
 
 func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
-	db := setupTestDB(t)
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
 	defer db.Close()
+
+	// Create services table
+	servicesSchema := `
+		CREATE TABLE IF NOT EXISTS services (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			icon TEXT,
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
+			description TEXT,
+			status TEXT NOT NULL,
+			response_time INTEGER,
+			position INTEGER DEFAULT 0,
+			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
+	`
+	if _, err := db.Exec(servicesSchema); err != nil {
+		t.Fatalf("Failed to create services table: %v", err)
+	}
+
+	// Create groups table (needed for LEFT JOIN)
+	groupsSchema := `
+		CREATE TABLE IF NOT EXISTS groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
+	`
+	if _, err := db.Exec(groupsSchema); err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
 
 	repo := NewServiceRepository(db)
 	ctx := context.Background()
 
-	// Create test services - mix of monitored and non-monitored
-	services := []*models.Service{
-		{
-			ID:                "service-1",
-			UserID:            "user-1",
-			Name:              "Monitored Service 1",
-			URL:               "https://example1.com",
-			Icon:              "🔗",
-			Status:            models.StatusOnline,
-			MonitoringEnabled: true,
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
-		},
-		{
-			ID:                "service-2",
-			UserID:            "user-1",
-			Name:              "Non-Monitored Service",
-			URL:               "https://google.com",
-			Icon:              "🔗",
-			Status:            models.StatusUnknown,
-			MonitoringEnabled: false, // This service should NOT be returned
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
-		},
-		{
-			ID:                "service-3",
-			UserID:            "user-2",
-			Name:              "Monitored Service 2",
-			URL:               "https://example3.com",
-			Icon:              "🔗",
-			Status:            models.StatusOffline,
-			MonitoringEnabled: true,
-			CreatedAt:         time.Now(),
-			UpdatedAt:         time.Now(),
-		},
-	}
-
-	for _, s := range services {
-		createServiceDirectly(t, db, s)
+	now := time.Now()
+	// Insert test services directly
+	_, err = db.Exec(`
+		INSERT INTO services (id, user_id, name, url, icon, description, status, monitoring_enabled, created_at, updated_at)
+		VALUES
+			('service-1', 'user-1', 'Monitored Service 1', 'https://example1.com', '🔗', '', 'online', 1, ?, ?),
+			('service-2', 'user-1', 'Non-Monitored Service', 'https://google.com', '🔗', '', 'unknown', 0, ?, ?),
+			('service-3', 'user-2', 'Monitored Service 2', 'https://example3.com', '🔗', '', 'offline', 1, ?, ?)
+	`, now, now, now, now, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert services: %v", err)
 	}
 
 	// Test GetAllForMonitoring - should only return monitored services
@@ -459,6 +477,128 @@ func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
 		if s.ID == "service-2" {
 			t.Errorf("GetAllForMonitoring() should not return service with monitoring_enabled=false")
 		}
+	}
+}
+
+// TestServiceRepository_GetAllForMonitoring_GroupMonitoring tests that services
+// in groups with monitoring disabled are excluded from GetAllForMonitoring
+func TestServiceRepository_GetAllForMonitoring_GroupMonitoring(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+
+	// Create services table
+	servicesSchema := `
+		CREATE TABLE IF NOT EXISTS services (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			icon TEXT,
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
+			description TEXT,
+			status TEXT NOT NULL,
+			response_time INTEGER,
+			position INTEGER DEFAULT 0,
+			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
+	`
+	if _, err := db.Exec(servicesSchema); err != nil {
+		t.Fatalf("Failed to create services table: %v", err)
+	}
+
+	// Create groups table
+	groupsSchema := `
+		CREATE TABLE IF NOT EXISTS groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
+	`
+	if _, err := db.Exec(groupsSchema); err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
+
+	// Insert test groups
+	now := time.Now()
+	_, err = db.Exec(`
+		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
+		VALUES
+			('group-monitored', 'user-1', 'Monitored Group', '#ff0000', 0, 0, 1, ?, ?),
+			('group-not-monitored', 'user-1', 'Non-Monitored Group', '#00ff00', 1, 0, 0, ?, ?)
+	`, now, now, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert groups: %v", err)
+	}
+
+	// Insert test services
+	// Service 1: In monitored group, service monitoring enabled -> SHOULD BE INCLUDED
+	// Service 2: In non-monitored group, service monitoring enabled -> SHOULD BE EXCLUDED
+	// Service 3: No group, service monitoring enabled -> SHOULD BE INCLUDED
+	// Service 4: In monitored group, service monitoring disabled -> SHOULD BE EXCLUDED
+	_, err = db.Exec(`
+		INSERT INTO services (id, user_id, name, url, icon, description, status, group_id, monitoring_enabled, created_at, updated_at)
+		VALUES
+			('service-1', 'user-1', 'Service in monitored group', 'https://example1.com', '🔗', '', 'online', 'group-monitored', 1, ?, ?),
+			('service-2', 'user-1', 'Service in non-monitored group', 'https://example2.com', '🔗', '', 'online', 'group-not-monitored', 1, ?, ?),
+			('service-3', 'user-1', 'Service with no group', 'https://example3.com', '🔗', '', 'online', NULL, 1, ?, ?),
+			('service-4', 'user-1', 'Disabled service in monitored group', 'https://example4.com', '🔗', '', 'online', 'group-monitored', 0, ?, ?)
+	`, now, now, now, now, now, now, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert services: %v", err)
+	}
+
+	repo := NewServiceRepository(db)
+	ctx := context.Background()
+
+	// Get all services for monitoring
+	result, err := repo.GetAllForMonitoring(ctx)
+	if err != nil {
+		t.Fatalf("GetAllForMonitoring() error = %v", err)
+	}
+
+	// Should only return 2 services (service-1 and service-3)
+	if len(result) != 2 {
+		t.Errorf("GetAllForMonitoring() returned %d services, want 2", len(result))
+	}
+
+	// Collect returned service IDs
+	returnedIDs := make(map[string]bool)
+	for _, s := range result {
+		returnedIDs[s.ID] = true
+	}
+
+	// Verify service-1 (in monitored group) IS included
+	if !returnedIDs["service-1"] {
+		t.Error("GetAllForMonitoring() should include service-1 (in monitored group)")
+	}
+
+	// Verify service-2 (in non-monitored group) is NOT included
+	if returnedIDs["service-2"] {
+		t.Error("GetAllForMonitoring() should NOT include service-2 (in non-monitored group)")
+	}
+
+	// Verify service-3 (no group) IS included
+	if !returnedIDs["service-3"] {
+		t.Error("GetAllForMonitoring() should include service-3 (no group)")
+	}
+
+	// Verify service-4 (monitoring disabled) is NOT included
+	if returnedIDs["service-4"] {
+		t.Error("GetAllForMonitoring() should NOT include service-4 (monitoring disabled)")
 	}
 }
 

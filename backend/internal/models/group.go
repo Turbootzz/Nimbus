@@ -22,49 +22,54 @@ func IsValidHexColor(color string) bool {
 
 // Group represents a service group for organizing services
 type Group struct {
-	ID        string    `json:"id" db:"id"`
-	UserID    string    `json:"user_id" db:"user_id"`
-	Name      string    `json:"name" db:"name"`
-	Color     string    `json:"color" db:"color"`
-	Position  int       `json:"position" db:"position"`
-	IsDefault bool      `json:"is_default" db:"is_default"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	ID                string    `json:"id" db:"id"`
+	UserID            string    `json:"user_id" db:"user_id"`
+	Name              string    `json:"name" db:"name"`
+	Color             string    `json:"color" db:"color"`
+	Position          int       `json:"position" db:"position"`
+	IsDefault         bool      `json:"is_default" db:"is_default"`
+	MonitoringEnabled bool      `json:"monitoring_enabled" db:"monitoring_enabled"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // GroupCreateRequest represents the data needed to create a new group
 type GroupCreateRequest struct {
-	Name  string `json:"name" validate:"required,max=35"`
-	Color string `json:"color"` // Optional, defaults to DefaultGroupColor
+	Name              string `json:"name" validate:"required,max=35"`
+	Color             string `json:"color"`              // Optional, defaults to DefaultGroupColor
+	MonitoringEnabled *bool  `json:"monitoring_enabled"` // Optional, defaults to true
 }
 
 // GroupUpdateRequest represents the data needed to update a group
 type GroupUpdateRequest struct {
-	Name  string `json:"name" validate:"omitempty,max=35"`
-	Color string `json:"color"` // Optional, preserves existing if empty
+	Name              string `json:"name" validate:"omitempty,max=35"`
+	Color             string `json:"color"`              // Optional, preserves existing if empty
+	MonitoringEnabled *bool  `json:"monitoring_enabled"` // Optional, preserves existing if nil
 }
 
 // GroupResponse is the safe group data to return to clients
 type GroupResponse struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Color     string    `json:"color"`
-	Position  int       `json:"position"`
-	IsDefault bool      `json:"is_default"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID                string    `json:"id"`
+	Name              string    `json:"name"`
+	Color             string    `json:"color"`
+	Position          int       `json:"position"`
+	IsDefault         bool      `json:"is_default"`
+	MonitoringEnabled bool      `json:"monitoring_enabled"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
 }
 
 // ToResponse converts Group to GroupResponse
 func (g *Group) ToResponse() GroupResponse {
 	return GroupResponse{
-		ID:        g.ID,
-		Name:      g.Name,
-		Color:     g.Color,
-		Position:  g.Position,
-		IsDefault: g.IsDefault,
-		CreatedAt: g.CreatedAt,
-		UpdatedAt: g.UpdatedAt,
+		ID:                g.ID,
+		Name:              g.Name,
+		Color:             g.Color,
+		Position:          g.Position,
+		IsDefault:         g.IsDefault,
+		MonitoringEnabled: g.MonitoringEnabled,
+		CreatedAt:         g.CreatedAt,
+		UpdatedAt:         g.UpdatedAt,
 	}
 }
 

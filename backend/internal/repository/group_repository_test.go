@@ -26,6 +26,7 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 			color TEXT DEFAULT '#0ea5e9',
 			position INTEGER DEFAULT 0,
 			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -43,12 +44,16 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 // This bypasses the RETURNING and FOR UPDATE clause issues in SQLite
 func createGroupDirectly(t *testing.T, db *sql.DB, group *models.Group) {
 	query := `
-		INSERT INTO groups (id, user_id, name, color, position, is_default, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	isDefault := 0
 	if group.IsDefault {
 		isDefault = 1
+	}
+	monitoringEnabled := 1
+	if !group.MonitoringEnabled {
+		monitoringEnabled = 0
 	}
 
 	_, err := db.Exec(
@@ -59,6 +64,7 @@ func createGroupDirectly(t *testing.T, db *sql.DB, group *models.Group) {
 		group.Color,
 		group.Position,
 		isDefault,
+		monitoringEnabled,
 		group.CreatedAt,
 		group.UpdatedAt,
 	)
@@ -812,14 +818,15 @@ func TestIsValidHexColor(t *testing.T) {
 func TestGroup_ToResponse(t *testing.T) {
 	now := time.Now()
 	group := &models.Group{
-		ID:        "group-1",
-		UserID:    "user-1",
-		Name:      "Test Group",
-		Color:     "#ff0000",
-		Position:  5,
-		IsDefault: true,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:                "group-1",
+		UserID:            "user-1",
+		Name:              "Test Group",
+		Color:             "#ff0000",
+		Position:          5,
+		IsDefault:         true,
+		MonitoringEnabled: true,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	response := group.ToResponse()
@@ -839,10 +846,72 @@ func TestGroup_ToResponse(t *testing.T) {
 	if response.IsDefault != group.IsDefault {
 		t.Errorf("ToResponse() IsDefault = %v, want %v", response.IsDefault, group.IsDefault)
 	}
+	if response.MonitoringEnabled != group.MonitoringEnabled {
+		t.Errorf("ToResponse() MonitoringEnabled = %v, want %v", response.MonitoringEnabled, group.MonitoringEnabled)
+	}
 	if response.CreatedAt != group.CreatedAt {
 		t.Errorf("ToResponse() CreatedAt = %v, want %v", response.CreatedAt, group.CreatedAt)
 	}
 	if response.UpdatedAt != group.UpdatedAt {
 		t.Errorf("ToResponse() UpdatedAt = %v, want %v", response.UpdatedAt, group.UpdatedAt)
+	}
+}
+
+func TestGroupRepository_Update_MonitoringEnabled(t *testing.T) {
+	db := setupGroupTestDB(t)
+	defer db.Close()
+
+	repo := NewGroupRepository(db)
+	ctx := context.Background()
+
+	// Create test group with monitoring enabled
+	testGroup := &models.Group{
+		ID:                "group-1",
+		UserID:            "user-1",
+		Name:              "Test Group",
+		Color:             "#ff0000",
+		Position:          0,
+		IsDefault:         false,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	createGroupDirectly(t, db, testGroup)
+
+	// Update to disable monitoring
+	testGroup.MonitoringEnabled = false
+	testGroup.UpdatedAt = time.Now()
+
+	err := repo.Update(ctx, testGroup)
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	// Verify monitoring_enabled was updated
+	updated, err := repo.GetByID(ctx, "group-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve updated group: %v", err)
+	}
+	if updated.MonitoringEnabled != false {
+		t.Errorf("Update() MonitoringEnabled = %v, want %v", updated.MonitoringEnabled, false)
+	}
+
+	// Update to re-enable monitoring
+	testGroup.MonitoringEnabled = true
+	testGroup.UpdatedAt = time.Now()
+
+	err = repo.Update(ctx, testGroup)
+	if err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	// Verify monitoring_enabled was updated back
+	updated, err = repo.GetByID(ctx, "group-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve updated group: %v", err)
+	}
+	if updated.MonitoringEnabled != true {
+		t.Errorf("Update() MonitoringEnabled = %v, want %v", updated.MonitoringEnabled, true)
 	}
 }

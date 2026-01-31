@@ -13,6 +13,7 @@ type ServiceRepositoryInterface interface {
 	GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error)
 	GetAll(ctx context.Context) ([]*models.Service, error)
 	GetAllForMonitoring(ctx context.Context) ([]*models.Service, error)
+	GetAllForMonitoringByUserID(ctx context.Context, userID string) ([]*models.Service, error)
 	Update(ctx context.Context, service *models.Service) error
 	Delete(ctx context.Context, id, userID string) error
 	UpdateStatus(ctx context.Context, id, status string) error

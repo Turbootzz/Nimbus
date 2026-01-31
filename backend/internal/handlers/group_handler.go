@@ -58,14 +58,21 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 		})
 	}
 
+	// Default monitoring to enabled
+	monitoringEnabled := true
+	if req.MonitoringEnabled != nil {
+		monitoringEnabled = *req.MonitoringEnabled
+	}
+
 	now := time.Now()
 	group := &models.Group{
-		UserID:    userID,
-		Name:      req.Name,
-		Color:     color,
-		IsDefault: false,
-		CreatedAt: now,
-		UpdatedAt: now,
+		UserID:            userID,
+		Name:              req.Name,
+		Color:             color,
+		IsDefault:         false,
+		MonitoringEnabled: monitoringEnabled,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	if err := h.groupRepo.Create(c.Context(), group); err != nil {
@@ -200,6 +207,11 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 			})
 		}
 		existingGroup.Color = req.Color
+	}
+
+	// Update monitoring_enabled if provided
+	if req.MonitoringEnabled != nil {
+		existingGroup.MonitoringEnabled = *req.MonitoringEnabled
 	}
 
 	existingGroup.UpdatedAt = time.Now()

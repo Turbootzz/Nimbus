@@ -35,6 +35,7 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
   const [name, setName] = useState(group?.name || '')
   const [color, setColor] = useState(group?.color || '#6366f1')
   const [customColor, setCustomColor] = useState(() => getInitialCustomColor(group?.color))
+  const [monitoringEnabled, setMonitoringEnabled] = useState(group?.monitoring_enabled ?? true)
   const [error, setError] = useState<string | null>(null)
 
   const isEditMode = !!group
@@ -63,9 +64,17 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
 
     try {
       if (isEditMode) {
-        await onSubmit({ name: trimmedName, color } as GroupUpdateRequest)
+        await onSubmit({
+          name: trimmedName,
+          color,
+          monitoring_enabled: monitoringEnabled,
+        } as GroupUpdateRequest)
       } else {
-        await onSubmit({ name: trimmedName, color } as GroupCreateRequest)
+        await onSubmit({
+          name: trimmedName,
+          color,
+          monitoring_enabled: monitoringEnabled,
+        } as GroupCreateRequest)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save group')
@@ -197,6 +206,35 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
                 {name.trim() || 'Group Name'}
               </span>
             </div>
+          </div>
+
+          {/* Monitoring Toggle */}
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex-1">
+              <label htmlFor="monitoring_enabled" className="text-text-primary text-sm font-medium">
+                Enable Monitoring
+              </label>
+              <p className="text-text-muted mt-0.5 text-xs">
+                When disabled, services in this group won&apos;t be health-checked and won&apos;t
+                appear in metrics
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={monitoringEnabled}
+              onClick={() => setMonitoringEnabled(!monitoringEnabled)}
+              disabled={isLoading}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
+                monitoringEnabled ? 'bg-primary' : 'bg-gray-400'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                  monitoringEnabled ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
           </div>
 
           {/* Actions */}

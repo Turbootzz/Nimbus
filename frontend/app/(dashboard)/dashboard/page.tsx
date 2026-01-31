@@ -103,12 +103,30 @@ export default function DashboardPage() {
     return services.filter((s) => s.group_id === selectedGroupId)
   }, [services, selectedGroupId, enableServiceGrouping, groups])
 
+  // Create a map of group IDs to their monitoring status
+  const groupMonitoringMap = useMemo(() => {
+    const map = new Map<string, boolean>()
+    groups.forEach((g) => {
+      map.set(g.id, g.monitoring_enabled)
+    })
+    return map
+  }, [groups])
+
   // Calculate stats from filtered services using useMemo for efficiency
   // Only count monitored services for online/offline/response stats
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
-    // Filter to only monitored services for status-related stats
-    const monitoredServices = servicesToCount.filter((s) => s.monitoring_enabled)
+
+    // Filter to only monitored services (both service and group monitoring enabled)
+    const monitoredServices = servicesToCount.filter((s) => {
+      if (!s.monitoring_enabled) return false
+      if (s.group_id) {
+        const groupMonitoring = groupMonitoringMap.get(s.group_id)
+        if (groupMonitoring === false) return false
+      }
+      return true
+    })
+
     const online = monitoredServices.filter((s) => s.status === 'online').length
     const offline = monitoredServices.filter((s) => s.status === 'offline').length
     const responseTimes = monitoredServices
@@ -127,7 +145,7 @@ export default function DashboardPage() {
       offline,
       avgResponseTime,
     }
-  }, [services, filteredServices, enableServiceGrouping])
+  }, [services, filteredServices, enableServiceGrouping, groupMonitoringMap])
 
   // Memoize active service for drag overlay
   const activeService = useMemo(
@@ -481,7 +499,11 @@ export default function DashboardPage() {
     [enableServiceGrouping, selectedGroupId]
   )
 
-  const handleGroupFormSubmit = async (data: { name?: string; color?: string }) => {
+  const handleGroupFormSubmit = async (data: {
+    name?: string
+    color?: string
+    monitoring_enabled?: boolean
+  }) => {
     setGroupFormLoading(true)
     try {
       if (editingGroup) {

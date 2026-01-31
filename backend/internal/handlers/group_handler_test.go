@@ -32,6 +32,7 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 			color TEXT DEFAULT '#6366f1',
 			position INTEGER DEFAULT 0,
 			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -48,12 +49,16 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 // createGroupDirectly inserts a group for testing
 func createGroupDirectly(t *testing.T, db *sql.DB, group *models.Group) {
 	query := `
-		INSERT INTO groups (id, user_id, name, color, position, is_default, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	isDefault := 0
 	if group.IsDefault {
 		isDefault = 1
+	}
+	monitoringEnabled := 1
+	if !group.MonitoringEnabled {
+		monitoringEnabled = 0
 	}
 
 	_, err := db.Exec(
@@ -64,6 +69,7 @@ func createGroupDirectly(t *testing.T, db *sql.DB, group *models.Group) {
 		group.Color,
 		group.Position,
 		isDefault,
+		monitoringEnabled,
 		group.CreatedAt,
 		group.UpdatedAt,
 	)

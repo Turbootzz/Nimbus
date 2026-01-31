@@ -93,6 +93,7 @@ export interface Group {
   color: string
   position: number
   is_default: boolean
+  monitoring_enabled: boolean
   created_at: string
   updated_at?: string
 }
@@ -100,11 +101,13 @@ export interface Group {
 export interface GroupCreateRequest {
   name: string
   color?: string
+  monitoring_enabled?: boolean
 }
 
 export interface GroupUpdateRequest {
   name?: string
   color?: string
+  monitoring_enabled?: boolean
 }
 
 export interface GroupPosition {

@@ -209,15 +209,72 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 }
 
 // GetAllForMonitoring retrieves all services where monitoring is enabled (used by health check worker)
+// A service is included only if:
+// 1. The service has monitoring_enabled = TRUE
+// 2. AND either the service has no group (group_id IS NULL) OR its group has monitoring_enabled = TRUE
 func (r *ServiceRepository) GetAllForMonitoring(ctx context.Context) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at
-		FROM services
-		WHERE monitoring_enabled = TRUE
-		ORDER BY created_at DESC
+		SELECT s.id, s.user_id, s.name, s.url, s.icon, s.icon_type, s.icon_image_path, s.description, s.status, s.response_time, s.position, s.card_size, s.group_id, s.monitoring_enabled, s.created_at, s.updated_at
+		FROM services s
+		LEFT JOIN groups g ON s.group_id = g.id
+		WHERE s.monitoring_enabled = TRUE
+		  AND (s.group_id IS NULL OR g.monitoring_enabled = TRUE)
+		ORDER BY s.created_at DESC
 	`
 
 	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []*models.Service
+	for rows.Next() {
+		service := &models.Service{}
+		err := rows.Scan(
+			&service.ID,
+			&service.UserID,
+			&service.Name,
+			&service.URL,
+			&service.Icon,
+			&service.IconType,
+			&service.IconImagePath,
+			&service.Description,
+			&service.Status,
+			&service.ResponseTime,
+			&service.Position,
+			&service.CardSize,
+			&service.GroupID,
+			&service.MonitoringEnabled,
+			&service.CreatedAt,
+			&service.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
+
+// GetAllForMonitoringByUserID retrieves all services for a user where monitoring is enabled
+// A service is included only if:
+// 1. The service belongs to the specified user
+// 2. The service has monitoring_enabled = TRUE
+// 3. AND either the service has no group (group_id IS NULL) OR its group has monitoring_enabled = TRUE
+func (r *ServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
+	query := `
+		SELECT s.id, s.user_id, s.name, s.url, s.icon, s.icon_type, s.icon_image_path, s.description, s.status, s.response_time, s.position, s.card_size, s.group_id, s.monitoring_enabled, s.created_at, s.updated_at
+		FROM services s
+		LEFT JOIN groups g ON s.group_id = g.id
+		WHERE s.user_id = $1
+		  AND s.monitoring_enabled = TRUE
+		  AND (s.group_id IS NULL OR g.monitoring_enabled = TRUE)
+		ORDER BY s.position ASC, s.created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
 		return nil, err
 	}

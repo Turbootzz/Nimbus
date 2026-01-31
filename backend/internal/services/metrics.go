@@ -143,9 +143,10 @@ type ServiceMetric struct {
 }
 
 // GetPrometheusMetrics retrieves all service metrics in a Prometheus-compatible format (admin only)
+// Only includes services where both the service and its group (if any) have monitoring enabled
 func (m *MetricsService) GetPrometheusMetrics(ctx context.Context) (*PrometheusMetrics, error) {
-	// Get all services
-	services, err := m.serviceRepo.GetAll(ctx)
+	// Get all services with monitoring enabled (filters by service and group monitoring status)
+	services, err := m.serviceRepo.GetAllForMonitoring(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get services: %w", err)
 	}
@@ -154,9 +155,10 @@ func (m *MetricsService) GetPrometheusMetrics(ctx context.Context) (*PrometheusM
 }
 
 // GetPrometheusMetricsByUser retrieves service metrics for a specific user
+// Only includes services where both the service and its group (if any) have monitoring enabled
 func (m *MetricsService) GetPrometheusMetricsByUser(ctx context.Context, userID string) (*PrometheusMetrics, error) {
-	// Get services for specific user
-	services, err := m.serviceRepo.GetAllByUserID(ctx, userID)
+	// Get services for specific user with monitoring enabled (filters by service and group monitoring status)
+	services, err := m.serviceRepo.GetAllForMonitoringByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user services: %w", err)
 	}

@@ -43,6 +43,24 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
 
+	// Create groups table (needed for GetAllForMonitoring join)
+	_, err = db.Exec(`
+		CREATE TABLE groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
+
 	// Create service_status_logs table
 	_, err = db.Exec(`
 		CREATE TABLE service_status_logs (
@@ -335,6 +353,24 @@ func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
 		t.Fatalf("Failed to create test database: %v", err)
 	}
 	defer db.Close()
+
+	// Create groups table (needed for GetAllForMonitoring join)
+	_, err = db.Exec(`
+		CREATE TABLE groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
 
 	// Create services table
 	_, err = db.Exec(`

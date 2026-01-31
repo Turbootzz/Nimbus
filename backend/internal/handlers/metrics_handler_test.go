@@ -35,6 +35,18 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	}
 
 	schema := `
+		CREATE TABLE IF NOT EXISTS groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
+
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,

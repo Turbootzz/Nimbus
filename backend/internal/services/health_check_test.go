@@ -40,6 +40,10 @@ func (m *MockServiceRepository) GetAllForMonitoring(ctx context.Context) ([]*mod
 	return nil, nil
 }
 
+func (m *MockServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
+	return nil, nil
+}
+
 func (m *MockServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	return nil, nil
 }
