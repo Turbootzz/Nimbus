@@ -31,10 +31,18 @@ fi
 # Ensure PGDATA directory exists
 mkdir -p "$PGDATA"
 
-LEGACY_DIR="/var/lib/postgresql/18/docker"
+# Check for legacy data in two possible locations:
+# 1. /var/lib/postgresql/18/docker (outside volume - unlikely)
+# 2. $PGDATA/18/docker (inside volume - common scenario)
+LEGACY_DIR=""
+if [ -f "/var/lib/postgresql/18/docker/PG_VERSION" ]; then
+    LEGACY_DIR="/var/lib/postgresql/18/docker"
+elif [ -f "$PGDATA/18/docker/PG_VERSION" ]; then
+    LEGACY_DIR="$PGDATA/18/docker"
+fi
 
 # Auto-migrate data from legacy PostgreSQL 18 location if needed
-if [ -f "$LEGACY_DIR/PG_VERSION" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
+if [ -n "$LEGACY_DIR" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
     echo "Nimbus: Migrating PostgreSQL data from legacy location..."
     src_count=$(ls -1A "$LEGACY_DIR" | wc -l)
     initial_dest_count=$(ls -1A "$PGDATA" | wc -l)
@@ -61,7 +69,11 @@ if [ -f "$LEGACY_DIR/PG_VERSION" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
     fi
 
     # Safe to remove source now
-    rm -rf /var/lib/postgresql/18
+    if [ "$LEGACY_DIR" = "$PGDATA/18/docker" ]; then
+        rm -rf "$PGDATA/18"
+    else
+        rm -rf /var/lib/postgresql/18
+    fi
     chown -R postgres:postgres "$PGDATA"
     echo "Nimbus: Migration complete! Moved $src_count items."
 fi
