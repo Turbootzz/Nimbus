@@ -1,8 +1,9 @@
 #!/bin/sh
 set -e
 
-# Validate PGDATA is set - required for nimbus-postgres image
-if [ -z "$PGDATA" ]; then
+# Validate PGDATA is set to the correct path (not the postgres:18-alpine default)
+EXPECTED_PGDATA="/var/lib/postgresql/data"
+if [ "$PGDATA" != "$EXPECTED_PGDATA" ]; then
     echo ""
     echo "============================================================"
     echo "  Nimbus: docker-compose.yml update required!"
@@ -16,6 +17,9 @@ if [ -z "$PGDATA" ]; then
     echo "      environment:"
     echo "        PGDATA: /var/lib/postgresql/data   # <-- add this"
     echo "        ..."
+    echo ""
+    echo "  Current PGDATA: $PGDATA"
+    echo "  Expected PGDATA: $EXPECTED_PGDATA"
     echo ""
     echo "  Then run: docker-compose up -d"
     echo ""
