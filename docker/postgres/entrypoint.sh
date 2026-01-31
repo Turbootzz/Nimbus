@@ -33,6 +33,7 @@ LEGACY_DIR="/var/lib/postgresql/18/docker"
 if [ -f "$LEGACY_DIR/PG_VERSION" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
     echo "Nimbus: Migrating PostgreSQL data from legacy location..."
     src_count=$(ls -1A "$LEGACY_DIR" | wc -l)
+    initial_dest_count=$(ls -1A "$PGDATA" | wc -l)
 
     # Move regular files/dirs
     if ! mv "$LEGACY_DIR"/* "$PGDATA/"; then
@@ -47,10 +48,11 @@ if [ -f "$LEGACY_DIR/PG_VERSION" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
         fi
     done
 
-    # Verify migration succeeded
+    # Verify migration succeeded by checking delta
     dest_count=$(ls -1A "$PGDATA" | wc -l)
-    if [ "$dest_count" -lt "$src_count" ]; then
-        echo "Nimbus: ERROR - Migration verification failed (expected $src_count, got $dest_count)"
+    moved_count=$((dest_count - initial_dest_count))
+    if [ "$moved_count" -lt "$src_count" ]; then
+        echo "Nimbus: ERROR - Migration verification failed (expected $src_count items, moved $moved_count)"
         exit 1
     fi
 
