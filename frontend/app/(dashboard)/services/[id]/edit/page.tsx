@@ -55,7 +55,7 @@ export default function EditServicePage() {
           icon_image_path: service.icon_image_path || '',
           description: service.description || '',
           group_id: service.group_id || '',
-          monitoring_enabled: service.monitoring_enabled,
+          monitoring_enabled: service.monitoring_enabled ?? true,
         })
       }
 
