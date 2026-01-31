@@ -55,7 +55,8 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     netcat-openbsd \
-    wget
+    wget \
+    postgresql-client
 
 # Create required directories
 RUN mkdir -p /app/backend /app/frontend /app/backend/uploads/service-icons /app/backend/uploads/avatars \
