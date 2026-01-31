@@ -48,6 +48,7 @@ export interface Service {
   position: number
   card_size: CardSize
   group_id?: string
+  monitoring_enabled: boolean
   created_at: string
   updated_at?: string
 }
@@ -61,6 +62,7 @@ export interface ServiceCreateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  monitoring_enabled?: boolean
 }
 
 export interface ServiceUpdateRequest {
@@ -72,6 +74,7 @@ export interface ServiceUpdateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string | null
+  monitoring_enabled?: boolean
 }
 
 export interface ServicePosition {

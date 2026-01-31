@@ -34,6 +34,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			position INTEGER DEFAULT 0,
 			card_size TEXT DEFAULT '2x1',
 			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -50,8 +51,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 // This bypasses the RETURNING clause issue in SQLite
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	// Use default values for new fields if not set
 	iconType := service.IconType
@@ -65,6 +66,11 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	cardSize := service.CardSize
 	if cardSize == "" {
 		cardSize = models.DefaultCardSize
+	}
+	// Default monitoring_enabled to true
+	monitoringEnabled := 1
+	if !service.MonitoringEnabled {
+		monitoringEnabled = 0
 	}
 
 	_, err := db.Exec(
@@ -82,6 +88,7 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Position,
 		cardSize,
 		service.GroupID,
+		monitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)
@@ -317,34 +324,37 @@ func TestServiceRepository_GetAll(t *testing.T) {
 	// Create test services for different users
 	services := []*models.Service{
 		{
-			ID:        "service-1",
-			UserID:    "user-1",
-			Name:      "Service 1",
-			URL:       "https://example1.com",
-			Icon:      "🔗",
-			Status:    models.StatusOnline,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ID:                "service-1",
+			UserID:            "user-1",
+			Name:              "Service 1",
+			URL:               "https://example1.com",
+			Icon:              "🔗",
+			Status:            models.StatusOnline,
+			MonitoringEnabled: true,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		},
 		{
-			ID:        "service-2",
-			UserID:    "user-2",
-			Name:      "Service 2",
-			URL:       "https://example2.com",
-			Icon:      "🔗",
-			Status:    models.StatusOffline,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ID:                "service-2",
+			UserID:            "user-2",
+			Name:              "Service 2",
+			URL:               "https://example2.com",
+			Icon:              "🔗",
+			Status:            models.StatusOffline,
+			MonitoringEnabled: true,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		},
 		{
-			ID:        "service-3",
-			UserID:    "user-3",
-			Name:      "Service 3",
-			URL:       "https://example3.com",
-			Icon:      "🔗",
-			Status:    models.StatusUnknown,
-			CreatedAt: time.Now(),
-			UpdatedAt: time.Now(),
+			ID:                "service-3",
+			UserID:            "user-3",
+			Name:              "Service 3",
+			URL:               "https://example3.com",
+			Icon:              "🔗",
+			Status:            models.StatusUnknown,
+			MonitoringEnabled: true,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
 		},
 	}
 
@@ -371,6 +381,83 @@ func TestServiceRepository_GetAll(t *testing.T) {
 	for _, expected := range services {
 		if !serviceIDs[expected.ID] {
 			t.Errorf("GetAll() missing service with ID %v", expected.ID)
+		}
+	}
+}
+
+func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	repo := NewServiceRepository(db)
+	ctx := context.Background()
+
+	// Create test services - mix of monitored and non-monitored
+	services := []*models.Service{
+		{
+			ID:                "service-1",
+			UserID:            "user-1",
+			Name:              "Monitored Service 1",
+			URL:               "https://example1.com",
+			Icon:              "🔗",
+			Status:            models.StatusOnline,
+			MonitoringEnabled: true,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		},
+		{
+			ID:                "service-2",
+			UserID:            "user-1",
+			Name:              "Non-Monitored Service",
+			URL:               "https://google.com",
+			Icon:              "🔗",
+			Status:            models.StatusUnknown,
+			MonitoringEnabled: false, // This service should NOT be returned
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		},
+		{
+			ID:                "service-3",
+			UserID:            "user-2",
+			Name:              "Monitored Service 2",
+			URL:               "https://example3.com",
+			Icon:              "🔗",
+			Status:            models.StatusOffline,
+			MonitoringEnabled: true,
+			CreatedAt:         time.Now(),
+			UpdatedAt:         time.Now(),
+		},
+	}
+
+	for _, s := range services {
+		createServiceDirectly(t, db, s)
+	}
+
+	// Test GetAllForMonitoring - should only return monitored services
+	result, err := repo.GetAllForMonitoring(ctx)
+	if err != nil {
+		t.Fatalf("GetAllForMonitoring() error = %v", err)
+	}
+
+	// Should only return 2 services (the ones with monitoring enabled)
+	if len(result) != 2 {
+		t.Errorf("GetAllForMonitoring() returned %d services, want 2", len(result))
+	}
+
+	// Verify only monitored services are returned
+	for _, s := range result {
+		if !s.MonitoringEnabled {
+			t.Errorf("GetAllForMonitoring() returned non-monitored service: %s", s.Name)
+		}
+		if s.ID == "service-2" {
+			t.Error("GetAllForMonitoring() returned service-2 which has monitoring disabled")
+		}
+	}
+
+	// Verify service-2 (non-monitored) is NOT in the result
+	for _, s := range result {
+		if s.ID == "service-2" {
+			t.Errorf("GetAllForMonitoring() should not return service with monitoring_enabled=false")
 		}
 	}
 }

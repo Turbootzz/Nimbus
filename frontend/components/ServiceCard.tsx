@@ -194,9 +194,11 @@ function CompactCard({
       </div>
       {/* Title with inline status indicator */}
       <div className="flex w-full items-center justify-center gap-1.5">
-        <div
-          className={`${statusDotSize} shrink-0 rounded-full ${getStatusBgColor(service.status)}`}
-        />
+        {service.monitoring_enabled && (
+          <div
+            className={`${statusDotSize} shrink-0 rounded-full ${getStatusBgColor(service.status)}`}
+          />
+        )}
         <h3 className={`text-text-primary ${titleSize} truncate font-semibold`}>{service.name}</h3>
       </div>
     </>
@@ -253,10 +255,14 @@ function StandardCard({
       )}
       <div className={`${marginBottom} flex items-start justify-between`}>
         <ServiceIcon service={service} size={iconSize} />
-        <div className={`flex items-center ${getStatusColor(service.status)}`}>
-          {getStatusIcon(service.status)}
-          <span className="ml-1 text-sm capitalize">{service.status}</span>
-        </div>
+        {service.monitoring_enabled ? (
+          <div className={`flex items-center ${getStatusColor(service.status)}`}>
+            {getStatusIcon(service.status)}
+            <span className="ml-1 text-sm capitalize">{service.status}</span>
+          </div>
+        ) : (
+          <span className="text-text-muted text-xs">Not monitored</span>
+        )}
       </div>
 
       <h3 className={`text-text-primary mb-1 truncate ${titleSize} font-semibold`}>
@@ -266,16 +272,18 @@ function StandardCard({
         <p className={`text-text-secondary line-clamp-1 ${descSize}`}>{service.description}</p>
       )}
 
-      <div
-        className={`mt-auto flex items-center py-1 text-xs ${service.status === 'online' && service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
-      >
-        <ClockIcon className="mr-1 h-3 w-3" />
-        {service.status === 'online' &&
-        service.response_time !== undefined &&
-        service.response_time !== null
-          ? `${service.response_time}ms`
-          : '-'}
-      </div>
+      {service.monitoring_enabled && (
+        <div
+          className={`mt-auto flex items-center py-1 text-xs ${service.status === 'online' && service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
+        >
+          <ClockIcon className="mr-1 h-3 w-3" />
+          {service.status === 'online' &&
+          service.response_time !== undefined &&
+          service.response_time !== null
+            ? `${service.response_time}ms`
+            : '-'}
+        </div>
+      )}
     </>
   )
 
@@ -336,10 +344,14 @@ function LargeCard({
       )}
       {/* Status in top right */}
       <div className={`${marginBottom} flex justify-end`}>
-        <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
-          {getStatusIcon(service.status)}
-          <span className="ml-1 capitalize">{service.status}</span>
-        </div>
+        {service.monitoring_enabled ? (
+          <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
+            {getStatusIcon(service.status)}
+            <span className="ml-1 capitalize">{service.status}</span>
+          </div>
+        ) : (
+          <span className="text-text-muted text-xs">Not monitored</span>
+        )}
       </div>
 
       {/* Centered icon and title */}
@@ -358,7 +370,8 @@ function LargeCard({
       {/* Footer with URL and response time */}
       <div className={`${marginTop} space-y-2`}>
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
-        {service.status === 'online' &&
+        {service.monitoring_enabled &&
+          service.status === 'online' &&
           service.response_time !== undefined &&
           service.response_time !== null && (
             <div

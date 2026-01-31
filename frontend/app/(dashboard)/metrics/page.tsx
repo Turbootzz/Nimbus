@@ -24,7 +24,9 @@ export default function MetricsPage() {
         }
 
         if (response.data) {
-          setServices(response.data)
+          // Filter to only include services with monitoring enabled
+          const monitoredServices = response.data.filter((s) => s.monitoring_enabled)
+          setServices(monitoredServices)
         }
       } catch (err) {
         console.error('Error fetching services:', err)

@@ -49,6 +49,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			position INTEGER DEFAULT 0,
 			card_size TEXT DEFAULT '2x1',
 			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -73,8 +74,8 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 // createTestService inserts a test service
 func createTestService(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	iconType := service.IconType
 	if iconType == "" {
@@ -83,6 +84,11 @@ func createTestService(t *testing.T, db *sql.DB, service *models.Service) {
 	cardSize := service.CardSize
 	if cardSize == "" {
 		cardSize = models.DefaultCardSize
+	}
+	// Default monitoring_enabled to true
+	monitoringEnabled := 1
+	if !service.MonitoringEnabled {
+		monitoringEnabled = 0
 	}
 	_, err := db.Exec(
 		query,
@@ -99,6 +105,7 @@ func createTestService(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Position,
 		cardSize,
 		service.GroupID,
+		monitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)
@@ -124,41 +131,44 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 	// Create test services for user-1
 	responseTime := 100
 	createTestService(t, db, &models.Service{
-		ID:           "service-1",
-		UserID:       "user-1",
-		Name:         "Test Service 1",
-		URL:          "https://example1.com",
-		Icon:         "🔗",
-		Status:       models.StatusOnline,
-		ResponseTime: &responseTime,
-		Position:     0,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		ID:                "service-1",
+		UserID:            "user-1",
+		Name:              "Test Service 1",
+		URL:               "https://example1.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		ResponseTime:      &responseTime,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	createTestService(t, db, &models.Service{
-		ID:        "service-2",
-		UserID:    "user-1",
-		Name:      "Test Service 2",
-		URL:       "https://example2.com",
-		Icon:      "🔗",
-		Status:    models.StatusOffline,
-		Position:  1,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-2",
+		UserID:            "user-1",
+		Name:              "Test Service 2",
+		URL:               "https://example2.com",
+		Icon:              "🔗",
+		Status:            models.StatusOffline,
+		Position:          1,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	// Create test service for user-2 (should not appear in user-1's metrics)
 	createTestService(t, db, &models.Service{
-		ID:        "service-3",
-		UserID:    "user-2",
-		Name:      "User 2 Service",
-		URL:       "https://example3.com",
-		Icon:      "🔗",
-		Status:    models.StatusOnline,
-		Position:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-3",
+		UserID:            "user-2",
+		Name:              "User 2 Service",
+		URL:               "https://example3.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	app := fiber.New()
@@ -282,15 +292,16 @@ func TestGetUserPrometheusMetrics_WithXAPIKeyHeader(t *testing.T) {
 
 	// Create test service
 	createTestService(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
-		Name:      "Test Service",
-		URL:       "https://example.com",
-		Icon:      "🔗",
-		Status:    models.StatusOnline,
-		Position:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-1",
+		UserID:            "user-1",
+		Name:              "Test Service",
+		URL:               "https://example.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	app := fiber.New()
@@ -335,27 +346,29 @@ func TestGetUserPrometheusMetrics_WithJWTAuthentication(t *testing.T) {
 
 	// Create test services
 	createTestService(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
-		Name:      "User 1 Service",
-		URL:       "https://example1.com",
-		Icon:      "🔗",
-		Status:    models.StatusOnline,
-		Position:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-1",
+		UserID:            "user-1",
+		Name:              "User 1 Service",
+		URL:               "https://example1.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	createTestService(t, db, &models.Service{
-		ID:        "service-2",
-		UserID:    "user-2",
-		Name:      "User 2 Service",
-		URL:       "https://example2.com",
-		Icon:      "🔗",
-		Status:    models.StatusOnline,
-		Position:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-2",
+		UserID:            "user-2",
+		Name:              "User 2 Service",
+		URL:               "https://example2.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	app := fiber.New()
@@ -428,15 +441,16 @@ func TestGetUserPrometheusMetrics_AdminAccess(t *testing.T) {
 
 	// Create test service for user-2
 	createTestService(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-2",
-		Name:      "User 2 Service",
-		URL:       "https://example.com",
-		Icon:      "🔗",
-		Status:    models.StatusOnline,
-		Position:  0,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:                "service-1",
+		UserID:            "user-2",
+		Name:              "User 2 Service",
+		URL:               "https://example.com",
+		Icon:              "🔗",
+		Status:            models.StatusOnline,
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	})
 
 	app := fiber.New()

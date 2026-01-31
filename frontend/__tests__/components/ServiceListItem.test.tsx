@@ -45,6 +45,7 @@ describe('ServiceListItem', () => {
     created_at: new Date().toISOString(),
     description: 'A test service description',
     response_time: 45,
+    monitoring_enabled: true,
     ...overrides,
   })
 

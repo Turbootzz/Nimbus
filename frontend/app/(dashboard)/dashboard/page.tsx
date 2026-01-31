@@ -104,11 +104,14 @@ export default function DashboardPage() {
   }, [services, selectedGroupId, enableServiceGrouping, groups])
 
   // Calculate stats from filtered services using useMemo for efficiency
+  // Only count monitored services for online/offline/response stats
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
-    const online = servicesToCount.filter((s) => s.status === 'online').length
-    const offline = servicesToCount.filter((s) => s.status === 'offline').length
-    const responseTimes = servicesToCount
+    // Filter to only monitored services for status-related stats
+    const monitoredServices = servicesToCount.filter((s) => s.monitoring_enabled)
+    const online = monitoredServices.filter((s) => s.status === 'online').length
+    const offline = monitoredServices.filter((s) => s.status === 'offline').length
+    const responseTimes = monitoredServices
       .filter(
         (s) => s.status === 'online' && s.response_time !== undefined && s.response_time !== null
       )

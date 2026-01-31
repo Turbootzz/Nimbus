@@ -54,8 +54,8 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 	}
 
 	query := `
-		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, monitoring_enabled, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING id
 	`
 
@@ -73,6 +73,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.Position,
 		service.CardSize,
 		service.GroupID,
+		service.MonitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
 	).Scan(&service.ID)
@@ -87,7 +88,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	service := &models.Service{}
 	query := `
-		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at
 		FROM services
 		WHERE id = $1
 	`
@@ -106,6 +107,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 		&service.Position,
 		&service.CardSize,
 		&service.GroupID,
+		&service.MonitoringEnabled,
 		&service.CreatedAt,
 		&service.UpdatedAt,
 	)
@@ -120,7 +122,7 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 // GetAllByUserID retrieves all services for a specific user
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at
 		FROM services
 		WHERE user_id = $1
 		ORDER BY position ASC, created_at DESC
@@ -149,6 +151,7 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 			&service.Position,
 			&service.CardSize,
 			&service.GroupID,
+			&service.MonitoringEnabled,
 			&service.CreatedAt,
 			&service.UpdatedAt,
 		)
@@ -161,10 +164,10 @@ func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) (
 	return services, rows.Err()
 }
 
-// GetAll retrieves all services across all users (used by health check monitor)
+// GetAll retrieves all services across all users
 func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, error) {
 	query := `
-		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at
 		FROM services
 		ORDER BY created_at DESC
 	`
@@ -192,6 +195,52 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 			&service.Position,
 			&service.CardSize,
 			&service.GroupID,
+			&service.MonitoringEnabled,
+			&service.CreatedAt,
+			&service.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		services = append(services, service)
+	}
+
+	return services, rows.Err()
+}
+
+// GetAllForMonitoring retrieves all services where monitoring is enabled (used by health check worker)
+func (r *ServiceRepository) GetAllForMonitoring(ctx context.Context) ([]*models.Service, error) {
+	query := `
+		SELECT id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at
+		FROM services
+		WHERE monitoring_enabled = TRUE
+		ORDER BY created_at DESC
+	`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var services []*models.Service
+	for rows.Next() {
+		service := &models.Service{}
+		err := rows.Scan(
+			&service.ID,
+			&service.UserID,
+			&service.Name,
+			&service.URL,
+			&service.Icon,
+			&service.IconType,
+			&service.IconImagePath,
+			&service.Description,
+			&service.Status,
+			&service.ResponseTime,
+			&service.Position,
+			&service.CardSize,
+			&service.GroupID,
+			&service.MonitoringEnabled,
 			&service.CreatedAt,
 			&service.UpdatedAt,
 		)
@@ -208,8 +257,8 @@ func (r *ServiceRepository) GetAll(ctx context.Context) ([]*models.Service, erro
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
 	query := `
 		UPDATE services
-		SET name = $1, url = $2, icon = $3, icon_type = $4, icon_image_path = $5, description = $6, card_size = $7, group_id = $8, updated_at = $9
-		WHERE id = $10 AND user_id = $11
+		SET name = $1, url = $2, icon = $3, icon_type = $4, icon_image_path = $5, description = $6, card_size = $7, group_id = $8, monitoring_enabled = $9, updated_at = $10
+		WHERE id = $11 AND user_id = $12
 	`
 
 	result, err := r.db.ExecContext(
@@ -223,6 +272,7 @@ func (r *ServiceRepository) Update(ctx context.Context, service *models.Service)
 		service.Description,
 		service.CardSize,
 		service.GroupID,
+		service.MonitoringEnabled,
 		service.UpdatedAt,
 		service.ID,
 		service.UserID,
