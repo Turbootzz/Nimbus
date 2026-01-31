@@ -81,13 +81,14 @@ Or create it manually:
 ```yaml
 services:
   db:
-    image: postgres:18-alpine
+    image: turboot/nimbus-postgres:18
     container_name: nimbus-db
     restart: unless-stopped
     environment:
       POSTGRES_DB: nimbus
       POSTGRES_USER: nimbus
       POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
+      PGDATA: /var/lib/postgresql/data
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
