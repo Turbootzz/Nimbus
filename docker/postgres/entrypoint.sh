@@ -35,14 +35,16 @@ if [ -f "$LEGACY_DIR/PG_VERSION" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
     src_count=$(ls -1A "$LEGACY_DIR" | wc -l)
 
     # Move regular files/dirs
-    if ! mv "$LEGACY_DIR"/* "$PGDATA/" 2>&1; then
+    if ! mv "$LEGACY_DIR"/* "$PGDATA/"; then
         echo "Nimbus: ERROR - Failed to move files from $LEGACY_DIR"
         exit 1
     fi
 
     # Move hidden files (may not exist, so check first)
     for f in "$LEGACY_DIR"/.[!.]*; do
-        [ -e "$f" ] && mv "$f" "$PGDATA/"
+        if [ -e "$f" ]; then
+            mv "$f" "$PGDATA/" || { echo "Nimbus: ERROR - Failed to move $f"; exit 1; }
+        fi
     done
 
     # Verify migration succeeded
