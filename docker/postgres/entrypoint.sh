@@ -1,9 +1,26 @@
 #!/bin/sh
 set -e
 
-# Validate PGDATA is set
+# Validate PGDATA is set - required for nimbus-postgres image
 if [ -z "$PGDATA" ]; then
-    echo "Nimbus: ERROR - PGDATA is not set"
+    echo ""
+    echo "============================================================"
+    echo "  Nimbus: docker-compose.yml update required!"
+    echo "============================================================"
+    echo ""
+    echo "  Your docker-compose.yml is outdated. Please add PGDATA"
+    echo "  to your db service environment:"
+    echo ""
+    echo "    db:"
+    echo "      image: turboot/nimbus-postgres:18"
+    echo "      environment:"
+    echo "        PGDATA: /var/lib/postgresql/data   # <-- add this"
+    echo "        ..."
+    echo ""
+    echo "  Then run: docker-compose up -d"
+    echo ""
+    echo "============================================================"
+    echo ""
     exit 1
 fi
 
