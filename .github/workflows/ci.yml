@@ -220,6 +220,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Custom PostgreSQL image with auto-migration
+      - name: Extract metadata for postgres
+        id: meta-postgres
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/nimbus-postgres
+          tags: |
+            type=raw,value=18
+            type=raw,value=latest
+
+      - name: Build and push postgres image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./docker/postgres
+          file: ./docker/postgres/Dockerfile
+          push: true
+          tags: ${{ steps.meta-postgres.outputs.tags }}
+          labels: ${{ steps.meta-postgres.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
       # Unified all-in-one image (recommended for most users)
       - name: Extract metadata for unified image
         id: meta-unified
