@@ -22,10 +22,14 @@ FROM alpine:3.21
 WORKDIR /app
 
 # Install runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata wget
+RUN apk --no-cache add ca-certificates tzdata wget netcat-openbsd postgresql-client
 
 # Copy binary from builder
 COPY --from=builder /build/server .
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Copy migration files
 COPY --from=builder /build/internal/db/migrations ./internal/db/migrations
@@ -46,4 +50,4 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:8080/api/v1/health || exit 1
 
-CMD ["./server"]
+ENTRYPOINT ["/entrypoint.sh"]
