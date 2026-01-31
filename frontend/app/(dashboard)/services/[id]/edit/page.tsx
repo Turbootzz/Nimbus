@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
 import GroupSelector from '@/components/GroupSelector'
+import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -31,6 +32,7 @@ export default function EditServicePage() {
     icon_image_path: '',
     description: '',
     group_id: '' as string,
+    monitoring_enabled: true,
   })
 
   // Fetch service data
@@ -53,6 +55,7 @@ export default function EditServicePage() {
           icon_image_path: service.icon_image_path || '',
           description: service.description || '',
           group_id: service.group_id || '',
+          monitoring_enabled: service.monitoring_enabled ?? true,
         })
       }
 
@@ -140,6 +143,7 @@ export default function EditServicePage() {
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
         group_id: enableServiceGrouping ? formData.group_id || null : undefined,
+        monitoring_enabled: formData.monitoring_enabled,
       })
 
       if (response.error) {
@@ -310,6 +314,18 @@ export default function EditServicePage() {
               disabled={isSaving}
             />
           </div>
+
+          {/* Monitoring Toggle */}
+          <Toggle
+            id="monitoring_enabled"
+            enabled={formData.monitoring_enabled}
+            onChange={(enabled) =>
+              setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
+            }
+            label="Enable Monitoring"
+            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
+            disabled={isSaving}
+          />
 
           {/* Form Actions */}
           <div

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ChartBarIcon, ServerIcon } from '@heroicons/react/24/outline'
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid'
-import { Service } from '@/types'
+import { Service, Group } from '@/types'
 import { api } from '@/lib/api'
 import CombinedMetricsChart from '@/components/graphs/CombinedMetricsChart'
 import ServiceIcon from '@/components/ServiceIcon'
@@ -15,26 +15,53 @@ export default function MetricsPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    const fetchServices = async () => {
+    const fetchData = async () => {
       try {
-        const response = await api.getServices()
+        const [servicesResponse, groupsResponse] = await Promise.all([
+          api.getServices(),
+          api.getGroups(),
+        ])
 
-        if (response.error) {
-          throw new Error(response.error.message || 'Failed to fetch services')
+        if (servicesResponse.error) {
+          throw new Error(servicesResponse.error.message || 'Failed to fetch services')
         }
 
-        if (response.data) {
-          setServices(response.data)
+        if (servicesResponse.data) {
+          const allServices = servicesResponse.data
+          const groups = groupsResponse.data || []
+
+          // Create a map of group IDs to their monitoring status
+          const groupMonitoringMap = new Map<string, boolean>()
+          groups.forEach((g: Group) => {
+            groupMonitoringMap.set(g.id, g.monitoring_enabled)
+          })
+
+          // Filter services: must have monitoring enabled AND group (if any) must have monitoring enabled
+          const monitoredServices = allServices.filter((s) => {
+            // Service must have monitoring enabled
+            if (!s.monitoring_enabled) return false
+
+            // If service has a group, check group's monitoring status
+            if (s.group_id) {
+              const groupMonitoring = groupMonitoringMap.get(s.group_id)
+              // If group exists and has monitoring disabled, exclude service
+              if (groupMonitoring === false) return false
+            }
+
+            return true
+          })
+
+          setServices(monitoredServices)
         }
       } catch (err) {
-        console.error('Error fetching services:', err)
+        console.error('Error fetching data:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch services')
       } finally {
         setLoading(false)
       }
     }
 
-    fetchServices()
+    fetchData()
   }, [])
 
   if (loading) {

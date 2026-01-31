@@ -7,6 +7,7 @@ import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import IconSelector from '@/components/IconSelector'
 import GroupSelector from '@/components/GroupSelector'
+import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 
@@ -29,6 +30,7 @@ function NewServiceContent() {
     icon_image_path: '',
     description: '',
     group_id: '' as string,
+    monitoring_enabled: true,
   })
 
   // Fetch groups when grouping is enabled
@@ -118,6 +120,7 @@ function NewServiceContent() {
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
         group_id: enableServiceGrouping && formData.group_id ? formData.group_id : undefined,
+        monitoring_enabled: formData.monitoring_enabled,
       })
 
       if (response.error) {
@@ -279,6 +282,18 @@ function NewServiceContent() {
               disabled={isLoading}
             />
           </div>
+
+          {/* Monitoring Toggle */}
+          <Toggle
+            id="monitoring_enabled"
+            enabled={formData.monitoring_enabled}
+            onChange={(enabled) =>
+              setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
+            }
+            label="Enable Monitoring"
+            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
+            disabled={isLoading}
+          />
 
           {/* Form Actions */}
           <div

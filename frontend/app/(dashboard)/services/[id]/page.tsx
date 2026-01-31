@@ -127,7 +127,7 @@ export default function ServiceDetailPage() {
   }, [fetchService])
 
   useEffect(() => {
-    if (service) {
+    if (service && service.monitoring_enabled) {
       fetchMetrics()
     }
   }, [fetchMetrics, service])
@@ -200,14 +200,16 @@ export default function ServiceDetailPage() {
           </div>
 
           <div className="flex shrink-0 gap-2 sm:self-start">
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="text-text-secondary hover:text-text-primary p-2 disabled:opacity-50"
-              title="Refresh"
-            >
-              <ArrowPathIcon className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
+            {service.monitoring_enabled && (
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="text-text-secondary hover:text-text-primary p-2 disabled:opacity-50"
+                title="Refresh"
+              >
+                <ArrowPathIcon className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              </button>
+            )}
             <Link
               href={`/services/${serviceId}/edit`}
               className="text-text-secondary hover:text-text-primary p-2"
@@ -229,26 +231,39 @@ export default function ServiceDetailPage() {
       {/* Current Status */}
       <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
         <h2 className="text-text-primary mb-4 text-lg font-semibold">Current Status</h2>
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
-          <div className="flex items-center gap-2">
-            {getStatusIcon(service.status)}
-            <span className="text-text-primary text-base font-medium capitalize sm:text-lg">
-              {service.status}
-            </span>
-          </div>
-          {service.status === 'online' && service.response_time !== undefined && (
-            <div className="flex flex-wrap items-baseline gap-1">
-              <span className="text-text-secondary text-sm">Response Time: </span>
-              <span className={`font-semibold ${getResponseTimeColor(service.response_time)}`}>
-                {service.response_time}ms
+        {service.monitoring_enabled ? (
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <div className="flex items-center gap-2">
+              {getStatusIcon(service.status)}
+              <span className="text-text-primary text-base font-medium capitalize sm:text-lg">
+                {service.status}
               </span>
             </div>
-          )}
-        </div>
+            {service.status === 'online' && service.response_time !== undefined && (
+              <div className="flex flex-wrap items-baseline gap-1">
+                <span className="text-text-secondary text-sm">Response Time: </span>
+                <span className={`font-semibold ${getResponseTimeColor(service.response_time)}`}>
+                  {service.response_time}ms
+                </span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-text-secondary">
+            <p>Monitoring is disabled for this service.</p>
+            <p className="mt-1 text-sm">
+              Enable monitoring in{' '}
+              <Link href={`/services/${serviceId}/edit`} className="text-primary hover:underline">
+                service settings
+              </Link>{' '}
+              to see health status and metrics.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Metrics Summary */}
-      {metrics && !metricsLoading && (
+      {service.monitoring_enabled && metrics && !metricsLoading && (
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricsCard
             label="Uptime"
@@ -279,39 +294,41 @@ export default function ServiceDetailPage() {
         </div>
       )}
 
-      {/* Chart */}
-      <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
-        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-text-primary text-lg font-semibold">Uptime & Performance</h2>
-          <div className="flex flex-wrap gap-2">
-            {timeRangeOptions.map((option) => (
-              <button
-                key={option.value}
-                onClick={() => setTimeRange(option.value)}
-                className={`shrink-0 rounded px-2.5 py-1 text-xs sm:px-3 sm:text-sm ${
-                  timeRange === option.value
-                    ? 'bg-primary text-white'
-                    : 'bg-background text-text-primary hover:bg-card-border'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
+      {/* Chart - Only show when monitoring is enabled */}
+      {service.monitoring_enabled && (
+        <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-text-primary text-lg font-semibold">Uptime & Performance</h2>
+            <div className="flex flex-wrap gap-2">
+              {timeRangeOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => setTimeRange(option.value)}
+                  className={`shrink-0 rounded px-2.5 py-1 text-xs sm:px-3 sm:text-sm ${
+                    timeRange === option.value
+                      ? 'bg-primary text-white'
+                      : 'bg-background text-text-primary hover:bg-card-border'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {metricsLoading ? (
-          <div className="flex h-80 items-center justify-center">
-            <div className="text-text-secondary">Loading metrics...</div>
-          </div>
-        ) : metrics && metrics.data_points.length > 0 ? (
-          <UptimeChart metrics={metrics} showResponseTime={true} />
-        ) : (
-          <div className="flex h-80 items-center justify-center">
-            <div className="text-text-secondary">No metrics data available</div>
-          </div>
-        )}
-      </div>
+          {metricsLoading ? (
+            <div className="flex h-80 items-center justify-center">
+              <div className="text-text-secondary">Loading metrics...</div>
+            </div>
+          ) : metrics && metrics.data_points.length > 0 ? (
+            <UptimeChart metrics={metrics} showResponseTime={true} />
+          ) : (
+            <div className="flex h-80 items-center justify-center">
+              <div className="text-text-secondary">No metrics data available</div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

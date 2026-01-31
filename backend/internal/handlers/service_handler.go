@@ -119,20 +119,27 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// Default monitoring to enabled
+	monitoringEnabled := true
+	if req.MonitoringEnabled != nil {
+		monitoringEnabled = *req.MonitoringEnabled
+	}
+
 	// Create service
 	service := &models.Service{
-		UserID:        userID,
-		Name:          req.Name,
-		URL:           req.URL,
-		Icon:          icon,
-		IconType:      iconType,
-		IconImagePath: iconImagePath,
-		Description:   req.Description,
-		Status:        models.StatusUnknown, // Initial status
-		CardSize:      cardSize,
-		GroupID:       req.GroupID,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		UserID:            userID,
+		Name:              req.Name,
+		URL:               req.URL,
+		Icon:              icon,
+		IconType:          iconType,
+		IconImagePath:     iconImagePath,
+		Description:       req.Description,
+		Status:            models.StatusUnknown, // Initial status
+		CardSize:          cardSize,
+		GroupID:           req.GroupID,
+		MonitoringEnabled: monitoringEnabled,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
 	}
 
 	if err := h.serviceRepo.Create(c.Context(), service); err != nil {
@@ -357,6 +364,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	existingService.Description = req.Description
 	existingService.CardSize = cardSize
 	existingService.GroupID = req.GroupID
+	// Update monitoring_enabled if provided
+	if req.MonitoringEnabled != nil {
+		existingService.MonitoringEnabled = *req.MonitoringEnabled
+	}
 	existingService.UpdatedAt = time.Now()
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {
@@ -464,6 +475,13 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 	if service.UserID != userID {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
+		})
+	}
+
+	// Verify service has monitoring enabled
+	if !service.MonitoringEnabled {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Health check not available for services with monitoring disabled",
 		})
 	}
 

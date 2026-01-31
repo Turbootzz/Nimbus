@@ -39,6 +39,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			position INTEGER DEFAULT 0,
 			card_size TEXT DEFAULT '2x1',
 			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -54,8 +55,8 @@ func setupTestDB(t *testing.T) *sql.DB {
 // createServiceDirectly inserts a service for testing
 func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	query := `
-		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, response_time, position, card_size, group_id, monitoring_enabled, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	iconType := service.IconType
 	if iconType == "" {
@@ -64,6 +65,11 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 	cardSize := service.CardSize
 	if cardSize == "" {
 		cardSize = models.DefaultCardSize
+	}
+	// Default monitoring_enabled to true
+	monitoringEnabled := 1
+	if !service.MonitoringEnabled {
+		monitoringEnabled = 0
 	}
 	_, err := db.Exec(
 		query,
@@ -80,6 +86,7 @@ func createServiceDirectly(t *testing.T, db *sql.DB, service *models.Service) {
 		service.Position,
 		cardSize,
 		service.GroupID,
+		monitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
 	)

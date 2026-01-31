@@ -36,6 +36,14 @@ func (m *MockServiceRepository) GetAll(ctx context.Context) ([]*models.Service, 
 	return nil, nil
 }
 
+func (m *MockServiceRepository) GetAllForMonitoring(ctx context.Context) ([]*models.Service, error) {
+	return nil, nil
+}
+
+func (m *MockServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
+	return nil, nil
+}
+
 func (m *MockServiceRepository) GetByID(ctx context.Context, id string) (*models.Service, error) {
 	return nil, nil
 }
@@ -84,9 +92,10 @@ func TestHealthCheckService_CheckService_Online(t *testing.T) {
 
 	// Create test service
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  testServer.URL,
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               testServer.URL,
+		MonitoringEnabled: true,
 	}
 
 	// Perform check
@@ -134,9 +143,10 @@ func TestHealthCheckService_CheckService_Offline(t *testing.T) {
 	}
 
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  testServer.URL,
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               testServer.URL,
+		MonitoringEnabled: true,
 	}
 
 	ctx := context.Background()
@@ -165,9 +175,10 @@ func TestHealthCheckService_CheckService_InvalidURL(t *testing.T) {
 	}
 
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  "not-a-valid-url",
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               "not-a-valid-url",
+		MonitoringEnabled: true,
 	}
 
 	ctx := context.Background()
@@ -206,9 +217,10 @@ func TestHealthCheckService_CheckService_Timeout(t *testing.T) {
 	}
 
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  testServer.URL,
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               testServer.URL,
+		MonitoringEnabled: true,
 	}
 
 	ctx := context.Background()
@@ -246,9 +258,10 @@ func TestHealthCheckService_CheckService_Redirect(t *testing.T) {
 	}
 
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  testServer.URL,
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               testServer.URL,
+		MonitoringEnabled: true,
 	}
 
 	ctx := context.Background()
@@ -281,9 +294,10 @@ func TestHealthCheckService_CheckService_ContextCancellation(t *testing.T) {
 	}
 
 	service := &models.Service{
-		ID:   "test-service-id",
-		Name: "Test Service",
-		URL:  testServer.URL,
+		ID:                "test-service-id",
+		Name:              "Test Service",
+		URL:               testServer.URL,
+		MonitoringEnabled: true,
 	}
 
 	// Create a context that gets cancelled immediately
@@ -621,5 +635,51 @@ func TestCleanupDNSCache_NoneExpired(t *testing.T) {
 
 	if remaining != 5 {
 		t.Errorf("Expected 5 remaining entries, got %d", remaining)
+	}
+}
+
+// TestHealthCheckService_CheckService_MonitoringDisabled tests that services
+// with monitoring disabled are skipped (no HTTP request, no status update)
+func TestHealthCheckService_CheckService_MonitoringDisabled(t *testing.T) {
+	// Create a test HTTP server - it should NOT be called
+	serverCalled := false
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		serverCalled = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer testServer.Close()
+
+	mockRepo := &MockServiceRepository{}
+	healthService := &HealthCheckService{
+		serviceRepo: mockRepo,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+	}
+
+	// Service with monitoring DISABLED
+	service := &models.Service{
+		ID:                "non-monitored-service",
+		Name:              "External Bookmark",
+		URL:               testServer.URL,
+		MonitoringEnabled: false, // Monitoring is disabled
+	}
+
+	ctx := context.Background()
+	err := healthService.CheckService(ctx, service)
+
+	// Should return nil (no error) but NOT perform any check
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// The HTTP server should NOT have been called
+	if serverCalled {
+		t.Error("Expected HTTP server to NOT be called for non-monitored service")
+	}
+
+	// The repository update should NOT have been called
+	if mockRepo.updateStatusWithResponseTimeCalled {
+		t.Error("Expected UpdateStatusWithResponseTime to NOT be called for non-monitored service")
 	}
 }

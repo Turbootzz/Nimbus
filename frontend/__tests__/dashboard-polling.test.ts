@@ -32,6 +32,7 @@ const createTestService = (
   icon_type: 'emoji',
   card_size: '2x1',
   created_at: new Date().toISOString(),
+  monitoring_enabled: true,
   ...overrides,
 })
 

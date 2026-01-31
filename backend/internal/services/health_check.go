@@ -252,6 +252,11 @@ func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, st
 
 // CheckService performs a health check on a single service
 func (h *HealthCheckService) CheckService(ctx context.Context, service *models.Service) error {
+	// Skip services with monitoring disabled
+	if !service.MonitoringEnabled {
+		return nil
+	}
+
 	start := time.Now()
 
 	// Create request with context for cancellation
@@ -300,6 +305,11 @@ func (h *HealthCheckService) CheckAllServices(ctx context.Context, userID string
 
 	// Check each service sequentially
 	for _, service := range services {
+		// Skip services with monitoring disabled
+		if !service.MonitoringEnabled {
+			continue
+		}
+
 		// Check if context was cancelled
 		select {
 		case <-ctx.Done():

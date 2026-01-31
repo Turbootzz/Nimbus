@@ -102,9 +102,9 @@ func (h *HealthMonitor) checkAllServices() {
 	fmt.Printf("Health check cycle completed in %v (checked %d services)\n", duration, len(services))
 }
 
-// getAllServices retrieves all services from all users
+// getAllServices retrieves all services with monitoring enabled
 func (h *HealthMonitor) getAllServices(ctx context.Context) ([]*models.Service, error) {
-	return h.serviceRepo.GetAll(ctx)
+	return h.serviceRepo.GetAllForMonitoring(ctx)
 }
 
 // checkServicesConcurrently checks multiple services concurrently with a worker pool

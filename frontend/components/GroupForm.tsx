@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Toggle } from '@/components/ui/Toggle'
 import type { Group, GroupCreateRequest, GroupUpdateRequest } from '@/types'
 
 interface GroupFormProps {
@@ -35,6 +36,7 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
   const [name, setName] = useState(group?.name || '')
   const [color, setColor] = useState(group?.color || '#6366f1')
   const [customColor, setCustomColor] = useState(() => getInitialCustomColor(group?.color))
+  const [monitoringEnabled, setMonitoringEnabled] = useState(group?.monitoring_enabled ?? true)
   const [error, setError] = useState<string | null>(null)
 
   const isEditMode = !!group
@@ -63,9 +65,17 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
 
     try {
       if (isEditMode) {
-        await onSubmit({ name: trimmedName, color } as GroupUpdateRequest)
+        await onSubmit({
+          name: trimmedName,
+          color,
+          monitoring_enabled: monitoringEnabled,
+        } as GroupUpdateRequest)
       } else {
-        await onSubmit({ name: trimmedName, color } as GroupCreateRequest)
+        await onSubmit({
+          name: trimmedName,
+          color,
+          monitoring_enabled: monitoringEnabled,
+        } as GroupCreateRequest)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save group')
@@ -197,6 +207,18 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
                 {name.trim() || 'Group Name'}
               </span>
             </div>
+          </div>
+
+          {/* Monitoring Toggle */}
+          <div className="mb-4">
+            <Toggle
+              id="monitoring_enabled"
+              enabled={monitoringEnabled}
+              onChange={setMonitoringEnabled}
+              label="Enable Monitoring"
+              description="When disabled, services in this group won't be health-checked and won't appear in metrics"
+              disabled={isLoading}
+            />
           </div>
 
           {/* Actions */}

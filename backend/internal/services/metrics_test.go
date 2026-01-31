@@ -34,12 +34,31 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			position INTEGER,
 			card_size TEXT DEFAULT '2x1',
 			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)
 	`)
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
+	}
+
+	// Create groups table (needed for GetAllForMonitoring join)
+	_, err = db.Exec(`
+		CREATE TABLE groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
 	}
 
 	// Create service_status_logs table
@@ -324,6 +343,281 @@ func TestFormatPrometheusMetrics(t *testing.T) {
 func TestMetricsService_GetServiceMetrics_NoData(t *testing.T) {
 	// NOTE: Skipped for same reason as TestMetricsService_GetServiceMetrics
 	t.Skip("Skipping due to PostgreSQL-specific SQL in GetAggregatedByInterval - tested in integration tests with real PostgreSQL")
+}
+
+// TestMetricsService_GetPrometheusMetrics_FilterNonMonitored tests that services
+// with monitoring disabled are NOT included in Prometheus metrics output
+func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer db.Close()
+
+	// Create groups table (needed for GetAllForMonitoring join)
+	_, err = db.Exec(`
+		CREATE TABLE groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
+
+	// Create services table
+	_, err = db.Exec(`
+		CREATE TABLE services (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			icon TEXT DEFAULT '🔗',
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
+			description TEXT,
+			status TEXT DEFAULT 'unknown',
+			response_time INTEGER,
+			position INTEGER,
+			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create services table: %v", err)
+	}
+
+	// Create service_status_logs table
+	_, err = db.Exec(`
+		CREATE TABLE service_status_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			service_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			response_time INTEGER,
+			error_message TEXT,
+			checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create service_status_logs table: %v", err)
+	}
+
+	// Insert test services - mix of monitored and non-monitored
+	_, err = db.Exec(`
+		INSERT INTO services (id, user_id, name, url, description, status, response_time, monitoring_enabled, position)
+		VALUES
+			('monitored-1', 'user-1', 'Monitored Service', 'http://example.com', 'Test', 'online', 100, 1, 0),
+			('non-monitored', 'user-1', 'External Bookmark', 'http://google.com', 'Bookmark', 'unknown', NULL, 0, 1),
+			('monitored-2', 'user-1', 'Another Monitored', 'http://example2.com', 'Test 2', 'offline', 200, 1, 2)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert test services: %v", err)
+	}
+
+	statusLogRepo := repository.NewStatusLogRepository(db)
+	serviceRepo := repository.NewServiceRepository(db)
+	metricsService := NewMetricsService(statusLogRepo, serviceRepo)
+
+	ctx := context.Background()
+
+	// Get Prometheus metrics
+	metrics, err := metricsService.GetPrometheusMetrics(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get Prometheus metrics: %v", err)
+	}
+
+	// Should only include 2 services (monitoring enabled)
+	if metrics.TotalServices != 2 {
+		t.Errorf("Expected 2 total services (monitored only), got %d", metrics.TotalServices)
+	}
+
+	// Only 1 online (monitored-1)
+	if metrics.OnlineServices != 1 {
+		t.Errorf("Expected 1 online service, got %d", metrics.OnlineServices)
+	}
+
+	// ServiceMetrics should only contain monitored services
+	if len(metrics.ServiceMetrics) != 2 {
+		t.Errorf("Expected 2 service metrics, got %d", len(metrics.ServiceMetrics))
+	}
+
+	// Verify non-monitored service is NOT in the metrics
+	for _, metric := range metrics.ServiceMetrics {
+		if metric.ServiceID == "non-monitored" {
+			t.Error("Non-monitored service should NOT appear in Prometheus metrics")
+		}
+	}
+
+	// Verify monitored services are present
+	foundMonitored1 := false
+	foundMonitored2 := false
+	for _, metric := range metrics.ServiceMetrics {
+		if metric.ServiceID == "monitored-1" {
+			foundMonitored1 = true
+		}
+		if metric.ServiceID == "monitored-2" {
+			foundMonitored2 = true
+		}
+	}
+
+	if !foundMonitored1 {
+		t.Error("Expected monitored-1 to be in metrics")
+	}
+	if !foundMonitored2 {
+		t.Error("Expected monitored-2 to be in metrics")
+	}
+}
+
+// TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring tests that services
+// in groups with monitoring disabled are NOT included in Prometheus metrics,
+// even if the service itself has monitoring enabled
+func TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to create test database: %v", err)
+	}
+	defer db.Close()
+
+	// Create groups table
+	_, err = db.Exec(`
+		CREATE TABLE groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#0ea5e9',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create groups table: %v", err)
+	}
+
+	// Create services table
+	_, err = db.Exec(`
+		CREATE TABLE services (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			icon TEXT DEFAULT '🔗',
+			icon_type TEXT DEFAULT 'emoji',
+			icon_image_path TEXT DEFAULT '',
+			description TEXT,
+			status TEXT DEFAULT 'unknown',
+			response_time INTEGER,
+			position INTEGER,
+			card_size TEXT DEFAULT '2x1',
+			group_id TEXT,
+			monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create services table: %v", err)
+	}
+
+	// Create service_status_logs table
+	_, err = db.Exec(`
+		CREATE TABLE service_status_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			service_id TEXT NOT NULL,
+			status TEXT NOT NULL,
+			response_time INTEGER,
+			error_message TEXT,
+			checked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE CASCADE
+		)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create service_status_logs table: %v", err)
+	}
+
+	// Insert groups - one with monitoring enabled, one disabled
+	now := time.Now()
+	_, err = db.Exec(`
+		INSERT INTO groups (id, user_id, name, color, monitoring_enabled, created_at, updated_at)
+		VALUES
+			('group-monitored', 'user-1', 'Monitored Group', '#00ff00', 1, ?, ?),
+			('group-not-monitored', 'user-1', 'Non-Monitored Group', '#ff0000', 0, ?, ?)
+	`, now, now, now, now)
+	if err != nil {
+		t.Fatalf("Failed to insert groups: %v", err)
+	}
+
+	// Insert services:
+	// - service-1: in monitored group, monitoring enabled -> INCLUDED
+	// - service-2: in NON-monitored group, monitoring enabled -> EXCLUDED (group disables it)
+	// - service-3: no group, monitoring enabled -> INCLUDED
+	_, err = db.Exec(`
+		INSERT INTO services (id, user_id, name, url, description, status, response_time, group_id, monitoring_enabled, position)
+		VALUES
+			('service-1', 'user-1', 'In Monitored Group', 'http://example1.com', 'Test 1', 'online', 100, 'group-monitored', 1, 0),
+			('service-2', 'user-1', 'In Non-Monitored Group', 'http://example2.com', 'Test 2', 'online', 150, 'group-not-monitored', 1, 1),
+			('service-3', 'user-1', 'No Group Service', 'http://example3.com', 'Test 3', 'online', 200, NULL, 1, 2)
+	`)
+	if err != nil {
+		t.Fatalf("Failed to insert services: %v", err)
+	}
+
+	statusLogRepo := repository.NewStatusLogRepository(db)
+	serviceRepo := repository.NewServiceRepository(db)
+	metricsService := NewMetricsService(statusLogRepo, serviceRepo)
+
+	ctx := context.Background()
+
+	// Get Prometheus metrics
+	metrics, err := metricsService.GetPrometheusMetrics(ctx)
+	if err != nil {
+		t.Fatalf("Failed to get Prometheus metrics: %v", err)
+	}
+
+	// Should only include 2 services (service-1 and service-3)
+	// service-2 should be excluded because its group has monitoring disabled
+	if metrics.TotalServices != 2 {
+		t.Errorf("Expected 2 total services, got %d", metrics.TotalServices)
+	}
+
+	// All 2 should be online
+	if metrics.OnlineServices != 2 {
+		t.Errorf("Expected 2 online services, got %d", metrics.OnlineServices)
+	}
+
+	// Collect returned service IDs
+	returnedIDs := make(map[string]bool)
+	for _, m := range metrics.ServiceMetrics {
+		returnedIDs[m.ServiceID] = true
+	}
+
+	// service-1 (in monitored group) should be included
+	if !returnedIDs["service-1"] {
+		t.Error("Expected service-1 (in monitored group) to be in metrics")
+	}
+
+	// service-2 (in non-monitored group) should be EXCLUDED
+	if returnedIDs["service-2"] {
+		t.Error("Expected service-2 (in non-monitored group) to NOT be in metrics")
+	}
+
+	// service-3 (no group) should be included
+	if !returnedIDs["service-3"] {
+		t.Error("Expected service-3 (no group) to be in metrics")
+	}
 }
 
 // Helper function to check if string contains substring
