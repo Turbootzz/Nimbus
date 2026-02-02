@@ -54,6 +54,20 @@ func (h *SettingsHandler) GetSetting(c *fiber.Ctx) error {
 	return c.JSON(setting)
 }
 
+// GetPublicRegistrationStatus returns whether public registration is enabled (public endpoint)
+func (h *SettingsHandler) GetPublicRegistrationStatus(c *fiber.Ctx) error {
+	enabled, err := h.settingsRepo.IsPublicRegistrationEnabled(c.Context())
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to check registration status",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"enabled": enabled,
+	})
+}
+
 // UpdateSetting updates a setting value (admin only)
 func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	key := c.Params("key")

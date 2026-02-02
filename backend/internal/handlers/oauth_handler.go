@@ -19,6 +19,7 @@ type OAuthHandler struct {
 	oauthService *services.OAuthService
 	authService  *services.AuthService
 	userRepo     *repository.UserRepository
+	settingsRepo *repository.SettingsRepository
 	cookieConfig utils.CookieConfig
 }
 
@@ -26,11 +27,13 @@ func NewOAuthHandler(
 	oauthService *services.OAuthService,
 	authService *services.AuthService,
 	userRepo *repository.UserRepository,
+	settingsRepo *repository.SettingsRepository,
 ) *OAuthHandler {
 	return &OAuthHandler{
 		oauthService: oauthService,
 		authService:  authService,
 		userRepo:     userRepo,
+		settingsRepo: settingsRepo,
 		cookieConfig: utils.GetCookieConfig(),
 	}
 }
@@ -141,7 +144,17 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 		return h.loginUser(c, existingUser, rememberMe)
 	}
 
-	// User doesn't exist - create new account
+	// User doesn't exist - check if registration is enabled before creating account
+	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(c.Context())
+	if err != nil {
+		log.Printf("Failed to check registration setting: %v", err)
+		return h.redirectWithError(c, "Failed to check registration status")
+	}
+	if !isEnabled {
+		return h.redirectWithError(c, "Public registration is disabled")
+	}
+
+	// Create new account
 	newUser := &models.User{
 		Email:         userInfo.Email,
 		Name:          userInfo.Name,

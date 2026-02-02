@@ -25,6 +25,7 @@ import type {
   WebhookLog,
   WebhookTestResult,
   SetupStatusResponse,
+  RegistrationStatusResponse,
   SystemSetting,
   SystemSettingsResponse,
   UpdateSettingRequest,
@@ -516,6 +517,10 @@ class ApiClient {
 
   async getSetupStatus(): Promise<ApiResponse<SetupStatusResponse>> {
     return this.request<SetupStatusResponse>('/setup/status')
+  }
+
+  async getRegistrationStatus(): Promise<ApiResponse<RegistrationStatusResponse>> {
+    return this.request<RegistrationStatusResponse>('/setup/registration-status')
   }
 
   async createInitialAdmin(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {

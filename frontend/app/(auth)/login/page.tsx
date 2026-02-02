@@ -20,25 +20,32 @@ function LoginForm() {
   const [error, setError] = useState('')
   const [oauthProviders, setOAuthProviders] = useState<OAuthProvider[]>([])
   const [checkingSetup, setCheckingSetup] = useState(true)
+  const [registrationEnabled, setRegistrationEnabled] = useState(true)
   const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
   const linkHover = useHoverStyle(hoverStyles.primaryLink)
 
-  // Check if setup is needed on mount
+  // Check if setup is needed and registration status on mount
   useEffect(() => {
-    const checkSetup = async () => {
+    const checkSetupAndRegistration = async () => {
       try {
-        const response = await api.getSetupStatus()
-        if (response.data?.needs_setup) {
+        // Check setup status first
+        const setupResponse = await api.getSetupStatus()
+        if (setupResponse.data?.needs_setup) {
           router.push('/setup')
           return
         }
+
+        // Check registration status
+        const regResponse = await api.getRegistrationStatus()
+        if (regResponse.data) {
+          setRegistrationEnabled(regResponse.data.enabled)
+        }
       } catch (err) {
-        // If check fails, continue to login page
-        console.error('Failed to check setup status:', err)
+        console.error('Failed to check status:', err)
       }
       setCheckingSetup(false)
     }
-    checkSetup()
+    checkSetupAndRegistration()
   }, [router])
 
   // Check for OAuth error in query params
@@ -288,17 +295,19 @@ function LoginForm() {
         </>
       )}
 
-      <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        Don&apos;t have an account?{' '}
-        <Link
-          href="/register"
-          className="font-medium transition"
-          style={{ color: 'var(--color-primary)' }}
-          {...linkHover}
-        >
-          Sign up
-        </Link>
-      </div>
+      {registrationEnabled && (
+        <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          Don&apos;t have an account?{' '}
+          <Link
+            href="/register"
+            className="font-medium transition"
+            style={{ color: 'var(--color-primary)' }}
+            {...linkHover}
+          >
+            Sign up
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getApiUrl } from '@/lib/utils/api-url'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
+import { api } from '@/lib/api'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -13,8 +14,27 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [checkingStatus, setCheckingStatus] = useState(true)
+  const [registrationEnabled, setRegistrationEnabled] = useState(true)
   const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
   const linkHover = useHoverStyle(hoverStyles.primaryLink)
+
+  // Check if registration is enabled on mount
+  useEffect(() => {
+    const checkRegistrationStatus = async () => {
+      try {
+        const response = await api.getRegistrationStatus()
+        if (response.data) {
+          setRegistrationEnabled(response.data.enabled)
+        }
+      } catch (err) {
+        console.error('Failed to check registration status:', err)
+      } finally {
+        setCheckingStatus(false)
+      }
+    }
+    checkRegistrationStatus()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -65,6 +85,7 @@ export default function RegisterPage() {
         // Check for registration disabled (403)
         if (response.status === 403) {
           setError('Public registration is currently disabled. Please contact an administrator.')
+          setRegistrationEnabled(false)
           return
         }
         setError(data.error || 'Registration failed')
@@ -82,6 +103,61 @@ export default function RegisterPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading spinner while checking status
+  if (checkingStatus) {
+    return (
+      <div
+        className="rounded-2xl p-8 text-center shadow-xl"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-card-border)',
+        }}
+      >
+        <div
+          className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
+          style={{ color: 'var(--color-primary)' }}
+        />
+      </div>
+    )
+  }
+
+  // Show message when registration is disabled
+  if (!registrationEnabled) {
+    return (
+      <div
+        className="rounded-2xl p-8 shadow-xl"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-card-border)',
+        }}
+      >
+        <div className="mb-6 text-center">
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+            Registration Disabled
+          </h2>
+          <p className="mt-4" style={{ color: 'var(--color-text-secondary)' }}>
+            Public registration is currently disabled for this Nimbus instance.
+          </p>
+          <p className="mt-2" style={{ color: 'var(--color-text-muted)' }}>
+            Please contact an administrator if you need an account.
+          </p>
+        </div>
+
+        <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          Already have an account?{' '}
+          <Link
+            href="/login"
+            className="font-medium transition"
+            style={{ color: 'var(--color-primary)' }}
+            {...linkHover}
+          >
+            Sign in
+          </Link>
+        </div>
+      </div>
+    )
   }
 
   return (

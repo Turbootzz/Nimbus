@@ -309,6 +309,10 @@ export interface SetupStatusResponse {
   needs_setup: boolean
 }
 
+export interface RegistrationStatusResponse {
+  enabled: boolean
+}
+
 // System settings types
 export interface SystemSetting {
   key: string

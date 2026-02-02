@@ -73,7 +73,7 @@ func main() {
 
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
@@ -196,6 +196,7 @@ func main() {
 	setup := v1.Group("/setup")
 	setup.Get("/status", setupHandler.GetSetupStatus)
 	setup.Post("/admin", setupHandler.CreateInitialAdmin)
+	setup.Get("/registration-status", settingsHandler.GetPublicRegistrationStatus)
 
 	// Admin routes (protected, admin only)
 	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo), middleware.AdminOnly())
