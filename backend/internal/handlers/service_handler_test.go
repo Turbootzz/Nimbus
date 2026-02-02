@@ -100,7 +100,7 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	// Create test services
 	services := []*models.Service{
@@ -277,7 +277,7 @@ func TestServiceHandler_ReorderServices_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	app := fiber.New()
 
@@ -309,7 +309,7 @@ func TestServiceHandler_ReorderServices_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	app := fiber.New()
 
@@ -336,7 +336,7 @@ func TestServiceHandler_CreateService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -404,7 +404,7 @@ func TestServiceHandler_GetServices(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	// Create test services for user-1
 	createServiceDirectly(t, db, &models.Service{
@@ -451,7 +451,7 @@ func TestServiceHandler_DeleteService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	createServiceDirectly(t, db, &models.Service{
 		ID:        "service-1",
@@ -510,7 +510,7 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	// Create test service
 	createServiceDirectly(t, db, &models.Service{
@@ -658,7 +658,7 @@ func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	app := fiber.New()
 	app.Put("/services/:id", handler.UpdateService)

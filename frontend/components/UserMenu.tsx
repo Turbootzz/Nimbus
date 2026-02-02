@@ -110,9 +110,6 @@ export default function UserMenu() {
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             {user?.name || 'User'}
           </div>
-          <div className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            {user?.email || ''}
-          </div>
         </div>
         <ChevronDownIcon
           className="hidden h-4 w-4 sm:block"

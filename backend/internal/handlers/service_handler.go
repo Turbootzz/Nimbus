@@ -19,12 +19,14 @@ import (
 
 type ServiceHandler struct {
 	serviceRepo        *repository.ServiceRepository
+	groupRepo          *repository.GroupRepository
 	healthCheckService *services.HealthCheckService
 }
 
-func NewServiceHandler(serviceRepo *repository.ServiceRepository, healthCheckService *services.HealthCheckService) *ServiceHandler {
+func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService) *ServiceHandler {
 	return &ServiceHandler{
 		serviceRepo:        serviceRepo,
+		groupRepo:          groupRepo,
 		healthCheckService: healthCheckService,
 	}
 }
@@ -123,6 +125,26 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	monitoringEnabled := true
 	if req.MonitoringEnabled != nil {
 		monitoringEnabled = *req.MonitoringEnabled
+	}
+
+	// Validate group_id belongs to user if provided
+	if req.GroupID != nil && *req.GroupID != "" {
+		group, err := h.groupRepo.GetByID(c.Context(), *req.GroupID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid group_id: group not found",
+				})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to validate group",
+			})
+		}
+		if group.UserID != userID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Access denied: group belongs to another user",
+			})
+		}
 	}
 
 	// Create service
@@ -271,6 +293,26 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
+	}
+
+	// Validate group_id belongs to user if provided
+	if req.GroupID != nil && *req.GroupID != "" {
+		group, err := h.groupRepo.GetByID(c.Context(), *req.GroupID)
+		if err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error": "Invalid group_id: group not found",
+				})
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to validate group",
+			})
+		}
+		if group.UserID != userID {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Access denied: group belongs to another user",
+			})
+		}
 	}
 
 	// Validate and set icon fields - preserve existing values if not provided
