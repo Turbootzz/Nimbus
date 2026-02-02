@@ -734,21 +734,18 @@ func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
 		userID         string
 		groupID        string
 		expectedStatus int
-		expectError    bool
 	}{
 		{
 			name:           "Create service with non-existent group_id",
 			userID:         "user-1",
 			groupID:        "non-existent-group",
 			expectedStatus: http.StatusBadRequest,
-			expectError:    true,
 		},
 		{
 			name:           "Create service with group_id belonging to another user",
 			userID:         "user-1",
 			groupID:        "group-2",
 			expectedStatus: http.StatusForbidden,
-			expectError:    true,
 		},
 	}
 
@@ -831,7 +828,6 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 		serviceID      string
 		groupID        string
 		expectedStatus int
-		expectError    bool
 	}{
 		{
 			name:           "Update service with valid group_id",
@@ -839,7 +835,6 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 			serviceID:      "service-1",
 			groupID:        "group-1",
 			expectedStatus: http.StatusOK,
-			expectError:    false,
 		},
 		{
 			name:           "Update service with non-existent group_id",
@@ -847,7 +842,6 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 			serviceID:      "service-1",
 			groupID:        "non-existent-group",
 			expectedStatus: http.StatusBadRequest,
-			expectError:    true,
 		},
 		{
 			name:           "Update service with group_id belonging to another user",
@@ -855,7 +849,6 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 			serviceID:      "service-1",
 			groupID:        "group-2",
 			expectedStatus: http.StatusForbidden,
-			expectError:    true,
 		},
 	}
 
@@ -886,5 +879,40 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
 			}
 		})
+	}
+}
+
+func TestServiceHandler_CreateService_NilGroupRepo(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	// Create handler with nil groupRepo to test defensive nil guard
+	handler := NewServiceHandler(serviceRepo, nil, nil)
+
+	app := fiber.New()
+	app.Post("/services", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "user-1")
+		return handler.CreateService(c)
+	})
+
+	groupID := "any-group-id"
+	requestBody := models.ServiceCreateRequest{
+		Name:    "Test Service",
+		URL:     "https://example.com",
+		GroupID: &groupID,
+	}
+
+	bodyJSON, _ := json.Marshal(requestBody)
+	req := httptest.NewRequest(http.MethodPost, "/services", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusInternalServerError {
+		t.Errorf("Expected status %d when groupRepo is nil, got %d", http.StatusInternalServerError, resp.StatusCode)
 	}
 }
