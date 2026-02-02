@@ -31,6 +31,31 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *rep
 	}
 }
 
+// validateGroupOwnership checks that a group exists and belongs to the user.
+// Returns true if valid, false if validation failed (response already sent).
+func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID string) bool {
+	group, err := h.groupRepo.GetByID(c.Context(), groupID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid group_id: group not found",
+			})
+		} else {
+			c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to validate group",
+			})
+		}
+		return false
+	}
+	if group.UserID != userID {
+		c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Access denied: group belongs to another user",
+		})
+		return false
+	}
+	return true
+}
+
 // CreateService handles service creation
 func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
@@ -129,21 +154,8 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		group, err := h.groupRepo.GetByID(c.Context(), *req.GroupID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Invalid group_id: group not found",
-				})
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to validate group",
-			})
-		}
-		if group.UserID != userID {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Access denied: group belongs to another user",
-			})
+		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+			return nil // Response already sent
 		}
 	}
 
@@ -297,21 +309,8 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		group, err := h.groupRepo.GetByID(c.Context(), *req.GroupID)
-		if err != nil {
-			if errors.Is(err, sql.ErrNoRows) {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": "Invalid group_id: group not found",
-				})
-			}
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"error": "Failed to validate group",
-			})
-		}
-		if group.UserID != userID {
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Access denied: group belongs to another user",
-			})
+		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+			return nil // Response already sent
 		}
 	}
 

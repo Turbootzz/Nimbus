@@ -25,6 +25,17 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	schema := `
+		CREATE TABLE IF NOT EXISTS groups (
+			id TEXT PRIMARY KEY,
+			user_id TEXT NOT NULL,
+			name TEXT NOT NULL,
+			color TEXT DEFAULT '#3B82F6',
+			position INTEGER DEFAULT 0,
+			is_default INTEGER DEFAULT 0,
+			monitoring_enabled INTEGER DEFAULT 1,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL
+		);
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -680,5 +691,200 @@ func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("Expected status %d for unauthenticated request, got %d", http.StatusUnauthorized, resp.StatusCode)
+	}
+}
+
+func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+
+	// Create a group for user-1
+	createGroupDirectly(t, db, &models.Group{
+		ID:                "group-1",
+		UserID:            "user-1",
+		Name:              "User 1 Group",
+		Color:             "#3B82F6",
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	})
+
+	// Create a group for user-2
+	createGroupDirectly(t, db, &models.Group{
+		ID:                "group-2",
+		UserID:            "user-2",
+		Name:              "User 2 Group",
+		Color:             "#3B82F6",
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	})
+
+	// Note: "Create service with valid group_id" test case is not included because
+	// the ServiceRepository uses PostgreSQL-specific SQL that doesn't work with SQLite.
+	// The UpdateService tests cover the valid group case.
+	tests := []struct {
+		name           string
+		userID         string
+		groupID        string
+		expectedStatus int
+		expectError    bool
+	}{
+		{
+			name:           "Create service with non-existent group_id",
+			userID:         "user-1",
+			groupID:        "non-existent-group",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:           "Create service with group_id belonging to another user",
+			userID:         "user-1",
+			groupID:        "group-2",
+			expectedStatus: http.StatusForbidden,
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Post("/services", func(c *fiber.Ctx) error {
+				c.Locals("user_id", tt.userID)
+				return handler.CreateService(c)
+			})
+
+			requestBody := models.ServiceCreateRequest{
+				Name:    "Test Service",
+				URL:     "https://example.com",
+				GroupID: &tt.groupID,
+			}
+
+			bodyJSON, _ := json.Marshal(requestBody)
+			req := httptest.NewRequest(http.MethodPost, "/services", bytes.NewReader(bodyJSON))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req, -1)
+			if err != nil {
+				t.Fatalf("Failed to execute request: %v", err)
+			}
+
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
+	}
+}
+
+func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+
+	// Create groups
+	createGroupDirectly(t, db, &models.Group{
+		ID:                "group-1",
+		UserID:            "user-1",
+		Name:              "User 1 Group",
+		Color:             "#3B82F6",
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	})
+
+	createGroupDirectly(t, db, &models.Group{
+		ID:                "group-2",
+		UserID:            "user-2",
+		Name:              "User 2 Group",
+		Color:             "#3B82F6",
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	})
+
+	// Create test service
+	createServiceDirectly(t, db, &models.Service{
+		ID:        "service-1",
+		UserID:    "user-1",
+		Name:      "Test Service",
+		URL:       "https://example.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	tests := []struct {
+		name           string
+		userID         string
+		serviceID      string
+		groupID        string
+		expectedStatus int
+		expectError    bool
+	}{
+		{
+			name:           "Update service with valid group_id",
+			userID:         "user-1",
+			serviceID:      "service-1",
+			groupID:        "group-1",
+			expectedStatus: http.StatusOK,
+			expectError:    false,
+		},
+		{
+			name:           "Update service with non-existent group_id",
+			userID:         "user-1",
+			serviceID:      "service-1",
+			groupID:        "non-existent-group",
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:           "Update service with group_id belonging to another user",
+			userID:         "user-1",
+			serviceID:      "service-1",
+			groupID:        "group-2",
+			expectedStatus: http.StatusForbidden,
+			expectError:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := fiber.New()
+			app.Put("/services/:id", func(c *fiber.Ctx) error {
+				c.Locals("user_id", tt.userID)
+				return handler.UpdateService(c)
+			})
+
+			requestBody := models.ServiceUpdateRequest{
+				Name:    "Updated Service",
+				URL:     "https://updated.com",
+				GroupID: &tt.groupID,
+			}
+
+			bodyJSON, _ := json.Marshal(requestBody)
+			req := httptest.NewRequest(http.MethodPut, "/services/"+tt.serviceID, bytes.NewReader(bodyJSON))
+			req.Header.Set("Content-Type", "application/json")
+
+			resp, err := app.Test(req, -1)
+			if err != nil {
+				t.Fatalf("Failed to execute request: %v", err)
+			}
+
+			if resp.StatusCode != tt.expectedStatus {
+				t.Errorf("Expected status %d, got %d", tt.expectedStatus, resp.StatusCode)
+			}
+		})
 	}
 }
