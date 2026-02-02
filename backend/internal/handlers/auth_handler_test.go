@@ -607,3 +607,53 @@ func TestAuthHandler_InvalidJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestAuthHandler_Register_DisabledPublicRegistration(t *testing.T) {
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
+	defer os.Unsetenv("JWT_SECRET")
+
+	db := setupAuthTestDB(t)
+	defer db.Close()
+
+	// Update setting to disable public registration
+	_, err := db.Exec(`UPDATE system_settings SET value = 'false' WHERE key = 'public_registration_enabled'`)
+	if err != nil {
+		t.Fatalf("Failed to update setting: %v", err)
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
+	authService := services.NewAuthService()
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+
+	app := fiber.New()
+	app.Post("/register", handler.Register)
+
+	registerReq := models.RegisterRequest{
+		Email:    "newuser@example.com",
+		Name:     "New User",
+		Password: "SecurePassword123!",
+	}
+
+	bodyJSON, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d when registration is disabled, got %d", http.StatusForbidden, resp.StatusCode)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response["error"] != "Public registration is disabled" {
+		t.Errorf("Expected error message 'Public registration is disabled', got '%s'", response["error"])
+	}
+}

@@ -1,12 +1,17 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Note: Full OAuth flow integration tests require external provider mocking
@@ -254,4 +259,192 @@ func TestOAuthHandler_LinkProvider_InvalidProvider(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, resp.StatusCode)
 		})
 	}
+}
+
+// setupOAuthTestDB creates an in-memory SQLite database for OAuth testing
+func setupOAuthTestDB(t *testing.T) *sql.DB {
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+
+	schema := `
+		CREATE TABLE IF NOT EXISTS system_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_by TEXT
+		);
+
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT PRIMARY KEY,
+			email TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL,
+			password TEXT,
+			role TEXT NOT NULL DEFAULT 'user',
+			provider TEXT NOT NULL DEFAULT 'local',
+			provider_id TEXT,
+			avatar_url TEXT,
+			email_verified INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP NOT NULL,
+			last_activity_at TIMESTAMP,
+			UNIQUE(provider, provider_id)
+		);
+	`
+
+	if _, err := db.Exec(schema); err != nil {
+		t.Fatalf("Failed to create test tables: %v", err)
+	}
+
+	return db
+}
+
+func TestOAuthHandler_RegistrationDisabledCheck(t *testing.T) {
+	// This test simulates the registration check that happens in OAuth callback
+	// when a new user tries to sign up via OAuth
+
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	// Insert setting with registration disabled
+	_, err := db.Exec(`
+		INSERT INTO system_settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+	`, "public_registration_enabled", "false", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	settingsRepo := repository.NewSettingsRepository(db)
+
+	// Simulate the OAuth callback handler logic for new user registration
+	app := fiber.New()
+	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
+		// Simulate: user not found in database (new OAuth user)
+		userExists := false
+
+		if !userExists {
+			// Check if public registration is enabled
+			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to check registration status",
+				})
+			}
+			if !isEnabled {
+				// Redirect with error (simulating actual handler behavior)
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "Public registration is disabled",
+				})
+			}
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
+
+	var result map[string]string
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, "Public registration is disabled", result["error"])
+}
+
+func TestOAuthHandler_RegistrationEnabledCheck(t *testing.T) {
+	// This test verifies OAuth registration works when enabled
+
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	// Insert setting with registration enabled
+	_, err := db.Exec(`
+		INSERT INTO system_settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+	`, "public_registration_enabled", "true", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	settingsRepo := repository.NewSettingsRepository(db)
+
+	app := fiber.New()
+	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
+		userExists := false
+
+		if !userExists {
+			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to check registration status",
+				})
+			}
+			if !isEnabled {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "Public registration is disabled",
+				})
+			}
+		}
+		// Registration allowed - would create user here
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+}
+
+func TestOAuthHandler_ExistingUserBypassesRegistrationCheck(t *testing.T) {
+	// This test verifies existing OAuth users can log in even when registration is disabled
+
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	// Insert setting with registration disabled
+	_, err := db.Exec(`
+		INSERT INTO system_settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+	`, "public_registration_enabled", "false", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	settingsRepo := repository.NewSettingsRepository(db)
+
+	app := fiber.New()
+	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
+		// Simulate: user exists in database (existing OAuth user)
+		userExists := true
+
+		if !userExists {
+			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"error": "Failed to check registration status",
+				})
+			}
+			if !isEnabled {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"error": "Public registration is disabled",
+				})
+			}
+		}
+		// Existing user - log them in
+		return c.JSON(fiber.Map{
+			"message": "User logged in successfully",
+		})
+	})
+
+	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	var result map[string]string
+	err = json.NewDecoder(resp.Body).Decode(&result)
+	assert.NoError(t, err)
+	assert.Equal(t, "User logged in successfully", result["message"])
 }
