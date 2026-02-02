@@ -110,8 +110,7 @@ func (r *SettingsRepository) IsPublicRegistrationEnabled(ctx context.Context) (b
 	setting, err := r.Get(ctx, "public_registration_enabled")
 	if err != nil {
 		if errors.Is(err, ErrSettingNotFound) {
-			// Default to false if setting doesn't exist
-			return false, nil
+			return true, nil
 		}
 		return false, err
 	}

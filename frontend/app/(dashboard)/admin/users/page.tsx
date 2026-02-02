@@ -88,7 +88,7 @@ function UserCard({
           <p className="text-text-secondary truncate text-sm">{user.email}</p>
         </div>
         <span
-          className={`ml-2 inline-flex flex-shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
+          className={`ml-2 inline-flex shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${
             user.role === 'admin' ? 'bg-primary/10 text-primary' : 'bg-info/10 text-info'
           }`}
         >
