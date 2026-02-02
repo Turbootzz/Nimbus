@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid'
 import { api } from '@/lib/api'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function SetupPage() {
   const router = useRouter()
-  const [step, setStep] = useState<'loading' | 'welcome' | 'create' | 'complete'>('loading')
+  const [step, setStep] = useState<'loading' | 'welcome' | 'create' | 'complete' | 'error'>('loading')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,24 +18,29 @@ export default function SetupPage() {
   const [error, setError] = useState('')
   const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
 
+  const checkSetupStatus = useCallback(async () => {
+    try {
+      const response = await api.getSetupStatus()
+      if (response.data) {
+        if (response.data.needs_setup) {
+          setStep('welcome')
+        } else {
+          // Setup already complete, redirect to login
+          router.push('/login')
+        }
+      } else {
+        // API returned an error response
+        setStep('error')
+      }
+    } catch {
+      // Network error or API unavailable
+      setStep('error')
+    }
+  }, [router])
+
   useEffect(() => {
     checkSetupStatus()
-  }, [])
-
-  const checkSetupStatus = async () => {
-    const response = await api.getSetupStatus()
-    if (response.data) {
-      if (response.data.needs_setup) {
-        setStep('welcome')
-      } else {
-        // Setup already complete, redirect to login
-        router.push('/login')
-      }
-    } else {
-      // API error, show welcome anyway
-      setStep('welcome')
-    }
-  }
+  }, [checkSetupStatus])
 
   const handleCreateAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -91,6 +96,45 @@ export default function SetupPage() {
         <p className="mt-4" style={{ color: 'var(--color-text-secondary)' }}>
           Checking setup status...
         </p>
+      </div>
+    )
+  }
+
+  if (step === 'error') {
+    return (
+      <div
+        className="rounded-2xl p-8 text-center shadow-xl"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-card-border)',
+        }}
+      >
+        <ExclamationTriangleIcon
+          className="mx-auto mb-4 h-16 w-16"
+          style={{ color: 'var(--color-warning)' }}
+        />
+        <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          Connection Error
+        </h2>
+        <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+          Unable to connect to the Nimbus backend.
+        </p>
+        <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+          Please ensure the backend server is running and try again.
+        </p>
+        <button
+          onClick={() => {
+            setStep('loading')
+            checkSetupStatus()
+          }}
+          className="mt-6 rounded-lg px-6 py-2.5 font-medium text-white transition focus:ring-4"
+          style={{
+            backgroundColor: 'var(--color-primary)',
+          }}
+          {...buttonHover}
+        >
+          Retry
+        </button>
       </div>
     )
   }

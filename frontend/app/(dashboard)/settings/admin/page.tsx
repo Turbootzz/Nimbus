@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
@@ -33,14 +33,7 @@ export default function AdminSettingsPage() {
     checkAdminAccess()
   }, [router])
 
-  // Only fetch settings after confirming admin access
-  useEffect(() => {
-    if (currentUser && currentUser.role === 'admin') {
-      fetchSettings()
-    }
-  }, [currentUser])
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     setIsLoading(true)
     setError('')
     try {
@@ -56,7 +49,14 @@ export default function AdminSettingsPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  // Only fetch settings after confirming admin access
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'admin') {
+      fetchSettings()
+    }
+  }, [currentUser, fetchSettings])
 
   const handleToggle = async (key: string, currentValue: string) => {
     setActionLoading(key)
