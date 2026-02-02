@@ -122,6 +122,16 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 	return exists, nil
 }
 
+// Count returns the total number of users in the database
+func (r *UserRepository) Count() (int, error) {
+	var count int
+	err := r.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count, nil
+}
+
 // UserFilter represents search and filter options
 type UserFilter struct {
 	Search string // Search in name and email

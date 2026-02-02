@@ -303,3 +303,24 @@ export interface WebhookTestResult {
   response_time_ms?: number
   error?: string
 }
+
+// Setup types
+export interface SetupStatusResponse {
+  needs_setup: boolean
+}
+
+// System settings types
+export interface SystemSetting {
+  key: string
+  value: string
+  updated_at: string
+  updated_by?: string
+}
+
+export interface SystemSettingsResponse {
+  settings: SystemSetting[]
+}
+
+export interface UpdateSettingRequest {
+  value: string
+}

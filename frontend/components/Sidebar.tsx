@@ -13,6 +13,7 @@ import {
   PlusIcon,
   UserGroupIcon,
   ChartBarIcon,
+  WrenchScrewdriverIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
@@ -48,7 +49,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
       { name: 'Services', href: '/services', icon: ServerIcon },
       { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
       ...(currentUser?.role === 'admin'
-        ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
+        ? [
+            { name: 'Users', href: '/admin/users', icon: UserGroupIcon },
+            { name: 'System Settings', href: '/admin/settings', icon: WrenchScrewdriverIcon },
+          ]
         : []),
       { name: 'Settings', href: '/settings', icon: CogIcon },
     ],

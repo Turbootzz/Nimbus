@@ -14,19 +14,35 @@ import (
 type AuthHandler struct {
 	userRepo     *repository.UserRepository
 	authService  *services.AuthService
+	settingsRepo *repository.SettingsRepository
 	cookieConfig utils.CookieConfig
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService, settingsRepo *repository.SettingsRepository) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
 		authService:  authService,
+		settingsRepo: settingsRepo,
 		cookieConfig: utils.GetCookieConfig(),
 	}
 }
 
 // Register handles user registration
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
+	// Check if public registration is enabled
+	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(c.Context())
+	if err != nil {
+		log.Printf("Failed to check registration setting: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to check registration status",
+		})
+	}
+	if !isEnabled {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Public registration is disabled",
+		})
+	}
+
 	var req models.RegisterRequest
 
 	// Parse request body

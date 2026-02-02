@@ -62,6 +62,11 @@ export default function RegisterPage() {
       }
 
       if (!response.ok) {
+        // Check for registration disabled (403)
+        if (response.status === 403) {
+          setError('Public registration is currently disabled. Please contact an administrator.')
+          return
+        }
         setError(data.error || 'Registration failed')
         return
       }

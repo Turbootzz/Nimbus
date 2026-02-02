@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getApiUrl } from '@/lib/utils/api-url'
 import OAuthButton from '@/components/OAuthButton'
 import { ThemedInput } from '@/components/ui/ThemedInput'
@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import type { OAuthProvider } from '@/types'
 
 function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,8 +19,27 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [oauthProviders, setOAuthProviders] = useState<OAuthProvider[]>([])
+  const [checkingSetup, setCheckingSetup] = useState(true)
   const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
   const linkHover = useHoverStyle(hoverStyles.primaryLink)
+
+  // Check if setup is needed on mount
+  useEffect(() => {
+    const checkSetup = async () => {
+      try {
+        const response = await api.getSetupStatus()
+        if (response.data?.needs_setup) {
+          router.push('/setup')
+          return
+        }
+      } catch (err) {
+        // If check fails, continue to login page
+        console.error('Failed to check setup status:', err)
+      }
+      setCheckingSetup(false)
+    }
+    checkSetup()
+  }, [router])
 
   // Check for OAuth error in query params
   useEffect(() => {
@@ -102,6 +122,24 @@ function LoginForm() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading while checking setup status
+  if (checkingSetup) {
+    return (
+      <div
+        className="rounded-2xl p-8 text-center shadow-xl"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-card-border)',
+        }}
+      >
+        <div
+          className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
+          style={{ color: 'var(--color-primary)' }}
+        />
+      </div>
+    )
   }
 
   return (
