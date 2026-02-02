@@ -285,6 +285,15 @@ func TestSetupHandler_CreateInitialAdmin_ValidationErrors(t *testing.T) {
 			},
 			expectedStatus: http.StatusBadRequest,
 		},
+		{
+			name: "Invalid email format",
+			request: models.RegisterRequest{
+				Name:     "Admin User",
+				Email:    "invalid-email",
+				Password: "SecurePassword123!",
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {

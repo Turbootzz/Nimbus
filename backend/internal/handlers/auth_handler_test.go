@@ -435,6 +435,37 @@ func TestAuthHandler_Register(t *testing.T) {
 			t.Errorf("Expected status %d for duplicate email, got %d", http.StatusConflict, resp.StatusCode)
 		}
 	})
+
+	// Test invalid email format
+	t.Run("Invalid email format", func(t *testing.T) {
+		registerReq := models.RegisterRequest{
+			Email:    "invalid-email",
+			Name:     "Test User",
+			Password: "SecurePassword123!",
+		}
+
+		bodyJSON, _ := json.Marshal(registerReq)
+		req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyJSON))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status %d for invalid email, got %d", http.StatusBadRequest, resp.StatusCode)
+		}
+
+		var response map[string]string
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response["error"] != "Invalid email format" {
+			t.Errorf("Expected error message 'Invalid email format', got '%s'", response["error"])
+		}
+	})
 }
 
 func TestAuthHandler_Logout(t *testing.T) {

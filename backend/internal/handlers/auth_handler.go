@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"net/mail"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -56,6 +57,13 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	if req.Email == "" || req.Password == "" || req.Name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Email, password, and name are required",
+		})
+	}
+
+	// Validate email format
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid email format",
 		})
 	}
 

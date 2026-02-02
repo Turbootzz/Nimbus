@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"net/mail"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -51,6 +52,13 @@ func (h *SetupHandler) CreateInitialAdmin(c *fiber.Ctx) error {
 	if req.Name == "" || req.Email == "" || req.Password == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Name, email, and password are required",
+		})
+	}
+
+	// Validate email format
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid email format",
 		})
 	}
 
