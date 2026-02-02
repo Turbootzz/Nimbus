@@ -9,7 +9,9 @@ import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function SetupPage() {
   const router = useRouter()
-  const [step, setStep] = useState<'loading' | 'welcome' | 'create' | 'complete' | 'error'>('loading')
+  const [step, setStep] = useState<'loading' | 'welcome' | 'create' | 'complete' | 'error'>(
+    'loading'
+  )
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

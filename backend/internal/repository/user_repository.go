@@ -142,15 +142,11 @@ func (r *UserRepository) CreateAdminIfNone(user *models.User) error {
 	}
 	defer tx.Rollback()
 
-	// Lock and check count atomically
+	// Check if any users exist
 	var count int
-	err = tx.QueryRow("SELECT COUNT(*) FROM users FOR UPDATE").Scan(&count)
+	err = tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
 	if err != nil {
-		// SQLite doesn't support FOR UPDATE, fall back to regular count
-		err = tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
-		if err != nil {
-			return fmt.Errorf("failed to count users: %w", err)
-		}
+		return fmt.Errorf("failed to count users: %w", err)
 	}
 
 	if count > 0 {
