@@ -73,7 +73,7 @@ func main() {
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo)
-	serviceHandler := handlers.NewServiceHandler(serviceRepo, healthCheckService)
+	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
