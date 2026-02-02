@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -41,7 +43,7 @@ func (h *SettingsHandler) GetSetting(c *fiber.Ctx) error {
 
 	setting, err := h.settingsRepo.Get(c.Context(), key)
 	if err != nil {
-		if err == repository.ErrSettingNotFound {
+		if errors.Is(err, repository.ErrSettingNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 				"error": "Setting not found",
 			})

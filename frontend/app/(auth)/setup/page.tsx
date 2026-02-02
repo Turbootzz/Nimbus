@@ -115,9 +115,7 @@ export default function SetupPage() {
         </div>
 
         <div className="mb-6 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          <p className="text-sm">
-            To get started, create an administrator account.
-          </p>
+          <p className="text-sm">To get started, create an administrator account.</p>
         </div>
 
         <button
@@ -143,7 +141,10 @@ export default function SetupPage() {
           borderColor: 'var(--color-card-border)',
         }}
       >
-        <CheckCircleIcon className="mx-auto mb-4 h-16 w-16" style={{ color: 'var(--color-success)' }} />
+        <CheckCircleIcon
+          className="mx-auto mb-4 h-16 w-16"
+          style={{ color: 'var(--color-success)' }}
+        />
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
           Setup Complete!
         </h2>

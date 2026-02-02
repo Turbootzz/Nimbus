@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -38,21 +39,6 @@ func (h *SetupHandler) GetSetupStatus(c *fiber.Ctx) error {
 
 // CreateInitialAdmin creates the first admin user (only works when no users exist)
 func (h *SetupHandler) CreateInitialAdmin(c *fiber.Ctx) error {
-	// First check if any users exist
-	count, err := h.userRepo.Count()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to check setup status",
-		})
-	}
-
-	// If users already exist, setup is not allowed
-	if count > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Setup already completed. Users already exist.",
-		})
-	}
-
 	// Parse request body
 	var req models.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -95,21 +81,13 @@ func (h *SetupHandler) CreateInitialAdmin(c *fiber.Ctx) error {
 		UpdatedAt:     time.Now(),
 	}
 
-	// Double-check no users exist (race condition protection)
-	count, err = h.userRepo.Count()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to verify setup status",
-		})
-	}
-	if count > 0 {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Setup already completed. Users already exist.",
-		})
-	}
-
-	// Create user
-	if err := h.userRepo.Create(user); err != nil {
+	// Atomically check no users exist and create admin
+	if err := h.userRepo.CreateAdminIfNone(user); err != nil {
+		if errors.Is(err, repository.ErrUsersAlreadyExist) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Setup already completed. Users already exist.",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create admin user",
 		})

@@ -1,19 +1,44 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
-import type { SystemSetting } from '@/types'
+import type { SystemSetting, User } from '@/types'
 
 export default function AdminSettingsPage() {
+  const router = useRouter()
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true)
   const [settings, setSettings] = useState<SystemSetting[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
+  // Check admin role before loading settings
   useEffect(() => {
-    fetchSettings()
-  }, [])
+    const checkAdminAccess = async () => {
+      try {
+        const response = await api.getCurrentUser()
+        if (!response.data || response.data.role !== 'admin') {
+          router.replace('/settings')
+          return
+        }
+        setCurrentUser(response.data)
+        setIsCheckingAuth(false)
+      } catch {
+        router.replace('/settings')
+      }
+    }
+    checkAdminAccess()
+  }, [router])
+
+  // Only fetch settings after confirming admin access
+  useEffect(() => {
+    if (currentUser && currentUser.role === 'admin') {
+      fetchSettings()
+    }
+  }, [currentUser])
 
   const fetchSettings = async () => {
     setIsLoading(true)
@@ -60,7 +85,8 @@ export default function AdminSettingsPage() {
 
   const publicRegSetting = settings.find((s) => s.key === 'public_registration_enabled')
 
-  if (isLoading) {
+  // Show loading while checking auth or loading settings
+  if (isCheckingAuth || isLoading) {
     return (
       <div className="flex min-h-100 items-center justify-center">
         <div className="border-primary h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" />

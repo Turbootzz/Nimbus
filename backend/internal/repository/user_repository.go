@@ -14,6 +14,7 @@ import (
 var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrProviderNotLinked = errors.New("provider not linked to user")
+	ErrUsersAlreadyExist = errors.New("users already exist")
 )
 
 type UserRepository struct {
@@ -130,6 +131,64 @@ func (r *UserRepository) Count() (int, error) {
 		return 0, fmt.Errorf("failed to count users: %w", err)
 	}
 	return count, nil
+}
+
+// CreateAdminIfNone atomically creates an admin user only if no users exist.
+// Returns ErrUsersAlreadyExist if users already exist, preventing race conditions.
+func (r *UserRepository) CreateAdminIfNone(user *models.User) error {
+	tx, err := r.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Lock and check count atomically
+	var count int
+	err = tx.QueryRow("SELECT COUNT(*) FROM users FOR UPDATE").Scan(&count)
+	if err != nil {
+		// SQLite doesn't support FOR UPDATE, fall back to regular count
+		err = tx.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+		if err != nil {
+			return fmt.Errorf("failed to count users: %w", err)
+		}
+	}
+
+	if count > 0 {
+		return ErrUsersAlreadyExist
+	}
+
+	// Create the admin user
+	user.ID = uuid.New().String()
+	query := `
+		INSERT INTO users (id, email, name, password, role, provider, provider_id, avatar_url, email_verified, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		RETURNING id, created_at, updated_at
+	`
+
+	err = tx.QueryRow(
+		query,
+		user.ID,
+		user.Email,
+		user.Name,
+		user.Password,
+		user.Role,
+		user.Provider,
+		user.ProviderID,
+		user.AvatarURL,
+		user.EmailVerified,
+		user.CreatedAt,
+		user.UpdatedAt,
+	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
 }
 
 // UserFilter represents search and filter options
