@@ -34,6 +34,12 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *rep
 // validateGroupOwnership checks that a group exists and belongs to the user.
 // Returns true if valid, false if validation failed (response already sent).
 func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID string) bool {
+	if h.groupRepo == nil {
+		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Group validation unavailable",
+		})
+		return false
+	}
 	group, err := h.groupRepo.GetByID(c.Context(), groupID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
