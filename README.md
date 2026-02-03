@@ -131,7 +131,7 @@ Navigate to **http://localhost:3000** and create your first account!
 
 > **Note:** Secrets are auto-generated on first run. For production, see [Configuration](docs/CONFIGURATION.md) to set custom passwords.
 >
-> **Upgrading?** If you're migrating from separate containers, note the volume path changed from `/app/uploads` to `/app/backend/uploads`.
+> **Upgrading from separate container images?** See our [Migration Guide](docs/MIGRATION.md) for step-by-step instructions. PostgreSQL data migrates automatically!
 
 ---
 
