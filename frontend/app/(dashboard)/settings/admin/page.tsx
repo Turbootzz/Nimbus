@@ -117,6 +117,7 @@ export default function AdminSettingsPage() {
           </p>
 
           <Toggle
+            id="public-registration-toggle"
             enabled={(publicRegSetting?.value || 'true') === 'true'}
             onChange={() =>
               handleToggle('public_registration_enabled', publicRegSetting?.value || 'true')
