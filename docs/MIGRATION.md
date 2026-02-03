@@ -488,7 +488,7 @@ docker-compose logs db
 
 ### Database Password Special Characters
 
-**As of v1.1.1**, Nimbus fully supports special characters in database passwords. Passwords are automatically URL-encoded when constructing connection strings.
+Nimbus fully supports special characters in database passwords. Passwords are automatically URL-encoded when constructing connection strings.
 
 **If you're upgrading from an older version**:
 - You can now use secure passwords with special characters like `!@#$%^&*()`
