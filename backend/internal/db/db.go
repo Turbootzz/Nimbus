@@ -10,26 +10,31 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// buildDBURL constructs a PostgreSQL connection URL from individual components
+// with proper URL encoding for special characters in credentials
+func buildDBURL(host, port, user, password, dbname string) string {
+	u := &url.URL{
+		Scheme:   "postgres",
+		User:     url.UserPassword(user, password),
+		Host:     fmt.Sprintf("%s:%s", host, port),
+		Path:     "/" + dbname,
+		RawQuery: "sslmode=disable",
+	}
+	return u.String()
+}
+
 // Connect creates a connection to the PostgreSQL database
 func Connect() (*sql.DB, error) {
 	dbURL := os.Getenv("DB_URL")
 	if dbURL == "" {
 		// Construct URL from individual components
-		host := os.Getenv("DB_HOST")
-		port := os.Getenv("DB_PORT")
-		user := os.Getenv("DB_USER")
-		password := os.Getenv("DB_PASSWORD")
-		dbname := os.Getenv("DB_NAME")
-
-		// Use url.URL to properly encode credentials (handles special characters)
-		u := &url.URL{
-			Scheme:   "postgres",
-			User:     url.UserPassword(user, password),
-			Host:     fmt.Sprintf("%s:%s", host, port),
-			Path:     "/" + dbname,
-			RawQuery: "sslmode=disable",
-		}
-		dbURL = u.String()
+		dbURL = buildDBURL(
+			os.Getenv("DB_HOST"),
+			os.Getenv("DB_PORT"),
+			os.Getenv("DB_USER"),
+			os.Getenv("DB_PASSWORD"),
+			os.Getenv("DB_NAME"),
+		)
 	}
 	// Note: If DB_URL is provided directly, user is responsible for proper encoding
 
