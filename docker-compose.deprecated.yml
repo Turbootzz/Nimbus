@@ -1,5 +1,11 @@
 # Nimbus Self-Hosted Dashboard (Separate Containers)
-# For most users, the unified image is recommended. See docker-compose.yml instead.
+#
+# This is a LEGACY deployment option that remains supported for existing users.
+# Choose this if you need separate backend/frontend containers or have custom networking requirements.
+# For new deployments, the unified image (docker-compose.yml) is recommended.
+#
+# We have no immediate plans to remove this option, but recommend migrating when convenient.
+# Migration guide: docs/MIGRATION.md
 #
 # Required environment variables for split-container deployment:
 #   DB_PASSWORD=your-secure-password
