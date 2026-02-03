@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"time"
 
@@ -20,9 +21,17 @@ func Connect() (*sql.DB, error) {
 		password := os.Getenv("DB_PASSWORD")
 		dbname := os.Getenv("DB_NAME")
 
-		dbURL = fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-			user, password, host, port, dbname)
+		// Use url.URL to properly encode credentials (handles special characters)
+		u := &url.URL{
+			Scheme:   "postgres",
+			User:     url.UserPassword(user, password),
+			Host:     fmt.Sprintf("%s:%s", host, port),
+			Path:     "/" + dbname,
+			RawQuery: "sslmode=disable",
+		}
+		dbURL = u.String()
 	}
+	// Note: If DB_URL is provided directly, user is responsible for proper encoding
 
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {

@@ -486,6 +486,48 @@ docker-compose logs db
 
 ---
 
+### Database Password Special Characters
+
+**As of v1.1.1**, Nimbus fully supports special characters in database passwords. Passwords are automatically URL-encoded when constructing connection strings.
+
+**If you're upgrading from an older version**:
+- You can now use secure passwords with special characters like `!@#$%^&*()`
+- No need to avoid special characters anymore
+- The old warning in `.env.example` has been removed
+
+**Using `DB_URL` directly?**
+
+If you're setting the `DB_URL` environment variable directly (instead of using individual `DB_PASSWORD`, `DB_HOST`, etc.), you must manually URL-encode special characters in the password.
+
+**Recommended approach**: Use individual env vars for automatic encoding:
+```bash
+DB_HOST=db
+DB_PORT=5432
+DB_USER=nimbus
+DB_PASSWORD=your-password-with-special-chars!@#
+DB_NAME=nimbus
+```
+
+**Alternative**: If you must use `DB_URL`, encode the password manually:
+```bash
+# Password: my@pass!word
+# Encoded:  my%40pass%21word
+DB_URL=postgres://nimbus:my%40pass%21word@db:5432/nimbus?sslmode=disable
+```
+
+**URL encoding reference**:
+- `@` → `%40`
+- `!` → `%21`
+- `#` → `%23`
+- `$` → `%24`
+- `%` → `%25`
+- `^` → `%5E`
+- `&` → `%26`
+- `*` → `%2A`
+- Space → `+` or `%20`
+
+---
+
 ### Service Icons or Avatars Missing
 
 **Cause**: Upload volume not properly migrated or path issue
