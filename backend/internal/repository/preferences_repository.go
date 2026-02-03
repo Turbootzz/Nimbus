@@ -39,12 +39,12 @@ func getEnableServiceGroupingValue(value *bool) bool {
 	return true
 }
 
-// getCardScaleValue returns the card_scale value, defaulting to "large" if nil
+// getCardScaleValue returns the card_scale value, defaulting to "medium" if nil
 func getCardScaleValue(value *string) string {
 	if value != nil {
 		return *value
 	}
-	return "large"
+	return "medium"
 }
 
 // getViewModeValue returns the view_mode value, defaulting to "grid" if nil

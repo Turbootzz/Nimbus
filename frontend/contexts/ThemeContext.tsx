@@ -45,7 +45,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [openInNewTab, setOpenInNewTabState] = useState<boolean>(true)
   const [enableCardResizing, setEnableCardResizingState] = useState<boolean>(true)
   const [enableServiceGrouping, setEnableServiceGroupingState] = useState<boolean>(true)
-  const [cardScale, setCardScaleState] = useState<CardScale>('large')
+  const [cardScale, setCardScaleState] = useState<CardScale>('medium')
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)

@@ -180,11 +180,11 @@ describe('View Mode Feature', () => {
 
 describe('Feature Interactions', () => {
   describe('Card Scale and View Mode', () => {
-    it('should default to large scale and grid mode', () => {
-      const defaultCardScale: CardScale = 'large'
+    it('should default to medium scale and grid mode', () => {
+      const defaultCardScale: CardScale = 'medium'
       const defaultViewMode: ViewMode = 'grid'
 
-      expect(defaultCardScale).toBe('large')
+      expect(defaultCardScale).toBe('medium')
       expect(defaultViewMode).toBe('grid')
     })
 
@@ -237,17 +237,17 @@ describe('API Preferences', () => {
       })
     })
 
-    it('should default to large when not specified', () => {
+    it('should default to medium when not specified', () => {
       const getCardScale = (value: string | undefined): CardScale => {
         if (value && ['small', 'medium', 'large'].includes(value)) {
           return value as CardScale
         }
-        return 'large'
+        return 'medium'
       }
 
-      expect(getCardScale(undefined)).toBe('large')
+      expect(getCardScale(undefined)).toBe('medium')
       expect(getCardScale('small')).toBe('small')
-      expect(getCardScale('invalid')).toBe('large')
+      expect(getCardScale('invalid')).toBe('medium')
     })
   })
 

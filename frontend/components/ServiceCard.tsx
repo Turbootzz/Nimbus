@@ -31,7 +31,7 @@ export default function ServiceCard({
   dragHandleProps,
   isDragging = false,
   enableCardResizing = true,
-  cardScale = 'large',
+  cardScale = 'medium',
 }: ServiceCardProps) {
   // When card resizing is disabled, always use 2x1
   const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'

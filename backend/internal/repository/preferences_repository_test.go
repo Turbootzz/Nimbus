@@ -79,7 +79,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			open_in_new_tab BOOLEAN NOT NULL DEFAULT 1,
 			enable_card_resizing BOOLEAN NOT NULL DEFAULT 1,
 			enable_service_grouping BOOLEAN NOT NULL DEFAULT 1,
-			card_scale TEXT NOT NULL DEFAULT 'large',
+			card_scale TEXT NOT NULL DEFAULT 'medium',
 			view_mode TEXT NOT NULL DEFAULT 'grid',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
@@ -796,7 +796,7 @@ func TestPreferencesRepository_CardScale(t *testing.T) {
 	repo := NewPreferencesRepository(db)
 	ctx := context.Background()
 
-	t.Run("default value is large", func(t *testing.T) {
+	t.Run("default value is medium", func(t *testing.T) {
 		// Create preferences without specifying CardScale
 		req := &models.PreferencesUpdateRequest{
 			ThemeMode: stringPtr("light"),
@@ -811,8 +811,8 @@ func TestPreferencesRepository_CardScale(t *testing.T) {
 			t.Fatalf("GetByUserID() failed: %v", err)
 		}
 
-		if preferences.CardScale != "large" {
-			t.Errorf("CardScale = %v, want large (default)", preferences.CardScale)
+		if preferences.CardScale != "medium" {
+			t.Errorf("CardScale = %v, want medium (default)", preferences.CardScale)
 		}
 	})
 
@@ -918,6 +918,65 @@ func TestPreferencesRepository_CardScale(t *testing.T) {
 		// CardScale should still be small (preserved from first update)
 		if preferences.CardScale != "small" {
 			t.Errorf("CardScale = %v, want small (preserved from previous value)", preferences.CardScale)
+		}
+	})
+}
+
+func TestPreferencesRepository_CardScaleDefaultForNewUsers(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+
+	t.Run("new user without card_scale gets medium as default", func(t *testing.T) {
+		// Create preferences without specifying CardScale (simulating new user)
+		req := &models.PreferencesUpdateRequest{
+			ThemeMode: stringPtr("light"),
+			// CardScale intentionally omitted
+		}
+		err := repo.Upsert(ctx, "user-1", req)
+		if err != nil {
+			t.Fatalf("Upsert() failed: %v", err)
+		}
+
+		// Retrieve preferences
+		preferences, err := repo.GetByUserID(ctx, "user-1")
+		if err != nil {
+			t.Fatalf("GetByUserID() failed: %v", err)
+		}
+
+		// Verify default is medium
+		if preferences.CardScale != "medium" {
+			t.Errorf("New user CardScale = %v, want medium (default for new users)", preferences.CardScale)
+		}
+	})
+
+	t.Run("database default column constraint is medium", func(t *testing.T) {
+		// Insert user preferences directly using database defaults
+		now := time.Now()
+		result, err := db.Exec(`
+			INSERT INTO user_preferences (user_id, theme_mode, created_at, updated_at)
+			VALUES ('user-direct', 'light', ?, ?)
+		`, now, now)
+		if err != nil {
+			t.Fatalf("Direct insert failed: %v", err)
+		}
+
+		rowsAffected, _ := result.RowsAffected()
+		if rowsAffected != 1 {
+			t.Fatalf("Expected 1 row inserted, got %d", rowsAffected)
+		}
+
+		// Verify the database default was applied
+		var cardScale string
+		err = db.QueryRow("SELECT card_scale FROM user_preferences WHERE user_id = 'user-direct'").Scan(&cardScale)
+		if err != nil {
+			t.Fatalf("Failed to retrieve card_scale: %v", err)
+		}
+
+		if cardScale != "medium" {
+			t.Errorf("Database default card_scale = %v, want medium", cardScale)
 		}
 	})
 }
