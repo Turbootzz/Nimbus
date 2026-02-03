@@ -43,6 +43,16 @@ func setupAuthTestDB(t *testing.T) *sql.DB {
 			last_activity_at TIMESTAMP,
 			UNIQUE(provider, provider_id)
 		);
+
+		CREATE TABLE IF NOT EXISTS system_settings (
+			key TEXT PRIMARY KEY,
+			value TEXT NOT NULL,
+			updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_by TEXT
+		);
+
+		INSERT INTO system_settings (key, value, updated_at)
+		VALUES ('public_registration_enabled', 'true', CURRENT_TIMESTAMP);
 	`
 
 	if _, err := db.Exec(schema); err != nil {
@@ -119,8 +129,9 @@ func TestAuthHandler_Login_RememberMe(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	// Create test user with hashed password
 	password := "TestPassword123!"
@@ -260,8 +271,9 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	// Create test user
 	password := "CorrectPassword123!"
@@ -355,8 +367,9 @@ func TestAuthHandler_Register(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	app := fiber.New()
 	app.Post("/register", handler.Register)
@@ -422,6 +435,37 @@ func TestAuthHandler_Register(t *testing.T) {
 			t.Errorf("Expected status %d for duplicate email, got %d", http.StatusConflict, resp.StatusCode)
 		}
 	})
+
+	// Test invalid email format
+	t.Run("Invalid email format", func(t *testing.T) {
+		registerReq := models.RegisterRequest{
+			Email:    "invalid-email",
+			Name:     "Test User",
+			Password: "SecurePassword123!",
+		}
+
+		bodyJSON, _ := json.Marshal(registerReq)
+		req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyJSON))
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status %d for invalid email, got %d", http.StatusBadRequest, resp.StatusCode)
+		}
+
+		var response map[string]string
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			t.Fatalf("Failed to decode response: %v", err)
+		}
+
+		if response["error"] != "Invalid email format" {
+			t.Errorf("Expected error message 'Invalid email format', got '%s'", response["error"])
+		}
+	})
 }
 
 func TestAuthHandler_Logout(t *testing.T) {
@@ -435,8 +479,9 @@ func TestAuthHandler_Logout(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	app := fiber.New()
 	app.Post("/logout", handler.Logout)
@@ -488,8 +533,9 @@ func TestAuthHandler_TokenExpiration_30Days(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	// Create test user
 	password := "TestPassword123!"
@@ -552,8 +598,9 @@ func TestAuthHandler_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
 
 	tests := []struct {
 		name     string
@@ -589,5 +636,55 @@ func TestAuthHandler_InvalidJSON(t *testing.T) {
 				t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, resp.StatusCode)
 			}
 		})
+	}
+}
+
+func TestAuthHandler_Register_DisabledPublicRegistration(t *testing.T) {
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
+	defer os.Unsetenv("JWT_SECRET")
+
+	db := setupAuthTestDB(t)
+	defer db.Close()
+
+	// Update setting to disable public registration
+	_, err := db.Exec(`UPDATE system_settings SET value = 'false' WHERE key = 'public_registration_enabled'`)
+	if err != nil {
+		t.Fatalf("Failed to update setting: %v", err)
+	}
+
+	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
+	authService := services.NewAuthService()
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+
+	app := fiber.New()
+	app.Post("/register", handler.Register)
+
+	registerReq := models.RegisterRequest{
+		Email:    "newuser@example.com",
+		Name:     "New User",
+		Password: "SecurePassword123!",
+	}
+
+	bodyJSON, _ := json.Marshal(registerReq)
+	req := httptest.NewRequest(http.MethodPost, "/register", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d when registration is disabled, got %d", http.StatusForbidden, resp.StatusCode)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response["error"] != "Public registration is disabled" {
+		t.Errorf("Expected error message 'Public registration is disabled', got '%s'", response["error"])
 	}
 }

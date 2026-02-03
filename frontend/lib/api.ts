@@ -24,6 +24,11 @@ import type {
   WebhookUpdateRequest,
   WebhookLog,
   WebhookTestResult,
+  SetupStatusResponse,
+  RegistrationStatusResponse,
+  SystemSetting,
+  SystemSettingsResponse,
+  UpdateSettingRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -504,6 +509,47 @@ class ApiClient {
   async getWebhookLogs(id: string, limit?: number): Promise<ApiResponse<WebhookLog[]>> {
     const query = limit ? `?limit=${limit}` : ''
     return this.request<WebhookLog[]>(`/webhooks/${id}/logs${query}`)
+  }
+
+  // ============================================
+  // Setup (First-time installation)
+  // ============================================
+
+  async getSetupStatus(): Promise<ApiResponse<SetupStatusResponse>> {
+    return this.request<SetupStatusResponse>('/setup/status')
+  }
+
+  async getRegistrationStatus(): Promise<ApiResponse<RegistrationStatusResponse>> {
+    return this.request<RegistrationStatusResponse>('/setup/registration-status')
+  }
+
+  async createInitialAdmin(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
+    return this.request<AuthResponse>('/setup/admin', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // System Settings (Admin only)
+  // ============================================
+
+  async getSystemSettings(): Promise<ApiResponse<SystemSettingsResponse>> {
+    return this.request<SystemSettingsResponse>('/admin/settings')
+  }
+
+  async getSystemSetting(key: string): Promise<ApiResponse<SystemSetting>> {
+    return this.request<SystemSetting>(`/admin/settings/${key}`)
+  }
+
+  async updateSystemSetting(
+    key: string,
+    data: UpdateSettingRequest
+  ): Promise<ApiResponse<SystemSetting>> {
+    return this.request<SystemSetting>(`/admin/settings/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
   }
 }
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { getApiUrl } from '@/lib/utils/api-url'
 import OAuthButton from '@/components/OAuthButton'
 import { ThemedInput } from '@/components/ui/ThemedInput'
@@ -11,6 +11,7 @@ import { api } from '@/lib/api'
 import type { OAuthProvider } from '@/types'
 
 function LoginForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,8 +19,34 @@ function LoginForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
   const [oauthProviders, setOAuthProviders] = useState<OAuthProvider[]>([])
+  const [checkingSetup, setCheckingSetup] = useState(true)
+  const [registrationEnabled, setRegistrationEnabled] = useState(true)
   const buttonHover = useHoverStyle(hoverStyles.primaryButton, { disabled: isLoading })
   const linkHover = useHoverStyle(hoverStyles.primaryLink)
+
+  // Check if setup is needed and registration status on mount
+  useEffect(() => {
+    const checkSetupAndRegistration = async () => {
+      try {
+        // Check setup status first
+        const setupResponse = await api.getSetupStatus()
+        if (setupResponse.data?.needs_setup) {
+          router.push('/setup')
+          return
+        }
+
+        // Check registration status
+        const regResponse = await api.getRegistrationStatus()
+        if (regResponse.data) {
+          setRegistrationEnabled(regResponse.data.enabled)
+        }
+      } catch (err) {
+        console.error('Failed to check status:', err)
+      }
+      setCheckingSetup(false)
+    }
+    checkSetupAndRegistration()
+  }, [router])
 
   // Check for OAuth error in query params
   useEffect(() => {
@@ -102,6 +129,24 @@ function LoginForm() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading while checking setup status
+  if (checkingSetup) {
+    return (
+      <div
+        className="rounded-2xl p-8 text-center shadow-xl"
+        style={{
+          backgroundColor: 'var(--color-card)',
+          borderColor: 'var(--color-card-border)',
+        }}
+      >
+        <div
+          className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
+          style={{ color: 'var(--color-primary)' }}
+        />
+      </div>
+    )
   }
 
   return (
@@ -250,17 +295,19 @@ function LoginForm() {
         </>
       )}
 
-      <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        Don&apos;t have an account?{' '}
-        <Link
-          href="/register"
-          className="font-medium transition"
-          style={{ color: 'var(--color-primary)' }}
-          {...linkHover}
-        >
-          Sign up
-        </Link>
-      </div>
+      {registrationEnabled && (
+        <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          Don&apos;t have an account?{' '}
+          <Link
+            href="/register"
+            className="font-medium transition"
+            style={{ color: 'var(--color-primary)' }}
+            {...linkHover}
+          >
+            Sign up
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

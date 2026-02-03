@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"log"
+	"net/mail"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -14,19 +15,35 @@ import (
 type AuthHandler struct {
 	userRepo     *repository.UserRepository
 	authService  *services.AuthService
+	settingsRepo *repository.SettingsRepository
 	cookieConfig utils.CookieConfig
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService, settingsRepo *repository.SettingsRepository) *AuthHandler {
 	return &AuthHandler{
 		userRepo:     userRepo,
 		authService:  authService,
+		settingsRepo: settingsRepo,
 		cookieConfig: utils.GetCookieConfig(),
 	}
 }
 
 // Register handles user registration
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
+	// Check if public registration is enabled
+	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(c.Context())
+	if err != nil {
+		log.Printf("Failed to check registration setting: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to check registration status",
+		})
+	}
+	if !isEnabled {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Public registration is disabled",
+		})
+	}
+
 	var req models.RegisterRequest
 
 	// Parse request body
@@ -40,6 +57,13 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	if req.Email == "" || req.Password == "" || req.Name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Email, password, and name are required",
+		})
+	}
+
+	// Validate email format
+	if _, err := mail.ParseAddress(req.Email); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid email format",
 		})
 	}
 

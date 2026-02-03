@@ -14,6 +14,7 @@ import (
 var (
 	ErrUserNotFound      = errors.New("user not found")
 	ErrProviderNotLinked = errors.New("provider not linked to user")
+	ErrUsersAlreadyExist = errors.New("users already exist")
 )
 
 type UserRepository struct {
@@ -120,6 +121,61 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 	}
 
 	return exists, nil
+}
+
+// Count returns the total number of users in the database
+func (r *UserRepository) Count() (int, error) {
+	var count int
+	err := r.db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("failed to count users: %w", err)
+	}
+	return count, nil
+}
+
+// CreateAdminIfNone atomically creates an admin user only if no users exist.
+// Returns ErrUsersAlreadyExist if users already exist, preventing race conditions.
+// Uses a conditional INSERT that only succeeds when no users exist, making it
+// truly atomic at the SQL level without relying on transaction isolation.
+func (r *UserRepository) CreateAdminIfNone(user *models.User) error {
+	user.ID = uuid.New().String()
+
+	// Atomic conditional INSERT: only inserts if no users exist
+	// This avoids race conditions that can occur with separate COUNT + INSERT
+	query := `
+		INSERT INTO users (id, email, name, password, role, provider, provider_id, avatar_url, email_verified, created_at, updated_at)
+		SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+		WHERE NOT EXISTS (SELECT 1 FROM users LIMIT 1)
+	`
+
+	result, err := r.db.Exec(
+		query,
+		user.ID,
+		user.Email,
+		user.Name,
+		user.Password,
+		user.Role,
+		user.Provider,
+		user.ProviderID,
+		user.AvatarURL,
+		user.EmailVerified,
+		user.CreatedAt,
+		user.UpdatedAt,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create admin user: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrUsersAlreadyExist
+	}
+
+	return nil
 }
 
 // UserFilter represents search and filter options

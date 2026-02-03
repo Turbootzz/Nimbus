@@ -46,6 +46,7 @@ func main() {
 	statusLogRepo := repository.NewStatusLogRepository(database)
 	groupRepo := repository.NewGroupRepository(database)
 	webhookRepo := repository.NewWebhookRepository(database)
+	settingsRepo := repository.NewSettingsRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -71,8 +72,8 @@ func main() {
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, authService)
-	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo)
+	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
+	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
@@ -81,6 +82,8 @@ func main() {
 	staticHandler := handlers.NewStaticHandler()
 	groupHandler := handlers.NewGroupHandler(groupRepo)
 	webhookHandler := handlers.NewWebhookHandler(webhookRepo, notificationService)
+	settingsHandler := handlers.NewSettingsHandler(settingsRepo)
+	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -189,12 +192,21 @@ func main() {
 	preferences.Get("/", preferencesHandler.GetPreferences)
 	preferences.Put("/", preferencesHandler.UpdatePreferences)
 
+	// Setup routes (public - for first-time setup)
+	setup := v1.Group("/setup")
+	setup.Get("/status", setupHandler.GetSetupStatus)
+	setup.Post("/admin", setupHandler.CreateInitialAdmin)
+	setup.Get("/registration-status", settingsHandler.GetPublicRegistrationStatus)
+
 	// Admin routes (protected, admin only)
 	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo), middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
 	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
 	admin.Delete("/users/:id", adminHandler.DeleteUser)
+	admin.Get("/settings", settingsHandler.GetSettings)
+	admin.Get("/settings/:key", settingsHandler.GetSetting)
+	admin.Put("/settings/:key", settingsHandler.UpdateSetting)
 
 	// Start health check monitor
 	healthCheckInterval := getEnvDuration("HEALTH_CHECK_INTERVAL", 60*time.Second)
