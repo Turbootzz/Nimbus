@@ -8,26 +8,11 @@ import (
 )
 
 func TestConnect_URLEncodingSpecialChars(t *testing.T) {
-	// Save and restore original environment
-	origHost := os.Getenv("DB_HOST")
-	origPort := os.Getenv("DB_PORT")
-	origUser := os.Getenv("DB_USER")
-	origName := os.Getenv("DB_NAME")
-	origPassword := os.Getenv("DB_PASSWORD")
-
-	t.Cleanup(func() {
-		os.Setenv("DB_HOST", origHost)
-		os.Setenv("DB_PORT", origPort)
-		os.Setenv("DB_USER", origUser)
-		os.Setenv("DB_NAME", origName)
-		os.Setenv("DB_PASSWORD", origPassword)
-	})
-
-	// Set up test environment
-	os.Setenv("DB_HOST", "localhost")
-	os.Setenv("DB_PORT", "5432")
-	os.Setenv("DB_USER", "testuser")
-	os.Setenv("DB_NAME", "testdb")
+	// Set up test environment with automatic cleanup
+	t.Setenv("DB_HOST", "localhost")
+	t.Setenv("DB_PORT", "5432")
+	t.Setenv("DB_USER", "testuser")
+	t.Setenv("DB_NAME", "testdb")
 
 	testCases := []struct {
 		name     string
@@ -65,7 +50,7 @@ func TestConnect_URLEncodingSpecialChars(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			os.Setenv("DB_PASSWORD", tc.password)
+			t.Setenv("DB_PASSWORD", tc.password)
 
 			// Build URL using the same function Connect() uses
 			dbURL := buildDBURL(
@@ -177,31 +162,14 @@ func TestBuildDBURL_DirectTest(t *testing.T) {
 // TestConnect_DBURLPassthrough verifies that when DB_URL is set,
 // Connect uses it directly without modification
 func TestConnect_DBURLPassthrough(t *testing.T) {
-	// Save and restore environment
-	origDBURL := os.Getenv("DB_URL")
-	origHost := os.Getenv("DB_HOST")
-	origPort := os.Getenv("DB_PORT")
-	origUser := os.Getenv("DB_USER")
-	origPassword := os.Getenv("DB_PASSWORD")
-	origName := os.Getenv("DB_NAME")
-
-	t.Cleanup(func() {
-		os.Setenv("DB_URL", origDBURL)
-		os.Setenv("DB_HOST", origHost)
-		os.Setenv("DB_PORT", origPort)
-		os.Setenv("DB_USER", origUser)
-		os.Setenv("DB_PASSWORD", origPassword)
-		os.Setenv("DB_NAME", origName)
-	})
-
-	// Set DB_URL and some individual env vars
+	// Set DB_URL and some individual env vars with automatic cleanup
 	testDBURL := "postgres://customuser:custompass@customhost:9999/customdb?sslmode=require"
-	os.Setenv("DB_URL", testDBURL)
-	os.Setenv("DB_HOST", "ignored-host")
-	os.Setenv("DB_PORT", "1234")
-	os.Setenv("DB_USER", "ignored-user")
-	os.Setenv("DB_PASSWORD", "ignored-password")
-	os.Setenv("DB_NAME", "ignored-db")
+	t.Setenv("DB_URL", testDBURL)
+	t.Setenv("DB_HOST", "ignored-host")
+	t.Setenv("DB_PORT", "1234")
+	t.Setenv("DB_USER", "ignored-user")
+	t.Setenv("DB_PASSWORD", "ignored-password")
+	t.Setenv("DB_NAME", "ignored-db")
 
 	// Note: We can't actually test Connect() without a real database,
 	// but we can verify the logic would use DB_URL when set by checking
@@ -212,7 +180,7 @@ func TestConnect_DBURLPassthrough(t *testing.T) {
 	}
 
 	// Verify that if DB_URL is empty, buildDBURL would be called
-	os.Setenv("DB_URL", "")
+	t.Setenv("DB_URL", "")
 	constructedURL := buildDBURL(
 		os.Getenv("DB_HOST"),
 		os.Getenv("DB_PORT"),

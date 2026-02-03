@@ -524,7 +524,7 @@ DB_URL=postgres://nimbus:my%40pass%21word@db:5432/nimbus?sslmode=disable
 - `^` → `%5E`
 - `&` → `%26`
 - `*` → `%2A`
-- Space → `+` or `%20`
+- Space → `%20`
 
 ---
 
