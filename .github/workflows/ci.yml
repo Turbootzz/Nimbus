@@ -151,8 +151,8 @@ jobs:
         run: sh docker/entrypoint.test.sh
 
   # nimbus.turboot.com prod image
-  docker-prod:
-    name: Build Prod Image
+  docker-demo:
+    name: Build Demo Image
     runs-on: ubuntu-latest
     needs: [backend, frontend, docker-setup]
     if: |
@@ -193,6 +193,52 @@ jobs:
           build-args: |
             NEXT_PUBLIC_APP_NAME=Nimbus
             NEXT_PUBLIC_SITE_URL=${{ secrets.NEXT_PUBLIC_SITE_URL }}
+
+  # Nimbus Cloud image
+  docker-cloud:
+    name: Build Cloud Image
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, docker-setup]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      github.event_name == 'push' &&
+      github.repository_owner == 'Turbootzz' &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      needs.docker-setup.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push cloud image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/turbootzz/nimbus-cloud:latest
+            ghcr.io/turbootzz/nimbus-cloud:${{ github.sha }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            NEXT_PUBLIC_APP_NAME=Nimbus
+            NEXT_PUBLIC_NIMBUS_CLOUD=true
 
   # Public Docker Hub images
   docker:
@@ -314,16 +360,17 @@ jobs:
   ci-success:
     name: CI Success
     runs-on: ubuntu-latest
-    needs: [backend, frontend, docker-setup, docker, docker-prod]
+    needs: [backend, frontend, docker-setup, docker, docker-demo, docker-cloud]
     if: always()
     steps:
       - name: Check all jobs
         run: |
           # Docker build jobs are skipped on non-main branches, so treat 'skipped' as success
           docker_ok=$([[ "${{ needs.docker.result }}" == "success" ]] || [[ "${{ needs.docker.result }}" == "skipped" ]] && echo "true" || echo "false")
-          prod_ok=$([[ "${{ needs.docker-prod.result }}" == "success" ]] || [[ "${{ needs.docker-prod.result }}" == "skipped" ]] && echo "true" || echo "false")
+          demo_ok=$([[ "${{ needs.docker-demo.result }}" == "success" ]] || [[ "${{ needs.docker-demo.result }}" == "skipped" ]] && echo "true" || echo "false")
+          cloud_ok=$([[ "${{ needs.docker-cloud.result }}" == "success" ]] || [[ "${{ needs.docker-cloud.result }}" == "skipped" ]] && echo "true" || echo "false")
 
-          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "${{ needs.docker-setup.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$prod_ok" == "true" ]]; then
+          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "${{ needs.docker-setup.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$demo_ok" == "true" ]] && [[ "$cloud_ok" == "true" ]]; then
             echo "All CI jobs passed!"
             exit 0
           else
@@ -332,6 +379,7 @@ jobs:
             echo "Frontend: ${{ needs.frontend.result }}"
             echo "Docker Setup: ${{ needs.docker-setup.result }}"
             echo "Docker: ${{ needs.docker.result }}"
-            echo "Docker Prod: ${{ needs.docker-prod.result }}"
+            echo "Docker Demo: ${{ needs.docker-demo.result }}"
+            echo "Docker Cloud: ${{ needs.docker-cloud.result }}"
             exit 1
           fi

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
@@ -92,6 +93,12 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 		if req.Value != "true" && req.Value != "false" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Value must be 'true' or 'false'",
+			})
+		}
+		// Block re-enabling when env var override is active
+		if req.Value == "true" && os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Registration is disabled by server configuration",
 			})
 		}
 	}

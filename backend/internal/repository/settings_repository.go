@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 
 	"github.com/nimbus/backend/internal/models"
 )
@@ -107,6 +108,11 @@ func (r *SettingsRepository) Update(ctx context.Context, key, value string, upda
 
 // IsPublicRegistrationEnabled checks if public registration is enabled
 func (r *SettingsRepository) IsPublicRegistrationEnabled(ctx context.Context) (bool, error) {
+	// Env var override: force-disable registration (for cloud deployments)
+	if os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
+		return false, nil
+	}
+
 	setting, err := r.Get(ctx, "public_registration_enabled")
 	if err != nil {
 		if errors.Is(err, ErrSettingNotFound) {

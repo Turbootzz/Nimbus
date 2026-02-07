@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"log"
+	"net/mail"
 	"os"
 	"os/signal"
 	"strconv"
@@ -15,6 +17,7 @@ import (
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/handlers"
 	"github.com/nimbus/backend/internal/middleware"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 	"github.com/nimbus/backend/internal/workers"
@@ -50,6 +53,44 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService()
+
+	// Auto-create admin from env vars (for cloud/automated deployments)
+	if adminEmail := os.Getenv("INITIAL_ADMIN_EMAIL"); adminEmail != "" {
+		adminPassword := os.Getenv("INITIAL_ADMIN_PASSWORD")
+		if _, parseErr := mail.ParseAddress(adminEmail); parseErr != nil {
+			log.Printf("WARNING: INITIAL_ADMIN_EMAIL is not a valid email address, skipping auto-setup")
+		} else if adminPassword == "" {
+			log.Println("WARNING: INITIAL_ADMIN_EMAIL set but INITIAL_ADMIN_PASSWORD is empty, skipping auto-setup")
+		} else if len(adminPassword) < 8 {
+			log.Println("WARNING: INITIAL_ADMIN_PASSWORD must be at least 8 characters, skipping auto-setup")
+		} else {
+			hashedPassword, hashErr := authService.HashPassword(adminPassword)
+			if hashErr != nil {
+				log.Printf("WARNING: Failed to hash admin password: %v", hashErr)
+			} else {
+				now := time.Now()
+				user := &models.User{
+					Email:         adminEmail,
+					Name:          "Admin",
+					Password:      &hashedPassword,
+					Role:          "admin",
+					Provider:      "local",
+					EmailVerified: true,
+					CreatedAt:     now,
+					UpdatedAt:     now,
+				}
+				if createErr := userRepo.CreateAdminIfNone(user); createErr != nil {
+					if errors.Is(createErr, repository.ErrUsersAlreadyExist) {
+						log.Println("Auto-setup: Users already exist, skipping")
+					} else {
+						log.Printf("WARNING: Auto-setup failed: %v", createErr)
+					}
+				} else {
+					log.Printf("Auto-setup: Admin user created (%s)", adminEmail)
+				}
+			}
+		}
+	}
 
 	// Initialize OAuth service with provider configurations
 	googleConfig := config.GetGoogleOAuthConfig()
@@ -112,10 +153,14 @@ func main() {
 
 	// Health check
 	v1.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"status": "healthy",
-			"app":    "nimbus",
-		})
+		response := fiber.Map{"status": "healthy", "app": "nimbus"}
+		if err := database.Ping(); err != nil {
+			response["status"] = "unhealthy"
+			response["database"] = "disconnected"
+			return c.Status(fiber.StatusServiceUnavailable).JSON(response)
+		}
+		response["database"] = "connected"
+		return c.JSON(response)
 	})
 
 	// Auth routes (public)
