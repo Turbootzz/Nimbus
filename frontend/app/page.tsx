@@ -47,6 +47,8 @@ const screenshots = [
 ]
 
 export default function LandingPage() {
+  const isNimbusCloud = process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true'
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Navigation */}
@@ -228,6 +230,9 @@ export default function LandingPage() {
               <span className="text-sm text-gray-500">— Made for the homelab community</span>
             </div>
             <div className="flex items-center gap-6">
+              {isNimbusCloud && (
+                <span className="text-sm font-medium text-sky-500">Hosted by Nimbus Cloud</span>
+              )}
               <a
                 href="https://github.com/Turbootzz/Nimbus"
                 target="_blank"
