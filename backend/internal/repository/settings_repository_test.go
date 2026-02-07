@@ -204,8 +204,12 @@ func TestSettingsRepository_GetAll(t *testing.T) {
 
 	// Insert two settings
 	userID := "admin-1"
-	repo.Update(ctx, "key_a", "value_a", &userID)
-	repo.Update(ctx, "key_b", "value_b", &userID)
+	if err := repo.Update(ctx, "key_a", "value_a", &userID); err != nil {
+		t.Fatalf("Failed to insert key_a: %v", err)
+	}
+	if err := repo.Update(ctx, "key_b", "value_b", &userID); err != nil {
+		t.Fatalf("Failed to insert key_b: %v", err)
+	}
 
 	settings, err = repo.GetAll(ctx)
 	if err != nil {
