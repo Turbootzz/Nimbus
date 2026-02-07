@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"net/mail"
 	"os"
 	"os/signal"
 	"strconv"
@@ -56,7 +57,9 @@ func main() {
 	// Auto-create admin from env vars (for cloud/automated deployments)
 	if adminEmail := os.Getenv("INITIAL_ADMIN_EMAIL"); adminEmail != "" {
 		adminPassword := os.Getenv("INITIAL_ADMIN_PASSWORD")
-		if adminPassword == "" {
+		if _, parseErr := mail.ParseAddress(adminEmail); parseErr != nil {
+			log.Printf("WARNING: INITIAL_ADMIN_EMAIL is not a valid email address, skipping auto-setup")
+		} else if adminPassword == "" {
 			log.Println("WARNING: INITIAL_ADMIN_EMAIL set but INITIAL_ADMIN_PASSWORD is empty, skipping auto-setup")
 		} else if len(adminPassword) < 8 {
 			log.Println("WARNING: INITIAL_ADMIN_PASSWORD must be at least 8 characters, skipping auto-setup")
@@ -72,7 +75,7 @@ func main() {
 					Password:      &hashedPassword,
 					Role:          "admin",
 					Provider:      "local",
-					EmailVerified: false,
+					EmailVerified: true,
 					CreatedAt:     now,
 					UpdatedAt:     now,
 				}
