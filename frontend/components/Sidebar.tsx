@@ -166,8 +166,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
           {/* Nimbus Cloud badge */}
           {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
-            <div className="border-sidebar-border border-t px-4 py-2 text-center">
-              <span className="text-xs text-sky-500">Hosted by Nimbus Cloud</span>
+            <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              />
+              <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
             </div>
           )}
         </div>
@@ -203,8 +207,12 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
           {/* Nimbus Cloud badge */}
           {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
-            <div className="border-sidebar-border border-t px-4 py-2 text-center">
-              <span className="text-xs text-sky-500">Hosted by Nimbus Cloud</span>
+            <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
+              <span
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ backgroundColor: 'var(--color-primary)' }}
+              />
+              <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
             </div>
           )}
         </div>

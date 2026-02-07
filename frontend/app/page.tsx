@@ -231,7 +231,9 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6">
               {isNimbusCloud && (
-                <span className="text-sm font-medium text-sky-500">Hosted by Nimbus Cloud</span>
+                <span className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+                  Hosted by Nimbus Cloud
+                </span>
               )}
               <a
                 href="https://github.com/Turbootzz/Nimbus"
