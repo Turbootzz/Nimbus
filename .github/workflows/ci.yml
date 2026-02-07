@@ -370,7 +370,7 @@ jobs:
           demo_ok=$([[ "${{ needs.docker-demo.result }}" == "success" ]] || [[ "${{ needs.docker-demo.result }}" == "skipped" ]] && echo "true" || echo "false")
           cloud_ok=$([[ "${{ needs.docker-cloud.result }}" == "success" ]] || [[ "${{ needs.docker-cloud.result }}" == "skipped" ]] && echo "true" || echo "false")
 
-          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "${{ needs.docker-setup.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$prod_ok" == "true" ]] && [[ "$cloud_ok" == "true" ]]; then
+          if [[ "${{ needs.backend.result }}" == "success" ]] && [[ "${{ needs.frontend.result }}" == "success" ]] && [[ "${{ needs.docker-setup.result }}" == "success" ]] && [[ "$docker_ok" == "true" ]] && [[ "$demo_ok" == "true" ]] && [[ "$cloud_ok" == "true" ]]; then
             echo "All CI jobs passed!"
             exit 0
           else
