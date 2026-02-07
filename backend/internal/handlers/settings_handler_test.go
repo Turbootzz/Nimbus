@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -509,5 +510,130 @@ func TestSettingsHandler_GetPublicRegistrationStatus_NoSetting(t *testing.T) {
 	// Default should be true when setting doesn't exist
 	if !response["enabled"] {
 		t.Error("Expected enabled to default to true when setting doesn't exist")
+	}
+}
+
+func TestSettingsHandler_UpdateSetting_BlockedByEnvVar(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	// Set env var to disable registration
+	os.Setenv("DISABLE_PUBLIC_REGISTRATION", "true")
+	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo)
+
+	app := fiber.New()
+	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSetting(c)
+	})
+
+	// Try to enable registration while env var blocks it
+	updateReq := models.UpdateSettingRequest{
+		Value: "true",
+	}
+
+	bodyJSON, _ := json.Marshal(updateReq)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/public_registration_enabled", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Errorf("Expected status %d when env var blocks re-enable, got %d", http.StatusForbidden, resp.StatusCode)
+	}
+
+	var response map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response["error"] != "Registration is disabled by server configuration" {
+		t.Errorf("Expected server configuration error, got '%s'", response["error"])
+	}
+}
+
+func TestSettingsHandler_UpdateSetting_AllowDisableWithEnvVar(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	// Set env var to disable registration
+	os.Setenv("DISABLE_PUBLIC_REGISTRATION", "true")
+	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo)
+
+	app := fiber.New()
+	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSetting(c)
+	})
+
+	// Setting to "false" should still work even with env var
+	updateReq := models.UpdateSettingRequest{
+		Value: "false",
+	}
+
+	bodyJSON, _ := json.Marshal(updateReq)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/public_registration_enabled", bytes.NewReader(bodyJSON))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d when disabling (not blocked), got %d", http.StatusOK, resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_GetPublicRegistrationStatus_EnvVarOverride(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	// Insert setting with registration enabled
+	_, err := db.Exec(`
+		INSERT INTO system_settings (key, value, updated_at)
+		VALUES (?, ?, ?)
+	`, "public_registration_enabled", "true", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	// Env var should override the DB setting
+	os.Setenv("DISABLE_PUBLIC_REGISTRATION", "true")
+	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo)
+
+	app := fiber.New()
+	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/setup/registration-status", nil)
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Failed to execute request: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+	}
+
+	var response map[string]bool
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response["enabled"] {
+		t.Error("Expected enabled to be false when DISABLE_PUBLIC_REGISTRATION is set")
 	}
 }
