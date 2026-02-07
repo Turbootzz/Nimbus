@@ -71,7 +71,7 @@ export default function LandingPage() {
               href="/login"
               className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-sky-600"
             >
-              Launch Nimbus
+              Launch demo
             </Link>
           </div>
         </div>
@@ -96,7 +96,7 @@ export default function LandingPage() {
                 href="/login"
                 className="group flex items-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-base font-medium text-white shadow-lg transition-all hover:bg-sky-600 hover:shadow-xl"
               >
-                Launch Nimbus
+                Launch demo
                 <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
               </Link>
               <a
@@ -206,7 +206,7 @@ export default function LandingPage() {
               href="/login"
               className="rounded-lg bg-white px-6 py-3 text-base font-medium text-sky-600 shadow-lg transition-colors hover:bg-gray-50"
             >
-              Launch Nimbus
+              Launch demo
             </Link>
             <a
               href="https://github.com/Turbootzz/Nimbus"
