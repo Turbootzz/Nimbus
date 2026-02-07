@@ -379,7 +379,7 @@ jobs:
             echo "Frontend: ${{ needs.frontend.result }}"
             echo "Docker Setup: ${{ needs.docker-setup.result }}"
             echo "Docker: ${{ needs.docker.result }}"
-            echo "Docker Prod: ${{ needs.docker-demo.result }}"
+            echo "Docker Demo: ${{ needs.docker-demo.result }}"
             echo "Docker Cloud: ${{ needs.docker-cloud.result }}"
             exit 1
           fi

@@ -131,6 +131,17 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     </>
   )
 
+  // Nimbus Cloud badge (shown when deployed on Nimbus Cloud)
+  const cloudBadge = process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
+    <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
+      <span
+        className="inline-block h-1.5 w-1.5 rounded-full"
+        style={{ backgroundColor: 'var(--color-primary)' }}
+      />
+      <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
+    </div>
+  )
+
   // Shared logout button rendering function
   const renderLogout = () => (
     <div className="border-sidebar-border shrink-0 border-t p-4">
@@ -164,16 +175,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Logout button */}
           {renderLogout()}
 
-          {/* Nimbus Cloud badge */}
-          {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
-            <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-              />
-              <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
-            </div>
-          )}
+          {cloudBadge}
         </div>
       </div>
 
@@ -205,16 +207,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Logout button */}
           {renderLogout()}
 
-          {/* Nimbus Cloud badge */}
-          {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
-            <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
-              <span
-                className="inline-block h-1.5 w-1.5 rounded-full"
-                style={{ backgroundColor: 'var(--color-primary)' }}
-              />
-              <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
-            </div>
-          )}
+          {cloudBadge}
         </div>
       </div>
     </>

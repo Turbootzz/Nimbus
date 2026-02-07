@@ -231,7 +231,10 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6">
               {isNimbusCloud && (
-                <span className="text-sm font-medium" style={{ color: 'var(--color-primary)' }}>
+                <span
+                  className="text-sm font-medium"
+                  style={{ color: 'var(--color-primary, #6366f1)' }}
+                >
                   Hosted by Nimbus Cloud
                 </span>
               )}
