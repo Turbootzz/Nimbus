@@ -134,11 +134,18 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
   // Nimbus Cloud badge (shown when deployed on Nimbus Cloud)
   const cloudBadge = process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
     <div className="border-sidebar-border flex items-center justify-center gap-1.5 border-t px-4 py-2">
-      <span
-        className="inline-block h-1.5 w-1.5 rounded-full"
-        style={{ backgroundColor: 'var(--color-primary)' }}
-      />
-      <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
+      <a
+        href="https://nimbusapp.dev"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
+      >
+        <span
+          className="inline-block h-1.5 w-1.5 rounded-full"
+          style={{ backgroundColor: 'var(--color-primary)' }}
+        />
+        <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
+      </a>
     </div>
   )
 
@@ -172,10 +179,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 space-y-1 px-4 py-4">{renderNavigation()}</nav>
 
+          {cloudBadge}
+
           {/* Logout button */}
           {renderLogout()}
-
-          {cloudBadge}
         </div>
       </div>
 
@@ -204,10 +211,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             {renderNavigation(() => setIsOpen(false))}
           </nav>
 
+          {cloudBadge}
+
           {/* Logout button */}
           {renderLogout()}
-
-          {cloudBadge}
         </div>
       </div>
     </>

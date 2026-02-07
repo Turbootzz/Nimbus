@@ -231,12 +231,15 @@ export default function LandingPage() {
             </div>
             <div className="flex items-center gap-6">
               {isNimbusCloud && (
-                <span
-                  className="text-sm font-medium"
+                <a
+                  href="https://nimbusapp.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm font-medium hover:opacity-80"
                   style={{ color: 'var(--color-primary, #6366f1)' }}
                 >
                   Hosted by Nimbus Cloud
-                </span>
+                </a>
               )}
               <a
                 href="https://github.com/Turbootzz/Nimbus"
