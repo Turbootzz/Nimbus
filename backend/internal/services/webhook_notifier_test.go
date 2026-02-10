@@ -1,11 +1,18 @@
 package services
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func TestWebhookNotifier_BuildGenericPayload(t *testing.T) {
@@ -541,6 +548,329 @@ func TestWebhookNotifier_SlackBlocksStructure(t *testing.T) {
 	}
 	if !hasContext {
 		t.Error("Expected a context block")
+	}
+}
+
+// retryTestServiceRepo allows configuring GetByID responses for retry tests
+type retryTestServiceRepo struct {
+	MockServiceRepository
+	status string
+}
+
+func (m *retryTestServiceRepo) GetByID(_ context.Context, id string) (*models.Service, error) {
+	return &models.Service{ID: id, Status: m.status}, nil
+}
+
+func clearRetryPending() {
+	retryPendingMu.Lock()
+	retryPending = make(map[retryPendingKey]bool)
+	retryPendingMu.Unlock()
+}
+
+func isKeyPending(webhookID, serviceID string) bool {
+	retryPendingMu.Lock()
+	defer retryPendingMu.Unlock()
+	return retryPending[retryPendingKey{WebhookID: webhookID, ServiceID: serviceID}]
+}
+
+// setupWebhookNotifierTestDB creates an in-memory SQLite database for webhook notifier tests
+func setupWebhookNotifierTestDB(t *testing.T) (*sql.DB, *repository.WebhookRepository) {
+	t.Helper()
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	schema := `
+		CREATE TABLE IF NOT EXISTS webhooks (
+			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+			user_id TEXT NOT NULL, name TEXT NOT NULL, url TEXT NOT NULL,
+			enabled INTEGER NOT NULL DEFAULT 1,
+			triggers TEXT NOT NULL DEFAULT '{"on_offline":true,"on_online":false}',
+			format TEXT NOT NULL DEFAULT 'generic',
+			retry_count INTEGER NOT NULL DEFAULT 0,
+			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
+			last_triggered_at TIMESTAMP, last_success_at TIMESTAMP,
+			consecutive_failures INTEGER NOT NULL DEFAULT 0,
+			total_sent INTEGER NOT NULL DEFAULT 0, total_failed INTEGER NOT NULL DEFAULT 0,
+			created_at TIMESTAMP NOT NULL, updated_at TIMESTAMP NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS webhook_logs (
+			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+			webhook_id TEXT NOT NULL, service_id TEXT NOT NULL, service_name TEXT NOT NULL,
+			old_status TEXT NOT NULL, new_status TEXT NOT NULL,
+			success INTEGER NOT NULL, status_code INTEGER,
+			error_message TEXT, response_time_ms INTEGER,
+			created_at TIMESTAMP NOT NULL
+		);
+	`
+	if _, err := db.Exec(schema); err != nil {
+		t.Fatalf("Failed to create test tables: %v", err)
+	}
+	return db, repository.NewWebhookRepository(db)
+}
+
+func TestNotifyWithRetry_RecoveryKeepsPending(t *testing.T) {
+	clearRetryPending()
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOnline}
+	notifier := &WebhookNotifier{serviceRepo: serviceRepo}
+
+	webhook := &models.Webhook{
+		ID: "wh-recovery", Name: "Test", RetryCount: 1, RetryDelaySeconds: 0,
+	}
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		NewStatus: models.StatusOffline,
+	}
+
+	notifier.notifyWithRetry(context.Background(), webhook, event)
+
+	// Key should remain pending — Notify() will clear it when the online event arrives
+	if !isKeyPending("wh-recovery", "svc-1") {
+		t.Error("Expected retry pending key to remain after recovery")
+	}
+}
+
+func TestNotifyWithRetry_ConfirmedOfflineClearsPending(t *testing.T) {
+	clearRetryPending()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	db, webhookRepo := setupWebhookNotifierTestDB(t)
+	defer db.Close()
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOffline}
+	notifier := &WebhookNotifier{
+		webhookRepo: webhookRepo,
+		serviceRepo: serviceRepo,
+		httpClient:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	webhook := &models.Webhook{
+		ID: "wh-confirmed", UserID: "user-1", Name: "Test", URL: server.URL,
+		Format: models.WebhookFormatGeneric, RetryCount: 1, RetryDelaySeconds: 0,
+	}
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		OldStatus: models.StatusOnline, NewStatus: models.StatusOffline,
+		UserID: "user-1", Timestamp: time.Now(),
+	}
+
+	notifier.notifyWithRetry(context.Background(), webhook, event)
+
+	// Key should be cleared after confirmed offline and notification sent
+	if isKeyPending("wh-confirmed", "svc-1") {
+		t.Error("Expected retry pending key to be cleared after confirmed offline")
+	}
+}
+
+func TestNotifyWithRetry_CancelledClearsPending(t *testing.T) {
+	clearRetryPending()
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOffline}
+	notifier := &WebhookNotifier{serviceRepo: serviceRepo}
+
+	webhook := &models.Webhook{
+		ID: "wh-cancel", Name: "Test", RetryCount: 3, RetryDelaySeconds: 60,
+	}
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		NewStatus: models.StatusOffline,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	notifier.notifyWithRetry(ctx, webhook, event)
+
+	if isKeyPending("wh-cancel", "svc-1") {
+		t.Error("Expected retry pending key to be cleared after cancellation")
+	}
+}
+
+func TestNotify_SuppressesOnlineWhenRetryPending(t *testing.T) {
+	clearRetryPending()
+
+	db, webhookRepo := setupWebhookNotifierTestDB(t)
+	defer db.Close()
+
+	now := time.Now()
+	webhook := &models.Webhook{
+		UserID: "user-suppress", Name: "Test Webhook", URL: "https://example.com/hook",
+		Enabled: true, Format: models.WebhookFormatGeneric,
+		Triggers:  models.WebhookTriggers{OnOffline: true, OnOnline: true},
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := webhookRepo.Create(context.Background(), webhook); err != nil {
+		t.Fatalf("Failed to create webhook: %v", err)
+	}
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOnline}
+	notifier := NewWebhookNotifier(webhookRepo, serviceRepo)
+
+	// Simulate a pending retry for this webhook/service
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: webhook.ID, ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
+
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		OldStatus: models.StatusOffline, NewStatus: models.StatusOnline,
+		UserID: "user-suppress", Timestamp: time.Now(),
+	}
+
+	if err := notifier.Notify(context.Background(), event); err != nil {
+		t.Fatalf("Notify returned error: %v", err)
+	}
+
+	// Pending key should be cleared by the suppression logic
+	if isKeyPending(webhook.ID, "svc-1") {
+		t.Error("Expected pending key to be cleared after online suppression")
+	}
+}
+
+func TestNotify_AllowsOnlineWhenNotPending(t *testing.T) {
+	clearRetryPending()
+
+	received := make(chan bool, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		received <- true
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	db, webhookRepo := setupWebhookNotifierTestDB(t)
+	defer db.Close()
+
+	now := time.Now()
+	webhook := &models.Webhook{
+		UserID: "user-allow", Name: "Test Webhook", URL: server.URL,
+		Enabled: true, Format: models.WebhookFormatGeneric,
+		Triggers:  models.WebhookTriggers{OnOffline: true, OnOnline: true},
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := webhookRepo.Create(context.Background(), webhook); err != nil {
+		t.Fatalf("Failed to create webhook: %v", err)
+	}
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOnline}
+	notifier := NewWebhookNotifier(webhookRepo, serviceRepo)
+
+	// No pending retry — online notification should go through
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		OldStatus: models.StatusOffline, NewStatus: models.StatusOnline,
+		UserID: "user-allow", Timestamp: time.Now(),
+	}
+
+	if err := notifier.Notify(context.Background(), event); err != nil {
+		t.Fatalf("Notify returned error: %v", err)
+	}
+
+	select {
+	case <-received:
+		// Webhook was sent
+	case <-time.After(5 * time.Second):
+		t.Error("Expected online webhook to be sent when no retry is pending")
+	}
+}
+
+func TestNotify_RetryBypassesRateLimit(t *testing.T) {
+	clearRetryPending()
+
+	// Clear rate limit cache
+	rateLimitMu.Lock()
+	rateLimitCache = make(map[rateLimitKey]time.Time)
+	rateLimitMu.Unlock()
+
+	db, webhookRepo := setupWebhookNotifierTestDB(t)
+	defer db.Close()
+
+	now := time.Now()
+	webhook := &models.Webhook{
+		UserID: "user-bypass", Name: "Test Webhook", URL: "https://example.com/hook",
+		Enabled: true, Format: models.WebhookFormatGeneric,
+		Triggers:   models.WebhookTriggers{OnOffline: true, OnOnline: true},
+		RetryCount: 1, RetryDelaySeconds: 0,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := webhookRepo.Create(context.Background(), webhook); err != nil {
+		t.Fatalf("Failed to create webhook: %v", err)
+	}
+
+	// Pre-fill rate limit for this webhook/service/offline combo
+	rateLimitMu.Lock()
+	rateLimitCache[rateLimitKey{WebhookID: webhook.ID, ServiceID: "svc-1", Status: models.StatusOffline}] = time.Now()
+	rateLimitMu.Unlock()
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOnline}
+	notifier := NewWebhookNotifier(webhookRepo, serviceRepo)
+
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		OldStatus: models.StatusOnline, NewStatus: models.StatusOffline,
+		UserID: "user-bypass", Timestamp: time.Now(),
+	}
+
+	if err := notifier.Notify(context.Background(), event); err != nil {
+		t.Fatalf("Notify returned error: %v", err)
+	}
+
+	// Give the goroutine a moment to run
+	time.Sleep(50 * time.Millisecond)
+
+	// Retry should have started despite rate limit (key set then cleared on recovery)
+	// Service recovered so key stays pending for Notify to clean up
+	if !isKeyPending(webhook.ID, "svc-1") {
+		t.Error("Expected retry to start despite rate limit (pending key should exist)")
+	}
+}
+
+func TestNotify_SkipsDuplicateRetry(t *testing.T) {
+	clearRetryPending()
+
+	db, webhookRepo := setupWebhookNotifierTestDB(t)
+	defer db.Close()
+
+	now := time.Now()
+	webhook := &models.Webhook{
+		UserID: "user-dup", Name: "Test Webhook", URL: "https://example.com/hook",
+		Enabled: true, Format: models.WebhookFormatGeneric,
+		Triggers:   models.WebhookTriggers{OnOffline: true, OnOnline: true},
+		RetryCount: 2, RetryDelaySeconds: 60,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := webhookRepo.Create(context.Background(), webhook); err != nil {
+		t.Fatalf("Failed to create webhook: %v", err)
+	}
+
+	// Simulate an already-running retry
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: webhook.ID, ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
+
+	serviceRepo := &retryTestServiceRepo{status: models.StatusOffline}
+	notifier := NewWebhookNotifier(webhookRepo, serviceRepo)
+
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		OldStatus: models.StatusOnline, NewStatus: models.StatusOffline,
+		UserID: "user-dup", Timestamp: time.Now(),
+	}
+
+	if err := notifier.Notify(context.Background(), event); err != nil {
+		t.Fatalf("Notify returned error: %v", err)
+	}
+
+	// Give time for any goroutine to run (there shouldn't be one)
+	time.Sleep(50 * time.Millisecond)
+
+	// Key should still be pending (original retry untouched, no duplicate spawned)
+	if !isKeyPending(webhook.ID, "svc-1") {
+		t.Error("Expected pending key to remain unchanged (no duplicate retry)")
 	}
 }
 
