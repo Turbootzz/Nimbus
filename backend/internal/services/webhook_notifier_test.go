@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -561,6 +562,30 @@ func (m *retryTestServiceRepo) GetByID(_ context.Context, id string) (*models.Se
 	return &models.Service{ID: id, Status: m.status}, nil
 }
 
+// retrySequenceServiceRepo returns different results on successive GetByID calls
+type retrySequenceServiceRepo struct {
+	MockServiceRepository
+	results []retrySequenceResult
+	callIdx int
+}
+
+type retrySequenceResult struct {
+	status string
+	err    error
+}
+
+func (m *retrySequenceServiceRepo) GetByID(_ context.Context, id string) (*models.Service, error) {
+	if m.callIdx >= len(m.results) {
+		return &models.Service{ID: id, Status: models.StatusOffline}, nil
+	}
+	r := m.results[m.callIdx]
+	m.callIdx++
+	if r.err != nil {
+		return nil, r.err
+	}
+	return &models.Service{ID: id, Status: r.status}, nil
+}
+
 func clearRetryPending() {
 	retryPendingMu.Lock()
 	retryPending = make(map[retryPendingKey]bool)
@@ -624,6 +649,11 @@ func TestNotifyWithRetry_RecoveryKeepsPending(t *testing.T) {
 		NewStatus: models.StatusOffline,
 	}
 
+	// Pre-set pending (normally done by Notify before spawning the goroutine)
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: "wh-recovery", ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
+
 	notifier.notifyWithRetry(context.Background(), webhook, event)
 
 	// Key should remain pending — Notify() will clear it when the online event arrives
@@ -659,11 +689,51 @@ func TestNotifyWithRetry_ConfirmedOfflineClearsPending(t *testing.T) {
 		UserID: "user-1", Timestamp: time.Now(),
 	}
 
+	// Pre-set pending (normally done by Notify before spawning the goroutine)
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: "wh-confirmed", ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
+
 	notifier.notifyWithRetry(context.Background(), webhook, event)
 
 	// Key should be cleared after confirmed offline and notification sent
 	if isKeyPending("wh-confirmed", "svc-1") {
 		t.Error("Expected retry pending key to be cleared after confirmed offline")
+	}
+}
+
+func TestNotifyWithRetry_DBErrorContinuesRetry(t *testing.T) {
+	clearRetryPending()
+
+	serviceRepo := &retrySequenceServiceRepo{
+		results: []retrySequenceResult{
+			{err: fmt.Errorf("connection refused")}, // retry 1: DB error
+			{status: models.StatusOnline},           // retry 2: recovered
+		},
+	}
+	notifier := &WebhookNotifier{serviceRepo: serviceRepo}
+
+	webhook := &models.Webhook{
+		ID: "wh-dberr", Name: "Test", RetryCount: 2, RetryDelaySeconds: 0,
+	}
+	event := NotificationEvent{
+		ServiceID: "svc-1", ServiceName: "Test Service",
+		NewStatus: models.StatusOffline,
+	}
+
+	// Pre-set pending (normally done by Notify)
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: "wh-dberr", ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
+
+	notifier.notifyWithRetry(context.Background(), webhook, event)
+
+	// DB error on retry 1 should not abort; retry 2 sees recovery, key stays pending
+	if !isKeyPending("wh-dberr", "svc-1") {
+		t.Error("Expected retry pending key to remain after DB error then recovery")
+	}
+	if serviceRepo.callIdx != 2 {
+		t.Errorf("Expected 2 GetByID calls, got %d", serviceRepo.callIdx)
 	}
 }
 
@@ -680,6 +750,11 @@ func TestNotifyWithRetry_CancelledClearsPending(t *testing.T) {
 		ServiceID: "svc-1", ServiceName: "Test Service",
 		NewStatus: models.StatusOffline,
 	}
+
+	// Pre-set pending (normally done by Notify before spawning the goroutine)
+	retryPendingMu.Lock()
+	retryPending[retryPendingKey{WebhookID: "wh-cancel", ServiceID: "svc-1"}] = true
+	retryPendingMu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately

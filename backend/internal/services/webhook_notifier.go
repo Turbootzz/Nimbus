@@ -87,14 +87,15 @@ func (w *WebhookNotifier) Notify(ctx context.Context, event NotificationEvent) e
 
 		// For offline events with retries, skip rate limit here (checked after verification)
 		if event.NewStatus == models.StatusOffline && webhook.RetryCount > 0 {
-			// Don't start a duplicate retry if one is already in progress
 			key := retryPendingKey{WebhookID: webhook.ID, ServiceID: event.ServiceID}
 			retryPendingMu.Lock()
-			alreadyPending := retryPending[key]
-			retryPendingMu.Unlock()
-			if alreadyPending {
+			if retryPending[key] {
+				retryPendingMu.Unlock()
 				continue
 			}
+			// Set pending while holding the lock to prevent duplicate goroutines
+			retryPending[key] = true
+			retryPendingMu.Unlock()
 			go w.notifyWithRetry(context.Background(), webhook, event)
 			continue
 		}
@@ -114,11 +115,7 @@ func (w *WebhookNotifier) Notify(ctx context.Context, event NotificationEvent) e
 // This prevents false positive alerts from transient failures.
 func (w *WebhookNotifier) notifyWithRetry(ctx context.Context, webhook *models.Webhook, event NotificationEvent) {
 	key := retryPendingKey{WebhookID: webhook.ID, ServiceID: event.ServiceID}
-
-	// Mark as pending so online notifications are suppressed during verification
-	retryPendingMu.Lock()
-	retryPending[key] = true
-	retryPendingMu.Unlock()
+	// retryPending[key] is already set by Notify() before spawning this goroutine
 
 	delay := time.Duration(webhook.RetryDelaySeconds) * time.Second
 	log.Printf("Webhook %s: service %s went offline, verifying with %d retries (delay: %ds)",
@@ -138,13 +135,9 @@ func (w *WebhookNotifier) notifyWithRetry(ctx context.Context, webhook *models.W
 		// Re-check service status from DB
 		service, err := w.serviceRepo.GetByID(ctx, event.ServiceID)
 		if err != nil {
-			log.Printf("Webhook %s: retry %d/%d failed to fetch service %s: %v",
+			log.Printf("Webhook %s: retry %d/%d failed to fetch service %s: %v (continuing)",
 				webhook.Name, attempt, webhook.RetryCount, event.ServiceID, err)
-			retryPendingMu.Lock()
-			delete(retryPending, key)
-			retryPendingMu.Unlock()
-			w.sendWebhook(ctx, webhook, event)
-			return
+			continue
 		}
 
 		// Service recovered, skip notification
