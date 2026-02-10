@@ -574,12 +574,13 @@ func isKeyPending(webhookID, serviceID string) bool {
 }
 
 // setupWebhookNotifierTestDB creates an in-memory SQLite database for webhook notifier tests
-func setupWebhookNotifierTestDB(t *testing.T) (*sql.DB, *repository.WebhookRepository) {
+func setupWebhookNotifierTestDB(t *testing.T) *repository.WebhookRepository {
 	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
+	t.Cleanup(func() { db.Close() })
 	schema := `
 		CREATE TABLE IF NOT EXISTS webhooks (
 			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -606,7 +607,7 @@ func setupWebhookNotifierTestDB(t *testing.T) (*sql.DB, *repository.WebhookRepos
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("Failed to create test tables: %v", err)
 	}
-	return db, repository.NewWebhookRepository(db)
+	return repository.NewWebhookRepository(db)
 }
 
 func TestNotifyWithRetry_RecoveryKeepsPending(t *testing.T) {
@@ -639,8 +640,7 @@ func TestNotifyWithRetry_ConfirmedOfflineClearsPending(t *testing.T) {
 	}))
 	defer server.Close()
 
-	db, webhookRepo := setupWebhookNotifierTestDB(t)
-	defer db.Close()
+	webhookRepo := setupWebhookNotifierTestDB(t)
 
 	serviceRepo := &retryTestServiceRepo{status: models.StatusOffline}
 	notifier := &WebhookNotifier{
@@ -694,8 +694,7 @@ func TestNotifyWithRetry_CancelledClearsPending(t *testing.T) {
 func TestNotify_SuppressesOnlineWhenRetryPending(t *testing.T) {
 	clearRetryPending()
 
-	db, webhookRepo := setupWebhookNotifierTestDB(t)
-	defer db.Close()
+	webhookRepo := setupWebhookNotifierTestDB(t)
 
 	now := time.Now()
 	webhook := &models.Webhook{
@@ -742,8 +741,7 @@ func TestNotify_AllowsOnlineWhenNotPending(t *testing.T) {
 	}))
 	defer server.Close()
 
-	db, webhookRepo := setupWebhookNotifierTestDB(t)
-	defer db.Close()
+	webhookRepo := setupWebhookNotifierTestDB(t)
 
 	now := time.Now()
 	webhook := &models.Webhook{
@@ -786,8 +784,7 @@ func TestNotify_RetryBypassesRateLimit(t *testing.T) {
 	rateLimitCache = make(map[rateLimitKey]time.Time)
 	rateLimitMu.Unlock()
 
-	db, webhookRepo := setupWebhookNotifierTestDB(t)
-	defer db.Close()
+	webhookRepo := setupWebhookNotifierTestDB(t)
 
 	now := time.Now()
 	webhook := &models.Webhook{
@@ -832,8 +829,7 @@ func TestNotify_RetryBypassesRateLimit(t *testing.T) {
 func TestNotify_SkipsDuplicateRetry(t *testing.T) {
 	clearRetryPending()
 
-	db, webhookRepo := setupWebhookNotifierTestDB(t)
-	defer db.Close()
+	webhookRepo := setupWebhookNotifierTestDB(t)
 
 	now := time.Now()
 	webhook := &models.Webhook{

@@ -281,7 +281,7 @@ func (h *HealthCheckService) performCheck(ctx context.Context, service *models.S
 		return checkResult{status: models.StatusOffline, responseTime: &responseTime, errorMessage: &errorMsg}
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, io.LimitReader(resp.Body, maxDrainBytes)) // Drain body (capped) to enable connection reuse
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxDrainBytes)) // Drain body (capped) to enable connection reuse
 
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return checkResult{status: models.StatusOnline, responseTime: &responseTime}

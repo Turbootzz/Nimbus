@@ -14,10 +14,12 @@ import (
 
 // setupNotificationTestDB creates an in-memory SQLite database with webhook tables
 func setupNotificationTestDB(t *testing.T) *sql.DB {
+	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
+	t.Cleanup(func() { db.Close() })
 
 	schema := `
 		CREATE TABLE IF NOT EXISTS webhooks (
@@ -63,7 +65,6 @@ func setupNotificationTestDB(t *testing.T) *sql.DB {
 
 func TestNewNotificationService(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
 	service := NewNotificationService(webhookRepo, &MockServiceRepository{})
@@ -79,7 +80,6 @@ func TestNewNotificationService(t *testing.T) {
 
 func TestNotificationService_NotifyStatusChange_NoWebhooks(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
 	service := NewNotificationService(webhookRepo, &MockServiceRepository{})
@@ -205,7 +205,6 @@ func TestNotificationEvent_OptionalErrorMsg(t *testing.T) {
 
 func TestNotificationService_TestWebhook_NotFound(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
 	service := NewNotificationService(webhookRepo, &MockServiceRepository{})

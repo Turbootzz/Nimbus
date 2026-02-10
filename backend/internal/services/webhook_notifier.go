@@ -29,6 +29,8 @@ type retryPendingKey struct {
 	ServiceID string
 }
 
+// Package-level state shared across all WebhookNotifier instances.
+// Tests that access these maps must NOT use t.Parallel().
 var (
 	rateLimitCache = make(map[rateLimitKey]time.Time)
 	rateLimitMu    sync.RWMutex
