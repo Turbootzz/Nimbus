@@ -103,7 +103,7 @@ func main() {
 	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
 
 	// Initialize notification service
-	notificationService := services.NewNotificationService(webhookRepo)
+	notificationService := services.NewNotificationService(webhookRepo, serviceRepo)
 
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
@@ -328,6 +328,11 @@ func getEnvDuration(key string, defaultValue time.Duration) time.Duration {
 	seconds, err := strconv.Atoi(valStr)
 	if err != nil {
 		log.Printf("Invalid value for %s: %s, using default %v", key, valStr, defaultValue)
+		return defaultValue
+	}
+
+	if seconds < 0 {
+		log.Printf("Negative value for %s: %d, using default %v", key, seconds, defaultValue)
 		return defaultValue
 	}
 

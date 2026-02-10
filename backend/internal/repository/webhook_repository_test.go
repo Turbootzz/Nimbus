@@ -28,6 +28,8 @@ func setupWebhookTestDB(t *testing.T) *sql.DB {
 			enabled INTEGER NOT NULL DEFAULT 1,
 			triggers TEXT NOT NULL DEFAULT '{"on_offline":true,"on_online":false}',
 			format TEXT NOT NULL DEFAULT 'generic',
+			retry_count INTEGER NOT NULL DEFAULT 0,
+			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
 			last_triggered_at TIMESTAMP,
 			last_success_at TIMESTAMP,
 			consecutive_failures INTEGER NOT NULL DEFAULT 0,

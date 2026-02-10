@@ -33,6 +33,8 @@ type Webhook struct {
 	Enabled             bool            `json:"enabled" db:"enabled"`
 	Triggers            WebhookTriggers `json:"triggers" db:"triggers"`
 	Format              string          `json:"format" db:"format"`
+	RetryCount          int             `json:"retry_count" db:"retry_count"`
+	RetryDelaySeconds   int             `json:"retry_delay_seconds" db:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at" db:"last_triggered_at"`
 	LastSuccessAt       *time.Time      `json:"last_success_at" db:"last_success_at"`
 	ConsecutiveFailures int             `json:"consecutive_failures" db:"consecutive_failures"`
@@ -44,20 +46,24 @@ type Webhook struct {
 
 // WebhookCreateRequest for creating a new webhook
 type WebhookCreateRequest struct {
-	Name     string           `json:"name" validate:"required,max=100"`
-	URL      string           `json:"url" validate:"required,url"`
-	Enabled  *bool            `json:"enabled"`
-	Triggers *WebhookTriggers `json:"triggers"`
-	Format   string           `json:"format" validate:"omitempty,oneof=generic discord slack"`
+	Name              string           `json:"name" validate:"required,max=100"`
+	URL               string           `json:"url" validate:"required,url"`
+	Enabled           *bool            `json:"enabled"`
+	Triggers          *WebhookTriggers `json:"triggers"`
+	Format            string           `json:"format" validate:"omitempty,oneof=generic discord slack"`
+	RetryCount        *int             `json:"retry_count" validate:"omitempty,min=0,max=5"`
+	RetryDelaySeconds *int             `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
 
 // WebhookUpdateRequest for updating a webhook
 type WebhookUpdateRequest struct {
-	Name     *string          `json:"name" validate:"omitempty,max=100"`
-	URL      *string          `json:"url" validate:"omitempty,url"`
-	Enabled  *bool            `json:"enabled"`
-	Triggers *WebhookTriggers `json:"triggers"`
-	Format   *string          `json:"format" validate:"omitempty,oneof=generic discord slack"`
+	Name              *string          `json:"name" validate:"omitempty,max=100"`
+	URL               *string          `json:"url" validate:"omitempty,url"`
+	Enabled           *bool            `json:"enabled"`
+	Triggers          *WebhookTriggers `json:"triggers"`
+	Format            *string          `json:"format" validate:"omitempty,oneof=generic discord slack"`
+	RetryCount        *int             `json:"retry_count" validate:"omitempty,min=0,max=5"`
+	RetryDelaySeconds *int             `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
 
 // WebhookResponse is the safe data to return to clients
@@ -68,6 +74,8 @@ type WebhookResponse struct {
 	Enabled             bool            `json:"enabled"`
 	Triggers            WebhookTriggers `json:"triggers"`
 	Format              string          `json:"format"`
+	RetryCount          int             `json:"retry_count"`
+	RetryDelaySeconds   int             `json:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at,omitempty"`
 	LastSuccessAt       *time.Time      `json:"last_success_at,omitempty"`
 	ConsecutiveFailures int             `json:"consecutive_failures"`
@@ -86,6 +94,8 @@ func (w *Webhook) ToResponse() WebhookResponse {
 		Enabled:             w.Enabled,
 		Triggers:            w.Triggers,
 		Format:              w.Format,
+		RetryCount:          w.RetryCount,
+		RetryDelaySeconds:   w.RetryDelaySeconds,
 		LastTriggeredAt:     w.LastTriggeredAt,
 		LastSuccessAt:       w.LastSuccessAt,
 		ConsecutiveFailures: w.ConsecutiveFailures,

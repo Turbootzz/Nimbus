@@ -25,8 +25,8 @@ func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook)
 	}
 
 	query := `
-		INSERT INTO webhooks (user_id, name, url, enabled, triggers, format, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO webhooks (user_id, name, url, enabled, triggers, format, retry_count, retry_delay_seconds, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`
 
@@ -42,6 +42,8 @@ func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook)
 		webhook.Enabled,
 		triggersJSON,
 		webhook.Format,
+		webhook.RetryCount,
+		webhook.RetryDelaySeconds,
 		webhook.CreatedAt,
 		webhook.UpdatedAt,
 	).Scan(&webhook.ID)
@@ -56,6 +58,7 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 
 	query := `
 		SELECT id, user_id, name, url, enabled, triggers, format,
+			   retry_count, retry_delay_seconds,
 			   last_triggered_at, last_success_at, consecutive_failures,
 			   total_sent, total_failed, created_at, updated_at
 		FROM webhooks
@@ -70,6 +73,8 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 		&webhook.Enabled,
 		&triggersJSON,
 		&webhook.Format,
+		&webhook.RetryCount,
+		&webhook.RetryDelaySeconds,
 		&webhook.LastTriggeredAt,
 		&webhook.LastSuccessAt,
 		&webhook.ConsecutiveFailures,
@@ -97,6 +102,7 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 func (r *WebhookRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Webhook, error) {
 	query := `
 		SELECT id, user_id, name, url, enabled, triggers, format,
+			   retry_count, retry_delay_seconds,
 			   last_triggered_at, last_success_at, consecutive_failures,
 			   total_sent, total_failed, created_at, updated_at
 		FROM webhooks
@@ -123,6 +129,8 @@ func (r *WebhookRepository) GetAllByUserID(ctx context.Context, userID string) (
 			&webhook.Enabled,
 			&triggersJSON,
 			&webhook.Format,
+			&webhook.RetryCount,
+			&webhook.RetryDelaySeconds,
 			&webhook.LastTriggeredAt,
 			&webhook.LastSuccessAt,
 			&webhook.ConsecutiveFailures,
@@ -149,6 +157,7 @@ func (r *WebhookRepository) GetAllByUserID(ctx context.Context, userID string) (
 func (r *WebhookRepository) GetEnabledByUserID(ctx context.Context, userID string) ([]*models.Webhook, error) {
 	query := `
 		SELECT id, user_id, name, url, enabled, triggers, format,
+			   retry_count, retry_delay_seconds,
 			   last_triggered_at, last_success_at, consecutive_failures,
 			   total_sent, total_failed, created_at, updated_at
 		FROM webhooks
@@ -175,6 +184,8 @@ func (r *WebhookRepository) GetEnabledByUserID(ctx context.Context, userID strin
 			&webhook.Enabled,
 			&triggersJSON,
 			&webhook.Format,
+			&webhook.RetryCount,
+			&webhook.RetryDelaySeconds,
 			&webhook.LastTriggeredAt,
 			&webhook.LastSuccessAt,
 			&webhook.ConsecutiveFailures,
@@ -216,8 +227,9 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 
 	query := `
 		UPDATE webhooks
-		SET name = $1, url = $2, enabled = $3, triggers = $4, format = $5, updated_at = $6
-		WHERE id = $7 AND user_id = $8
+		SET name = $1, url = $2, enabled = $3, triggers = $4, format = $5,
+			retry_count = $6, retry_delay_seconds = $7, updated_at = $8
+		WHERE id = $9 AND user_id = $10
 	`
 
 	result, err := r.db.ExecContext(
@@ -228,6 +240,8 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 		webhook.Enabled,
 		triggersJSON,
 		webhook.Format,
+		webhook.RetryCount,
+		webhook.RetryDelaySeconds,
 		webhook.UpdatedAt,
 		webhook.ID,
 		webhook.UserID,

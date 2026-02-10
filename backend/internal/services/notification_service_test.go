@@ -14,10 +14,12 @@ import (
 
 // setupNotificationTestDB creates an in-memory SQLite database with webhook tables
 func setupNotificationTestDB(t *testing.T) *sql.DB {
+	t.Helper()
 	db, err := sql.Open("sqlite3", ":memory:")
 	if err != nil {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
+	t.Cleanup(func() { db.Close() })
 
 	schema := `
 		CREATE TABLE IF NOT EXISTS webhooks (
@@ -28,6 +30,8 @@ func setupNotificationTestDB(t *testing.T) *sql.DB {
 			enabled INTEGER NOT NULL DEFAULT 1,
 			triggers TEXT NOT NULL DEFAULT '{"on_offline":true,"on_online":false}',
 			format TEXT NOT NULL DEFAULT 'generic',
+			retry_count INTEGER NOT NULL DEFAULT 0,
+			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
 			last_triggered_at TIMESTAMP,
 			last_success_at TIMESTAMP,
 			consecutive_failures INTEGER NOT NULL DEFAULT 0,
@@ -61,10 +65,9 @@ func setupNotificationTestDB(t *testing.T) *sql.DB {
 
 func TestNewNotificationService(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
-	service := NewNotificationService(webhookRepo)
+	service := NewNotificationService(webhookRepo, &MockServiceRepository{})
 
 	if service == nil {
 		t.Fatal("Expected notification service to be created")
@@ -77,10 +80,9 @@ func TestNewNotificationService(t *testing.T) {
 
 func TestNotificationService_NotifyStatusChange_NoWebhooks(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
-	service := NewNotificationService(webhookRepo)
+	service := NewNotificationService(webhookRepo, &MockServiceRepository{})
 
 	event := NotificationEvent{
 		ServiceID:   "service-1",
@@ -203,10 +205,9 @@ func TestNotificationEvent_OptionalErrorMsg(t *testing.T) {
 
 func TestNotificationService_TestWebhook_NotFound(t *testing.T) {
 	db := setupNotificationTestDB(t)
-	defer db.Close()
 
 	webhookRepo := repository.NewWebhookRepository(db)
-	service := NewNotificationService(webhookRepo)
+	service := NewNotificationService(webhookRepo, &MockServiceRepository{})
 
 	// Try to test a non-existent webhook
 	_, err := service.TestWebhook(context.Background(), "non-existent", "user-1")

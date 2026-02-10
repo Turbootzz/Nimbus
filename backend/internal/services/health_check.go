@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -14,6 +15,9 @@ import (
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 )
+
+// Max bytes to drain from response body for connection reuse (1MB)
+const maxDrainBytes = 1 << 20
 
 // DNS lookup cache entry
 type dnsCacheEntry struct {
@@ -43,6 +47,13 @@ func CleanupDNSCache() int {
 		}
 	}
 	return removed
+}
+
+// checkResult holds the outcome of a single health check attempt
+type checkResult struct {
+	status       string
+	responseTime *int
+	errorMessage *string
 }
 
 // HealthCheckService handles health checking of services
@@ -250,50 +261,44 @@ func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, st
 	}
 }
 
-// CheckService performs a health check on a single service
-func (h *HealthCheckService) CheckService(ctx context.Context, service *models.Service) error {
-	// Skip services with monitoring disabled
-	if !service.MonitoringEnabled {
-		return nil
-	}
-
+// performCheck executes a single HTTP health check without side effects
+func (h *HealthCheckService) performCheck(ctx context.Context, service *models.Service) checkResult {
 	start := time.Now()
 
-	// Create request with context for cancellation
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, service.URL, nil)
 	if err != nil {
-		// Invalid URL - mark as offline
 		errorMsg := err.Error()
-		return h.updateStatus(ctx, service.ID, models.StatusOffline, nil, &errorMsg)
+		return checkResult{status: models.StatusOffline, errorMessage: &errorMsg}
 	}
 
-	// Set user agent
 	req.Header.Set("User-Agent", "Nimbus-HealthCheck/1.0")
 
-	// Perform the request
 	resp, err := h.httpClient.Do(req)
 	responseTime := int(time.Since(start).Milliseconds())
 
 	if err != nil {
-		// Request failed - service is offline
 		errorMsg := err.Error()
-		return h.updateStatus(ctx, service.ID, models.StatusOffline, &responseTime, &errorMsg)
+		return checkResult{status: models.StatusOffline, responseTime: &responseTime, errorMessage: &errorMsg}
 	}
 	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxDrainBytes)) // Drain body (capped) to enable connection reuse
 
-	// Consider 2xx and 3xx status codes as "online"
-	// 4xx and 5xx are considered "offline" (service is responding but not healthy)
-	var status string
-	var errorMsg *string
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
-		status = models.StatusOnline
-	} else {
-		status = models.StatusOffline
-		msg := fmt.Sprintf("HTTP %d", resp.StatusCode)
-		errorMsg = &msg
+		return checkResult{status: models.StatusOnline, responseTime: &responseTime}
 	}
 
-	return h.updateStatus(ctx, service.ID, status, &responseTime, errorMsg)
+	errorMsg := fmt.Sprintf("HTTP %d", resp.StatusCode)
+	return checkResult{status: models.StatusOffline, responseTime: &responseTime, errorMessage: &errorMsg}
+}
+
+// CheckService performs a single health check on a service and updates its status
+func (h *HealthCheckService) CheckService(ctx context.Context, service *models.Service) error {
+	if !service.MonitoringEnabled {
+		return nil
+	}
+
+	result := h.performCheck(ctx, service)
+	return h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage)
 }
 
 // CheckAllServices checks all services for a specific user

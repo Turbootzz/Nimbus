@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -681,5 +682,65 @@ func TestHealthCheckService_CheckService_MonitoringDisabled(t *testing.T) {
 	// The repository update should NOT have been called
 	if mockRepo.updateStatusWithResponseTimeCalled {
 		t.Error("Expected UpdateStatusWithResponseTime to NOT be called for non-monitored service")
+	}
+}
+
+// --- Single check tests (no retries in health check - retries are per-webhook) ---
+
+func TestHealthCheckService_CheckService_SingleCheckOffline(t *testing.T) {
+	var attempts atomic.Int32
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer testServer.Close()
+
+	mockRepo := &MockServiceRepository{}
+	healthService := &HealthCheckService{
+		serviceRepo: mockRepo,
+		httpClient:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	service := &models.Service{
+		ID: "test-offline", Name: "Offline Service",
+		URL: testServer.URL, MonitoringEnabled: true,
+	}
+
+	healthService.CheckService(context.Background(), service)
+
+	if got := attempts.Load(); got != 1 {
+		t.Errorf("Expected 1 attempt, got %d", got)
+	}
+	if mockRepo.lastStatus != models.StatusOffline {
+		t.Errorf("Expected 'offline', got '%s'", mockRepo.lastStatus)
+	}
+}
+
+func TestHealthCheckService_CheckService_SingleCheckOnline(t *testing.T) {
+	var attempts atomic.Int32
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer testServer.Close()
+
+	mockRepo := &MockServiceRepository{}
+	healthService := &HealthCheckService{
+		serviceRepo: mockRepo,
+		httpClient:  &http.Client{Timeout: 5 * time.Second},
+	}
+
+	service := &models.Service{
+		ID: "test-success", Name: "Success Service",
+		URL: testServer.URL, MonitoringEnabled: true,
+	}
+
+	healthService.CheckService(context.Background(), service)
+
+	if got := attempts.Load(); got != 1 {
+		t.Errorf("Expected 1 attempt, got %d", got)
+	}
+	if mockRepo.lastStatus != models.StatusOnline {
+		t.Errorf("Expected 'online', got '%s'", mockRepo.lastStatus)
 	}
 }

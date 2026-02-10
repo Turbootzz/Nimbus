@@ -23,22 +23,35 @@ type rateLimitKey struct {
 	Status    string
 }
 
+// Track services currently pending retry verification per webhook
+type retryPendingKey struct {
+	WebhookID string
+	ServiceID string
+}
+
+// Package-level state shared across all WebhookNotifier instances.
+// Tests that access these maps must NOT use t.Parallel().
 var (
 	rateLimitCache = make(map[rateLimitKey]time.Time)
 	rateLimitMu    sync.RWMutex
 	rateLimitTTL   = 5 * time.Minute
+
+	retryPending   = make(map[retryPendingKey]bool)
+	retryPendingMu sync.Mutex
 )
 
 // WebhookNotifier handles webhook delivery
 type WebhookNotifier struct {
 	webhookRepo *repository.WebhookRepository
+	serviceRepo repository.ServiceRepositoryInterface
 	httpClient  *http.Client
 }
 
 // NewWebhookNotifier creates a new webhook notifier
-func NewWebhookNotifier(webhookRepo *repository.WebhookRepository) *WebhookNotifier {
+func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo repository.ServiceRepositoryInterface) *WebhookNotifier {
 	return &WebhookNotifier{
 		webhookRepo: webhookRepo,
+		serviceRepo: serviceRepo,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -57,16 +70,102 @@ func (w *WebhookNotifier) Notify(ctx context.Context, event NotificationEvent) e
 			continue
 		}
 
+		// Suppress online notifications if offline was never sent (still pending retry)
+		if event.NewStatus == models.StatusOnline {
+			key := retryPendingKey{WebhookID: webhook.ID, ServiceID: event.ServiceID}
+			retryPendingMu.Lock()
+			pending := retryPending[key]
+			if pending {
+				delete(retryPending, key)
+			}
+			retryPendingMu.Unlock()
+			if pending {
+				log.Printf("Webhook %s: suppressing online notification for %s (offline was never sent)", webhook.Name, event.ServiceName)
+				continue
+			}
+		}
+
+		// For offline events with retries, skip rate limit here (checked after verification)
+		if event.NewStatus == models.StatusOffline && webhook.RetryCount > 0 {
+			key := retryPendingKey{WebhookID: webhook.ID, ServiceID: event.ServiceID}
+			retryPendingMu.Lock()
+			if retryPending[key] {
+				retryPendingMu.Unlock()
+				continue
+			}
+			// Set pending while holding the lock to prevent duplicate goroutines
+			retryPending[key] = true
+			retryPendingMu.Unlock()
+			go w.notifyWithRetry(context.Background(), webhook, event)
+			continue
+		}
+
 		if w.isRateLimited(webhook.ID, event.ServiceID, event.NewStatus) {
 			log.Printf("Webhook %s rate limited for service %s (status: %s)", webhook.ID, event.ServiceID, event.NewStatus)
 			continue
 		}
 
-		// Send notification asynchronously
 		go w.sendWebhook(context.Background(), webhook, event)
 	}
 
 	return nil
+}
+
+// notifyWithRetry waits and re-checks service status before sending offline notifications.
+// This prevents false positive alerts from transient failures.
+func (w *WebhookNotifier) notifyWithRetry(ctx context.Context, webhook *models.Webhook, event NotificationEvent) {
+	key := retryPendingKey{WebhookID: webhook.ID, ServiceID: event.ServiceID}
+	// retryPending[key] is already set by Notify() before spawning this goroutine
+
+	delay := time.Duration(webhook.RetryDelaySeconds) * time.Second
+	log.Printf("Webhook %s: service %s went offline, verifying with %d retries (delay: %ds)",
+		webhook.Name, event.ServiceName, webhook.RetryCount, webhook.RetryDelaySeconds)
+
+	for attempt := 1; attempt <= webhook.RetryCount; attempt++ {
+		select {
+		case <-ctx.Done():
+			log.Printf("Webhook %s: retry cancelled for service %s", webhook.Name, event.ServiceName)
+			retryPendingMu.Lock()
+			delete(retryPending, key)
+			retryPendingMu.Unlock()
+			return
+		case <-time.After(delay):
+		}
+
+		// Re-check service status from DB
+		service, err := w.serviceRepo.GetByID(ctx, event.ServiceID)
+		if err != nil {
+			log.Printf("Webhook %s: retry %d/%d failed to fetch service %s: %v (continuing)",
+				webhook.Name, attempt, webhook.RetryCount, event.ServiceID, err)
+			continue
+		}
+
+		// Service recovered, skip notification
+		if service.Status == models.StatusOnline {
+			log.Printf("Webhook %s: service %s recovered on retry %d/%d, skipping notification",
+				webhook.Name, event.ServiceName, attempt, webhook.RetryCount)
+			// Don't clear pending here — Notify() will clear it when the online event arrives
+			return
+		}
+
+		log.Printf("Webhook %s: service %s still offline on retry %d/%d",
+			webhook.Name, event.ServiceName, attempt, webhook.RetryCount)
+	}
+
+	// Confirmed offline, clear pending and send
+	retryPendingMu.Lock()
+	delete(retryPending, key)
+	retryPendingMu.Unlock()
+
+	if w.isRateLimited(webhook.ID, event.ServiceID, event.NewStatus) {
+		log.Printf("Webhook %s: service %s confirmed offline but rate limited, skipping",
+			webhook.Name, event.ServiceName)
+		return
+	}
+
+	log.Printf("Webhook %s: service %s confirmed offline after %d retries, sending notification",
+		webhook.Name, event.ServiceName, webhook.RetryCount)
+	w.sendWebhook(ctx, webhook, event)
 }
 
 // shouldTrigger checks if the event type should trigger the webhook
