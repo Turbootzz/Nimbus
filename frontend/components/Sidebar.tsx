@@ -117,13 +117,19 @@ export default function Sidebar({
           }}
         >
           <item.icon
-            className={`h-5 w-5 shrink-0 ${collapsed ? '' : 'mr-3'}`}
+            className="h-5 w-5 shrink-0"
             style={{
               color: isActive(item.href) ? 'white' : 'var(--color-text-muted)',
             }}
             aria-hidden="true"
           />
-          {!collapsed && item.name}
+          <span
+            className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+              collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
+            }`}
+          >
+            {item.name}
+          </span>
         </Link>
       ))}
 
@@ -137,10 +143,16 @@ export default function Sidebar({
         }`}
       >
         <PlusIcon
-          className={`text-text-muted group-hover:text-text-secondary h-5 w-5 shrink-0 ${collapsed ? '' : 'mr-3'}`}
+          className="text-text-muted group-hover:text-text-secondary h-5 w-5 shrink-0"
           aria-hidden="true"
         />
-        {!collapsed && 'Add Service'}
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+            collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
+          }`}
+        >
+          Add Service
+        </span>
       </Link>
     </>
   )
@@ -174,10 +186,16 @@ export default function Sidebar({
         }`}
       >
         <ArrowRightStartOnRectangleIcon
-          className={`text-text-muted group-hover:text-text-secondary h-5 w-5 shrink-0 ${collapsed ? '' : 'mr-3'}`}
+          className="text-text-muted group-hover:text-text-secondary h-5 w-5 shrink-0"
           aria-hidden="true"
         />
-        {!collapsed && 'Sign out'}
+        <span
+          className={`overflow-hidden whitespace-nowrap transition-all duration-300 ${
+            collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
+          }`}
+        >
+          Sign out
+        </span>
       </button>
     </div>
   )
@@ -194,9 +212,15 @@ export default function Sidebar({
             className={`border-sidebar-border flex h-16 shrink-0 items-center border-b ${isDesktopCollapsed ? 'justify-center px-3' : 'px-6'}`}
           >
             <Image src="/images/logo.png" alt="Nimbus Logo" width={30} height={30} />
-            {!isDesktopCollapsed && (
-              <span className="text-text-primary ml-2 text-xl font-semibold">Nimbus</span>
-            )}
+            <span
+              className={`text-text-primary overflow-hidden text-xl font-semibold whitespace-nowrap transition-all duration-300 ${
+                isDesktopCollapsed
+                  ? 'ml-0 max-w-0 opacity-0'
+                  : 'ml-2 max-w-24 opacity-100 delay-150'
+              }`}
+            >
+              Nimbus
+            </span>
           </div>
 
           {/* Navigation */}
