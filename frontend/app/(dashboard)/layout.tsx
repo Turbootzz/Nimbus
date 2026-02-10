@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
@@ -19,7 +19,15 @@ const routeTitles: { path: string; title: string; exact?: boolean }[] = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
+  })
   const pathname = usePathname()
+
+  useEffect(() => {
+    localStorage.setItem('nimbus-sidebar-collapsed', String(isDesktopCollapsed))
+  }, [isDesktopCollapsed])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
@@ -39,10 +47,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar */}
-      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      <Sidebar
+        isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
+        isDesktopCollapsed={isDesktopCollapsed}
+        setIsDesktopCollapsed={setIsDesktopCollapsed}
+      />
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div
+        className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-64'}`}
+      >
         {/* Header */}
         <Header onMenuClick={() => setIsSidebarOpen(true)} title={pageTitle} />
 
