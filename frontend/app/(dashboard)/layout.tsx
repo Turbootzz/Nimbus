@@ -19,11 +19,16 @@ const routeTitles: { path: string; title: string; exact?: boolean }[] = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
-  })
+  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(false)
   const pathname = usePathname()
+
+  // Hydrate collapsed state from localStorage on mount
+  useEffect(() => {
+    if (localStorage.getItem('nimbus-sidebar-collapsed') === 'true') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from external store
+      setIsDesktopCollapsed(true)
+    }
+  }, [])
 
   useEffect(() => {
     localStorage.setItem('nimbus-sidebar-collapsed', String(isDesktopCollapsed))
