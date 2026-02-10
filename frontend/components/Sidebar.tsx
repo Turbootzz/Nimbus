@@ -152,7 +152,7 @@ export default function Sidebar({
         href="https://nimbusapp.dev"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
+        className="flex items-center gap-1.5 whitespace-nowrap transition-opacity hover:opacity-80"
       >
         <span
           className="inline-block h-1.5 w-1.5 rounded-full"
@@ -186,7 +186,7 @@ export default function Sidebar({
     <>
       {/* Desktop sidebar */}
       <div
-        className={`hidden transition-all duration-300 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${isDesktopCollapsed ? 'lg:w-16' : 'lg:w-64'}`}
+        className={`hidden transition-all duration-300 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${isDesktopCollapsed ? 'lg:w-16' : 'lg:w-52'}`}
       >
         <div className="border-sidebar-border bg-sidebar flex grow flex-col overflow-y-auto border-r">
           {/* Logo */}
@@ -204,7 +204,15 @@ export default function Sidebar({
             {renderNavigation(isDesktopCollapsed)}
           </nav>
 
-          {!isDesktopCollapsed && cloudBadge}
+          {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
+            <div
+              className={`overflow-hidden transition-opacity duration-200 ${
+                isDesktopCollapsed ? 'max-h-0 opacity-0' : 'max-h-10 opacity-100 delay-150'
+              }`}
+            >
+              {cloudBadge}
+            </div>
+          )}
 
           {/* Collapse toggle */}
           <div className="border-sidebar-border border-t p-2">
