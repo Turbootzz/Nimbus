@@ -257,6 +257,8 @@ export interface Webhook {
   enabled: boolean
   triggers: WebhookTriggers
   format: WebhookFormat
+  retry_count: number
+  retry_delay_seconds: number
   last_triggered_at?: string
   last_success_at?: string
   consecutive_failures: number
@@ -272,6 +274,8 @@ export interface WebhookCreateRequest {
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  retry_count?: number
+  retry_delay_seconds?: number
 }
 
 export interface WebhookUpdateRequest {
@@ -280,6 +284,8 @@ export interface WebhookUpdateRequest {
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  retry_count?: number
+  retry_delay_seconds?: number
 }
 
 export interface WebhookLog {

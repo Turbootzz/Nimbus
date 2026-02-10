@@ -12,6 +12,8 @@ export interface WebhookFormData {
     on_offline: boolean
     on_online: boolean
   }
+  retry_count: number
+  retry_delay_seconds: number
 }
 
 interface WebhookFormProps {
@@ -32,6 +34,8 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
   const [format, setFormat] = useState<WebhookFormat>(webhook?.format || 'generic')
   const [onOffline, setOnOffline] = useState(webhook?.triggers?.on_offline ?? true)
   const [onOnline, setOnOnline] = useState(webhook?.triggers?.on_online ?? false)
+  const [retryCount, setRetryCount] = useState(webhook?.retry_count ?? 0)
+  const [retryDelaySeconds, setRetryDelaySeconds] = useState(webhook?.retry_delay_seconds ?? 30)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -81,6 +85,8 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
           on_offline: onOffline,
           on_online: onOnline,
         },
+        retry_count: retryCount,
+        retry_delay_seconds: retryDelaySeconds,
       }
 
       const success = await onSubmit(data)
@@ -202,6 +208,54 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                 />
                 <span className="text-text-primary text-sm">When service comes back online</span>
               </label>
+            </div>
+          </div>
+
+          {/* Notification Retries */}
+          <div>
+            <label className="text-text-primary mb-1 block text-sm font-medium">
+              Notification Retries
+            </label>
+            <p className="text-text-muted mb-3 text-xs">
+              For offline alerts: re-check before sending to prevent false positives.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="retryCount" className="text-text-secondary mb-1 block text-xs">
+                  Retries (0-5)
+                </label>
+                <input
+                  type="number"
+                  id="retryCount"
+                  min={0}
+                  max={5}
+                  value={retryCount}
+                  onChange={(e) =>
+                    setRetryCount(Math.max(0, Math.min(5, parseInt(e.target.value) || 0)))
+                  }
+                  disabled={isLoading}
+                  className="bg-background border-card-border text-text-primary focus:border-primary w-full rounded-lg border px-4 py-2 focus:outline-none disabled:opacity-50"
+                />
+              </div>
+              <div>
+                <label htmlFor="retryDelay" className="text-text-secondary mb-1 block text-xs">
+                  Delay (10-300s)
+                </label>
+                <input
+                  type="number"
+                  id="retryDelay"
+                  min={10}
+                  max={300}
+                  value={retryDelaySeconds}
+                  onChange={(e) =>
+                    setRetryDelaySeconds(
+                      Math.max(10, Math.min(300, parseInt(e.target.value) || 30))
+                    )
+                  }
+                  disabled={isLoading || retryCount === 0}
+                  className="bg-background border-card-border text-text-primary focus:border-primary w-full rounded-lg border px-4 py-2 focus:outline-none disabled:opacity-50"
+                />
+              </div>
             </div>
           </div>
 

@@ -26,9 +26,9 @@ type NotificationService struct {
 }
 
 // NewNotificationService creates a new notification service
-func NewNotificationService(webhookRepo *repository.WebhookRepository) *NotificationService {
+func NewNotificationService(webhookRepo *repository.WebhookRepository, serviceRepo repository.ServiceRepositoryInterface) *NotificationService {
 	return &NotificationService{
-		webhookNotifier: NewWebhookNotifier(webhookRepo),
+		webhookNotifier: NewWebhookNotifier(webhookRepo, serviceRepo),
 	}
 }
 

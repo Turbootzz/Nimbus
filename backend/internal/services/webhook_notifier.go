@@ -32,13 +32,15 @@ var (
 // WebhookNotifier handles webhook delivery
 type WebhookNotifier struct {
 	webhookRepo *repository.WebhookRepository
+	serviceRepo repository.ServiceRepositoryInterface
 	httpClient  *http.Client
 }
 
 // NewWebhookNotifier creates a new webhook notifier
-func NewWebhookNotifier(webhookRepo *repository.WebhookRepository) *WebhookNotifier {
+func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo repository.ServiceRepositoryInterface) *WebhookNotifier {
 	return &WebhookNotifier{
 		webhookRepo: webhookRepo,
+		serviceRepo: serviceRepo,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
@@ -62,11 +64,47 @@ func (w *WebhookNotifier) Notify(ctx context.Context, event NotificationEvent) e
 			continue
 		}
 
-		// Send notification asynchronously
-		go w.sendWebhook(context.Background(), webhook, event)
+		// For offline events with retries, verify before sending
+		if event.NewStatus == models.StatusOffline && webhook.RetryCount > 0 {
+			go w.notifyWithRetry(context.Background(), webhook, event)
+		} else {
+			go w.sendWebhook(context.Background(), webhook, event)
+		}
 	}
 
 	return nil
+}
+
+// notifyWithRetry waits and re-checks service status before sending offline notifications.
+// This prevents false positive alerts from transient failures.
+func (w *WebhookNotifier) notifyWithRetry(ctx context.Context, webhook *models.Webhook, event NotificationEvent) {
+	delay := time.Duration(webhook.RetryDelaySeconds) * time.Second
+
+	for attempt := 0; attempt < webhook.RetryCount; attempt++ {
+		select {
+		case <-ctx.Done():
+			log.Printf("Webhook retry cancelled for %s (service %s)", webhook.Name, event.ServiceName)
+			return
+		case <-time.After(delay):
+		}
+
+		// Re-check service status from DB
+		service, err := w.serviceRepo.GetByID(ctx, event.ServiceID)
+		if err != nil {
+			log.Printf("Webhook retry: failed to fetch service %s: %v", event.ServiceID, err)
+			w.sendWebhook(ctx, webhook, event)
+			return
+		}
+
+		// Service recovered, skip notification
+		if service.Status == models.StatusOnline {
+			log.Printf("Webhook retry: service %s recovered, skipping notification for %s", event.ServiceName, webhook.Name)
+			return
+		}
+	}
+
+	// Still offline after all checks, send notification
+	w.sendWebhook(ctx, webhook, event)
 }
 
 // shouldTrigger checks if the event type should trigger the webhook

@@ -103,13 +103,11 @@ func main() {
 	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
 
 	// Initialize notification service
-	notificationService := services.NewNotificationService(webhookRepo)
+	notificationService := services.NewNotificationService(webhookRepo, serviceRepo)
 
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)
-	healthCheckRetries := getEnvInt("HEALTH_CHECK_RETRIES", 1)
-	healthCheckRetryDelay := getEnvDuration("HEALTH_CHECK_RETRY_DELAY", 30*time.Second)
-	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, notificationService, healthCheckTimeout, healthCheckRetries, healthCheckRetryDelay)
+	healthCheckService := services.NewHealthCheckService(serviceRepo, statusLogRepo, notificationService, healthCheckTimeout)
 
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
@@ -318,27 +316,6 @@ func main() {
 	}
 
 	log.Println("Server stopped")
-}
-
-// getEnvInt reads an integer from environment variable
-func getEnvInt(key string, defaultValue int) int {
-	valStr := os.Getenv(key)
-	if valStr == "" {
-		return defaultValue
-	}
-
-	val, err := strconv.Atoi(valStr)
-	if err != nil {
-		log.Printf("Invalid value for %s: %s, using default %d", key, valStr, defaultValue)
-		return defaultValue
-	}
-
-	if val < 0 {
-		log.Printf("Negative value for %s: %d, using default %d", key, val, defaultValue)
-		return defaultValue
-	}
-
-	return val
 }
 
 // getEnvDuration reads a duration from environment variable in seconds

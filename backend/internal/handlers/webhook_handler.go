@@ -102,16 +102,38 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 		triggers = *req.Triggers
 	}
 
+	retryCount := 0
+	if req.RetryCount != nil {
+		if *req.RetryCount < 0 || *req.RetryCount > 5 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Retry count must be between 0 and 5",
+			})
+		}
+		retryCount = *req.RetryCount
+	}
+
+	retryDelaySeconds := 30
+	if req.RetryDelaySeconds != nil {
+		if *req.RetryDelaySeconds < 10 || *req.RetryDelaySeconds > 300 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Retry delay must be between 10 and 300 seconds",
+			})
+		}
+		retryDelaySeconds = *req.RetryDelaySeconds
+	}
+
 	now := time.Now()
 	webhook := &models.Webhook{
-		UserID:    userID,
-		Name:      req.Name,
-		URL:       req.URL,
-		Enabled:   enabled,
-		Triggers:  triggers,
-		Format:    format,
-		CreatedAt: now,
-		UpdatedAt: now,
+		UserID:            userID,
+		Name:              req.Name,
+		URL:               req.URL,
+		Enabled:           enabled,
+		Triggers:          triggers,
+		Format:            format,
+		RetryCount:        retryCount,
+		RetryDelaySeconds: retryDelaySeconds,
+		CreatedAt:         now,
+		UpdatedAt:         now,
 	}
 
 	if err := h.webhookRepo.Create(c.Context(), webhook); err != nil {
@@ -248,6 +270,24 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 			})
 		}
 		webhook.Format = *req.Format
+	}
+
+	if req.RetryCount != nil {
+		if *req.RetryCount < 0 || *req.RetryCount > 5 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Retry count must be between 0 and 5",
+			})
+		}
+		webhook.RetryCount = *req.RetryCount
+	}
+
+	if req.RetryDelaySeconds != nil {
+		if *req.RetryDelaySeconds < 10 || *req.RetryDelaySeconds > 300 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Retry delay must be between 10 and 300 seconds",
+			})
+		}
+		webhook.RetryDelaySeconds = *req.RetryDelaySeconds
 	}
 
 	webhook.UpdatedAt = time.Now()

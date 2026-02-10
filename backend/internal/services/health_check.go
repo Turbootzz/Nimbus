@@ -59,8 +59,6 @@ type HealthCheckService struct {
 	statusLogRepo       *repository.StatusLogRepository
 	notificationService *NotificationService
 	httpClient          *http.Client
-	maxRetries          int           // Number of retries after initial failure (0 = no retries)
-	retryDelay          time.Duration // Delay between retries
 }
 
 // isPrivateIP checks if an IP address is in a private/local range
@@ -228,7 +226,7 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 }
 
 // NewHealthCheckService creates a new health check service
-func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, notificationService *NotificationService, timeout time.Duration, maxRetries int, retryDelay time.Duration) *HealthCheckService {
+func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, statusLogRepo *repository.StatusLogRepository, notificationService *NotificationService, timeout time.Duration) *HealthCheckService {
 	baseTransport := &http.Transport{
 		DialContext: customDialContext, // Use custom dialer for .local domain support
 		TLSClientConfig: &tls.Config{
@@ -257,8 +255,6 @@ func NewHealthCheckService(serviceRepo repository.ServiceRepositoryInterface, st
 				return http.ErrUseLastResponse
 			},
 		},
-		maxRetries: maxRetries,
-		retryDelay: retryDelay,
 	}
 }
 
@@ -292,34 +288,13 @@ func (h *HealthCheckService) performCheck(ctx context.Context, service *models.S
 	return checkResult{status: models.StatusOffline, responseTime: &responseTime, errorMessage: &errorMsg}
 }
 
-// CheckService performs a health check on a single service with retries
+// CheckService performs a single health check on a service and updates its status
 func (h *HealthCheckService) CheckService(ctx context.Context, service *models.Service) error {
 	if !service.MonitoringEnabled {
 		return nil
 	}
 
 	result := h.performCheck(ctx, service)
-
-	// If online or no retries configured, finalize immediately
-	if result.status == models.StatusOnline || h.maxRetries <= 0 {
-		return h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage)
-	}
-
-	// Retry on failure
-	for attempt := 1; attempt <= h.maxRetries; attempt++ {
-		select {
-		case <-ctx.Done():
-			return h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage)
-		case <-time.After(h.retryDelay):
-		}
-
-		result = h.performCheck(ctx, service)
-		if result.status == models.StatusOnline {
-			break
-		}
-		log.Printf("Health check retry %d/%d failed for %s (%s)", attempt, h.maxRetries, service.Name, service.ID)
-	}
-
 	return h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage)
 }
 

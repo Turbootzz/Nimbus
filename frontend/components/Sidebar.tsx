@@ -207,10 +207,10 @@ export default function Sidebar({
           {!isDesktopCollapsed && cloudBadge}
 
           {/* Collapse toggle */}
-          <div className="border-sidebar-border flex justify-center border-t p-2">
+          <div className="border-sidebar-border border-t p-2">
             <button
               onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
-              className="hover:bg-card-border focus-visible:ring-primary flex items-center justify-center rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+              className="hover:bg-card-border focus-visible:ring-primary flex w-full items-center justify-center rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
               aria-label={isDesktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             >
               {isDesktopCollapsed ? (

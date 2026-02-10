@@ -685,47 +685,9 @@ func TestHealthCheckService_CheckService_MonitoringDisabled(t *testing.T) {
 	}
 }
 
-// --- Retry tests ---
+// --- Single check tests (no retries in health check - retries are per-webhook) ---
 
-func TestHealthCheckService_CheckService_RetrySuccess(t *testing.T) {
-	var attempts atomic.Int32
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		n := attempts.Add(1)
-		if n == 1 {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer testServer.Close()
-
-	mockRepo := &MockServiceRepository{}
-	healthService := &HealthCheckService{
-		serviceRepo: mockRepo,
-		httpClient:  &http.Client{Timeout: 5 * time.Second},
-		maxRetries:  2,
-		retryDelay:  100 * time.Millisecond,
-	}
-
-	service := &models.Service{
-		ID: "test-retry", Name: "Retry Service",
-		URL: testServer.URL, MonitoringEnabled: true,
-	}
-
-	err := healthService.CheckService(context.Background(), service)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if mockRepo.lastStatus != models.StatusOnline {
-		t.Errorf("Expected 'online' after retry, got '%s'", mockRepo.lastStatus)
-	}
-	if got := attempts.Load(); got != 2 {
-		t.Errorf("Expected 2 attempts, got %d", got)
-	}
-}
-
-func TestHealthCheckService_CheckService_AllRetriesExhausted(t *testing.T) {
+func TestHealthCheckService_CheckService_SingleCheckOffline(t *testing.T) {
 	var attempts atomic.Int32
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts.Add(1)
@@ -737,61 +699,24 @@ func TestHealthCheckService_CheckService_AllRetriesExhausted(t *testing.T) {
 	healthService := &HealthCheckService{
 		serviceRepo: mockRepo,
 		httpClient:  &http.Client{Timeout: 5 * time.Second},
-		maxRetries:  2,
-		retryDelay:  100 * time.Millisecond,
 	}
 
 	service := &models.Service{
-		ID: "test-exhausted", Name: "Exhausted Service",
-		URL: testServer.URL, MonitoringEnabled: true,
-	}
-
-	err := healthService.CheckService(context.Background(), service)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if mockRepo.lastStatus != models.StatusOffline {
-		t.Errorf("Expected 'offline', got '%s'", mockRepo.lastStatus)
-	}
-	// 1 initial + 2 retries = 3 total attempts
-	if got := attempts.Load(); got != 3 {
-		t.Errorf("Expected 3 total attempts, got %d", got)
-	}
-}
-
-func TestHealthCheckService_CheckService_NoRetries(t *testing.T) {
-	var attempts atomic.Int32
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		attempts.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer testServer.Close()
-
-	mockRepo := &MockServiceRepository{}
-	healthService := &HealthCheckService{
-		serviceRepo: mockRepo,
-		httpClient:  &http.Client{Timeout: 5 * time.Second},
-		maxRetries:  0,
-		retryDelay:  100 * time.Millisecond,
-	}
-
-	service := &models.Service{
-		ID: "test-no-retry", Name: "No Retry Service",
+		ID: "test-offline", Name: "Offline Service",
 		URL: testServer.URL, MonitoringEnabled: true,
 	}
 
 	healthService.CheckService(context.Background(), service)
 
 	if got := attempts.Load(); got != 1 {
-		t.Errorf("Expected 1 attempt (no retries), got %d", got)
+		t.Errorf("Expected 1 attempt, got %d", got)
 	}
 	if mockRepo.lastStatus != models.StatusOffline {
 		t.Errorf("Expected 'offline', got '%s'", mockRepo.lastStatus)
 	}
 }
 
-func TestHealthCheckService_CheckService_NoRetryOnSuccess(t *testing.T) {
+func TestHealthCheckService_CheckService_SingleCheckOnline(t *testing.T) {
 	var attempts atomic.Int32
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		attempts.Add(1)
@@ -803,8 +728,6 @@ func TestHealthCheckService_CheckService_NoRetryOnSuccess(t *testing.T) {
 	healthService := &HealthCheckService{
 		serviceRepo: mockRepo,
 		httpClient:  &http.Client{Timeout: 5 * time.Second},
-		maxRetries:  3,
-		retryDelay:  100 * time.Millisecond,
 	}
 
 	service := &models.Service{
@@ -815,44 +738,9 @@ func TestHealthCheckService_CheckService_NoRetryOnSuccess(t *testing.T) {
 	healthService.CheckService(context.Background(), service)
 
 	if got := attempts.Load(); got != 1 {
-		t.Errorf("Expected 1 attempt (success on first try), got %d", got)
+		t.Errorf("Expected 1 attempt, got %d", got)
 	}
 	if mockRepo.lastStatus != models.StatusOnline {
 		t.Errorf("Expected 'online', got '%s'", mockRepo.lastStatus)
-	}
-}
-
-func TestHealthCheckService_CheckService_ContextCancelledDuringRetry(t *testing.T) {
-	var attempts atomic.Int32
-	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		attempts.Add(1)
-		w.WriteHeader(http.StatusInternalServerError)
-	}))
-	defer testServer.Close()
-
-	mockRepo := &MockServiceRepository{}
-	healthService := &HealthCheckService{
-		serviceRepo: mockRepo,
-		httpClient:  &http.Client{Timeout: 5 * time.Second},
-		maxRetries:  5,
-		retryDelay:  5 * time.Second, // Long delay so context expires during wait
-	}
-
-	service := &models.Service{
-		ID: "test-cancel", Name: "Cancel Service",
-		URL: testServer.URL, MonitoringEnabled: true,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-
-	healthService.CheckService(ctx, service)
-
-	if mockRepo.lastStatus != models.StatusOffline {
-		t.Errorf("Expected 'offline' after context cancel, got '%s'", mockRepo.lastStatus)
-	}
-	// Should have done initial attempt + at most 1 retry before context expires
-	if got := attempts.Load(); got > 2 {
-		t.Errorf("Expected at most 2 attempts before context cancel, got %d", got)
 	}
 }
