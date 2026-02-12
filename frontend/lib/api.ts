@@ -29,6 +29,9 @@ import type {
   SystemSetting,
   SystemSettingsResponse,
   UpdateSettingRequest,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  ChangePasswordRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -185,6 +188,27 @@ class ApiClient {
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
     return this.request<User>('/auth/me')
+  }
+
+  async forgotPassword(data: ForgotPasswordRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async resetPassword(data: ResetPasswordRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async changePassword(data: ChangePasswordRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/change-password', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
@@ -549,6 +573,12 @@ class ApiClient {
     return this.request<SystemSetting>(`/admin/settings/${key}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  }
+
+  async testSMTPConnection(): Promise<ApiResponse<{ success: boolean; message: string }>> {
+    return this.request<{ success: boolean; message: string }>('/admin/settings/smtp/test', {
+      method: 'POST',
     })
   }
 }

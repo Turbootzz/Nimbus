@@ -53,6 +53,8 @@ func main() {
 
 	// Initialize services
 	authService := services.NewAuthService()
+	emailService := services.NewEmailService(settingsRepo)
+	passwordResetRepo := repository.NewPasswordResetRepository(database)
 
 	// Auto-create admin from env vars (for cloud/automated deployments)
 	if adminEmail := os.Getenv("INITIAL_ADMIN_EMAIL"); adminEmail != "" {
@@ -123,7 +125,8 @@ func main() {
 	staticHandler := handlers.NewStaticHandler()
 	groupHandler := handlers.NewGroupHandler(groupRepo)
 	webhookHandler := handlers.NewWebhookHandler(webhookRepo, notificationService)
-	settingsHandler := handlers.NewSettingsHandler(settingsRepo)
+	passwordHandler := handlers.NewPasswordHandler(userRepo, authService, emailService, passwordResetRepo)
+	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 
 	// Create fiber app
@@ -168,6 +171,8 @@ func main() {
 	auth.Post("/register", authHandler.Register)
 	auth.Post("/login", authHandler.Login)
 	auth.Post("/logout", authHandler.Logout)
+	auth.Post("/forgot-password", passwordHandler.ForgotPassword)
+	auth.Post("/reset-password", passwordHandler.ResetPassword)
 
 	// OAuth routes (public for initiate and callback)
 	auth.Get("/oauth/providers", oauthHandler.GetProviderStatus)
@@ -177,6 +182,7 @@ func main() {
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
 	authProtected.Get("/me", authHandler.GetMe)
+	authProtected.Put("/change-password", passwordHandler.ChangePassword)
 	authProtected.Post("/oauth/link/:provider", oauthHandler.LinkProvider)
 	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
@@ -250,6 +256,7 @@ func main() {
 	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
 	admin.Delete("/users/:id", adminHandler.DeleteUser)
 	admin.Get("/settings", settingsHandler.GetSettings)
+	admin.Post("/settings/smtp/test", settingsHandler.TestSMTPConnection)
 	admin.Get("/settings/:key", settingsHandler.GetSetting)
 	admin.Put("/settings/:key", settingsHandler.UpdateSetting)
 
@@ -259,7 +266,7 @@ func main() {
 	healthMonitor.Start()
 
 	// Start metrics cleanup worker (also cleans up webhook logs)
-	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService, webhookRepo)
+	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService, webhookRepo, passwordResetRepo)
 	metricsCleanup.Start()
 
 	// Start DNS cache cleanup worker

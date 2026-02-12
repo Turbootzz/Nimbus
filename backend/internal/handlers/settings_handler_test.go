@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -60,7 +61,7 @@ func TestSettingsHandler_GetSettings_Empty(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings", func(c *fiber.Ctx) error {
@@ -115,7 +116,7 @@ func TestSettingsHandler_GetSettings_WithData(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings", func(c *fiber.Ctx) error {
@@ -163,7 +164,7 @@ func TestSettingsHandler_GetSetting_Found(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -201,7 +202,7 @@ func TestSettingsHandler_GetSetting_NotFound(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -226,7 +227,7 @@ func TestSettingsHandler_UpdateSetting_Create(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -277,7 +278,7 @@ func TestSettingsHandler_UpdateSetting_Update(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -319,7 +320,7 @@ func TestSettingsHandler_UpdateSetting_InvalidBooleanValue(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -350,7 +351,7 @@ func TestSettingsHandler_UpdateSetting_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -376,7 +377,7 @@ func TestSettingsHandler_UpdateSetting_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	// Not setting user_id in locals
@@ -414,7 +415,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_Enabled(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -454,7 +455,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_Disabled(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -486,7 +487,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_NoSetting(t *testing.T) {
 
 	// No setting inserted - should default to true
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -522,7 +523,7 @@ func TestSettingsHandler_UpdateSetting_BlockedByEnvVar(t *testing.T) {
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -567,7 +568,7 @@ func TestSettingsHandler_UpdateSetting_AllowDisableWithEnvVar(t *testing.T) {
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -612,7 +613,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_EnvVarOverride(t *testing.T
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)

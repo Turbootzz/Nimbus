@@ -3,19 +3,23 @@ package handlers
 import (
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 type SettingsHandler struct {
 	settingsRepo *repository.SettingsRepository
+	emailService *services.EmailService
 }
 
-func NewSettingsHandler(settingsRepo *repository.SettingsRepository) *SettingsHandler {
+func NewSettingsHandler(settingsRepo *repository.SettingsRepository, emailService *services.EmailService) *SettingsHandler {
 	return &SettingsHandler{
 		settingsRepo: settingsRepo,
+		emailService: emailService,
 	}
 }
 
@@ -89,16 +93,22 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	}
 
 	// Validate value for known settings
-	if key == "public_registration_enabled" {
+	switch key {
+	case "public_registration_enabled", "smtp_enabled":
 		if req.Value != "true" && req.Value != "false" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Value must be 'true' or 'false'",
 			})
 		}
-		// Block re-enabling when env var override is active
-		if req.Value == "true" && os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
+		if key == "public_registration_enabled" && req.Value == "true" && os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "Registration is disabled by server configuration",
+			})
+		}
+	case "smtp_port":
+		if _, err := strconv.Atoi(req.Value); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP port must be a valid number",
 			})
 		}
 	}
@@ -126,4 +136,19 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(setting)
+}
+
+// TestSMTPConnection tests the SMTP connection using current settings
+func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
+	if err := h.emailService.TestConnection(c.Context()); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "SMTP connection successful",
+	})
 }

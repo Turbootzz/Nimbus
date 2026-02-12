@@ -236,14 +236,14 @@ function LoginForm() {
               Remember me
             </span>
           </label>
-          <a
-            href="#"
+          <Link
+            href="/forgot-password"
             className="transition"
             style={{ color: 'var(--color-primary)' }}
             {...linkHover}
           >
             Forgot password?
-          </a>
+          </Link>
         </div>
 
         <button

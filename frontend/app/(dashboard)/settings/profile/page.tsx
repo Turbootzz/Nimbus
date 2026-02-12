@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import { getApiUrl } from '@/lib/utils/api-url'
 import type { User } from '@/types'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
+import ChangePasswordSection from '@/components/ChangePasswordSection'
 import GoogleIcon from '@/components/icons/GoogleIcon'
 import GitHubIcon from '@/components/icons/GitHubIcon'
 import DiscordIcon from '@/components/icons/DiscordIcon'
@@ -255,6 +256,14 @@ export default function ProfilePage() {
               {user?.role}
             </p>
           </div>
+
+          {/* Change Password (local auth only) */}
+          {user?.provider === 'local' && (
+            <>
+              <div className="border-t" style={{ borderColor: 'var(--color-card-border)' }} />
+              <ChangePasswordSection />
+            </>
+          )}
         </div>
       </div>
     </div>

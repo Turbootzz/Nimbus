@@ -13,19 +13,20 @@ import (
 	"github.com/nimbus/backend/internal/services"
 )
 
-// MetricsCleanupWorker handles periodic cleanup of old status logs and webhook logs
+// MetricsCleanupWorker handles periodic cleanup of old status logs, webhook logs, and expired tokens
 type MetricsCleanupWorker struct {
-	metricsService  *services.MetricsService
-	webhookRepo     *repository.WebhookRepository
-	retentionDays   int
-	cleanupInterval time.Duration
-	stopChan        chan struct{}
-	cleanupTimer    *time.Timer
-	stopOnce        sync.Once
+	metricsService    *services.MetricsService
+	webhookRepo       *repository.WebhookRepository
+	passwordResetRepo *repository.PasswordResetRepository
+	retentionDays     int
+	cleanupInterval   time.Duration
+	stopChan          chan struct{}
+	cleanupTimer      *time.Timer
+	stopOnce          sync.Once
 }
 
 // NewMetricsCleanupWorker creates a new metrics cleanup worker
-func NewMetricsCleanupWorker(metricsService *services.MetricsService, webhookRepo *repository.WebhookRepository) *MetricsCleanupWorker {
+func NewMetricsCleanupWorker(metricsService *services.MetricsService, webhookRepo *repository.WebhookRepository, passwordResetRepo *repository.PasswordResetRepository) *MetricsCleanupWorker {
 	// Get retention days from env (default: 30 days)
 	retentionDays := 30
 	if days := os.Getenv("METRICS_RETENTION_DAYS"); days != "" {
@@ -38,11 +39,12 @@ func NewMetricsCleanupWorker(metricsService *services.MetricsService, webhookRep
 	cleanupInterval := 24 * time.Hour
 
 	return &MetricsCleanupWorker{
-		metricsService:  metricsService,
-		webhookRepo:     webhookRepo,
-		retentionDays:   retentionDays,
-		cleanupInterval: cleanupInterval,
-		stopChan:        make(chan struct{}),
+		metricsService:    metricsService,
+		webhookRepo:       webhookRepo,
+		passwordResetRepo: passwordResetRepo,
+		retentionDays:     retentionDays,
+		cleanupInterval:   cleanupInterval,
+		stopChan:          make(chan struct{}),
 	}
 }
 
@@ -115,6 +117,16 @@ func (w *MetricsCleanupWorker) runCleanup() {
 			log.Printf("Error during webhook logs cleanup: %v", webhookErr)
 		} else if webhookDeleted > 0 {
 			log.Printf("Webhook logs cleanup: deleted %d old entries", webhookDeleted)
+		}
+	}
+
+	// Clean up expired password reset tokens
+	if w.passwordResetRepo != nil {
+		tokensDeleted, tokenErr := w.passwordResetRepo.DeleteExpired(ctx)
+		if tokenErr != nil {
+			log.Printf("Error during password reset token cleanup: %v", tokenErr)
+		} else if tokensDeleted > 0 {
+			log.Printf("Password reset token cleanup: deleted %d expired tokens", tokensDeleted)
 		}
 	}
 
