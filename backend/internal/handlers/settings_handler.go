@@ -106,7 +106,8 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 			})
 		}
 	case "smtp_port":
-		if _, err := strconv.Atoi(req.Value); err != nil {
+		port, err := strconv.Atoi(req.Value)
+		if err != nil || port < 1 || port > 65535 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "SMTP port must be a valid number",
 			})
@@ -164,7 +165,8 @@ func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
 
 	// Validate port
 	if req.Port != "" {
-		if _, err := strconv.Atoi(req.Port); err != nil {
+		port, err := strconv.Atoi(req.Port)
+		if err != nil || port < 1 || port > 65535 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "SMTP port must be a valid number",
 			})

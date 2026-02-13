@@ -503,7 +503,9 @@ func TestForgotPassword_AlwaysReturns200(t *testing.T) {
 	}
 
 	var result map[string]string
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if result["message"] == "" {
 		t.Error("Expected a message in the response")
@@ -671,7 +673,9 @@ func TestChangePassword_SamePassword(t *testing.T) {
 	}
 
 	var result map[string]string
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 	if result["error"] != "New password must be different from current password" {
 		t.Errorf("Unexpected error: %s", result["error"])
 	}
@@ -760,7 +764,9 @@ func TestResetPassword_SamePassword(t *testing.T) {
 	}
 
 	var result map[string]string
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 	if result["error"] != "New password must be different from your current password" {
 		t.Errorf("Unexpected error: %s", result["error"])
 	}
