@@ -12,9 +12,12 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/nimbus/backend/internal/repository"
 )
+
+const smtpDialTimeout = 10 * time.Second
 
 // SMTPConfig holds SMTP connection settings
 type SMTPConfig struct {
@@ -153,8 +156,13 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 		return errors.New("SMTP from email is not configured")
 	}
 
+	// Sanitize header values to prevent CRLF injection
+	from = sanitizeHeader(from)
+	to = sanitizeHeader(to)
+	subject = sanitizeHeader(subject)
+
 	// Build email headers and body (RFC 2047 encode From name for special characters)
-	encodedName := mime.QEncoding.Encode("utf-8", config.FromName)
+	encodedName := mime.QEncoding.Encode("utf-8", sanitizeHeader(config.FromName))
 	headers := fmt.Sprintf("From: %s <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n",
 		encodedName, from, to, subject)
 	msg := []byte(headers + htmlBody)
@@ -169,11 +177,23 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 	return s.sendWithSTARTTLS(config, addr, from, to, msg)
 }
 
+// sanitizeHeader strips CR and LF characters to prevent CRLF header injection
+func sanitizeHeader(s string) string {
+	return strings.NewReplacer("\r", "", "\n", "").Replace(s)
+}
+
 // sendWithSTARTTLS sends email using STARTTLS (port 587)
 func (s *EmailService) sendWithSTARTTLS(config *SMTPConfig, addr, from, to string, msg []byte) error {
-	c, err := smtp.Dial(addr)
+	dialer := net.Dialer{Timeout: smtpDialTimeout}
+	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+
+	c, err := smtp.NewClient(conn, config.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
 	defer c.Close()
 
@@ -182,7 +202,7 @@ func (s *EmailService) sendWithSTARTTLS(config *SMTPConfig, addr, from, to strin
 		return errors.New("SMTP server does not support STARTTLS")
 	}
 
-	tlsConfig := &tls.Config{ServerName: config.Host}
+	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
 	if err := c.StartTLS(tlsConfig); err != nil {
 		return fmt.Errorf("STARTTLS failed: %w", err)
 	}
@@ -218,9 +238,10 @@ func (s *EmailService) sendWithSTARTTLS(config *SMTPConfig, addr, from, to strin
 
 // sendWithImplicitTLS sends email using implicit TLS (port 465)
 func (s *EmailService) sendWithImplicitTLS(config *SMTPConfig, addr, from, to string, msg []byte) error {
-	tlsConfig := &tls.Config{ServerName: config.Host}
+	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
+	dialer := net.Dialer{Timeout: smtpDialTimeout}
 
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	conn, err := tls.DialWithDialer(&dialer, "tcp", addr, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("failed to connect via TLS: %w", err)
 	}
@@ -298,10 +319,12 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 
 	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
 
+	dialer := net.Dialer{Timeout: smtpDialTimeout}
+
 	// Test TLS connection for port 465
 	if config.Port == 465 {
-		tlsConfig := &tls.Config{ServerName: config.Host}
-		conn, err := tls.Dial("tcp", addr, tlsConfig)
+		tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
+		conn, err := tls.DialWithDialer(&dialer, "tcp", addr, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to connect via TLS: %w", err)
 		}
@@ -322,9 +345,15 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 	}
 
 	// Test STARTTLS connection
-	c, err := smtp.Dial(addr)
+	conn, err := dialer.Dial("tcp", addr)
 	if err != nil {
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+
+	c, err := smtp.NewClient(conn, config.Host)
+	if err != nil {
+		conn.Close()
+		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
 	defer c.Close()
 
@@ -332,7 +361,7 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 		return errors.New("SMTP server does not support STARTTLS")
 	}
 
-	tlsConfig := &tls.Config{ServerName: config.Host}
+	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
 	if err := c.StartTLS(tlsConfig); err != nil {
 		return fmt.Errorf("STARTTLS failed: %w", err)
 	}

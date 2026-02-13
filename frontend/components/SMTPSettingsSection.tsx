@@ -182,12 +182,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label
+            htmlFor="smtp-host"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             SMTP Host
           </label>
           <ThemedInput
+            id="smtp-host"
             value={formData.smtp_host}
             onChange={(e) => updateField('smtp_host', e.target.value)}
             placeholder="smtp.gmail.com"
@@ -195,12 +197,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-port"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             SMTP Port
           </label>
           <ThemedInput
+            id="smtp-port"
             value={formData.smtp_port}
             onChange={(e) => updateField('smtp_port', e.target.value)}
             placeholder="587"
@@ -208,12 +212,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-username"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             Username
           </label>
           <ThemedInput
+            id="smtp-username"
             value={formData.smtp_username}
             onChange={(e) => updateField('smtp_username', e.target.value)}
             placeholder="user@gmail.com"
@@ -221,12 +227,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-password"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             Password
           </label>
           <ThemedInput
+            id="smtp-password"
             type="password"
             value={formData.smtp_password}
             onChange={(e) => updateField('smtp_password', e.target.value)}
@@ -235,12 +243,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-from-email"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             From Email
           </label>
           <ThemedInput
+            id="smtp-from-email"
             type="email"
             value={formData.smtp_from_email}
             onChange={(e) => updateField('smtp_from_email', e.target.value)}
@@ -249,12 +259,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-from-name"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
             From Name
           </label>
           <ThemedInput
+            id="smtp-from-name"
             value={formData.smtp_from_name}
             onChange={(e) => updateField('smtp_from_name', e.target.value)}
             placeholder="Nimbus"

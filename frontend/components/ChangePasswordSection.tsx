@@ -52,12 +52,9 @@ export default function ChangePasswordSection() {
 
   return (
     <div>
-      <label
-        className="mb-3 block text-sm font-medium"
-        style={{ color: 'var(--color-text-secondary)' }}
-      >
+      <h3 className="mb-3 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
         Change Password
-      </label>
+      </h3>
 
       {error && (
         <div
@@ -86,33 +83,51 @@ export default function ChangePasswordSection() {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        <ThemedInput
-          type="password"
-          value={currentPassword}
-          onChange={(e) => setCurrentPassword(e.target.value)}
-          placeholder="Current password"
-          autoComplete="current-password"
-          required
-          disabled={isLoading}
-        />
-        <ThemedInput
-          type="password"
-          value={newPassword}
-          onChange={(e) => setNewPassword(e.target.value)}
-          placeholder="New password"
-          autoComplete="new-password"
-          required
-          disabled={isLoading}
-        />
-        <ThemedInput
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirm new password"
-          autoComplete="new-password"
-          required
-          disabled={isLoading}
-        />
+        <div>
+          <label htmlFor="current-password" className="sr-only">
+            Current password
+          </label>
+          <ThemedInput
+            id="current-password"
+            type="password"
+            value={currentPassword}
+            onChange={(e) => setCurrentPassword(e.target.value)}
+            placeholder="Current password"
+            autoComplete="current-password"
+            required
+            disabled={isLoading}
+          />
+        </div>
+        <div>
+          <label htmlFor="new-password" className="sr-only">
+            New password
+          </label>
+          <ThemedInput
+            id="new-password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            placeholder="New password"
+            autoComplete="new-password"
+            required
+            disabled={isLoading}
+          />
+        </div>
+        <div>
+          <label htmlFor="confirm-new-password" className="sr-only">
+            Confirm new password
+          </label>
+          <ThemedInput
+            id="confirm-new-password"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Confirm new password"
+            autoComplete="new-password"
+            required
+            disabled={isLoading}
+          />
+        </div>
         <button
           type="submit"
           disabled={isLoading}

@@ -84,7 +84,14 @@ func (h *PasswordHandler) ForgotPassword(c *fiber.Ctx) error {
 	}
 
 	// Process in the background — always return 200 immediately
-	go h.processForgotPassword(req.Email)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("Panic in processForgotPassword: %v", r)
+			}
+		}()
+		h.processForgotPassword(req.Email)
+	}()
 
 	return c.JSON(fiber.Map{
 		"message": "If an account with that email exists, a password reset link has been sent.",
@@ -142,7 +149,7 @@ func (h *PasswordHandler) processForgotPassword(email string) {
 	}
 
 	if err := h.emailService.SendPasswordResetEmail(ctx, user.Email, rawTokenHex, user.Name, frontendURL); err != nil {
-		log.Printf("Failed to send password reset email to %s: %v", user.Email, err)
+		log.Printf("Failed to send password reset email for user %s: %v", user.ID, err)
 	}
 }
 

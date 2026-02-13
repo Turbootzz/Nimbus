@@ -122,8 +122,10 @@ func (w *MetricsCleanupWorker) runCleanup() {
 	}
 
 	// Clean up expired password reset tokens
+	var tokensDeleted int64
+	var tokenErr error
 	if w.passwordResetRepo != nil {
-		tokensDeleted, tokenErr := w.passwordResetRepo.DeleteExpired(ctx)
+		tokensDeleted, tokenErr = w.passwordResetRepo.DeleteExpired(ctx)
 		if tokenErr != nil {
 			log.Printf("Error during password reset token cleanup: %v", tokenErr)
 		} else if tokensDeleted > 0 {
@@ -137,7 +139,7 @@ func (w *MetricsCleanupWorker) runCleanup() {
 		log.Printf("Rate limit cleanup: removed %d stale entries", rateLimitRemoved)
 	}
 
-	if statusErr == nil && webhookErr == nil && statusDeleted == 0 && webhookDeleted == 0 {
+	if statusErr == nil && webhookErr == nil && tokenErr == nil && statusDeleted == 0 && webhookDeleted == 0 && tokensDeleted == 0 {
 		log.Println("Cleanup completed: no old logs to delete")
 	}
 }
