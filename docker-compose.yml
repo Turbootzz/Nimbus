@@ -39,6 +39,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
       JWT_SECRET: ${JWT_SECRET:-}
       DB_HOST: db
+      # Public URL for password reset emails and OAuth redirects:
+      # FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       # Optional overrides:
       # DB_PORT: 5432
       # DB_USER: nimbus

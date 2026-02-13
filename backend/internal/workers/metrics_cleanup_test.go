@@ -79,7 +79,7 @@ func TestNewMetricsCleanupWorker(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	if worker == nil {
 		t.Fatal("Expected worker to be created")
@@ -106,7 +106,7 @@ func TestNewMetricsCleanupWorker_CustomRetention(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	if worker.retentionDays != 7 {
 		t.Errorf("Expected retention days 7, got %d", worker.retentionDays)
@@ -156,7 +156,7 @@ func TestMetricsCleanupWorker_RunNow(t *testing.T) {
 	}
 
 	// Create worker and run cleanup
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 	err = worker.RunNow()
 	if err != nil {
 		t.Fatalf("Failed to run cleanup: %v", err)
@@ -205,7 +205,7 @@ func TestMetricsCleanupWorker_RunNow_NoOldLogs(t *testing.T) {
 	}
 
 	// Create worker and run cleanup
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 	err := worker.RunNow()
 	if err != nil {
 		t.Fatalf("Failed to run cleanup: %v", err)
@@ -230,7 +230,7 @@ func TestMetricsCleanupWorker_StartStop(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	// Start the worker
 	worker.Start()
@@ -255,7 +255,7 @@ func TestMetricsCleanupWorker_StopMultipleTimes(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	// Start the worker
 	worker.Start()
@@ -324,7 +324,7 @@ func TestMetricsCleanupWorker_RunCleanup_Integration(t *testing.T) {
 	}
 
 	// Run cleanup
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 	worker.runCleanup()
 
 	// Verify cleanup results
@@ -351,7 +351,7 @@ func TestMetricsCleanupWorker_InvalidRetentionDays(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	// Should fallback to default value (30)
 	if worker.retentionDays != 30 {
@@ -370,7 +370,7 @@ func TestMetricsCleanupWorker_ZeroRetentionDays(t *testing.T) {
 	serviceRepo := repository.NewServiceRepository(db)
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	worker := NewMetricsCleanupWorker(metricsService, nil)
+	worker := NewMetricsCleanupWorker(metricsService, nil, nil)
 
 	// Should fallback to default value (30) when value is 0 or negative
 	if worker.retentionDays != 30 {

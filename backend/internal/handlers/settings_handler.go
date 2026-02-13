@@ -3,19 +3,23 @@ package handlers
 import (
 	"errors"
 	"os"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 type SettingsHandler struct {
 	settingsRepo *repository.SettingsRepository
+	emailService *services.EmailService
 }
 
-func NewSettingsHandler(settingsRepo *repository.SettingsRepository) *SettingsHandler {
+func NewSettingsHandler(settingsRepo *repository.SettingsRepository, emailService *services.EmailService) *SettingsHandler {
 	return &SettingsHandler{
 		settingsRepo: settingsRepo,
+		emailService: emailService,
 	}
 }
 
@@ -89,16 +93,23 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	}
 
 	// Validate value for known settings
-	if key == "public_registration_enabled" {
+	switch key {
+	case "public_registration_enabled", "smtp_enabled":
 		if req.Value != "true" && req.Value != "false" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Value must be 'true' or 'false'",
 			})
 		}
-		// Block re-enabling when env var override is active
-		if req.Value == "true" && os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
+		if key == "public_registration_enabled" && req.Value == "true" && os.Getenv("DISABLE_PUBLIC_REGISTRATION") == "true" {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 				"error": "Registration is disabled by server configuration",
+			})
+		}
+	case "smtp_port":
+		port, err := strconv.Atoi(req.Value)
+		if err != nil || port < 1 || port > 65535 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP port must be a valid number",
 			})
 		}
 	}
@@ -126,4 +137,137 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(setting)
+}
+
+// UpdateSMTPSettings saves all SMTP settings atomically
+func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
+	var req struct {
+		Host      string `json:"smtp_host"`
+		Port      string `json:"smtp_port"`
+		Username  string `json:"smtp_username"`
+		Password  string `json:"smtp_password"`
+		FromEmail string `json:"smtp_from_email"`
+		FromName  string `json:"smtp_from_name"`
+		Enabled   string `json:"smtp_enabled"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Validate boolean
+	if req.Enabled != "true" && req.Enabled != "false" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "smtp_enabled must be 'true' or 'false'",
+		})
+	}
+
+	// Validate port
+	if req.Port != "" {
+		port, err := strconv.Atoi(req.Port)
+		if err != nil || port < 1 || port > 65535 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP port must be a valid number",
+			})
+		}
+	}
+
+	// When enabling SMTP, require essential fields
+	if req.Enabled == "true" {
+		if req.Host == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP host is required when SMTP is enabled",
+			})
+		}
+		if req.FromEmail == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "From email is required when SMTP is enabled",
+			})
+		}
+	}
+
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+
+	settings := map[string]string{
+		"smtp_host":       req.Host,
+		"smtp_port":       req.Port,
+		"smtp_username":   req.Username,
+		"smtp_password":   req.Password,
+		"smtp_from_email": req.FromEmail,
+		"smtp_from_name":  req.FromName,
+		"smtp_enabled":    req.Enabled,
+	}
+
+	if err := h.settingsRepo.UpdateBatch(c.Context(), settings, &userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save SMTP settings",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "SMTP settings saved successfully",
+	})
+}
+
+// GetSMTPStatus returns SMTP configuration status (configured, source)
+func (h *SettingsHandler) GetSMTPStatus(c *fiber.Ctx) error {
+	status := h.emailService.GetSMTPStatus(c.Context())
+	return c.JSON(status)
+}
+
+// TestSMTPConnection tests the SMTP connection.
+// If a request body with SMTP settings is provided, those are used (pre-save test).
+// Otherwise, the saved/env config is used.
+func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
+	var testErr error
+
+	// Try to parse inline config from request body
+	var req struct {
+		Host      string `json:"smtp_host"`
+		Port      string `json:"smtp_port"`
+		Username  string `json:"smtp_username"`
+		Password  string `json:"smtp_password"`
+		FromEmail string `json:"smtp_from_email"`
+		FromName  string `json:"smtp_from_name"`
+		Enabled   string `json:"smtp_enabled"`
+	}
+
+	if len(c.Body()) > 0 && c.BodyParser(&req) == nil && req.Host != "" {
+		// Use inline config for pre-save testing
+		port := 587
+		if req.Port != "" {
+			if p, err := strconv.Atoi(req.Port); err == nil {
+				port = p
+			}
+		}
+		config := &services.SMTPConfig{
+			Host:      req.Host,
+			Port:      port,
+			Username:  req.Username,
+			Password:  req.Password,
+			FromEmail: req.FromEmail,
+			FromName:  req.FromName,
+			Enabled:   req.Enabled != "false",
+		}
+		testErr = h.emailService.TestConnectionWithConfig(config)
+	} else {
+		// Fall back to saved config
+		testErr = h.emailService.TestConnection(c.Context())
+	}
+
+	if testErr != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": testErr.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "SMTP connection successful",
+	})
 }

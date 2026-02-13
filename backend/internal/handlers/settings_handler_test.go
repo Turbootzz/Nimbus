@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -60,7 +61,7 @@ func TestSettingsHandler_GetSettings_Empty(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings", func(c *fiber.Ctx) error {
@@ -115,7 +116,7 @@ func TestSettingsHandler_GetSettings_WithData(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings", func(c *fiber.Ctx) error {
@@ -163,7 +164,7 @@ func TestSettingsHandler_GetSetting_Found(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -201,7 +202,7 @@ func TestSettingsHandler_GetSetting_NotFound(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -226,7 +227,7 @@ func TestSettingsHandler_UpdateSetting_Create(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -277,7 +278,7 @@ func TestSettingsHandler_UpdateSetting_Update(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -319,7 +320,7 @@ func TestSettingsHandler_UpdateSetting_InvalidBooleanValue(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -350,7 +351,7 @@ func TestSettingsHandler_UpdateSetting_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -376,7 +377,7 @@ func TestSettingsHandler_UpdateSetting_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	// Not setting user_id in locals
@@ -414,7 +415,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_Enabled(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -454,7 +455,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_Disabled(t *testing.T) {
 	}
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -486,7 +487,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_NoSetting(t *testing.T) {
 
 	// No setting inserted - should default to true
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -522,7 +523,7 @@ func TestSettingsHandler_UpdateSetting_BlockedByEnvVar(t *testing.T) {
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -567,7 +568,7 @@ func TestSettingsHandler_UpdateSetting_AllowDisableWithEnvVar(t *testing.T) {
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
@@ -612,7 +613,7 @@ func TestSettingsHandler_GetPublicRegistrationStatus_EnvVarOverride(t *testing.T
 	defer os.Unsetenv("DISABLE_PUBLIC_REGISTRATION")
 
 	settingsRepo := repository.NewSettingsRepository(db)
-	handler := NewSettingsHandler(settingsRepo)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
 
 	app := fiber.New()
 	app.Get("/setup/registration-status", handler.GetPublicRegistrationStatus)
@@ -635,5 +636,300 @@ func TestSettingsHandler_GetPublicRegistrationStatus_EnvVarOverride(t *testing.T
 
 	if response["enabled"] {
 		t.Error("Expected enabled to be false when DISABLE_PUBLIC_REGISTRATION is set")
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_Success(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"smtp_host":       "smtp.gmail.com",
+		"smtp_port":       "587",
+		"smtp_username":   "user@gmail.com",
+		"smtp_password":   "secret",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_from_name":  "Nimbus",
+		"smtp_enabled":    "true",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	// Verify settings were saved
+	var value string
+	err = db.QueryRow("SELECT value FROM system_settings WHERE key = ?", "smtp_host").Scan(&value)
+	if err != nil {
+		t.Fatalf("Failed to query smtp_host: %v", err)
+	}
+	if value != "smtp.gmail.com" {
+		t.Errorf("Expected smtp_host 'smtp.gmail.com', got '%s'", value)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_InvalidPort(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"smtp_host":       "smtp.gmail.com",
+		"smtp_port":       "not-a-number",
+		"smtp_username":   "",
+		"smtp_password":   "",
+		"smtp_from_email": "",
+		"smtp_from_name":  "",
+		"smtp_enabled":    "false",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for invalid port, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_InvalidEnabled(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"smtp_host":       "smtp.gmail.com",
+		"smtp_port":       "587",
+		"smtp_username":   "",
+		"smtp_password":   "",
+		"smtp_from_email": "",
+		"smtp_from_name":  "",
+		"smtp_enabled":    "maybe",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for invalid smtp_enabled, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_EnabledMissingHost(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"smtp_host":       "",
+		"smtp_port":       "587",
+		"smtp_username":   "user@gmail.com",
+		"smtp_password":   "secret",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_from_name":  "Nimbus",
+		"smtp_enabled":    "true",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for enabled without host, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_EnabledMissingFromEmail(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"smtp_host":       "smtp.gmail.com",
+		"smtp_port":       "587",
+		"smtp_username":   "user@gmail.com",
+		"smtp_password":   "secret",
+		"smtp_from_email": "",
+		"smtp_from_name":  "Nimbus",
+		"smtp_enabled":    "true",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for enabled without from email, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_GetSMTPStatus_None(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	// Clear any SMTP env vars
+	os.Unsetenv("SMTP_HOST")
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Get("/admin/settings/smtp/status", handler.GetSMTPStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/settings/smtp/status", nil)
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if result["source"] != "none" {
+		t.Errorf("Expected source 'none', got '%v'", result["source"])
+	}
+}
+
+func TestSettingsHandler_GetSMTPStatus_Database(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	// Insert SMTP host setting
+	_, err := db.Exec(`INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)`,
+		"smtp_host", "smtp.gmail.com", time.Now())
+	if err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Get("/admin/settings/smtp/status", handler.GetSMTPStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/settings/smtp/status", nil)
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if result["source"] != "database" {
+		t.Errorf("Expected source 'database', got '%v'", result["source"])
+	}
+	if result["configured"] != true {
+		t.Errorf("Expected configured true, got %v", result["configured"])
+	}
+}
+
+func TestSettingsHandler_GetSMTPStatus_Env(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	os.Setenv("SMTP_HOST", "smtp.env.com")
+	defer os.Unsetenv("SMTP_HOST")
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Get("/admin/settings/smtp/status", handler.GetSMTPStatus)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/settings/smtp/status", nil)
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if result["source"] != "env" {
+		t.Errorf("Expected source 'env', got '%v'", result["source"])
 	}
 }

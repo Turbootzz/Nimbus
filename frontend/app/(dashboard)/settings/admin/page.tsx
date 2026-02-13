@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
+import SMTPSettingsSection from '@/components/SMTPSettingsSection'
 import type { SystemSetting, User } from '@/types'
 
 export default function AdminSettingsPage() {
@@ -126,6 +127,15 @@ export default function AdminSettingsPage() {
             description="Allow new users to register accounts. When disabled, only admins can create new users."
             disabled={actionLoading === 'public_registration_enabled'}
           />
+        </div>
+
+        {/* SMTP / Email Configuration */}
+        <div className="bg-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Email / SMTP</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Configure SMTP settings for password reset emails
+          </p>
+          <SMTPSettingsSection settings={settings} />
         </div>
       </div>
     </div>

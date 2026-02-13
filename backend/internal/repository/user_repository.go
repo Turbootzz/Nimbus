@@ -517,6 +517,31 @@ func (r *UserRepository) UnlinkOAuthProvider(userID string, provider string) err
 	return nil
 }
 
+// UpdatePassword updates a user's password hash
+func (r *UserRepository) UpdatePassword(userID string, hashedPassword string) error {
+	query := `
+		UPDATE users
+		SET password = $1, updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2
+	`
+
+	result, err := r.db.Exec(query, hashedPassword, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected: %w", err)
+	}
+
+	if rowsAffected == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
+}
+
 // UpdateAvatar updates the user's avatar URL
 func (r *UserRepository) UpdateAvatar(userID string, avatarURL *string) error {
 	query := `
