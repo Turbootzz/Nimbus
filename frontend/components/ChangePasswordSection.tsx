@@ -27,6 +27,11 @@ export default function ChangePasswordSection() {
       return
     }
 
+    if (currentPassword === newPassword) {
+      setError('New password must be different from current password')
+      return
+    }
+
     setIsLoading(true)
 
     try {

@@ -591,9 +591,12 @@ class ApiClient {
     return this.request<SMTPStatusResponse>('/admin/settings/smtp/status')
   }
 
-  async testSMTPConnection(): Promise<ApiResponse<{ success: boolean; message: string }>> {
+  async testSMTPConnection(
+    data?: UpdateSMTPSettingsRequest
+  ): Promise<ApiResponse<{ success: boolean; message: string }>> {
     return this.request<{ success: boolean; message: string }>('/admin/settings/smtp/test', {
       method: 'POST',
+      body: data ? JSON.stringify(data) : undefined,
     })
   }
 }

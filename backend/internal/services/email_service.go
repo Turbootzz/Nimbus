@@ -302,13 +302,17 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, to, rawToken,
 	return s.SendEmail(ctx, to, "Reset your Nimbus password", body.String())
 }
 
-// TestConnection tests the SMTP connection
+// TestConnection tests the SMTP connection using saved config
 func (s *EmailService) TestConnection(ctx context.Context) error {
 	config, err := s.GetSMTPConfig(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get SMTP config: %w", err)
 	}
+	return s.TestConnectionWithConfig(config)
+}
 
+// TestConnectionWithConfig tests the SMTP connection using the provided config
+func (s *EmailService) TestConnectionWithConfig(config *SMTPConfig) error {
 	if !config.Enabled || config.Host == "" {
 		return errors.New("SMTP is not configured")
 	}

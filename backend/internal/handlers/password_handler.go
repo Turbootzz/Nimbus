@@ -200,6 +200,13 @@ func (h *PasswordHandler) ResetPassword(c *fiber.Ctx) error {
 		})
 	}
 
+	// Check new password is different from current
+	if user.Password != nil && h.authService.ComparePassword(*user.Password, req.NewPassword) == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "New password must be different from your current password",
+		})
+	}
+
 	// Hash new password
 	hashedPassword, err := h.authService.HashPassword(req.NewPassword)
 	if err != nil {
@@ -248,6 +255,12 @@ func (h *PasswordHandler) ChangePassword(c *fiber.Ctx) error {
 	if len(req.NewPassword) < 8 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "New password must be at least 8 characters",
+		})
+	}
+
+	if req.CurrentPassword == req.NewPassword {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "New password must be different from current password",
 		})
 	}
 

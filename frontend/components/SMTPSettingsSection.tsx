@@ -101,7 +101,15 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
     setSuccess('')
 
     try {
-      const response = await api.testSMTPConnection()
+      const response = await api.testSMTPConnection({
+        smtp_host: formData.smtp_host,
+        smtp_port: formData.smtp_port,
+        smtp_username: formData.smtp_username,
+        smtp_password: formData.smtp_password,
+        smtp_from_email: formData.smtp_from_email,
+        smtp_from_name: formData.smtp_from_name,
+        smtp_enabled: String(formData.smtp_enabled),
+      })
       if (response.data?.success) {
         setSuccess('SMTP connection successful')
       } else {

@@ -203,12 +203,50 @@ func (h *SettingsHandler) GetSMTPStatus(c *fiber.Ctx) error {
 	return c.JSON(status)
 }
 
-// TestSMTPConnection tests the SMTP connection using current settings
+// TestSMTPConnection tests the SMTP connection.
+// If a request body with SMTP settings is provided, those are used (pre-save test).
+// Otherwise, the saved/env config is used.
 func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
-	if err := h.emailService.TestConnection(c.Context()); err != nil {
+	var testErr error
+
+	// Try to parse inline config from request body
+	var req struct {
+		Host      string `json:"smtp_host"`
+		Port      string `json:"smtp_port"`
+		Username  string `json:"smtp_username"`
+		Password  string `json:"smtp_password"`
+		FromEmail string `json:"smtp_from_email"`
+		FromName  string `json:"smtp_from_name"`
+		Enabled   string `json:"smtp_enabled"`
+	}
+
+	if len(c.Body()) > 0 && c.BodyParser(&req) == nil && req.Host != "" {
+		// Use inline config for pre-save testing
+		port := 587
+		if req.Port != "" {
+			if p, err := strconv.Atoi(req.Port); err == nil {
+				port = p
+			}
+		}
+		config := &services.SMTPConfig{
+			Host:      req.Host,
+			Port:      port,
+			Username:  req.Username,
+			Password:  req.Password,
+			FromEmail: req.FromEmail,
+			FromName:  req.FromName,
+			Enabled:   req.Enabled != "false",
+		}
+		testErr = h.emailService.TestConnectionWithConfig(config)
+	} else {
+		// Fall back to saved config
+		testErr = h.emailService.TestConnection(c.Context())
+	}
+
+	if testErr != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": err.Error(),
+			"message": testErr.Error(),
 		})
 	}
 

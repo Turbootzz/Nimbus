@@ -626,3 +626,227 @@ func TestPasswordResetRepository_DeleteExpired(t *testing.T) {
 		t.Errorf("Expected 1 remaining token, got %d", count)
 	}
 }
+
+func TestChangePassword_SamePassword(t *testing.T) {
+	handler, db, authService := setupPasswordHandler(t)
+	defer db.Close()
+
+	hashedPassword, _ := authService.HashPassword("samepassword123")
+	now := time.Now()
+	user := &models.User{
+		ID:        "user-1",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Password:  &hashedPassword,
+		Role:      "user",
+		Provider:  "local",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	createUserDirectly(t, db, user)
+
+	app := fiber.New()
+	app.Put("/change-password", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "user-1")
+		c.Locals("email", "test@example.com")
+		c.Locals("role", "user")
+		return handler.ChangePassword(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"current_password": "samepassword123",
+		"new_password":     "samepassword123",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/change-password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for same password, got %d", resp.StatusCode)
+	}
+
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+	if result["error"] != "New password must be different from current password" {
+		t.Errorf("Unexpected error: %s", result["error"])
+	}
+}
+
+func TestChangePassword_MissingFields(t *testing.T) {
+	handler, db, _ := setupPasswordHandler(t)
+	defer db.Close()
+
+	app := fiber.New()
+	app.Put("/change-password", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "user-1")
+		c.Locals("email", "test@example.com")
+		c.Locals("role", "user")
+		return handler.ChangePassword(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{
+		"current_password": "",
+		"new_password":     "",
+	})
+
+	req := httptest.NewRequest(http.MethodPut, "/change-password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for missing fields, got %d", resp.StatusCode)
+	}
+}
+
+func TestResetPassword_SamePassword(t *testing.T) {
+	handler, db, authService := setupPasswordHandler(t)
+	defer db.Close()
+
+	hashedPassword, _ := authService.HashPassword("oldpassword123")
+	now := time.Now()
+	user := &models.User{
+		ID:        "user-1",
+		Email:     "test@example.com",
+		Name:      "Test User",
+		Password:  &hashedPassword,
+		Role:      "user",
+		Provider:  "local",
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	createUserDirectly(t, db, user)
+
+	// Create a valid token
+	rawToken := "same-password-token-32-chars-lon"
+	hash := sha256.Sum256([]byte(rawToken))
+	tokenHash := hex.EncodeToString(hash[:])
+
+	_, err := db.Exec(
+		`INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, created_at)
+		 VALUES (?, ?, ?, ?, ?)`,
+		"token-same", "user-1", tokenHash, now.Add(1*time.Hour), now,
+	)
+	if err != nil {
+		t.Fatalf("Failed to create token: %v", err)
+	}
+
+	app := fiber.New()
+	app.Post("/reset-password", handler.ResetPassword)
+
+	body, _ := json.Marshal(map[string]string{
+		"token":        rawToken,
+		"new_password": "oldpassword123", // Same as current
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for same password, got %d", resp.StatusCode)
+	}
+
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+	if result["error"] != "New password must be different from your current password" {
+		t.Errorf("Unexpected error: %s", result["error"])
+	}
+}
+
+func TestResetPassword_ShortPassword(t *testing.T) {
+	handler, db, _ := setupPasswordHandler(t)
+	defer db.Close()
+
+	app := fiber.New()
+	app.Post("/reset-password", handler.ResetPassword)
+
+	body, _ := json.Marshal(map[string]string{
+		"token":        "some-token-value",
+		"new_password": "short",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for short password, got %d", resp.StatusCode)
+	}
+}
+
+func TestResetPassword_MissingFields(t *testing.T) {
+	handler, db, _ := setupPasswordHandler(t)
+	defer db.Close()
+
+	app := fiber.New()
+	app.Post("/reset-password", handler.ResetPassword)
+
+	body, _ := json.Marshal(map[string]string{
+		"token":        "",
+		"new_password": "",
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/reset-password", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for missing fields, got %d", resp.StatusCode)
+	}
+}
+
+func TestCleanupForgotPasswordRateLimit(t *testing.T) {
+	// Reset rate limit state
+	forgotPasswordRateLimitMu.Lock()
+	forgotPasswordRateLimit = make(map[string][]time.Time)
+	forgotPasswordRateLimitMu.Unlock()
+
+	// Add some entries — one old, one recent
+	forgotPasswordRateLimitMu.Lock()
+	forgotPasswordRateLimit["old@example.com"] = []time.Time{time.Now().Add(-30 * time.Minute)}
+	forgotPasswordRateLimit["new@example.com"] = []time.Time{time.Now()}
+	forgotPasswordRateLimitMu.Unlock()
+
+	removed := CleanupForgotPasswordRateLimit()
+	if removed != 1 {
+		t.Errorf("Expected 1 removed, got %d", removed)
+	}
+
+	forgotPasswordRateLimitMu.Lock()
+	_, hasOld := forgotPasswordRateLimit["old@example.com"]
+	_, hasNew := forgotPasswordRateLimit["new@example.com"]
+	forgotPasswordRateLimitMu.Unlock()
+
+	if hasOld {
+		t.Error("Old entry should have been removed")
+	}
+	if !hasNew {
+		t.Error("New entry should still exist")
+	}
+
+	// Clean up
+	forgotPasswordRateLimitMu.Lock()
+	forgotPasswordRateLimit = make(map[string][]time.Time)
+	forgotPasswordRateLimitMu.Unlock()
+}
