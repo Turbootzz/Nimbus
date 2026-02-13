@@ -91,6 +91,7 @@ export default function ChangePasswordSection() {
           value={currentPassword}
           onChange={(e) => setCurrentPassword(e.target.value)}
           placeholder="Current password"
+          autoComplete="current-password"
           required
           disabled={isLoading}
         />
@@ -99,6 +100,7 @@ export default function ChangePasswordSection() {
           value={newPassword}
           onChange={(e) => setNewPassword(e.target.value)}
           placeholder="New password"
+          autoComplete="new-password"
           required
           disabled={isLoading}
         />
@@ -107,6 +109,7 @@ export default function ChangePasswordSection() {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder="Confirm new password"
+          autoComplete="new-password"
           required
           disabled={isLoading}
         />

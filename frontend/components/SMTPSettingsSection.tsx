@@ -74,17 +74,20 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
     setSuccess('')
 
     try {
-      // Save each SMTP setting
-      for (const key of SMTP_KEYS) {
-        const value = key === 'smtp_enabled' ? String(formData[key]) : (formData[key] as string)
-        const response = await api.updateSystemSetting(key, { value })
-        if (response.error) {
-          setError(`Failed to save ${key}: ${response.error.message}`)
-          setIsSaving(false)
-          return
-        }
+      const response = await api.updateSMTPSettings({
+        smtp_host: formData.smtp_host,
+        smtp_port: formData.smtp_port,
+        smtp_username: formData.smtp_username,
+        smtp_password: formData.smtp_password,
+        smtp_from_email: formData.smtp_from_email,
+        smtp_from_name: formData.smtp_from_name,
+        smtp_enabled: String(formData.smtp_enabled),
+      })
+      if (response.error) {
+        setError(response.error.message)
+      } else {
+        setSuccess('SMTP settings saved successfully')
       }
-      setSuccess('SMTP settings saved successfully')
     } catch {
       setError('Failed to save settings')
     } finally {

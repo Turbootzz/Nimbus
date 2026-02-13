@@ -106,6 +106,33 @@ func (r *SettingsRepository) Update(ctx context.Context, key, value string, upda
 	return nil
 }
 
+// UpdateBatch updates multiple settings in a single transaction
+func (r *SettingsRepository) UpdateBatch(ctx context.Context, settings map[string]string, updatedBy *string) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	query := `
+		INSERT INTO system_settings (key, value, updated_at, updated_by)
+		VALUES ($1, $2, CURRENT_TIMESTAMP, $3)
+		ON CONFLICT (key)
+		DO UPDATE SET
+			value = EXCLUDED.value,
+			updated_at = CURRENT_TIMESTAMP,
+			updated_by = EXCLUDED.updated_by
+	`
+
+	for key, value := range settings {
+		if _, err := tx.ExecContext(ctx, query, key, value, updatedBy); err != nil {
+			return fmt.Errorf("failed to update setting %s: %w", key, err)
+		}
+	}
+
+	return tx.Commit()
+}
+
 // IsPublicRegistrationEnabled checks if public registration is enabled
 func (r *SettingsRepository) IsPublicRegistrationEnabled(ctx context.Context) (bool, error) {
 	// Env var override: force-disable registration (for cloud deployments)

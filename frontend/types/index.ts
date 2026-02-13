@@ -330,6 +330,16 @@ export interface SMTPStatusResponse {
   source: 'env' | 'database' | 'none'
 }
 
+export interface UpdateSMTPSettingsRequest {
+  smtp_host: string
+  smtp_port: string
+  smtp_username: string
+  smtp_password: string
+  smtp_from_email: string
+  smtp_from_name: string
+  smtp_enabled: string
+}
+
 // Setup types
 export interface SetupStatusResponse {
   needs_setup: boolean

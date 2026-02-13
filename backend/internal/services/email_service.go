@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"mime"
 	"net"
 	"net/smtp"
 	"os"
@@ -152,9 +153,10 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 		return errors.New("SMTP from email is not configured")
 	}
 
-	// Build email headers and body
+	// Build email headers and body (RFC 2047 encode From name for special characters)
+	encodedName := mime.QEncoding.Encode("utf-8", config.FromName)
 	headers := fmt.Sprintf("From: %s <%s>\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n",
-		config.FromName, from, to, subject)
+		encodedName, from, to, subject)
 	msg := []byte(headers + htmlBody)
 
 	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
@@ -175,7 +177,11 @@ func (s *EmailService) sendWithSTARTTLS(config *SMTPConfig, addr, from, to strin
 	}
 	defer c.Close()
 
-	// STARTTLS
+	// Check if server supports STARTTLS before attempting
+	if ok, _ := c.Extension("STARTTLS"); !ok {
+		return errors.New("SMTP server does not support STARTTLS")
+	}
+
 	tlsConfig := &tls.Config{ServerName: config.Host}
 	if err := c.StartTLS(tlsConfig); err != nil {
 		return fmt.Errorf("STARTTLS failed: %w", err)
@@ -321,6 +327,10 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 	defer c.Close()
+
+	if ok, _ := c.Extension("STARTTLS"); !ok {
+		return errors.New("SMTP server does not support STARTTLS")
+	}
 
 	tlsConfig := &tls.Config{ServerName: config.Host}
 	if err := c.StartTLS(tlsConfig); err != nil {

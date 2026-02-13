@@ -208,12 +208,7 @@ func (h *PasswordHandler) ResetPassword(c *fiber.Ctx) error {
 		})
 	}
 
-	// Mark token as used
-	if err := h.passwordResetRepo.MarkUsed(c.Context(), resetToken.ID); err != nil {
-		log.Printf("Failed to mark token as used: %v", err)
-	}
-
-	// Invalidate all other tokens for this user
+	// Invalidate all tokens for this user (including the one just used)
 	if err := h.passwordResetRepo.InvalidateForUser(c.Context(), user.ID); err != nil {
 		log.Printf("Failed to invalidate tokens: %v", err)
 	}

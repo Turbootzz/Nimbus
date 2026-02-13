@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nimbus/backend/internal/handlers"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 )
@@ -128,6 +129,12 @@ func (w *MetricsCleanupWorker) runCleanup() {
 		} else if tokensDeleted > 0 {
 			log.Printf("Password reset token cleanup: deleted %d expired tokens", tokensDeleted)
 		}
+	}
+
+	// Clean up stale forgot-password rate limit entries
+	rateLimitRemoved := handlers.CleanupForgotPasswordRateLimit()
+	if rateLimitRemoved > 0 {
+		log.Printf("Rate limit cleanup: removed %d stale entries", rateLimitRemoved)
 	}
 
 	if statusErr == nil && webhookErr == nil && statusDeleted == 0 && webhookDeleted == 0 {

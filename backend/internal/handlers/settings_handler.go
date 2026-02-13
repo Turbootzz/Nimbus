@@ -138,6 +138,65 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	return c.JSON(setting)
 }
 
+// UpdateSMTPSettings saves all SMTP settings atomically
+func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
+	var req struct {
+		Host      string `json:"smtp_host"`
+		Port      string `json:"smtp_port"`
+		Username  string `json:"smtp_username"`
+		Password  string `json:"smtp_password"`
+		FromEmail string `json:"smtp_from_email"`
+		FromName  string `json:"smtp_from_name"`
+		Enabled   string `json:"smtp_enabled"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid request body",
+		})
+	}
+
+	// Validate boolean
+	if req.Enabled != "true" && req.Enabled != "false" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "smtp_enabled must be 'true' or 'false'",
+		})
+	}
+
+	// Validate port
+	if req.Port != "" {
+		if _, err := strconv.Atoi(req.Port); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP port must be a valid number",
+			})
+		}
+	}
+
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+
+	settings := map[string]string{
+		"smtp_host":       req.Host,
+		"smtp_port":       req.Port,
+		"smtp_username":   req.Username,
+		"smtp_password":   req.Password,
+		"smtp_from_email": req.FromEmail,
+		"smtp_from_name":  req.FromName,
+		"smtp_enabled":    req.Enabled,
+	}
+
+	if err := h.settingsRepo.UpdateBatch(c.Context(), settings, &userID); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to save SMTP settings",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "SMTP settings saved successfully",
+	})
+}
+
 // GetSMTPStatus returns SMTP configuration status (configured, source)
 func (h *SettingsHandler) GetSMTPStatus(c *fiber.Ctx) error {
 	status := h.emailService.GetSMTPStatus(c.Context())

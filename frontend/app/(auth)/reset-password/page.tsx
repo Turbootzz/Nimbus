@@ -150,6 +150,7 @@ function ResetPasswordForm() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
               required
               disabled={isLoading}
             />
@@ -169,6 +170,7 @@ function ResetPasswordForm() {
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="••••••••"
+              autoComplete="new-password"
               required
               disabled={isLoading}
             />
