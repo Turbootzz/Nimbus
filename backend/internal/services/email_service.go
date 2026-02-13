@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/tls"
+	_ "embed"
 	"errors"
 	"fmt"
 	"html/template"
@@ -287,11 +288,13 @@ func (s *EmailService) SendPasswordResetEmail(ctx context.Context, to, rawToken,
 	resetLink := frontendURL + "/reset-password?token=" + rawToken
 
 	data := struct {
-		UserName  string
-		ResetLink string
+		UserName    string
+		ResetLink   string
+		FrontendURL string
 	}{
-		UserName:  userName,
-		ResetLink: resetLink,
+		UserName:    userName,
+		ResetLink:   resetLink,
+		FrontendURL: frontendURL,
 	}
 
 	var body strings.Builder
@@ -380,19 +383,7 @@ func (s *EmailService) TestConnectionWithConfig(config *SMTPConfig) error {
 	return c.Quit()
 }
 
-var passwordResetTemplate = template.Must(template.New("password_reset").Parse(`<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #333;">
-  <h2 style="color: #1a1a1a;">Reset your password</h2>
-  <p>Hi {{.UserName}},</p>
-  <p>We received a request to reset your Nimbus password. Click the button below to set a new password:</p>
-  <p style="text-align: center; margin: 30px 0;">
-    <a href="{{.ResetLink}}" style="background-color: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">Reset Password</a>
-  </p>
-  <p>This link will expire in <strong>1 hour</strong>. If the link has expired, you can request a new one using "Forgot password?" on the login page.</p>
-  <p>If you didn't request a password reset, you can safely ignore this email.</p>
-  <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
-  <p style="font-size: 12px; color: #999;">This email was sent by Nimbus. If the button doesn't work, copy and paste this link into your browser: {{.ResetLink}}</p>
-</body>
-</html>`))
+//go:embed templates/password_reset.html
+var passwordResetHTML string
+
+var passwordResetTemplate = template.Must(template.New("password_reset").Parse(passwordResetHTML))
