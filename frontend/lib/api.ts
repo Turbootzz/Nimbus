@@ -32,6 +32,7 @@ import type {
   ForgotPasswordRequest,
   ResetPasswordRequest,
   ChangePasswordRequest,
+  SMTPStatusResponse,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -574,6 +575,10 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  async getSMTPStatus(): Promise<ApiResponse<SMTPStatusResponse>> {
+    return this.request<SMTPStatusResponse>('/admin/settings/smtp/status')
   }
 
   async testSMTPConnection(): Promise<ApiResponse<{ success: boolean; message: string }>> {

@@ -325,6 +325,11 @@ export interface ChangePasswordRequest {
   new_password: string
 }
 
+export interface SMTPStatusResponse {
+  configured: boolean
+  source: 'env' | 'database' | 'none'
+}
+
 // Setup types
 export interface SetupStatusResponse {
   needs_setup: boolean

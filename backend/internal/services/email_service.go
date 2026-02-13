@@ -106,6 +106,32 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 	return config, nil
 }
 
+// SMTPStatus describes where SMTP configuration comes from
+type SMTPStatus struct {
+	Configured bool   `json:"configured"`
+	Source     string `json:"source"` // "env", "database", or "none"
+}
+
+// GetSMTPStatus checks whether SMTP is configured and from which source
+func (s *EmailService) GetSMTPStatus(ctx context.Context) *SMTPStatus {
+	// Check database settings first
+	settings, err := s.settingsRepo.GetAll(ctx)
+	if err == nil {
+		for _, setting := range settings {
+			if setting.Key == "smtp_host" && setting.Value != "" {
+				return &SMTPStatus{Configured: true, Source: "database"}
+			}
+		}
+	}
+
+	// Check env vars
+	if os.Getenv("SMTP_HOST") != "" {
+		return &SMTPStatus{Configured: true, Source: "env"}
+	}
+
+	return &SMTPStatus{Configured: false, Source: "none"}
+}
+
 // SendEmail sends an email via SMTP
 func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody string) error {
 	config, err := s.GetSMTPConfig(ctx)
@@ -321,7 +347,7 @@ var passwordResetTemplate = template.Must(template.New("password_reset").Parse(`
   <p style="text-align: center; margin: 30px 0;">
     <a href="{{.ResetLink}}" style="background-color: #3b82f6; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 500;">Reset Password</a>
   </p>
-  <p>This link will expire in <strong>1 hour</strong>.</p>
+  <p>This link will expire in <strong>1 hour</strong>. If the link has expired, you can request a new one using "Forgot password?" on the login page.</p>
   <p>If you didn't request a password reset, you can safely ignore this email.</p>
   <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 30px 0;">
   <p style="font-size: 12px; color: #999;">This email was sent by Nimbus. If the button doesn't work, copy and paste this link into your browser: {{.ResetLink}}</p>

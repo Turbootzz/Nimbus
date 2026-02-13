@@ -138,6 +138,12 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	return c.JSON(setting)
 }
 
+// GetSMTPStatus returns SMTP configuration status (configured, source)
+func (h *SettingsHandler) GetSMTPStatus(c *fiber.Ctx) error {
+	status := h.emailService.GetSMTPStatus(c.Context())
+	return c.JSON(status)
+}
+
 // TestSMTPConnection tests the SMTP connection using current settings
 func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
 	if err := h.emailService.TestConnection(c.Context()); err != nil {

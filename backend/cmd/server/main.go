@@ -256,6 +256,7 @@ func main() {
 	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
 	admin.Delete("/users/:id", adminHandler.DeleteUser)
 	admin.Get("/settings", settingsHandler.GetSettings)
+	admin.Get("/settings/smtp/status", settingsHandler.GetSMTPStatus)
 	admin.Post("/settings/smtp/test", settingsHandler.TestSMTPConnection)
 	admin.Get("/settings/:key", settingsHandler.GetSetting)
 	admin.Put("/settings/:key", settingsHandler.UpdateSetting)

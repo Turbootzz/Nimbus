@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { api } from '@/lib/api'
-import type { SystemSetting } from '@/types'
+import type { SystemSetting, SMTPStatusResponse } from '@/types'
 
 const SMTP_KEYS = [
   'smtp_host',
@@ -44,6 +44,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
   const [isTesting, setIsTesting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [smtpStatus, setSMTPStatus] = useState<SMTPStatusResponse | null>(null)
+
+  // Fetch SMTP configuration source
+  useEffect(() => {
+    api.getSMTPStatus().then((res) => {
+      if (res.data) setSMTPStatus(res.data)
+    })
+  }, [])
 
   // Initialize form from settings
   useEffect(() => {
@@ -132,6 +140,32 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           }}
         >
           {success}
+        </div>
+      )}
+
+      {smtpStatus?.source === 'env' && (
+        <div
+          className="rounded-lg p-3 text-sm"
+          style={{
+            backgroundColor: 'var(--color-primary)',
+            color: 'white',
+            opacity: 0.9,
+          }}
+        >
+          SMTP is pre-configured by your hosting provider. You can override these settings below.
+        </div>
+      )}
+
+      {smtpStatus?.source === 'none' && (
+        <div
+          className="rounded-lg p-3 text-sm"
+          style={{
+            backgroundColor: 'var(--color-card-border)',
+            color: 'var(--color-text-secondary)',
+          }}
+        >
+          SMTP is not configured. Fill in the fields below and enable SMTP to allow password reset
+          emails.
         </div>
       )}
 
