@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useSyncExternalStore, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
@@ -17,19 +17,41 @@ const routeTitles: { path: string; title: string; exact?: boolean }[] = [
   { path: '/settings', title: 'Settings' },
 ]
 
+// Sidebar collapsed state synced with localStorage via useSyncExternalStore
+const sidebarListeners = new Set<() => void>()
+
+function subscribeSidebar(onStoreChange: () => void) {
+  sidebarListeners.add(onStoreChange)
+  return () => {
+    sidebarListeners.delete(onStoreChange)
+  }
+}
+
+function getSidebarSnapshot() {
+  return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
+}
+
+function getSidebarServerSnapshot() {
+  return false
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
-    }
-    return false
-  })
+  const isDesktopCollapsed = useSyncExternalStore(
+    subscribeSidebar,
+    getSidebarSnapshot,
+    getSidebarServerSnapshot
+  )
+  const setIsDesktopCollapsed = useCallback((value: boolean) => {
+    localStorage.setItem('nimbus-sidebar-collapsed', String(value))
+    sidebarListeners.forEach((l) => l())
+  }, [])
   const pathname = usePathname()
 
+  // Clean up pre-hydration data attribute once React takes over
   useEffect(() => {
-    localStorage.setItem('nimbus-sidebar-collapsed', String(isDesktopCollapsed))
-  }, [isDesktopCollapsed])
+    document.documentElement.removeAttribute('data-sidebar-collapsed')
+  }, [])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
@@ -58,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* Main content */}
       <div
+        data-main-content
         className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-56'}`}
       >
         {/* Header */}

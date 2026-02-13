@@ -44,6 +44,12 @@ function applyThemeBeforeHydration() {
         // Invalid URL, skip
       }
     }
+
+    // Apply sidebar collapsed state
+    const sidebarCollapsed = localStorage.getItem('nimbus-sidebar-collapsed')
+    if (sidebarCollapsed === 'true') {
+      root.setAttribute('data-sidebar-collapsed', 'true')
+    }
   } catch {
     // localStorage might be blocked, fail silently
   }

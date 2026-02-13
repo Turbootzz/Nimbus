@@ -114,3 +114,13 @@ body {
   image-rendering: high-quality;
   image-rendering: -webkit-optimize-contrast;
 }
+
+/* Pre-hydration sidebar collapsed state (set by ThemeScript) */
+@media (min-width: 1024px) {
+  html[data-sidebar-collapsed='true'] [data-sidebar='desktop'] {
+    width: 4rem;
+  }
+  html[data-sidebar-collapsed='true'] [data-main-content] {
+    padding-left: 4rem;
+  }
+}
