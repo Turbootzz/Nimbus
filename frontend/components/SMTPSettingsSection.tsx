@@ -163,7 +163,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             opacity: 0.9,
           }}
         >
-          SMTP is pre-configured by your hosting provider. You can override these settings below.
+          SMTP is pre-configured. You can override these settings below.
         </div>
       )}
 
