@@ -139,7 +139,7 @@ func (w *MetricsCleanupWorker) runCleanup() {
 		log.Printf("Rate limit cleanup: removed %d stale entries", rateLimitRemoved)
 	}
 
-	if statusErr == nil && webhookErr == nil && tokenErr == nil && statusDeleted == 0 && webhookDeleted == 0 && tokensDeleted == 0 {
+	if statusErr == nil && webhookErr == nil && tokenErr == nil && statusDeleted == 0 && webhookDeleted == 0 && tokensDeleted == 0 && rateLimitRemoved == 0 {
 		log.Println("Cleanup completed: no old logs to delete")
 	}
 }

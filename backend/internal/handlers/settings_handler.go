@@ -171,6 +171,20 @@ func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
 		}
 	}
 
+	// When enabling SMTP, require essential fields
+	if req.Enabled == "true" {
+		if req.Host == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "SMTP host is required when SMTP is enabled",
+			})
+		}
+		if req.FromEmail == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "From email is required when SMTP is enabled",
+			})
+		}
+	}
+
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err

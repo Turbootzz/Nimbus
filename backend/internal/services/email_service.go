@@ -22,13 +22,14 @@ const smtpDialTimeout = 10 * time.Second
 
 // SMTPConfig holds SMTP connection settings
 type SMTPConfig struct {
-	Host      string
-	Port      int
-	Username  string
-	Password  string
-	FromEmail string
-	FromName  string
-	Enabled   bool
+	Host       string
+	Port       int
+	Username   string
+	Password   string
+	FromEmail  string
+	FromName   string
+	Enabled    bool
+	enabledSet bool // tracks whether Enabled was explicitly configured
 }
 
 type EmailService struct {
@@ -73,6 +74,7 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 		}
 		if v, ok := settingsMap["smtp_enabled"]; ok {
 			config.Enabled = v == "true"
+			config.enabledSet = true
 		}
 	}
 
@@ -103,8 +105,8 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 		}
 	}
 
-	// If env vars provide config but enabled wasn't set, auto-enable
-	if !config.Enabled && config.Host != "" {
+	// Auto-enable only when Enabled was not explicitly configured
+	if !config.enabledSet && config.Host != "" {
 		config.Enabled = true
 	}
 

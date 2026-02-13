@@ -122,6 +122,40 @@ func TestGetSMTPConfig_FromEnvVars(t *testing.T) {
 	}
 }
 
+func TestGetSMTPConfig_ExplicitDisabledNotOverridden(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	os.Unsetenv("SMTP_HOST")
+
+	// Insert DB settings with enabled=false but host present
+	settings := map[string]string{
+		"smtp_host":    "db.smtp.com",
+		"smtp_enabled": "false",
+	}
+	for k, v := range settings {
+		_, err := db.Exec("INSERT INTO system_settings (key, value) VALUES (?, ?)", k, v)
+		if err != nil {
+			t.Fatalf("Failed to insert setting %s: %v", k, err)
+		}
+	}
+
+	repo := repository.NewSettingsRepository(db)
+	svc := NewEmailService(repo)
+
+	config, err := svc.GetSMTPConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetSMTPConfig failed: %v", err)
+	}
+
+	if config.Host != "db.smtp.com" {
+		t.Errorf("Expected host 'db.smtp.com', got '%s'", config.Host)
+	}
+	if config.Enabled {
+		t.Error("Expected enabled to remain false when explicitly set in DB")
+	}
+}
+
 func TestGetSMTPConfig_DefaultFromName(t *testing.T) {
 	db := setupEmailTestDB(t)
 	defer db.Close()
