@@ -170,6 +170,21 @@ This requires configuring `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` manually.
 
 ---
 
+## ☁️ Don't want to self-host?
+
+[**Nimbus Cloud**](https://nimbusapp.dev) is a managed hosting option for €5/month — same Nimbus, zero setup.
+
+- No Docker, no server — just sign up and go
+- Automatic SSL certificates & updates
+- Your own subdomain (`you.nimbusapp.dev`)
+- All features included, same as self-hosted
+
+Nimbus is and will always be free and open source. Nimbus Cloud is simply for those who prefer a hosted solution.
+
+[**Get Started →**](https://nimbusapp.dev)
+
+---
+
 ## 💻 Local Development
 
 ### Prerequisites
