@@ -116,6 +116,7 @@ body {
 }
 
 /* Pre-hydration sidebar collapsed state (set by ThemeScript) */
+/* Must match Tailwind's lg breakpoint (1024px) */
 @media (min-width: 1024px) {
   html[data-sidebar-collapsed='true'] [data-sidebar='desktop'] {
     width: 4rem;
