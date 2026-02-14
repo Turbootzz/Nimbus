@@ -204,6 +204,7 @@ export default function Sidebar({
     <>
       {/* Desktop sidebar */}
       <div
+        data-sidebar="desktop"
         className={`hidden transition-all duration-300 lg:fixed lg:inset-y-0 lg:flex lg:flex-col ${isDesktopCollapsed ? 'lg:w-16' : 'lg:w-52'}`}
       >
         <div className="border-sidebar-border bg-sidebar flex grow flex-col overflow-y-auto border-r">

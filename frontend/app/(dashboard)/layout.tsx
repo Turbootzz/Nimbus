@@ -1,9 +1,15 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import {
+  subscribeSidebar,
+  getSidebarSnapshot,
+  getSidebarServerSnapshot,
+  setSidebarCollapsed,
+} from '@/lib/sidebar-store'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -19,17 +25,17 @@ const routeTitles: { path: string; title: string; exact?: boolean }[] = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
-  const [isDesktopCollapsed, setIsDesktopCollapsed] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
-    }
-    return false
-  })
+  const isDesktopCollapsed = useSyncExternalStore(
+    subscribeSidebar,
+    getSidebarSnapshot,
+    getSidebarServerSnapshot
+  )
   const pathname = usePathname()
 
+  // Clean up pre-hydration data attribute once React takes over
   useEffect(() => {
-    localStorage.setItem('nimbus-sidebar-collapsed', String(isDesktopCollapsed))
-  }, [isDesktopCollapsed])
+    document.documentElement.removeAttribute('data-sidebar-collapsed')
+  }, [])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
@@ -53,11 +59,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         isDesktopCollapsed={isDesktopCollapsed}
-        setIsDesktopCollapsed={setIsDesktopCollapsed}
+        setIsDesktopCollapsed={setSidebarCollapsed}
       />
 
       {/* Main content */}
       <div
+        data-main-content
         className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-56'}`}
       >
         {/* Header */}
