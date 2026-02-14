@@ -22,34 +22,18 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
 })
 
-// Re-implement the store logic to test in isolation
-// (mirrors layout.tsx module-level functions)
-const sidebarListeners = new Set<() => void>()
-
-function subscribeSidebar(onStoreChange: () => void) {
-  sidebarListeners.add(onStoreChange)
-  return () => {
-    sidebarListeners.delete(onStoreChange)
-  }
-}
-
-function getSidebarSnapshot() {
-  return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
-}
-
-function getSidebarServerSnapshot() {
-  return false
-}
-
-function setIsDesktopCollapsed(value: boolean) {
-  localStorage.setItem('nimbus-sidebar-collapsed', String(value))
-  sidebarListeners.forEach((l) => l())
-}
+import {
+  subscribeSidebar,
+  getSidebarSnapshot,
+  getSidebarServerSnapshot,
+  setSidebarCollapsed,
+  clearSidebarListeners,
+} from '@/lib/sidebar-store'
 
 describe('Sidebar collapsed store', () => {
   beforeEach(() => {
     localStorageMock.clear()
-    sidebarListeners.clear()
+    clearSidebarListeners()
   })
 
   describe('getSidebarSnapshot', () => {
@@ -74,14 +58,14 @@ describe('Sidebar collapsed store', () => {
     })
   })
 
-  describe('setIsDesktopCollapsed', () => {
+  describe('setSidebarCollapsed', () => {
     it('should persist true to localStorage', () => {
-      setIsDesktopCollapsed(true)
+      setSidebarCollapsed(true)
       expect(localStorage.getItem('nimbus-sidebar-collapsed')).toBe('true')
     })
 
     it('should persist false to localStorage', () => {
-      setIsDesktopCollapsed(false)
+      setSidebarCollapsed(false)
       expect(localStorage.getItem('nimbus-sidebar-collapsed')).toBe('false')
     })
 
@@ -90,7 +74,7 @@ describe('Sidebar collapsed store', () => {
       subscribeSidebar(() => callCount++)
       subscribeSidebar(() => callCount++)
 
-      setIsDesktopCollapsed(true)
+      setSidebarCollapsed(true)
       expect(callCount).toBe(2)
     })
   })
@@ -102,12 +86,12 @@ describe('Sidebar collapsed store', () => {
         called = true
       })
 
-      setIsDesktopCollapsed(true)
+      setSidebarCollapsed(true)
       expect(called).toBe(true)
 
       called = false
       unsubscribe()
-      setIsDesktopCollapsed(false)
+      setSidebarCollapsed(false)
       expect(called).toBe(false)
     })
 
@@ -116,12 +100,12 @@ describe('Sidebar collapsed store', () => {
       const unsub1 = subscribeSidebar(() => calls.push('a'))
       subscribeSidebar(() => calls.push('b'))
 
-      setIsDesktopCollapsed(true)
+      setSidebarCollapsed(true)
       expect(calls).toEqual(['a', 'b'])
 
       unsub1()
       calls.length = 0
-      setIsDesktopCollapsed(false)
+      setSidebarCollapsed(false)
       expect(calls).toEqual(['b'])
     })
   })
@@ -130,10 +114,10 @@ describe('Sidebar collapsed store', () => {
     it('should round-trip collapsed state through localStorage', () => {
       expect(getSidebarSnapshot()).toBe(false)
 
-      setIsDesktopCollapsed(true)
+      setSidebarCollapsed(true)
       expect(getSidebarSnapshot()).toBe(true)
 
-      setIsDesktopCollapsed(false)
+      setSidebarCollapsed(false)
       expect(getSidebarSnapshot()).toBe(false)
     })
   })

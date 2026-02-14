@@ -1,9 +1,15 @@
 'use client'
 
-import { useState, useMemo, useEffect, useSyncExternalStore, useCallback } from 'react'
+import { useState, useMemo, useEffect, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import {
+  subscribeSidebar,
+  getSidebarSnapshot,
+  getSidebarServerSnapshot,
+  setSidebarCollapsed,
+} from '@/lib/sidebar-store'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -17,24 +23,6 @@ const routeTitles: { path: string; title: string; exact?: boolean }[] = [
   { path: '/settings', title: 'Settings' },
 ]
 
-// Sidebar collapsed state synced with localStorage via useSyncExternalStore
-const sidebarListeners = new Set<() => void>()
-
-function subscribeSidebar(onStoreChange: () => void) {
-  sidebarListeners.add(onStoreChange)
-  return () => {
-    sidebarListeners.delete(onStoreChange)
-  }
-}
-
-function getSidebarSnapshot() {
-  return localStorage.getItem('nimbus-sidebar-collapsed') === 'true'
-}
-
-function getSidebarServerSnapshot() {
-  return false
-}
-
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const isDesktopCollapsed = useSyncExternalStore(
@@ -42,10 +30,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getSidebarSnapshot,
     getSidebarServerSnapshot
   )
-  const setIsDesktopCollapsed = useCallback((value: boolean) => {
-    localStorage.setItem('nimbus-sidebar-collapsed', String(value))
-    sidebarListeners.forEach((l) => l())
-  }, [])
   const pathname = usePathname()
 
   // Clean up pre-hydration data attribute once React takes over
@@ -75,7 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
         isDesktopCollapsed={isDesktopCollapsed}
-        setIsDesktopCollapsed={setIsDesktopCollapsed}
+        setIsDesktopCollapsed={setSidebarCollapsed}
       />
 
       {/* Main content */}
