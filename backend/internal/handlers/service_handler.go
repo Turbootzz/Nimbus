@@ -370,12 +370,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 			})
 		}
 		// Validate URL format (no SSRF risk since browser renders the URL, not the server)
-		if iconImagePath != "" {
-			if err := utils.ValidateIconURL(iconImagePath); err != nil {
-				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
-				})
-			}
+		if err := utils.ValidateIconURL(iconImagePath); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
+			})
 		}
 	}
 
