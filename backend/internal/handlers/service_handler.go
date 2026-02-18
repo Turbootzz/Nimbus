@@ -133,10 +133,10 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 				"error": "icon_image_path (URL) is required for image_url type",
 			})
 		}
-		// Validate URL format and security (prevent SSRF attacks)
-		if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
+		// Validate URL format (no SSRF risk since browser renders the URL, not the server)
+		if err := utils.ValidateIconURL(iconImagePath); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
+				"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
 			})
 		}
 	}
@@ -369,11 +369,11 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 				"error": "icon_image_path (URL) is required for image_url type",
 			})
 		}
-		// Validate URL format and security (prevent SSRF attacks) only if non-empty
+		// Validate URL format (no SSRF risk since browser renders the URL, not the server)
 		if iconImagePath != "" {
-			if err := utils.ValidateExternalImageURL(iconImagePath); err != nil {
+			if err := utils.ValidateIconURL(iconImagePath); err != nil {
 				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-					"error": fmt.Sprintf("Invalid or unsafe image URL: %s", err.Error()),
+					"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
 				})
 			}
 		}

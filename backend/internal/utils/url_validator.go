@@ -134,6 +134,27 @@ func isCGNATRange(ip net.IP) bool {
 	return ip4[0] == 100 && (ip4[1]&0xC0) == 64
 }
 
+// ValidateIconURL validates that a URL is a well-formed HTTP/HTTPS URL.
+// Unlike ValidateExternalImageURL, this does not block private/local IPs because
+// icon URLs are rendered by the browser, not fetched by the server (no SSRF risk).
+func ValidateIconURL(urlStr string) error {
+	parsedURL, err := url.ParseRequestURI(urlStr)
+	if err != nil {
+		return fmt.Errorf("invalid URL format")
+	}
+
+	if parsedURL.Scheme != "https" && parsedURL.Scheme != "http" {
+		return fmt.Errorf("only HTTP/HTTPS protocols are allowed")
+	}
+
+	hostname := parsedURL.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("URL must have a hostname")
+	}
+
+	return nil
+}
+
 // ValidateWebhookURL validates that a URL is safe for webhook delivery
 // Allows internal URLs (for self-hosted notification services) but blocks cloud metadata
 func ValidateWebhookURL(urlStr string) error {
