@@ -298,6 +298,82 @@ func TestIsCloudMetadataIP(t *testing.T) {
 	}
 }
 
+// ValidateIconURL tests
+
+func TestValidateIconURL_ValidURLs(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"HTTPS URL", "https://example.com/image.png"},
+		{"HTTP URL", "http://example.com/image.jpg"},
+		{"CDN URL", "https://cdn.jsdelivr.net/npm/simple-icons@latest/icons/github.svg"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIconURL(tt.url)
+			if err != nil {
+				t.Errorf("ValidateIconURL(%q) returned error: %v, expected nil", tt.url, err)
+			}
+		})
+	}
+}
+
+func TestValidateIconURL_AllowsPrivateNetworks(t *testing.T) {
+	// Icon URLs are browser-rendered, not server-fetched, so private IPs must be allowed
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"Private 192.168.x.x", "http://192.168.1.100:8096/web/favicon.ico"},
+		{"Private 10.x.x.x", "http://10.0.0.5/icon.png"},
+		{"Private 172.16.x.x", "http://172.16.0.1:8080/favicon.ico"},
+		{"localhost", "http://localhost:3000/icon.png"},
+		{"127.0.0.1", "http://127.0.0.1:8080/icon.png"},
+		{".local domain", "http://nas.local/icon.png"},
+		{"homeassistant.local", "http://homeassistant.local:8123/icon.png"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIconURL(tt.url)
+			if err != nil {
+				t.Errorf("ValidateIconURL(%q) returned error: %v, expected nil (private networks must be allowed)", tt.url, err)
+			}
+		})
+	}
+}
+
+func TestValidateIconURL_InvalidURLs(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		errContains string
+	}{
+		{"Empty URL", "", "invalid URL format"},
+		{"No scheme", "example.com/image.png", "invalid URL format"},
+		{"FTP protocol", "ftp://example.com/image.png", "only HTTP/HTTPS protocols are allowed"},
+		{"File protocol", "file:///etc/passwd", "only HTTP/HTTPS protocols are allowed"},
+		{"Data URL", "data:image/png;base64,iVBORw0KGgo=", "only HTTP/HTTPS protocols are allowed"},
+		{"Javascript protocol", "javascript:alert(1)", "only HTTP/HTTPS protocols are allowed"},
+		{"URL without hostname", "http:///image.png", "must have a hostname"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateIconURL(tt.url)
+			if err == nil {
+				t.Errorf("ValidateIconURL(%q) expected error containing %q, got nil", tt.url, tt.errContains)
+				return
+			}
+			if tt.errContains != "" && !contains(err.Error(), tt.errContains) {
+				t.Errorf("ValidateIconURL(%q) error = %q, expected to contain %q", tt.url, err.Error(), tt.errContains)
+			}
+		})
+	}
+}
+
 // ValidateWebhookURL tests
 
 func TestValidateWebhookURL_ValidURLs(t *testing.T) {

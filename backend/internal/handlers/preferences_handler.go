@@ -105,11 +105,11 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 			})
 		}
 
-		// Then validate security (prevent SSRF attacks)
-		if err := utils.ValidateExternalImageURL(backgroundURL); err != nil {
+		// Validate URL format (allows private/local IPs for homelab use)
+		if err := utils.ValidateIconURL(backgroundURL); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":  "Validation failed",
-				"fields": map[string]string{"theme_background": fmt.Sprintf("Unsafe background URL: %s", err.Error())},
+				"fields": map[string]string{"theme_background": fmt.Sprintf("Invalid background URL: %s", err.Error())},
 			})
 		}
 	}
