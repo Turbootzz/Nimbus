@@ -22,10 +22,10 @@
     "@heroicons/react": "^2.2.0",
     "date-fns": "^4.1.0",
     "jose": "^6.2.2",
-    "next": "16.2.1",
+    "next": "16.2.2",
     "react": "19.2.4",
     "react-dom": "19.2.4",
-    "recharts": "^3.8.0"
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -38,14 +38,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",
-    "baseline-browser-mapping": "^2.10.10",
+    "baseline-browser-mapping": "^2.10.15",
     "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "happy-dom": "^20.8.4",
+    "eslint-config-next": "16.2.2",
+    "happy-dom": "^20.8.9",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.2"
   }
 }
