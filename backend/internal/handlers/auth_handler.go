@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/mail"
 	"time"
@@ -241,4 +242,31 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(user.ToResponse())
+}
+
+// DeleteAccount allows the authenticated user to delete their own account.
+// DB-level FK CASCADE wipes related rows (services, preferences, activity
+// logs, groups, webhooks, password reset tokens, invitations).
+func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+
+	if err := h.userRepo.Delete(userID); err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		log.Printf("Failed to delete account %s: %v", userID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete account",
+		})
+	}
+
+	c.Cookie(utils.ClearAuthCookie(h.cookieConfig))
+	return c.JSON(fiber.Map{
+		"message": "Account deleted successfully",
+	})
 }

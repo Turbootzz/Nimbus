@@ -213,6 +213,12 @@ class ApiClient {
     })
   }
 
+  async deleteAccount(): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/auth/me', {
+      method: 'DELETE',
+    })
+  }
+
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
     const apiUrl = getApiUrl()
     if (!apiUrl) {
