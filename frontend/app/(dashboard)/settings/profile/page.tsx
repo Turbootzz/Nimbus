@@ -269,7 +269,7 @@ export default function ProfilePage() {
           {user && (
             <>
               <div className="border-t" style={{ borderColor: 'var(--color-card-border)' }} />
-              <DangerZoneSection email={user.email} />
+              <DangerZoneSection email={user.email} role={user.role} />
             </>
           )}
         </div>

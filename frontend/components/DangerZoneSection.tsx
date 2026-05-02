@@ -1,20 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { api } from '@/lib/api'
 
 interface DangerZoneSectionProps {
   email: string
+  role: 'admin' | 'user'
 }
 
-export default function DangerZoneSection({ email }: DangerZoneSectionProps) {
+export default function DangerZoneSection({ email, role }: DangerZoneSectionProps) {
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState('')
+  const [isLastAdmin, setIsLastAdmin] = useState(false)
+  const [isCheckingAdmins, setIsCheckingAdmins] = useState(role === 'admin')
+
+  useEffect(() => {
+    if (role !== 'admin') return
+    let cancelled = false
+    api.getUserStats().then((res) => {
+      if (cancelled) return
+      if (res.data && res.data.admins <= 1) setIsLastAdmin(true)
+      setIsCheckingAdmins(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [role])
 
   const closeModal = () => {
     if (isDeleting) return
@@ -47,19 +63,28 @@ export default function DangerZoneSection({ email }: DangerZoneSectionProps) {
       <h3 className="mb-2 text-sm font-medium" style={{ color: 'var(--color-error)' }}>
         Danger Zone
       </h3>
-      <p className="mb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        Permanently delete your account and all associated data. This action cannot be undone.
-      </p>
-      <button
-        type="button"
-        onClick={() => setIsModalOpen(true)}
-        className="rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-        style={{ backgroundColor: 'var(--color-error)' }}
-      >
-        Delete my account
-      </button>
+      {isLastAdmin ? (
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          You are the only admin. Promote another user to admin before you can delete this account.
+        </p>
+      ) : (
+        <>
+          <p className="mb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            Permanently delete your account and all associated data. This action cannot be undone.
+          </p>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            disabled={isCheckingAdmins}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundColor: 'var(--color-error)' }}
+          >
+            Delete my account
+          </button>
+        </>
+      )}
 
-      {isModalOpen && (
+      {isModalOpen && !isLastAdmin && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           <div

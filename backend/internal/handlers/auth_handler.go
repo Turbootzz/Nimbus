@@ -247,10 +247,33 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 // DeleteAccount allows the authenticated user to delete their own account.
 // DB-level FK CASCADE wipes related rows (services, preferences, activity
 // logs, groups, webhooks, password reset tokens, invitations).
+// Refuses if the caller is the last remaining admin — a server with no
+// admins is unrecoverable through normal flows.
 func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
+	}
+
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "User not found",
+		})
+	}
+	if user.Role == "admin" {
+		stats, err := h.userRepo.GetStats()
+		if err != nil {
+			log.Printf("Failed to get user stats while deleting account %s: %v", userID, err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to delete account",
+			})
+		}
+		if stats["admins"] <= 1 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Cannot delete the only admin account. Promote another user to admin first.",
+			})
+		}
 	}
 
 	if err := h.userRepo.Delete(userID); err != nil {
