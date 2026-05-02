@@ -257,8 +257,14 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 
 	user, err := h.userRepo.GetByID(userID)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "User not found",
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		log.Printf("Failed to load user %s while deleting account: %v", userID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete account",
 		})
 	}
 	if user.Role == "admin" {
@@ -277,11 +283,6 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 	}
 
 	if err := h.userRepo.Delete(userID); err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-				"error": "User not found",
-			})
-		}
 		log.Printf("Failed to delete account %s: %v", userID, err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete account",

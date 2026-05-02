@@ -18,15 +18,29 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
   const [error, setError] = useState('')
   const [isLastAdmin, setIsLastAdmin] = useState(false)
   const [isCheckingAdmins, setIsCheckingAdmins] = useState(role === 'admin')
+  const [statsError, setStatsError] = useState(false)
 
   useEffect(() => {
     if (role !== 'admin') return
     let cancelled = false
-    api.getUserStats().then((res) => {
-      if (cancelled) return
-      if (res.data && res.data.admins <= 1) setIsLastAdmin(true)
-      setIsCheckingAdmins(false)
-    })
+    api
+      .getUserStats()
+      .then((res) => {
+        if (cancelled) return
+        if (res.error || !res.data) {
+          console.error('Failed to load admin count:', res.error?.message)
+          setStatsError(true)
+        } else if (res.data.admins <= 1) {
+          setIsLastAdmin(true)
+        }
+        setIsCheckingAdmins(false)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.error('Failed to load admin count:', err)
+        setStatsError(true)
+        setIsCheckingAdmins(false)
+      })
     return () => {
       cancelled = true
     }
@@ -72,6 +86,12 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
           <p className="mb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Permanently delete your account and all associated data. This action cannot be undone.
           </p>
+          {statsError && (
+            <p className="mb-3 text-sm" style={{ color: 'var(--color-error)' }}>
+              Couldn&rsquo;t verify admin status. The server will block the deletion if you are the
+              only admin.
+            </p>
+          )}
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
