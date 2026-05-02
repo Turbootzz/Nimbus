@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"log"
 	"net/mail"
 	"time"
@@ -241,4 +242,64 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(user.ToResponse())
+}
+
+// DeleteAccount allows the authenticated user to delete their own account.
+// DB-level FK CASCADE wipes related rows (services, preferences, activity
+// logs, groups, webhooks, password reset tokens, invitations).
+// Refuses if the caller is the last remaining admin — a server with no
+// admins is unrecoverable through normal flows.
+func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		log.Printf("Failed to load user %s while deleting account: %v", userID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete account",
+		})
+	}
+	if user.Role == "admin" {
+		// Tiny TOCTOU window between this count and Delete: two of the last
+		// two admins self-deleting at the same millisecond could both pass.
+		// Not worth atomic locking for a self-serve homelab flow.
+		stats, err := h.userRepo.GetStats()
+		if err != nil {
+			log.Printf("Failed to get user stats while deleting account %s: %v", userID, err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to delete account",
+			})
+		}
+		if stats["admins"] <= 1 {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Cannot delete the only admin account. Promote another user to admin first.",
+			})
+		}
+	}
+
+	if err := h.userRepo.Delete(userID); err != nil {
+		// Race: another request could have deleted this user since GetByID.
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
+		log.Printf("Failed to delete account %s: %v", userID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to delete account",
+		})
+	}
+
+	c.Cookie(utils.ClearAuthCookie(h.cookieConfig))
+	return c.JSON(fiber.Map{
+		"message": "Account deleted successfully",
+	})
 }

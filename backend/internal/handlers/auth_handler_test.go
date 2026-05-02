@@ -688,3 +688,167 @@ func TestAuthHandler_Register_DisabledPublicRegistration(t *testing.T) {
 		t.Errorf("Expected error message 'Public registration is disabled', got '%s'", response["error"])
 	}
 }
+
+func TestAuthHandler_DeleteAccount(t *testing.T) {
+	os.Setenv("JWT_SECRET", "test-secret-for-jwt-token-generation-minimum-32-chars")
+	defer os.Unsetenv("JWT_SECRET")
+
+	os.Setenv("COOKIE_SECURE", "false")
+	defer os.Unsetenv("COOKIE_SECURE")
+
+	db := setupAuthTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+	settingsRepo := repository.NewSettingsRepository(db)
+	authService := services.NewAuthService()
+	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+
+	password := "TestPassword123!"
+	hashedPassword, _ := authService.HashPassword(password)
+	testUser := &models.User{
+		ID:        "user-delete-self",
+		Email:     "self-delete@example.com",
+		Name:      "Self Delete",
+		Password:  &hashedPassword,
+		Role:      "user",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	createUserDirectly(t, db, testUser)
+
+	t.Run("Successfully deletes own account and clears cookie", func(t *testing.T) {
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", testUser.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+
+		// User should be gone
+		if _, err := userRepo.GetByID(testUser.ID); err == nil {
+			t.Error("User should not exist after DeleteAccount")
+		}
+
+		// Cookie should be cleared
+		var authCookie *http.Cookie
+		for _, cookie := range resp.Cookies() {
+			if cookie.Name == "auth_token" {
+				authCookie = cookie
+				break
+			}
+		}
+		if authCookie == nil {
+			t.Fatal("auth_token cookie not found in response")
+		}
+		if authCookie.MaxAge > 0 {
+			t.Errorf("DeleteAccount should clear cookie (MaxAge<=0), got MaxAge=%d", authCookie.MaxAge)
+		}
+		if authCookie.Value != "" {
+			t.Error("DeleteAccount should clear cookie value")
+		}
+	})
+
+	t.Run("Refuses to delete the only remaining admin", func(t *testing.T) {
+		soloAdmin := &models.User{
+			ID:        "solo-admin",
+			Email:     "solo-admin@example.com",
+			Name:      "Solo Admin",
+			Password:  &hashedPassword,
+			Role:      "admin",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		createUserDirectly(t, db, soloAdmin)
+
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", soloAdmin.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusBadRequest {
+			t.Errorf("Expected status %d, got %d", http.StatusBadRequest, resp.StatusCode)
+		}
+
+		// Admin should still exist
+		if _, err := userRepo.GetByID(soloAdmin.ID); err != nil {
+			t.Error("Solo admin must not be deleted")
+		}
+	})
+
+	t.Run("Allows admin deletion when another admin exists", func(t *testing.T) {
+		adminA := &models.User{
+			ID:        "admin-a",
+			Email:     "admin-a@example.com",
+			Name:      "Admin A",
+			Password:  &hashedPassword,
+			Role:      "admin",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		adminB := &models.User{
+			ID:        "admin-b",
+			Email:     "admin-b@example.com",
+			Name:      "Admin B",
+			Password:  &hashedPassword,
+			Role:      "admin",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		createUserDirectly(t, db, adminA)
+		createUserDirectly(t, db, adminB)
+
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", adminA.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+		if _, err := userRepo.GetByID(adminA.ID); err == nil {
+			t.Error("Admin A should be deleted when another admin remains")
+		}
+	})
+
+	t.Run("Returns 404 when user no longer exists", func(t *testing.T) {
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", "non-existent-user")
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+		}
+	})
+}

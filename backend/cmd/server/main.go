@@ -182,6 +182,7 @@ func main() {
 	// Protected auth routes
 	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
 	authProtected.Get("/me", authHandler.GetMe)
+	authProtected.Delete("/me", authHandler.DeleteAccount)
 	authProtected.Put("/change-password", passwordHandler.ChangePassword)
 	authProtected.Post("/oauth/link/:provider", oauthHandler.LinkProvider)
 	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
