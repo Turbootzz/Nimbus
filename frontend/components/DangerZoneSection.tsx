@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { api } from '@/lib/api'
@@ -19,6 +19,8 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
   const [isLastAdmin, setIsLastAdmin] = useState(false)
   const [isCheckingAdmins, setIsCheckingAdmins] = useState(role === 'admin')
   const [statsError, setStatsError] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const openerRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (role !== 'admin') return
@@ -51,7 +53,20 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
     setIsModalOpen(false)
     setConfirmText('')
     setError('')
+    openerRef.current?.focus()
   }
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    inputRef.current?.focus()
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // closeModal reads isDeleting; we re-bind on open/close which is enough
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isModalOpen])
 
   const handleDelete = async () => {
     setError('')
@@ -93,6 +108,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
             </p>
           )}
           <button
+            ref={openerRef}
             type="button"
             onClick={() => setIsModalOpen(true)}
             disabled={isCheckingAdmins}
@@ -108,6 +124,9 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={closeModal} />
           <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dangerzone-dialog-title"
             className="relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg"
             style={{
               backgroundColor: 'var(--color-card)',
@@ -115,6 +134,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
             }}
           >
             <h3
+              id="dangerzone-dialog-title"
               className="mb-2 text-lg font-semibold"
               style={{ color: 'var(--color-text-primary)' }}
             >
@@ -128,6 +148,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
               Type <span className="font-mono font-semibold">{email}</span> to confirm.
             </p>
             <ThemedInput
+              ref={inputRef}
               type="text"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}

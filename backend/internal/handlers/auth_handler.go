@@ -268,6 +268,9 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 		})
 	}
 	if user.Role == "admin" {
+		// Tiny TOCTOU window between this count and Delete: two of the last
+		// two admins self-deleting at the same millisecond could both pass.
+		// Not worth atomic locking for a self-serve homelab flow.
 		stats, err := h.userRepo.GetStats()
 		if err != nil {
 			log.Printf("Failed to get user stats while deleting account %s: %v", userID, err)
@@ -283,6 +286,12 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 	}
 
 	if err := h.userRepo.Delete(userID); err != nil {
+		// Race: another request could have deleted this user since GetByID.
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "User not found",
+			})
+		}
 		log.Printf("Failed to delete account %s: %v", userID, err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to delete account",
