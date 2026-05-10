@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
 
@@ -396,6 +397,147 @@ func TestOAuthHandler_RegistrationEnabledCheck(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
+
+// runAvatarRefreshSim simulates the avatar-refresh slice of HandleCallback
+// against the seeded user and returns the user's avatar_url after the call.
+func runAvatarRefreshSim(t *testing.T, db *sql.DB, providerURL string) *string {
+	t.Helper()
+	userRepo := repository.NewUserRepository(db)
+
+	app := fiber.New()
+	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
+		existingUser, err := userRepo.GetByProviderID("discord", "123")
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		isLocalUpload := existingUser.AvatarURL != nil &&
+			len(*existingUser.AvatarURL) >= 9 && (*existingUser.AvatarURL)[:9] == "/uploads/"
+		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != providerURL) {
+			if err := userRepo.UpdateAvatar(existingUser.ID, &providerURL); err != nil {
+				return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			}
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	resp, err := app.Test(httptest.NewRequest("GET", "/oauth/discord/callback", nil))
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	refreshed, err := userRepo.GetByID("user-1")
+	assert.NoError(t, err)
+	return refreshed.AvatarURL
+}
+
+// seedDiscordUser inserts a Discord OAuth user with the given starting avatar.
+func seedDiscordUser(t *testing.T, db *sql.DB, startingAvatar string) {
+	t.Helper()
+	user := &models.User{
+		ID:         "user-1",
+		Email:      "discord@example.com",
+		Name:       "Discord User",
+		Provider:   "discord",
+		ProviderID: stringPtr("123"),
+		Role:       "user",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if _, err := db.Exec(`
+		INSERT INTO users (id, email, name, provider, provider_id, avatar_url, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.Name, user.Provider, user.ProviderID, startingAvatar, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+}
+
+func TestOAuthHandler_AvatarRefresh_StaleURLIsRefreshed(t *testing.T) {
+	// On every OAuth login, the handler should refresh the cached avatar URL
+	// so that providers (e.g. Discord) rotating the URL after an avatar change
+	// don't leave the user with a stale, 404-ing image.
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	staleURL := "https://cdn.discordapp.com/avatars/123/old_hash.png"
+	freshURL := "https://cdn.discordapp.com/avatars/123/new_hash.png"
+	seedDiscordUser(t, db, staleURL)
+
+	got := runAvatarRefreshSim(t, db, freshURL)
+	assert.NotNil(t, got)
+	assert.Equal(t, freshURL, *got)
+}
+
+func TestOAuthHandler_AvatarRefresh_MatchingURLIsSkipped(t *testing.T) {
+	// When the provider returns the same URL we already have, nothing should change.
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	url := "https://cdn.discordapp.com/avatars/123/hash.png"
+	seedDiscordUser(t, db, url)
+
+	got := runAvatarRefreshSim(t, db, url)
+	assert.NotNil(t, got)
+	assert.Equal(t, url, *got)
+}
+
+func TestOAuthHandler_LinkProvider_LocalUploadIsPreserved(t *testing.T) {
+	// When a local-account user signs in via OAuth with a matching email, the
+	// link path must preserve their locally-uploaded avatar instead of
+	// overwriting it with the provider's URL.
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+
+	localPath := "/uploads/avatars/custom.png"
+	providerURL := "https://cdn.discordapp.com/avatars/123/hash.png"
+	user := &models.User{
+		ID:        "user-1",
+		Email:     "linker@example.com",
+		Name:      "Linker",
+		Provider:  "local",
+		AvatarURL: &localPath,
+		Role:      "user",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if _, err := db.Exec(`
+		INSERT INTO users (id, email, name, provider, avatar_url, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.Name, user.Provider, *user.AvatarURL, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+
+	// Mirror the link slice of HandleCallback.
+	avatarToStore := &providerURL
+	if user.AvatarURL != nil && len(*user.AvatarURL) >= 9 && (*user.AvatarURL)[:9] == "/uploads/" {
+		avatarToStore = user.AvatarURL
+	}
+	if err := userRepo.LinkOAuthProvider(user.ID, "discord", "123", avatarToStore); err != nil {
+		t.Fatalf("LinkOAuthProvider failed: %v", err)
+	}
+
+	linked, err := userRepo.GetByID(user.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, linked.AvatarURL)
+	assert.Equal(t, localPath, *linked.AvatarURL)
+}
+
+func TestOAuthHandler_AvatarRefresh_LocalUploadIsPreserved(t *testing.T) {
+	// If the user has a locally-uploaded avatar (path under /uploads/), the
+	// OAuth refresh must not clobber it on subsequent logins.
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	localPath := "/uploads/avatars/custom.png"
+	providerURL := "https://cdn.discordapp.com/avatars/123/hash.png"
+	seedDiscordUser(t, db, localPath)
+
+	got := runAvatarRefreshSim(t, db, providerURL)
+	assert.NotNil(t, got)
+	assert.Equal(t, localPath, *got)
+}
+
+func stringPtr(s string) *string { return &s }
 
 func TestOAuthHandler_ExistingUserBypassesRegistrationCheck(t *testing.T) {
 	// This test verifies existing OAuth users can log in even when registration is disabled

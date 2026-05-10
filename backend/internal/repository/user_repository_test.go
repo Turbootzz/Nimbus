@@ -104,6 +104,49 @@ func TestUserRepository_UpdateRole(t *testing.T) {
 	})
 }
 
+func TestUserRepository_UpdateAvatar(t *testing.T) {
+	db := setupUserTestDB(t)
+	defer db.Close()
+
+	repo := NewUserRepository(db)
+
+	user := &models.User{
+		Email:     "avatar@example.com",
+		Name:      "Avatar User",
+		Provider:  "discord",
+		AvatarURL: stringPtr("https://cdn.discordapp.com/avatars/123/old_hash.png"),
+		Role:      "user",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := repo.Create(user); err != nil {
+		t.Fatalf("Failed to create test user: %v", err)
+	}
+
+	t.Run("Refresh stale avatar URL", func(t *testing.T) {
+		newURL := "https://cdn.discordapp.com/avatars/123/new_hash.png"
+		if err := repo.UpdateAvatar(user.ID, &newURL); err != nil {
+			t.Fatalf("UpdateAvatar failed: %v", err)
+		}
+
+		updated, err := repo.GetByID(user.ID)
+		if err != nil {
+			t.Fatalf("Failed to fetch updated user: %v", err)
+		}
+		if updated.AvatarURL == nil || *updated.AvatarURL != newURL {
+			t.Errorf("Expected avatar %q, got %v", newURL, updated.AvatarURL)
+		}
+	})
+
+	t.Run("Update avatar for non-existent user", func(t *testing.T) {
+		url := "https://example.com/avatar.png"
+		if err := repo.UpdateAvatar("non-existent-id", &url); err == nil {
+			t.Error("Expected error for non-existent user, got nil")
+		}
+	})
+}
+
 func TestUserRepository_Delete(t *testing.T) {
 	db := setupUserTestDB(t)
 	defer db.Close()

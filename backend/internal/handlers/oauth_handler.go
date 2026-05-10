@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -115,19 +116,33 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 	// Check if user already exists with this OAuth provider
 	existingUser, err := h.userRepo.GetByProviderID(string(provider), userInfo.ProviderID)
 	if err == nil {
-		// User exists - log them in
+		// Refresh the cached avatar URL — providers (Discord especially)
+		// rotate the URL when the user changes their avatar, so without
+		// this the stored URL goes stale and 404s on the frontend. Skip
+		// if the user has a locally-uploaded avatar so we don't clobber it.
+		isLocalUpload := existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/")
+		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL) {
+			if updateErr := h.userRepo.UpdateAvatar(existingUser.ID, &userInfo.AvatarURL); updateErr != nil {
+				log.Printf("Failed to refresh avatar for user %s: %v", existingUser.ID, updateErr)
+			}
+		}
 		return h.loginUser(c, existingUser, rememberMe)
 	}
 
 	// Check if user exists with this email (different provider)
 	existingUser, err = h.userRepo.GetByEmail(userInfo.Email)
 	if err == nil {
-		// Email exists - link this provider to the existing account
+		// Email exists - link this provider to the existing account.
+		// Preserve a locally-uploaded avatar; otherwise adopt the provider's.
+		avatarToStore := &userInfo.AvatarURL
+		if existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/") {
+			avatarToStore = existingUser.AvatarURL
+		}
 		err = h.userRepo.LinkOAuthProvider(
 			existingUser.ID,
 			string(provider),
 			userInfo.ProviderID,
-			&userInfo.AvatarURL,
+			avatarToStore,
 		)
 		if err != nil {
 			log.Printf("Failed to link OAuth provider: %v", err)

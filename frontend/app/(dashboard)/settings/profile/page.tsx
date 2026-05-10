@@ -1,11 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Image from 'next/image'
 import { api } from '@/lib/api'
-import { getApiUrl } from '@/lib/utils/api-url'
 import type { User } from '@/types'
-import { UserCircleIcon } from '@heroicons/react/24/outline'
+import UserAvatar from '@/components/UserAvatar'
 import ChangePasswordSection from '@/components/ChangePasswordSection'
 import DangerZoneSection from '@/components/DangerZoneSection'
 import GoogleIcon from '@/components/icons/GoogleIcon'
@@ -95,14 +93,6 @@ export default function ProfilePage() {
     }
   }
 
-  const getAvatarUrl = (avatarUrl: string | undefined) => {
-    if (!avatarUrl) return undefined
-    // If it's a full URL (OAuth provider), return as-is
-    if (avatarUrl.startsWith('http')) return avatarUrl
-    // If it's a relative path (local upload), prepend API URL
-    return getApiUrl() + avatarUrl
-  }
-
   if (isLoading) {
     return (
       <div className="p-4 sm:p-6">
@@ -143,20 +133,12 @@ export default function ProfilePage() {
               Profile Picture
             </label>
             <div className="flex items-center space-x-4">
-              {user?.avatar_url && getAvatarUrl(user.avatar_url) ? (
-                <Image
-                  src={getAvatarUrl(user.avatar_url)!}
-                  alt={user.name}
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 rounded-full object-cover"
-                />
-              ) : (
-                <UserCircleIcon
-                  className="h-20 w-20"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                />
-              )}
+              <UserAvatar
+                avatarUrl={user?.avatar_url}
+                name={user?.name || 'User'}
+                size={80}
+                className="h-20 w-20"
+              />
 
               {user?.provider === 'local' ? (
                 <div className="flex-1">
