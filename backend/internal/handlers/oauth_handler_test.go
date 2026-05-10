@@ -479,6 +479,49 @@ func TestOAuthHandler_AvatarRefresh_MatchingURLIsSkipped(t *testing.T) {
 	assert.Equal(t, url, *got)
 }
 
+func TestOAuthHandler_LinkProvider_LocalUploadIsPreserved(t *testing.T) {
+	// When a local-account user signs in via OAuth with a matching email, the
+	// link path must preserve their locally-uploaded avatar instead of
+	// overwriting it with the provider's URL.
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+
+	localPath := "/uploads/avatars/custom.png"
+	providerURL := "https://cdn.discordapp.com/avatars/123/hash.png"
+	user := &models.User{
+		ID:        "user-1",
+		Email:     "linker@example.com",
+		Name:      "Linker",
+		Provider:  "local",
+		AvatarURL: &localPath,
+		Role:      "user",
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	if _, err := db.Exec(`
+		INSERT INTO users (id, email, name, provider, avatar_url, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.Name, user.Provider, *user.AvatarURL, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+
+	// Mirror the link slice of HandleCallback.
+	avatarToStore := &providerURL
+	if user.AvatarURL != nil && len(*user.AvatarURL) >= 9 && (*user.AvatarURL)[:9] == "/uploads/" {
+		avatarToStore = user.AvatarURL
+	}
+	if err := userRepo.LinkOAuthProvider(user.ID, "discord", "123", avatarToStore); err != nil {
+		t.Fatalf("LinkOAuthProvider failed: %v", err)
+	}
+
+	linked, err := userRepo.GetByID(user.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, linked.AvatarURL)
+	assert.Equal(t, localPath, *linked.AvatarURL)
+}
+
 func TestOAuthHandler_AvatarRefresh_LocalUploadIsPreserved(t *testing.T) {
 	// If the user has a locally-uploaded avatar (path under /uploads/), the
 	// OAuth refresh must not clobber it on subsequent logins.

@@ -132,12 +132,17 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 	// Check if user exists with this email (different provider)
 	existingUser, err = h.userRepo.GetByEmail(userInfo.Email)
 	if err == nil {
-		// Email exists - link this provider to the existing account
+		// Email exists - link this provider to the existing account.
+		// Preserve a locally-uploaded avatar; otherwise adopt the provider's.
+		avatarToStore := &userInfo.AvatarURL
+		if existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/") {
+			avatarToStore = existingUser.AvatarURL
+		}
 		err = h.userRepo.LinkOAuthProvider(
 			existingUser.ID,
 			string(provider),
 			userInfo.ProviderID,
-			&userInfo.AvatarURL,
+			avatarToStore,
 		)
 		if err != nil {
 			log.Printf("Failed to link OAuth provider: %v", err)
