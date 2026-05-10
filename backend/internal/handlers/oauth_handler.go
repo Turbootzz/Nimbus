@@ -115,7 +115,14 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 	// Check if user already exists with this OAuth provider
 	existingUser, err := h.userRepo.GetByProviderID(string(provider), userInfo.ProviderID)
 	if err == nil {
-		// User exists - log them in
+		// Refresh the cached avatar URL — providers (Discord especially)
+		// rotate the URL when the user changes their avatar, so without
+		// this the stored URL goes stale and 404s on the frontend.
+		if existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL {
+			if updateErr := h.userRepo.UpdateAvatar(existingUser.ID, &userInfo.AvatarURL); updateErr != nil {
+				log.Printf("Failed to refresh avatar for user %s: %v", existingUser.ID, updateErr)
+			}
+		}
 		return h.loginUser(c, existingUser, rememberMe)
 	}
 

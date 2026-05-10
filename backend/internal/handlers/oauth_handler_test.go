@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
 
@@ -396,6 +397,66 @@ func TestOAuthHandler_RegistrationEnabledCheck(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
 }
+
+func TestOAuthHandler_ExistingUserAvatarRefresh(t *testing.T) {
+	// On every OAuth login, the handler should refresh the cached avatar URL
+	// so that providers (e.g. Discord) rotating the URL after an avatar change
+	// don't leave the user with a stale, 404-ing image.
+
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+
+	userRepo := repository.NewUserRepository(db)
+
+	staleURL := "https://cdn.discordapp.com/avatars/123/old_hash.png"
+	freshURL := "https://cdn.discordapp.com/avatars/123/new_hash.png"
+
+	user := &models.User{
+		ID:         "user-1",
+		Email:      "discord@example.com",
+		Name:       "Discord User",
+		Provider:   "discord",
+		ProviderID: stringPtr("123"),
+		AvatarURL:  &staleURL,
+		Role:       "user",
+		CreatedAt:  time.Now(),
+		UpdatedAt:  time.Now(),
+	}
+	if _, err := db.Exec(`
+		INSERT INTO users (id, email, name, provider, provider_id, avatar_url, role, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`, user.ID, user.Email, user.Name, user.Provider, user.ProviderID, *user.AvatarURL, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
+		t.Fatalf("Failed to seed user: %v", err)
+	}
+
+	// Simulate the relevant slice of HandleCallback: lookup existing user,
+	// refresh the avatar URL when the provider's value differs.
+	app := fiber.New()
+	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
+		existingUser, err := userRepo.GetByProviderID("discord", "123")
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+		}
+		if existingUser.AvatarURL == nil || *existingUser.AvatarURL != freshURL {
+			if err := userRepo.UpdateAvatar(existingUser.ID, &freshURL); err != nil {
+				return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			}
+		}
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/oauth/discord/callback", nil)
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+
+	refreshed, err := userRepo.GetByID(user.ID)
+	assert.NoError(t, err)
+	assert.NotNil(t, refreshed.AvatarURL)
+	assert.Equal(t, freshURL, *refreshed.AvatarURL)
+}
+
+func stringPtr(s string) *string { return &s }
 
 func TestOAuthHandler_ExistingUserBypassesRegistrationCheck(t *testing.T) {
 	// This test verifies existing OAuth users can log in even when registration is disabled

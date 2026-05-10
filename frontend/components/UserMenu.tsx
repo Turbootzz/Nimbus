@@ -18,6 +18,7 @@ export default function UserMenu() {
   const [user, setUser] = useState<User | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [avatarFailed, setAvatarFailed] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
@@ -28,6 +29,7 @@ export default function UserMenu() {
       const response = await api.getCurrentUser()
       if (response.data) {
         setUser(response.data)
+        setAvatarFailed(false)
       }
       setIsLoading(false)
     }
@@ -95,13 +97,14 @@ export default function UserMenu() {
           }
         }}
       >
-        {user?.avatar_url && getAvatarUrl(user.avatar_url) ? (
+        {user?.avatar_url && getAvatarUrl(user.avatar_url) && !avatarFailed ? (
           <Image
             src={getAvatarUrl(user.avatar_url)!}
             alt={user.name}
             width={32}
             height={32}
             className="h-8 w-8 rounded-full object-cover"
+            onError={() => setAvatarFailed(true)}
           />
         ) : (
           <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
