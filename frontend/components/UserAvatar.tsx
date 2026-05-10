@@ -28,12 +28,14 @@ export default function UserAvatar({ avatarUrl, name, size, className = '' }: Us
   const sizeClass = `rounded-full object-cover ${className}`.trim()
 
   if (resolved && !failed) {
-    // Skip Next.js image optimization for remote provider URLs. When a
-    // cached OAuth avatar goes stale (Discord rotates the hash on change)
-    // the optimizer would otherwise log an upstream 404 on every render.
+    // Skip Next.js image optimization for OAuth provider URLs. When a
+    // cached avatar goes stale (Discord rotates the hash on change) the
+    // optimizer would otherwise log an upstream 404 on every render.
     // Bypassing it lets the browser try directly and fail silently into
     // the icon fallback below until the next OAuth login refreshes the URL.
-    const isRemote = resolved.startsWith('http')
+    // Check the raw prop, not `resolved` — `resolved` for a local upload
+    // already has the API origin prepended in non-same-origin deployments.
+    const isRemote = avatarUrl?.startsWith('http') ?? false
     return (
       <Image
         src={resolved}
