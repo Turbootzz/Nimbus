@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -117,8 +118,10 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 	if err == nil {
 		// Refresh the cached avatar URL — providers (Discord especially)
 		// rotate the URL when the user changes their avatar, so without
-		// this the stored URL goes stale and 404s on the frontend.
-		if existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL {
+		// this the stored URL goes stale and 404s on the frontend. Skip
+		// if the user has a locally-uploaded avatar so we don't clobber it.
+		isLocalUpload := existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/")
+		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL) {
 			if updateErr := h.userRepo.UpdateAvatar(existingUser.ID, &userInfo.AvatarURL); updateErr != nil {
 				log.Printf("Failed to refresh avatar for user %s: %v", existingUser.ID, updateErr)
 			}

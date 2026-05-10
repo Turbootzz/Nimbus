@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -10,7 +9,7 @@ import {
   ChevronDownIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
-import { getApiUrl } from '@/lib/utils/api-url'
+import UserAvatar from '@/components/UserAvatar'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
@@ -18,7 +17,6 @@ export default function UserMenu() {
   const [user, setUser] = useState<User | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
-  const [avatarFailed, setAvatarFailed] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
@@ -29,7 +27,6 @@ export default function UserMenu() {
       const response = await api.getCurrentUser()
       if (response.data) {
         setUser(response.data)
-        setAvatarFailed(false)
       }
       setIsLoading(false)
     }
@@ -55,14 +52,6 @@ export default function UserMenu() {
     setIsOpen(false)
     router.push('/settings/profile')
   }, [router])
-
-  const getAvatarUrl = (avatarUrl: string | undefined) => {
-    if (!avatarUrl) return undefined
-    // If it's a full URL (OAuth provider), return as-is
-    if (avatarUrl.startsWith('http')) return avatarUrl
-    // If it's a relative path (local upload), prepend API URL
-    return getApiUrl() + avatarUrl
-  }
 
   if (isLoading) {
     return (
@@ -97,18 +86,12 @@ export default function UserMenu() {
           }
         }}
       >
-        {user?.avatar_url && getAvatarUrl(user.avatar_url) && !avatarFailed ? (
-          <Image
-            src={getAvatarUrl(user.avatar_url)!}
-            alt={user.name}
-            width={32}
-            height={32}
-            className="h-8 w-8 rounded-full object-cover"
-            onError={() => setAvatarFailed(true)}
-          />
-        ) : (
-          <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
-        )}
+        <UserAvatar
+          avatarUrl={user?.avatar_url}
+          name={user?.name || 'User'}
+          size={32}
+          className="h-8 w-8"
+        />
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
             {user?.name || 'User'}
