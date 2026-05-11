@@ -21,8 +21,16 @@ import (
 )
 
 const (
+	// faviconFetchTimeout caps the total time spent across all candidates
+	// (HTML scrape + each favicon download). Picking a value here is a
+	// trade-off: too long and a slow site blocks the user; too short and we
+	// give up before the well-known fallback paths can be tried.
 	faviconFetchTimeout = 10 * time.Second
-	faviconMaxHTMLBytes = 512 * 1024 // cap HTML parse to avoid huge pages
+	// faviconPerAttemptTimeout caps each individual candidate download so a
+	// single slow upstream can't eat the whole budget. With 10s total and 4s
+	// per attempt we get at least 2 attempts before bailing out.
+	faviconPerAttemptTimeout = 4 * time.Second
+	faviconMaxHTMLBytes      = 512 * 1024 // cap HTML parse to avoid huge pages
 	// Use a Chrome-on-macOS UA. A descriptive bot UA gets us 403'd by
 	// Cloudflare-protected sites (e.g. claude.ai), even though the well-known
 	// favicon paths themselves are served — we want the HTML too so we can
@@ -72,15 +80,39 @@ func isBlockedFaviconHost(host string) bool {
 // check above is a first-pass filter; this one defeats DNS rebinding, where an
 // attacker-controlled domain resolves to one of these addresses despite the
 // hostname not matching the deny list.
-var blockedFaviconIPs = map[string]struct{}{
-	"169.254.169.254": {}, // AWS / Azure / GCP / DO IMDS
-	"fd00:ec2::254":   {}, // AWS IMDS over IPv6
-	"100.100.100.200": {}, // Alibaba Cloud metadata
+//
+// IPs are stored as parsed net.IP so the comparison covers IPv4-mapped IPv6
+// representations (e.g. ::ffff:169.254.169.254) — a plain string-compare would
+// miss those and a clever attacker could resolve to that form to bypass.
+var blockedFaviconIPs = []net.IP{
+	net.ParseIP("169.254.169.254"), // AWS / Azure / GCP / DO IMDS
+	net.ParseIP("fd00:ec2::254"),   // AWS IMDS over IPv6
+	net.ParseIP("100.100.100.200"), // Alibaba Cloud metadata
 }
 
 func isBlockedFaviconIP(addr string) bool {
-	_, blocked := blockedFaviconIPs[strings.ToLower(addr)]
-	return blocked
+	ip := net.ParseIP(addr)
+	if ip == nil {
+		return false
+	}
+	// Normalize IPv4-mapped IPv6 down to plain IPv4 so the .Equal compare
+	// matches the IPv4 literals above. .To4() returns the IPv4 form or nil.
+	if v4 := ip.To4(); v4 != nil {
+		ip = v4
+	}
+	for _, blocked := range blockedFaviconIPs {
+		if blocked == nil {
+			continue
+		}
+		b := blocked
+		if v4 := b.To4(); v4 != nil {
+			b = v4
+		}
+		if b.Equal(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // errBlockedFaviconRedirect is returned by CheckRedirect when the favicon
@@ -181,7 +213,12 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 	candidates := buildIconCandidates(ctx, name, pageURL)
 	var lastErr error
 	for _, candidate := range candidates {
-		filename, err := downloadAndSaveFavicon(ctx, candidate)
+		// Per-attempt timeout keeps a single slow upstream from eating the
+		// entire faviconFetchTimeout budget — we want to fail fast and try
+		// the next candidate (curated → origin scrape → well-known paths).
+		attemptCtx, attemptCancel := context.WithTimeout(ctx, faviconPerAttemptTimeout)
+		filename, err := downloadAndSaveFavicon(attemptCtx, candidate)
+		attemptCancel()
 		if err == nil {
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"icon_image_path": filename,
@@ -189,6 +226,10 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 			})
 		}
 		lastErr = err
+		// Outer budget exhausted - no point trying more candidates.
+		if ctx.Err() != nil {
+			break
+		}
 	}
 
 	// Log the upstream detail server-side for ops debugging, but show the

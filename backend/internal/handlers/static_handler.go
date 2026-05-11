@@ -3,6 +3,7 @@ package handlers
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -84,9 +85,11 @@ func setImageResponseHeaders(c *fiber.Ctx, filename string) {
 	}
 }
 
-// getContentTypeFromExtension returns content type for file extension
+// getContentTypeFromExtension returns content type for file extension.
+// Extensions are lowercased so e.g. "foo.SVG" or "logo.PNG" still match —
+// case-insensitive filesystems (macOS, Windows) can serve such filenames.
 func getContentTypeFromExtension(ext string) string {
-	switch ext {
+	switch strings.ToLower(ext) {
 	case ".jpg", ".jpeg":
 		return "image/jpeg"
 	case ".png":

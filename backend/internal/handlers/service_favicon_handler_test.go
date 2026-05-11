@@ -465,6 +465,29 @@ func TestIsBlockedFaviconHost(t *testing.T) {
 	}
 }
 
+func TestIsBlockedFaviconIP(t *testing.T) {
+	cases := map[string]bool{
+		// Direct hits.
+		"169.254.169.254": true,
+		"100.100.100.200": true,
+		// IPv4-mapped IPv6: an attacker resolving to ::ffff:169.254.169.254
+		// must NOT bypass the deny list.
+		"::ffff:169.254.169.254": true,
+		"::ffff:100.100.100.200": true,
+		// Same metadata octets in different IPv6 forms.
+		"::ffff:a9fe:a9fe": true, // hex form of 169.254.169.254
+		// Pass-throughs.
+		"127.0.0.1":   false,
+		"192.168.1.5": false, // private but allowed for homelab use
+		"::1":         false,
+		"github.com":  false, // unparseable as IP → not blocked
+		"":            false,
+	}
+	for addr, want := range cases {
+		assert.Equal(t, want, isBlockedFaviconIP(addr), "addr=%q", addr)
+	}
+}
+
 func TestFetchServiceFavicon_PrefersLargerSizes(t *testing.T) {
 	cleanUploadDir(t)
 
