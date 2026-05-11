@@ -304,6 +304,18 @@ class ApiClient {
     })
   }
 
+  async fetchServiceFavicon(params: {
+    name?: string
+    url?: string
+  }): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
+    const qs = new URLSearchParams()
+    if (params.name && params.name.trim()) qs.set('name', params.name.trim())
+    if (params.url && params.url.trim()) qs.set('url', params.url.trim())
+    return this.request<{ icon_image_path: string; message: string }>(
+      `/services/favicon?${qs.toString()}`
+    )
+  }
+
   async uploadServiceIcon(
     file: File
   ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {

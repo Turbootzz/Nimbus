@@ -2,16 +2,23 @@
 
 import { useState, useRef, ChangeEvent } from 'react'
 import type { IconType } from '@/types'
+import { api } from '@/lib/api'
+import { getApiUrl } from '@/lib/utils/api-url'
+import { isValidUrl } from '@/lib/utils/url'
 import EmojiPicker from './EmojiPicker'
 
 interface IconSelectorProps {
   icon: string
   iconType: IconType
   iconImagePath: string
+  /** Current value of the service Name field. Primary lookup for the auto-fetch shortcut. */
+  serviceName: string
+  /** Current value of the service URL field. Used as fallback for the auto-fetch shortcut. */
+  serviceUrl: string
   onIconChange: (icon: string) => void
   onIconTypeChange: (iconType: IconType) => void
   onIconImagePathChange: (path: string) => void
-  onFileSelect: (file: File) => void
+  onFileSelect: (file: File | null) => void
 }
 
 // Helper function to check if a string contains only emojis
@@ -26,6 +33,8 @@ export default function IconSelector({
   icon,
   iconType,
   iconImagePath,
+  serviceName,
+  serviceUrl,
   onIconChange,
   onIconTypeChange,
   onIconImagePathChange,
@@ -33,7 +42,47 @@ export default function IconSelector({
 }: IconSelectorProps) {
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [autoFetching, setAutoFetching] = useState(false)
+  const [autoFetchError, setAutoFetchError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const trimmedName = serviceName.trim()
+  const hasUsableUrl = isValidUrl(serviceUrl)
+  // The backend tries the curated icon library by name first, then falls back
+  // to scraping the URL's origin. Either input on its own is enough to attempt.
+  const canAutoFetch = trimmedName.length > 0 || hasUsableUrl
+
+  const handleAutoFetchIcon = async () => {
+    if (!canAutoFetch || autoFetching) return
+    setAutoFetchError('')
+    setAutoFetching(true)
+    try {
+      const response = await api.fetchServiceFavicon({
+        name: trimmedName || undefined,
+        url: hasUsableUrl ? serviceUrl : undefined,
+      })
+      if (response.error || !response.data?.icon_image_path) {
+        setAutoFetchError(
+          response.error?.message || "Couldn't find an icon — try uploading manually"
+        )
+        return
+      }
+      // Switch into image_upload mode pointing at the fetched-and-stored file.
+      // The server already persisted it, so we clear any pending File so the
+      // parent's submit flow doesn't re-upload on top of it.
+      onIconTypeChange('image_upload')
+      onIconImagePathChange(response.data.icon_image_path)
+      onFileSelect(null)
+      setPreviewUrl('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (err) {
+      setAutoFetchError(err instanceof Error ? err.message : 'Failed to fetch icon')
+    } finally {
+      setAutoFetching(false)
+    }
+  }
 
   const handleModeChange = (mode: IconType) => {
     // No-op if clicking the already-selected mode
@@ -94,10 +143,10 @@ export default function IconSelector({
 
   return (
     <div className="space-y-4">
-      {/* Mode selector */}
+      {/* Mode selector + Fetch favicon shortcut */}
       <div>
         <label className="text-text-secondary mb-2 block text-sm font-medium">Icon Type</label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => handleModeChange('emoji')}
@@ -131,7 +180,26 @@ export default function IconSelector({
           >
             Image URL
           </button>
+          <button
+            type="button"
+            onClick={handleAutoFetchIcon}
+            disabled={!canAutoFetch || autoFetching}
+            aria-busy={autoFetching}
+            title={
+              canAutoFetch
+                ? 'Look up a curated icon by service name, falling back to the site favicon'
+                : 'Enter a service name or URL first'
+            }
+            className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {autoFetching ? 'Finding icon...' : 'Auto-fetch icon'}
+          </button>
         </div>
+        {autoFetchError && (
+          <p className="text-error mt-2 text-sm" role="alert">
+            {autoFetchError}
+          </p>
+        )}
       </div>
 
       {/* Emoji input */}
@@ -206,7 +274,7 @@ export default function IconSelector({
                 {/* Using <img> for blob URLs (temporary preview) - Next.js Image doesn't support blob: protocol */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={previewUrl || `/api/v1/uploads/service-icons/${iconImagePath}`}
+                  src={previewUrl || `${getApiUrl()}/uploads/service-icons/${iconImagePath}`}
                   alt="Icon preview"
                   className="border-card-border h-16 w-16 rounded border object-contain"
                   onError={(e) => {

@@ -3,6 +3,7 @@ package handlers
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,15 +36,7 @@ func (h *StaticHandler) ServeServiceIcon(c *fiber.Ctx) error {
 		})
 	}
 
-	// Determine content type based on file extension
-	ext := filepath.Ext(filename)
-	contentType := getContentTypeFromExtension(ext)
-
-	// Set content type header
-	c.Set("Content-Type", contentType)
-	c.Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Serve the file
+	setImageResponseHeaders(c, filename)
 	return c.SendFile(filePath)
 }
 
@@ -69,21 +62,34 @@ func (h *StaticHandler) ServeAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	// Determine content type based on file extension
-	ext := filepath.Ext(filename)
-	contentType := getContentTypeFromExtension(ext)
-
-	// Set content type header
-	c.Set("Content-Type", contentType)
-	c.Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Serve the file
+	setImageResponseHeaders(c, filename)
 	return c.SendFile(filePath)
 }
 
-// getContentTypeFromExtension returns content type for file extension
+// setImageResponseHeaders writes the Content-Type, caching, and (for SVG) the
+// hardening headers that prevent inline scripts in the SVG from executing if a
+// user opens the file URL directly. We render icons in <img> context where
+// scripts are inert by default, but defense in depth keeps us safe if the URL
+// is loaded via <object>/<iframe> or opened in a new tab.
+func setImageResponseHeaders(c *fiber.Ctx, filename string) {
+	ext := filepath.Ext(filename)
+	contentType := getContentTypeFromExtension(ext)
+	c.Set("Content-Type", contentType)
+	c.Set("Cache-Control", "public, max-age=31536000") // 1 year
+	c.Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// default-src 'none' blocks scripts, fetches, plugins; style-src
+		// 'unsafe-inline' is needed because legitimate SVGs commonly use
+		// inline <style>. sandbox isolates the response from same-origin.
+		c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	}
+}
+
+// getContentTypeFromExtension returns content type for file extension.
+// Extensions are lowercased so e.g. "foo.SVG" or "logo.PNG" still match —
+// case-insensitive filesystems (macOS, Windows) can serve such filenames.
 func getContentTypeFromExtension(ext string) string {
-	switch ext {
+	switch strings.ToLower(ext) {
 	case ".jpg", ".jpeg":
 		return "image/jpeg"
 	case ".png":
@@ -92,6 +98,10 @@ func getContentTypeFromExtension(ext string) string {
 		return "image/gif"
 	case ".webp":
 		return "image/webp"
+	case ".ico":
+		return "image/x-icon"
+	case ".svg":
+		return "image/svg+xml"
 	default:
 		return "application/octet-stream"
 	}

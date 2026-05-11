@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { isValidUrl } from '@/lib/utils/url'
 import IconSelector from '@/components/IconSelector'
 import GroupSelector from '@/components/GroupSelector'
 import { Toggle } from '@/components/ui/Toggle'
@@ -112,10 +113,7 @@ export default function EditServicePage() {
       return
     }
 
-    // Basic URL validation
-    try {
-      new URL(formData.url)
-    } catch {
+    if (!isValidUrl(formData.url)) {
       setError('Please enter a valid URL (e.g., https://example.com)')
       setIsSaving(false)
       return
@@ -269,6 +267,8 @@ export default function EditServicePage() {
             icon={formData.icon}
             iconType={formData.icon_type}
             iconImagePath={formData.icon_image_path}
+            serviceName={formData.name}
+            serviceUrl={formData.url}
             onIconChange={(icon) => setFormData({ ...formData, icon })}
             onIconTypeChange={(icon_type) => {
               setFormData((prev) => ({ ...prev, icon_type }))
