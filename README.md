@@ -250,6 +250,12 @@ Run `make help` for all available commands.
 
 ---
 
+## 🎨 Icon attributions
+
+When you click "Auto-fetch icon", Nimbus may download an SVG from the following open-source icon collection via the jsDelivr CDN. The icon is cached in your `uploads/service-icons/` volume; the origin is never re-fetched for rendering.
+
+- [Dashboard Icons](https://github.com/homarr-labs/dashboard-icons) — Apache License 2.0
+
 ## 📄 License
 
 [GNU Affero General Public License v3](LICENSE)

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,6 +27,11 @@ const (
 	// find <link> tags.
 	faviconUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	faviconMaxRedirects = 5
+	// dashboardIconsURLTemplate maps a service-name slug to the curated SVG in
+	// homarr-labs/dashboard-icons (Apache 2.0). For a homelab dashboard this is
+	// almost always crisper than scraping origin sites, which often expose only
+	// small favicons or live behind LAN IPs with no useful icon at all.
+	dashboardIconsURLTemplate = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/%s.svg"
 )
 
 // blockedFaviconHosts are hosts we refuse to fetch from even though Nimbus is
@@ -65,33 +71,46 @@ var faviconHTTPClient = &http.Client{
 	},
 }
 
-// FetchServiceFavicon downloads the favicon for the service URL provided in
-// the `url` query param, stores it under the same directory as uploaded icons,
-// and returns the bare filename so the frontend can render it like any other
-// uploaded image. Server-side fetch sidesteps CORS and lets the icon persist
-// even if the origin site later goes offline.
+// FetchServiceFavicon resolves an icon image for a service and stores it under
+// the same directory as uploaded icons, returning the bare filename. It tries,
+// in order:
+//  1. A curated SVG from homarr-labs/dashboard-icons matched by the `name`
+//     query param (slug = lowercased, spaces → hyphens). This is the primary
+//     path for homelab use — a "plex" service running on a LAN IP has no
+//     useful favicon at the origin, but plex.svg exists in the curated set.
+//  2. Origin-site scraping using the `url` query param: <link> tags from HTML,
+//     then well-known paths (/favicon.svg, /apple-touch-icon.png, /favicon.ico).
+//
+// At least one of `name` or `url` must be provided. Server-side fetching
+// sidesteps CORS and lets icons persist even if the origin/CDN later goes
+// offline.
 func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 	if _, err := RequireUserID(c); err != nil {
 		return err
 	}
 
+	name := strings.TrimSpace(c.Query("name"))
 	rawURL := strings.TrimSpace(c.Query("url"))
-	if rawURL == "" {
+	if name == "" && rawURL == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "url query parameter is required",
+			"error": "name or url query parameter is required",
 		})
 	}
 
-	pageURL, err := url.ParseRequestURI(rawURL)
-	if err != nil || (pageURL.Scheme != "http" && pageURL.Scheme != "https") || pageURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL. Must include http:// or https:// scheme",
-		})
-	}
-	if isBlockedFaviconHost(pageURL.Hostname()) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Refusing to fetch from cloud metadata host",
-		})
+	var pageURL *url.URL
+	if rawURL != "" {
+		parsed, err := url.ParseRequestURI(rawURL)
+		if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid URL. Must include http:// or https:// scheme",
+			})
+		}
+		if isBlockedFaviconHost(parsed.Hostname()) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Refusing to fetch from cloud metadata host",
+			})
+		}
+		pageURL = parsed
 	}
 
 	if err := os.MkdirAll(UploadDir, 0o755); err != nil {
@@ -103,23 +122,90 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.Context(), faviconFetchTimeout)
 	defer cancel()
 
+	candidates := buildIconCandidates(ctx, name, pageURL)
 	var lastErr error
-	for _, candidate := range resolveFaviconCandidates(ctx, pageURL) {
+	for _, candidate := range candidates {
 		filename, err := downloadAndSaveFavicon(ctx, candidate)
 		if err == nil {
 			return c.Status(fiber.StatusOK).JSON(fiber.Map{
 				"icon_image_path": filename,
-				"message":         "Favicon fetched successfully",
+				"message":         "Icon fetched successfully",
 			})
 		}
 		lastErr = err
 	}
 
-	msg := "Could not fetch a favicon from that URL"
+	// Log the upstream detail server-side for ops debugging, but show the
+	// user a friendly, context-aware message that doesn't leak CDN URLs or
+	// status codes (those imply a problem the user can't act on).
 	if lastErr != nil {
-		msg = fmt.Sprintf("Could not fetch favicon: %s", lastErr.Error())
+		log.Printf("FetchServiceFavicon: all candidates failed (name=%q, url=%q): %v",
+			name, displayURL(pageURL), lastErr)
 	}
-	return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": msg})
+	return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
+		"error": iconNotFoundMessage(name, pageURL),
+	})
+}
+
+// iconNotFoundMessage builds a friendly error string based on which inputs
+// were tried, without exposing the underlying CDN or HTTP status.
+func iconNotFoundMessage(name string, pageURL *url.URL) string {
+	hasName := strings.TrimSpace(name) != ""
+	hasURL := pageURL != nil
+	switch {
+	case hasName && hasURL:
+		return fmt.Sprintf("Could not automatically fetch an icon for %q or from that URL", strings.TrimSpace(name))
+	case hasName:
+		return fmt.Sprintf("Could not automatically fetch an icon for %q", strings.TrimSpace(name))
+	default:
+		return "Could not automatically fetch an icon from that URL"
+	}
+}
+
+func displayURL(u *url.URL) string {
+	if u == nil {
+		return ""
+	}
+	return u.String()
+}
+
+// buildIconCandidates returns the full ordered list of URLs to try, starting
+// with the curated dashboard-icons lookup (when a name is provided) and then
+// origin-site candidates (when a URL is provided).
+func buildIconCandidates(ctx context.Context, name string, pageURL *url.URL) []*url.URL {
+	var candidates []*url.URL
+	if slug := serviceNameSlug(name); slug != "" {
+		if u, err := url.Parse(fmt.Sprintf(dashboardIconsURLTemplate, slug)); err == nil {
+			candidates = append(candidates, u)
+		}
+	}
+	if pageURL != nil {
+		candidates = append(candidates, resolveFaviconCandidates(ctx, pageURL)...)
+	}
+	return candidates
+}
+
+// serviceNameSlug turns a service name into the kebab-case lookup key used by
+// homarr-labs/dashboard-icons. "Home Assistant" → "home-assistant". Returns ""
+// if the slug would be unsafe to drop into a URL path.
+func serviceNameSlug(name string) string {
+	name = strings.TrimSpace(strings.ToLower(name))
+	if name == "" {
+		return ""
+	}
+	var b strings.Builder
+	for _, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-':
+			b.WriteRune(r)
+		case r == ' ' || r == '_':
+			b.WriteRune('-')
+		}
+		// All other characters (slashes, dots, accented letters, etc.) are
+		// dropped: the curated icon repo uses ASCII kebab-case filenames only.
+	}
+	slug := strings.Trim(b.String(), "-")
+	return slug
 }
 
 // resolveFaviconCandidates returns the URLs to try in order:

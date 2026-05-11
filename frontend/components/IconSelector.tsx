@@ -11,7 +11,9 @@ interface IconSelectorProps {
   icon: string
   iconType: IconType
   iconImagePath: string
-  /** Current value of the service URL field. Used to enable the "Fetch favicon" shortcut. */
+  /** Current value of the service Name field. Primary lookup for the auto-fetch shortcut. */
+  serviceName: string
+  /** Current value of the service URL field. Used as fallback for the auto-fetch shortcut. */
   serviceUrl: string
   onIconChange: (icon: string) => void
   onIconTypeChange: (iconType: IconType) => void
@@ -31,6 +33,7 @@ export default function IconSelector({
   icon,
   iconType,
   iconImagePath,
+  serviceName,
   serviceUrl,
   onIconChange,
   onIconTypeChange,
@@ -39,21 +42,28 @@ export default function IconSelector({
 }: IconSelectorProps) {
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [faviconFetching, setFaviconFetching] = useState(false)
-  const [faviconError, setFaviconError] = useState('')
+  const [autoFetching, setAutoFetching] = useState(false)
+  const [autoFetchError, setAutoFetchError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const canFetchFavicon = isValidUrl(serviceUrl)
+  const trimmedName = serviceName.trim()
+  const hasUsableUrl = isValidUrl(serviceUrl)
+  // The backend tries the curated icon library by name first, then falls back
+  // to scraping the URL's origin. Either input on its own is enough to attempt.
+  const canAutoFetch = trimmedName.length > 0 || hasUsableUrl
 
-  const handleFetchFavicon = async () => {
-    if (!canFetchFavicon || faviconFetching) return
-    setFaviconError('')
-    setFaviconFetching(true)
+  const handleAutoFetchIcon = async () => {
+    if (!canAutoFetch || autoFetching) return
+    setAutoFetchError('')
+    setAutoFetching(true)
     try {
-      const response = await api.fetchServiceFavicon(serviceUrl)
+      const response = await api.fetchServiceFavicon({
+        name: trimmedName || undefined,
+        url: hasUsableUrl ? serviceUrl : undefined,
+      })
       if (response.error || !response.data?.icon_image_path) {
-        setFaviconError(
-          response.error?.message || "Couldn't fetch favicon — try uploading manually"
+        setAutoFetchError(
+          response.error?.message || "Couldn't find an icon — try uploading manually"
         )
         return
       }
@@ -68,9 +78,9 @@ export default function IconSelector({
         fileInputRef.current.value = ''
       }
     } catch (err) {
-      setFaviconError(err instanceof Error ? err.message : 'Failed to fetch favicon')
+      setAutoFetchError(err instanceof Error ? err.message : 'Failed to fetch icon')
     } finally {
-      setFaviconFetching(false)
+      setAutoFetching(false)
     }
   }
 
@@ -172,18 +182,22 @@ export default function IconSelector({
           </button>
           <button
             type="button"
-            onClick={handleFetchFavicon}
-            disabled={!canFetchFavicon || faviconFetching}
-            aria-busy={faviconFetching}
-            title={canFetchFavicon ? 'Fetch the favicon from the service URL' : 'Enter a URL first'}
+            onClick={handleAutoFetchIcon}
+            disabled={!canAutoFetch || autoFetching}
+            aria-busy={autoFetching}
+            title={
+              canAutoFetch
+                ? 'Look up a curated icon by service name, falling back to the site favicon'
+                : 'Enter a service name or URL first'
+            }
             className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {faviconFetching ? 'Fetching favicon...' : 'Fetch favicon from URL'}
+            {autoFetching ? 'Finding icon...' : 'Auto-fetch icon'}
           </button>
         </div>
-        {faviconError && (
+        {autoFetchError && (
           <p className="text-error mt-2 text-sm" role="alert">
-            {faviconError}
+            {autoFetchError}
           </p>
         )}
       </div>

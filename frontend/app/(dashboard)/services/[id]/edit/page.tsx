@@ -267,6 +267,7 @@ export default function EditServicePage() {
             icon={formData.icon}
             iconType={formData.icon_type}
             iconImagePath={formData.icon_image_path}
+            serviceName={formData.name}
             serviceUrl={formData.url}
             onIconChange={(icon) => setFormData({ ...formData, icon })}
             onIconTypeChange={(icon_type) => {

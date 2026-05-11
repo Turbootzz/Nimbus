@@ -23,6 +23,7 @@ function makeProps(overrides: Partial<Props> = {}): Props {
     icon: '🔗',
     iconType: 'emoji',
     iconImagePath: '',
+    serviceName: '',
     serviceUrl: '',
     onIconChange: vi.fn(),
     onIconTypeChange: vi.fn(),
@@ -32,60 +33,92 @@ function makeProps(overrides: Partial<Props> = {}): Props {
   }
 }
 
-describe('IconSelector — Fetch favicon button', () => {
+describe('IconSelector — Auto-fetch icon button', () => {
   beforeEach(() => {
     fetchServiceFaviconMock.mockReset()
   })
 
-  it('is disabled with an empty URL and exposes the hint via title', () => {
-    render(<IconSelector {...makeProps({ serviceUrl: '' })} />)
+  it('is disabled with both name and URL empty', () => {
+    render(<IconSelector {...makeProps()} />)
 
-    const button = screen.getByRole('button', { name: /fetch favicon from url/i })
+    const button = screen.getByRole('button', { name: /auto-fetch icon/i })
     expect(button).toBeDisabled()
-    expect(button).toHaveAttribute('title', 'Enter a URL first')
+    expect(button).toHaveAttribute('title', 'Enter a service name or URL first')
   })
 
-  it('is disabled when the URL field contains junk', () => {
-    render(<IconSelector {...makeProps({ serviceUrl: 'not a url' })} />)
+  it('is enabled when only a name is provided (homelab case)', () => {
+    render(<IconSelector {...makeProps({ serviceName: 'Plex' })} />)
 
-    expect(screen.getByRole('button', { name: /fetch favicon from url/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /auto-fetch icon/i })).toBeEnabled()
   })
 
-  it('is enabled with a valid https URL', () => {
+  it('is enabled when only a valid URL is provided', () => {
     render(<IconSelector {...makeProps({ serviceUrl: 'https://github.com' })} />)
 
-    expect(screen.getByRole('button', { name: /fetch favicon from url/i })).toBeEnabled()
+    expect(screen.getByRole('button', { name: /auto-fetch icon/i })).toBeEnabled()
   })
 
-  it('on success: calls API with the URL, switches to image_upload, sets path, clears file', async () => {
+  it('is still disabled when URL is junk and name is empty', () => {
+    render(<IconSelector {...makeProps({ serviceUrl: 'not a url' })} />)
+
+    expect(screen.getByRole('button', { name: /auto-fetch icon/i })).toBeDisabled()
+  })
+
+  it('sends both name and url to the API when both are present', async () => {
     fetchServiceFaviconMock.mockResolvedValueOnce({
-      data: { icon_image_path: 'abc123.png', message: 'ok' },
+      data: { icon_image_path: 'plex.svg', message: 'ok' },
     })
 
-    const props = makeProps({ serviceUrl: 'https://github.com', iconType: 'emoji' })
+    const props = makeProps({
+      serviceName: 'Plex',
+      serviceUrl: 'https://plex.example.com',
+      iconType: 'emoji',
+    })
     render(<IconSelector {...props} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /fetch favicon from url/i }))
+    fireEvent.click(screen.getByRole('button', { name: /auto-fetch icon/i }))
 
     await waitFor(() => {
-      expect(fetchServiceFaviconMock).toHaveBeenCalledWith('https://github.com')
+      expect(fetchServiceFaviconMock).toHaveBeenCalledWith({
+        name: 'Plex',
+        url: 'https://plex.example.com',
+      })
     })
     expect(props.onIconTypeChange).toHaveBeenCalledWith('image_upload')
-    expect(props.onIconImagePathChange).toHaveBeenCalledWith('abc123.png')
+    expect(props.onIconImagePathChange).toHaveBeenCalledWith('plex.svg')
     expect(props.onFileSelect).toHaveBeenCalledWith(null)
   })
 
-  it('on backend error: surfaces the message inline without changing icon state', async () => {
+  it('omits url when the URL field is invalid (still sends name)', async () => {
     fetchServiceFaviconMock.mockResolvedValueOnce({
-      error: { message: 'Could not fetch favicon: 404' },
+      data: { icon_image_path: 'plex.svg', message: 'ok' },
     })
 
-    const props = makeProps({ serviceUrl: 'https://nope.invalid' })
+    render(<IconSelector {...makeProps({ serviceName: 'Plex', serviceUrl: 'garbage' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /auto-fetch icon/i }))
+
+    await waitFor(() => {
+      expect(fetchServiceFaviconMock).toHaveBeenCalledWith({
+        name: 'Plex',
+        url: undefined,
+      })
+    })
+  })
+
+  it('shows the backend error inline without mutating icon state on failure', async () => {
+    fetchServiceFaviconMock.mockResolvedValueOnce({
+      error: { message: 'Could not find an icon for that service' },
+    })
+
+    const props = makeProps({ serviceName: 'Plex' })
     render(<IconSelector {...props} />)
 
-    fireEvent.click(screen.getByRole('button', { name: /fetch favicon from url/i }))
+    fireEvent.click(screen.getByRole('button', { name: /auto-fetch icon/i }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Could not fetch favicon: 404')
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Could not find an icon for that service'
+    )
     expect(props.onIconTypeChange).not.toHaveBeenCalled()
     expect(props.onIconImagePathChange).not.toHaveBeenCalled()
   })

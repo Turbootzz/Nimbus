@@ -304,11 +304,15 @@ class ApiClient {
     })
   }
 
-  async fetchServiceFavicon(
-    url: string
-  ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
+  async fetchServiceFavicon(params: {
+    name?: string
+    url?: string
+  }): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
+    const qs = new URLSearchParams()
+    if (params.name && params.name.trim()) qs.set('name', params.name.trim())
+    if (params.url && params.url.trim()) qs.set('url', params.url.trim())
     return this.request<{ icon_image_path: string; message: string }>(
-      `/services/favicon?url=${encodeURIComponent(url)}`
+      `/services/favicon?${qs.toString()}`
     )
   }
 

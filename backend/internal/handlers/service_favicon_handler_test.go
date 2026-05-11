@@ -1,11 +1,13 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -138,12 +140,132 @@ func TestFetchServiceFavicon_AllSourcesFail(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadGateway, resp.StatusCode)
 }
 
-func TestFetchServiceFavicon_RejectsMissingURL(t *testing.T) {
+func TestFetchServiceFavicon_FriendlyErrorMessages(t *testing.T) {
+	// Server that fails every request so we exercise the not-found path.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	type wantMsg struct {
+		contains    []string
+		notContains []string
+	}
+
+	cases := []struct {
+		name  string
+		query string
+		want  wantMsg
+	}{
+		{
+			name:  "name only",
+			query: "name=kuma",
+			want: wantMsg{
+				contains:    []string{"Could not automatically fetch", `"kuma"`},
+				notContains: []string{"jsdelivr", "status", "https://", "http://", "URL"},
+			},
+		},
+		{
+			name:  "url only",
+			query: "url=" + server.URL,
+			want: wantMsg{
+				contains:    []string{"Could not automatically fetch", "URL"},
+				notContains: []string{"jsdelivr", "status", "http://127.0.0.1"},
+			},
+		},
+		{
+			name:  "name and url",
+			query: "name=kuma&url=" + server.URL,
+			want: wantMsg{
+				contains:    []string{"Could not automatically fetch", `"kuma"`, "URL"},
+				notContains: []string{"jsdelivr", "status", "http://127.0.0.1"},
+			},
+		},
+	}
+
+	app := newFaviconTestApp(t)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/services/favicon?"+tc.query, nil)
+			resp, err := app.Test(req, -1)
+			require.NoError(t, err)
+			assert.Equal(t, fiber.StatusBadGateway, resp.StatusCode)
+
+			body := readFaviconResponse(t, resp)
+			errMsg, _ := body["error"].(string)
+			require.NotEmpty(t, errMsg)
+			for _, s := range tc.want.contains {
+				assert.Contains(t, errMsg, s, "message should mention %q", s)
+			}
+			for _, s := range tc.want.notContains {
+				assert.NotContains(t, errMsg, s, "message must not leak %q", s)
+			}
+		})
+	}
+}
+
+func TestFetchServiceFavicon_RejectsMissingNameAndURL(t *testing.T) {
 	app := newFaviconTestApp(t)
 	req := httptest.NewRequest(http.MethodGet, "/services/favicon", nil)
 	resp, err := app.Test(req, -1)
 	require.NoError(t, err)
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
+}
+
+func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
+	pageURL, _ := url.Parse("https://example.com")
+	got := buildIconCandidates(context.Background(), "Plex", pageURL)
+	require.NotEmpty(t, got)
+	assert.Equal(t,
+		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
+		got[0].String(),
+		"dashboard-icons URL must be tried first",
+	)
+	// Remaining candidates should be the origin fallbacks - at minimum /favicon.ico.
+	last := got[len(got)-1]
+	assert.Equal(t, "https://example.com/favicon.ico", last.String())
+}
+
+func TestBuildIconCandidates_NameOnly_NoURLFallbacks(t *testing.T) {
+	got := buildIconCandidates(context.Background(), "Sonarr", nil)
+	require.Len(t, got, 1, "with no URL there should be only the curated lookup")
+	assert.Equal(t,
+		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg",
+		got[0].String(),
+	)
+}
+
+func TestBuildIconCandidates_BlankNameSkipsCuratedLookup(t *testing.T) {
+	pageURL, _ := url.Parse("https://example.com")
+	got := buildIconCandidates(context.Background(), "   ", pageURL)
+	require.NotEmpty(t, got)
+	// No dashboard-icons URL should appear; everything is origin-derived.
+	for _, c := range got {
+		assert.NotContains(t, c.String(), "dashboard-icons", "blank name must skip curated lookup")
+	}
+}
+
+func TestServiceNameSlug(t *testing.T) {
+	cases := map[string]string{
+		"Plex":                  "plex",
+		"plex":                  "plex",
+		"  Plex  ":              "plex",
+		"Home Assistant":        "home-assistant",
+		"home_assistant":        "home-assistant",
+		"Pi-hole":               "pi-hole",
+		"My Plex Server!":       "my-plex-server",
+		"NextCloud 2.0":         "nextcloud-20",
+		"":                      "",
+		"   ":                   "",
+		"---":                   "",
+		"Café":                  "caf", // accented chars dropped, hyphenless ASCII slug
+		"http://my-plex.local/": "httpmy-plexlocal",
+	}
+	for in, want := range cases {
+		t.Run(in, func(t *testing.T) {
+			assert.Equal(t, want, serviceNameSlug(in))
+		})
+	}
 }
 
 func TestFetchServiceFavicon_RejectsNonHTTPScheme(t *testing.T) {
