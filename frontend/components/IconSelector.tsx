@@ -3,6 +3,7 @@
 import { useState, useRef, ChangeEvent } from 'react'
 import type { IconType } from '@/types'
 import { api } from '@/lib/api'
+import { getApiUrl } from '@/lib/utils/api-url'
 import { isValidUrl } from '@/lib/utils/url'
 import EmojiPicker from './EmojiPicker'
 
@@ -132,34 +133,10 @@ export default function IconSelector({
 
   return (
     <div className="space-y-4">
-      {/* Fetch favicon shortcut */}
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={handleFetchFavicon}
-            disabled={!canFetchFavicon || faviconFetching}
-            aria-busy={faviconFetching}
-            title={canFetchFavicon ? 'Fetch the favicon from the service URL' : 'Enter a URL first'}
-            className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {faviconFetching ? 'Fetching favicon...' : 'Fetch favicon from URL'}
-          </button>
-          {faviconError && (
-            <span className="text-error text-sm" role="alert">
-              {faviconError}
-            </span>
-          )}
-        </div>
-        <p className="text-text-muted mt-1 text-xs">
-          Automatically grab the site&apos;s favicon and save it as the service icon.
-        </p>
-      </div>
-
-      {/* Mode selector */}
+      {/* Mode selector + Fetch favicon shortcut */}
       <div>
         <label className="text-text-secondary mb-2 block text-sm font-medium">Icon Type</label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             type="button"
             onClick={() => handleModeChange('emoji')}
@@ -193,7 +170,22 @@ export default function IconSelector({
           >
             Image URL
           </button>
+          <button
+            type="button"
+            onClick={handleFetchFavicon}
+            disabled={!canFetchFavicon || faviconFetching}
+            aria-busy={faviconFetching}
+            title={canFetchFavicon ? 'Fetch the favicon from the service URL' : 'Enter a URL first'}
+            className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {faviconFetching ? 'Fetching favicon...' : 'Fetch favicon from URL'}
+          </button>
         </div>
+        {faviconError && (
+          <p className="text-error mt-2 text-sm" role="alert">
+            {faviconError}
+          </p>
+        )}
       </div>
 
       {/* Emoji input */}
@@ -268,7 +260,7 @@ export default function IconSelector({
                 {/* Using <img> for blob URLs (temporary preview) - Next.js Image doesn't support blob: protocol */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={previewUrl || `/api/v1/uploads/service-icons/${iconImagePath}`}
+                  src={previewUrl || `${getApiUrl()}/uploads/service-icons/${iconImagePath}`}
                   alt="Icon preview"
                   className="border-card-border h-16 w-16 rounded border object-contain"
                   onError={(e) => {
