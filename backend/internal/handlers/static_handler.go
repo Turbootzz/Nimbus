@@ -35,15 +35,7 @@ func (h *StaticHandler) ServeServiceIcon(c *fiber.Ctx) error {
 		})
 	}
 
-	// Determine content type based on file extension
-	ext := filepath.Ext(filename)
-	contentType := getContentTypeFromExtension(ext)
-
-	// Set content type header
-	c.Set("Content-Type", contentType)
-	c.Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Serve the file
+	setImageResponseHeaders(c, filename)
 	return c.SendFile(filePath)
 }
 
@@ -69,16 +61,27 @@ func (h *StaticHandler) ServeAvatar(c *fiber.Ctx) error {
 		})
 	}
 
-	// Determine content type based on file extension
+	setImageResponseHeaders(c, filename)
+	return c.SendFile(filePath)
+}
+
+// setImageResponseHeaders writes the Content-Type, caching, and (for SVG) the
+// hardening headers that prevent inline scripts in the SVG from executing if a
+// user opens the file URL directly. We render icons in <img> context where
+// scripts are inert by default, but defense in depth keeps us safe if the URL
+// is loaded via <object>/<iframe> or opened in a new tab.
+func setImageResponseHeaders(c *fiber.Ctx, filename string) {
 	ext := filepath.Ext(filename)
 	contentType := getContentTypeFromExtension(ext)
-
-	// Set content type header
 	c.Set("Content-Type", contentType)
-	c.Set("Cache-Control", "public, max-age=31536000") // Cache for 1 year
-
-	// Serve the file
-	return c.SendFile(filePath)
+	c.Set("Cache-Control", "public, max-age=31536000") // 1 year
+	c.Set("X-Content-Type-Options", "nosniff")
+	if contentType == "image/svg+xml" {
+		// default-src 'none' blocks scripts, fetches, plugins; style-src
+		// 'unsafe-inline' is needed because legitimate SVGs commonly use
+		// inline <style>. sandbox isolates the response from same-origin.
+		c.Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; sandbox")
+	}
 }
 
 // getContentTypeFromExtension returns content type for file extension

@@ -64,7 +64,11 @@ func saveValidatedImage(src io.Reader, dir string, maxSize int64, allowedTypes s
 		return "", errImageInvalidType
 	}
 
-	filename := generateUniqueFilename() + getExtensionFromMimeType(detected)
+	base, err := generateUniqueFilename()
+	if err != nil {
+		return "", err
+	}
+	filename := base + getExtensionFromMimeType(detected)
 	filePath := filepath.Join(dir, filename)
 
 	if err := os.WriteFile(filePath, data, 0o644); err != nil {
@@ -174,10 +178,15 @@ func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
 	}
 	defer src.Close()
 
-	// Delete old avatar (if any) before writing the new one.
+	// Delete old avatar (if any) before writing the new one. Warn rather than
+	// fail if the unlink errors — most likely "file already gone" — so we
+	// don't block the user, but ops can spot orphaned files in the log.
 	if user.AvatarURL != nil && strings.HasPrefix(*user.AvatarURL, "/uploads/avatars/") {
 		oldFilename := strings.TrimPrefix(*user.AvatarURL, "/uploads/avatars/")
-		os.Remove(filepath.Join(AvatarUploadDir, oldFilename))
+		oldPath := filepath.Join(AvatarUploadDir, oldFilename)
+		if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
+			log.Printf("UploadAvatar: failed to remove old avatar %q: %v", oldPath, err)
+		}
 	}
 
 	filename, err := saveValidatedImage(src, AvatarUploadDir, MaxAvatarSize, AllowedMimeTypes)
@@ -226,14 +235,16 @@ func saveImageErrorResponse(c *fiber.Ctx, err error) error {
 	}
 }
 
-// generateUniqueFilename creates a random filename
-func generateUniqueFilename() string {
+// generateUniqueFilename returns 32 hex chars of crypto-random bytes. Returns
+// an error if the OS RNG fails — the previous PID-based fallback could collide
+// across concurrent requests and overwrite existing files, so we now fail
+// closed and let the caller surface the error to the client.
+func generateUniqueFilename() (string, error) {
 	bytes := make([]byte, 16)
 	if _, err := rand.Read(bytes); err != nil {
-		// Fallback to timestamp if random fails
-		return fmt.Sprintf("%d", os.Getpid())
+		return "", fmt.Errorf("generate filename: %w", err)
 	}
-	return hex.EncodeToString(bytes)
+	return hex.EncodeToString(bytes), nil
 }
 
 // isAllowedMimeType checks if the mime type appears in the comma-separated allow list.
@@ -257,7 +268,9 @@ func detectContentType(data []byte) string {
 		return "image/png"
 	case len(data) >= 6 && (string(data[:6]) == "GIF87a" || string(data[:6]) == "GIF89a"):
 		return "image/gif"
-	case len(data) >= 12 && string(data[8:12]) == "WEBP":
+	// WebP: must have both the RIFF chunk prefix AND the WEBP FourCC at byte 8,
+	// otherwise an arbitrary file with "WEBP" at offset 8 would false-positive.
+	case len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP":
 		return "image/webp"
 	// ICO: 00 00 01 00 (reserved=0, type=1)
 	case len(data) >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x01 && data[3] == 0x00:

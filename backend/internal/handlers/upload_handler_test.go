@@ -230,9 +230,14 @@ func TestDetectContentType(t *testing.T) {
 			expected: "image/gif",
 		},
 		{
-			name:     "WEBP",
-			data:     []byte{0, 0, 0, 0, 0, 0, 0, 0, 'W', 'E', 'B', 'P'},
+			name:     "WEBP with RIFF header",
+			data:     []byte{'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'E', 'B', 'P'},
 			expected: "image/webp",
+		},
+		{
+			name:     "WEBP signature without RIFF prefix is not webp",
+			data:     []byte{0, 0, 0, 0, 0, 0, 0, 0, 'W', 'E', 'B', 'P'},
+			expected: "application/octet-stream",
 		},
 		{
 			name:     "Unknown",

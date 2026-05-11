@@ -141,6 +141,12 @@ func TestFetchServiceFavicon_AllSourcesFail(t *testing.T) {
 }
 
 func TestFetchServiceFavicon_FriendlyErrorMessages(t *testing.T) {
+	// Disable the curated jsDelivr lookup so the "name only" subcase doesn't
+	// make a live network call to cdn.jsdelivr.net. With the base URL set to
+	// empty, dashboardIconsCandidates returns nil and only origin candidates
+	// are tried — exactly what we want to exercise the not-found error path.
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "")
+
 	// Server that fails every request so we exercise the not-found path.
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
@@ -212,7 +218,18 @@ func TestFetchServiceFavicon_RejectsMissingNameAndURL(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
+// testDefaultIconsBase is the canonical jsDelivr base URL used in assertions.
+// Tests pin it via pinDefaultIconsBase so a developer's local env var override
+// can't make the asserted URLs drift.
+const testDefaultIconsBase = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg"
+
+func pinDefaultIconsBase(t *testing.T) {
+	t.Helper()
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", testDefaultIconsBase)
+}
+
 func TestBuildIconCandidates_TriesSlugVariants(t *testing.T) {
+	pinDefaultIconsBase(t)
 	// "My Plex Server" → full slug fails (no such file), then we should also
 	// have tried each token so "plex" can win.
 	got := buildIconCandidates(context.Background(), "My Plex Server", nil)
@@ -233,6 +250,7 @@ func TestBuildIconCandidates_TriesSlugVariants(t *testing.T) {
 }
 
 func TestBuildIconCandidates_SingleTokenNameProducesOneCandidate(t *testing.T) {
+	pinDefaultIconsBase(t)
 	// Single-token name: the per-token slug equals the full slug, so dedup
 	// should leave us with exactly one curated candidate.
 	got := buildIconCandidates(context.Background(), "Plex", nil)
@@ -270,6 +288,7 @@ func TestBuildIconCandidates_EmptyEnvDisablesCuratedLookup(t *testing.T) {
 }
 
 func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
+	pinDefaultIconsBase(t)
 	pageURL, _ := url.Parse("https://example.com")
 	got := buildIconCandidates(context.Background(), "Plex", pageURL)
 	require.NotEmpty(t, got)
@@ -284,6 +303,7 @@ func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
 }
 
 func TestBuildIconCandidates_NameOnly_NoURLFallbacks(t *testing.T) {
+	pinDefaultIconsBase(t)
 	got := buildIconCandidates(context.Background(), "Sonarr", nil)
 	require.Len(t, got, 1, "with no URL there should be only the curated lookup")
 	assert.Equal(t,

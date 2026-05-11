@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -66,13 +68,46 @@ func isBlockedFaviconHost(host string) bool {
 	return blocked
 }
 
+// blockedFaviconIPs are the actual resolved IPs we refuse to dial. The hostname
+// check above is a first-pass filter; this one defeats DNS rebinding, where an
+// attacker-controlled domain resolves to one of these addresses despite the
+// hostname not matching the deny list.
+var blockedFaviconIPs = map[string]struct{}{
+	"169.254.169.254": {}, // AWS / Azure / GCP / DO IMDS
+	"fd00:ec2::254":   {}, // AWS IMDS over IPv6
+	"100.100.100.200": {}, // Alibaba Cloud metadata
+}
+
+func isBlockedFaviconIP(addr string) bool {
+	_, blocked := blockedFaviconIPs[strings.ToLower(addr)]
+	return blocked
+}
+
 // errBlockedFaviconRedirect is returned by CheckRedirect when the favicon
 // client is asked to follow a redirect to a metadata-style host. It is wrapped
 // in url.Error by net/http so callers should errors.Is it.
 var errBlockedFaviconRedirect = errors.New("redirect to blocked host")
 
+// faviconDialer enforces the deny list at the network layer, after DNS
+// resolution. Without this, an attacker domain resolving to 169.254.169.254
+// would bypass the hostname check and hit the cloud-metadata service anyway.
+var faviconDialer = &net.Dialer{
+	Timeout: faviconFetchTimeout,
+	Control: func(_, address string, _ syscall.RawConn) error {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			host = address
+		}
+		if isBlockedFaviconIP(host) {
+			return errBlockedFaviconRedirect
+		}
+		return nil
+	},
+}
+
 // faviconHTTPClient is shared across requests so the connection pool is reused.
-// CheckRedirect both caps the chain and refuses redirects to metadata hosts.
+// Defense in depth: CheckRedirect blocks by hostname, the Dialer's Control blocks
+// by resolved IP (so DNS rebinding can't sneak through).
 var faviconHTTPClient = &http.Client{
 	Timeout: faviconFetchTimeout,
 	CheckRedirect: func(req *http.Request, via []*http.Request) error {
@@ -83,6 +118,12 @@ var faviconHTTPClient = &http.Client{
 			return errBlockedFaviconRedirect
 		}
 		return nil
+	},
+	Transport: &http.Transport{
+		DialContext:           faviconDialer.DialContext,
+		ForceAttemptHTTP2:     true,
+		TLSHandshakeTimeout:   faviconFetchTimeout,
+		ResponseHeaderTimeout: faviconFetchTimeout,
 	},
 }
 
@@ -344,10 +385,15 @@ func parseFaviconLinksFromPage(ctx context.Context, pageURL *url.URL) []*url.URL
 			}
 			if href != "" && isIconRel(rel) {
 				if u, err := url.Parse(strings.TrimSpace(href)); err == nil {
-					candidates = append(candidates, faviconCandidate{
-						url:   pageURL.ResolveReference(u),
-						score: faviconSizeScore(rel, sizes, typ),
-					})
+					resolved := pageURL.ResolveReference(u)
+					// Drop javascript:, data:, file:, and any other non-http(s)
+					// scheme that ResolveReference may carry through from href.
+					if resolved.Scheme == "http" || resolved.Scheme == "https" {
+						candidates = append(candidates, faviconCandidate{
+							url:   resolved,
+							score: faviconSizeScore(rel, sizes, typ),
+						})
+					}
 				}
 			}
 		}
