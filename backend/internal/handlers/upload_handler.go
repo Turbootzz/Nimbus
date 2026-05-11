@@ -21,9 +21,10 @@ const (
 	UploadDir        = "uploads/service-icons"
 	AvatarUploadDir  = "uploads/avatars"
 	AllowedMimeTypes = "image/jpeg,image/png,image/gif,image/webp"
-	// FaviconAllowedMimeTypes extends the upload set with .ico so server-fetched
-	// favicons can be stored even when sites still serve image/x-icon.
-	FaviconAllowedMimeTypes = AllowedMimeTypes + ",image/x-icon,image/vnd.microsoft.icon"
+	// FaviconAllowedMimeTypes extends the upload set with .ico and SVG so server-fetched
+	// favicons can be stored in their original (often crispest) form. SVG is safe to
+	// serve via <img> because browsers disable scripts in that context.
+	FaviconAllowedMimeTypes = AllowedMimeTypes + ",image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
 )
 
 // errImageTooLarge / errImageInvalidType are returned by saveValidatedImage so
@@ -246,6 +247,8 @@ func isAllowedMimeType(mimeType, allowList string) bool {
 }
 
 // detectContentType detects content type from file bytes via magic-byte sniffing.
+// Binary formats are checked first; SVG is only considered if none match (since
+// SVG is text and would otherwise false-positive on a few raster prefixes).
 func detectContentType(data []byte) string {
 	switch {
 	case len(data) >= 2 && data[0] == 0xFF && data[1] == 0xD8:
@@ -259,9 +262,28 @@ func detectContentType(data []byte) string {
 	// ICO: 00 00 01 00 (reserved=0, type=1)
 	case len(data) >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x01 && data[3] == 0x00:
 		return "image/x-icon"
+	case looksLikeSVG(data):
+		return "image/svg+xml"
 	default:
 		return "application/octet-stream"
 	}
+}
+
+// looksLikeSVG does a loose text scan for the SVG root element. Real-world SVG
+// files may start with an XML declaration, a doctype, comments, or whitespace
+// before <svg>, so we scan the first chunk rather than just the first bytes.
+func looksLikeSVG(data []byte) bool {
+	const scan = 1024
+	if len(data) > scan {
+		data = data[:scan]
+	}
+	lower := strings.ToLower(string(data))
+	// Skip BOM (U+FEFF) and leading whitespace
+	lower = strings.TrimLeft(lower, " \t\r\n\ufeff")
+	if !strings.HasPrefix(lower, "<") {
+		return false
+	}
+	return strings.Contains(lower, "<svg")
 }
 
 // getExtensionFromMimeType returns file extension for a mime type
@@ -277,6 +299,8 @@ func getExtensionFromMimeType(mimeType string) string {
 		return ".webp"
 	case "image/x-icon", "image/vnd.microsoft.icon":
 		return ".ico"
+	case "image/svg+xml":
+		return ".svg"
 	default:
 		return ".bin"
 	}

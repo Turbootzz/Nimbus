@@ -266,6 +266,192 @@ func TestIsBlockedFaviconHost(t *testing.T) {
 	}
 }
 
+func TestFetchServiceFavicon_PrefersLargerSizes(t *testing.T) {
+	cleanUploadDir(t)
+
+	var requestOrder []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `<!doctype html><html><head>
+				<link rel="icon" sizes="16x16" href="/small.png">
+				<link rel="apple-touch-icon" sizes="180x180" href="/big.png">
+			</head></html>`)
+		case "/small.png", "/big.png":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(validPNG)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := newFaviconTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/services/favicon?url="+server.URL, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	require.NotEmpty(t, requestOrder, "expected at least one favicon request")
+	assert.Equal(t, "/big.png", requestOrder[0], "should try the larger icon first")
+}
+
+func TestFaviconSizeScore(t *testing.T) {
+	cases := []struct {
+		name  string
+		rel   string
+		sizes string
+		typ   string
+		want  int
+	}{
+		{"explicit large", "icon", "192x192", "", 192},
+		{"largest pair wins", "icon", "16x16 32x32 64x64", "", 64},
+		{"any beats raster", "icon", "any", "", 1024},
+		{"svg type beats raster", "icon", "", "image/svg+xml", 1024},
+		{"svg type beats explicit size", "icon", "32x32", "image/svg+xml", 1024},
+		{"apple-touch default 180", "apple-touch-icon", "", "", 180},
+		{"icon default 32", "icon", "", "", 32},
+		{"shortcut icon default 32", "shortcut icon", "", "", 32},
+		{"non-square uses max", "icon", "120x180", "", 180},
+		{"junk sizes falls back to rel default", "apple-touch-icon", "garbage", "", 180},
+		{"mixed valid and junk uses valid", "icon", "garbage 64x64", "", 64},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, faviconSizeScore(tt.rel, tt.sizes, tt.typ))
+		})
+	}
+}
+
+func TestFetchServiceFavicon_PrefersSVGByType(t *testing.T) {
+	cleanUploadDir(t)
+
+	var requestOrder []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `<!doctype html><html><head>
+				<link rel="alternate icon" type="image/png" href="/favicon.png">
+				<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+			</head></html>`)
+		case "/favicon.png":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(validPNG)
+		case "/favicon.svg":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/svg+xml")
+			fmt.Fprint(w, `<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"></svg>`)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := newFaviconTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/services/favicon?url="+server.URL, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	require.NotEmpty(t, requestOrder)
+	assert.Equal(t, "/favicon.svg", requestOrder[0], "should prefer SVG even when not first in DOM order")
+
+	body := readFaviconResponse(t, resp)
+	filename, _ := body["icon_image_path"].(string)
+	assert.True(t, strings.HasSuffix(filename, ".svg"), "should save with .svg extension: %s", filename)
+}
+
+func TestFetchServiceFavicon_TriesWellKnownSVGBeforeAppleTouchIcon(t *testing.T) {
+	// Claude.ai-style: HTML is gated (returns 403), but /favicon.svg AND
+	// /apple-touch-icon.png both exist. SVG wins because it's vector.
+	cleanUploadDir(t)
+
+	var requestOrder []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		case "/favicon.svg":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/svg+xml")
+			fmt.Fprint(w, `<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>`)
+		case "/apple-touch-icon.png":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(validPNG)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := newFaviconTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/services/favicon?url="+server.URL, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	require.NotEmpty(t, requestOrder)
+	assert.Equal(t, "/favicon.svg", requestOrder[0], "should prefer well-known SVG over apple-touch-icon")
+}
+
+func TestFetchServiceFavicon_TriesWellKnownAppleTouchIcon(t *testing.T) {
+	// Like github.com: page advertises only a tiny PNG; the higher-res
+	// apple-touch-icon is hosted at the well-known path but not linked.
+	cleanUploadDir(t)
+
+	var requestOrder []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/":
+			w.Header().Set("Content-Type", "text/html")
+			fmt.Fprint(w, `<!doctype html><html><head></head></html>`)
+		case "/apple-touch-icon.png":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/png")
+			w.Write(validPNG)
+		case "/favicon.ico":
+			requestOrder = append(requestOrder, r.URL.Path)
+			w.Header().Set("Content-Type", "image/x-icon")
+			w.Write(minimalICO)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	app := newFaviconTestApp(t)
+	req := httptest.NewRequest(http.MethodGet, "/services/favicon?url="+server.URL, nil)
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	require.NotEmpty(t, requestOrder)
+	assert.Equal(t, "/apple-touch-icon.png", requestOrder[0], "should try the well-known apple-touch-icon before favicon.ico")
+}
+
+func TestLooksLikeSVG(t *testing.T) {
+	cases := []struct {
+		name string
+		data string
+		want bool
+	}{
+		{"xml decl + svg", `<?xml version="1.0"?><svg xmlns="..."></svg>`, true},
+		{"bare svg", `<svg></svg>`, true},
+		{"doctype + svg", `<!DOCTYPE svg PUBLIC "..."><svg/>`, true},
+		{"leading whitespace", "\n\n  <svg/>", true},
+		{"html not svg", `<html><body></body></html>`, false},
+		{"plain text", `not xml at all`, false},
+		{"empty", ``, false},
+		{"png bytes", string([]byte{0x89, 0x50, 0x4E, 0x47}), false},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, looksLikeSVG([]byte(tt.data)))
+		})
+	}
+}
+
 func TestIsIconRel(t *testing.T) {
 	cases := map[string]bool{
 		"icon":                         true,

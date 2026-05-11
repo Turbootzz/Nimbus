@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,7 +20,11 @@ import (
 const (
 	faviconFetchTimeout = 10 * time.Second
 	faviconMaxHTMLBytes = 512 * 1024 // cap HTML parse to avoid huge pages
-	faviconUserAgent    = "Nimbus-Favicon-Fetcher/1.0"
+	// Use a Chrome-on-macOS UA. A descriptive bot UA gets us 403'd by
+	// Cloudflare-protected sites (e.g. claude.ai), even though the well-known
+	// favicon paths themselves are served — we want the HTML too so we can
+	// find <link> tags.
+	faviconUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	faviconMaxRedirects = 5
 )
 
@@ -118,28 +124,59 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 
 // resolveFaviconCandidates returns the URLs to try in order:
 //  1. <link rel="icon|shortcut icon|apple-touch-icon"> hrefs from the page HTML
-//  2. <scheme>://<host>/favicon.ico as the final fallback
+//     (sorted by parseFaviconLinksFromPage, largest first)
+//  2. <scheme>://<host>/favicon.svg — modern well-known path; sites behind
+//     anti-bot protection (e.g. claude.ai) block the HTML but still serve the
+//     SVG, and SVG is the crispest option when it exists
+//  3. <scheme>://<host>/apple-touch-icon.png — iOS's well-known path, often
+//     present even when not linked in HTML (e.g. github.com hosts a 120x120
+//     here but only advertises a 32x32 in its <link> tags)
+//  4. <scheme>://<host>/apple-touch-icon-precomposed.png — pre-iOS-7 variant
+//  5. <scheme>://<host>/favicon.ico — last resort
 func resolveFaviconCandidates(ctx context.Context, pageURL *url.URL) []*url.URL {
 	candidates := parseFaviconLinksFromPage(ctx, pageURL)
 
-	rootFavicon := *pageURL
-	rootFavicon.Path = "/favicon.ico"
-	rootFavicon.RawQuery = ""
-	rootFavicon.Fragment = ""
+	wellKnown := func(path string) *url.URL {
+		u := *pageURL
+		u.Path = path
+		u.RawQuery = ""
+		u.Fragment = ""
+		return &u
+	}
+	fallbacks := []*url.URL{
+		wellKnown("/favicon.svg"),
+		wellKnown("/apple-touch-icon.png"),
+		wellKnown("/apple-touch-icon-precomposed.png"),
+		wellKnown("/favicon.ico"),
+	}
 
-	rootStr := rootFavicon.String()
+	// Dedupe: don't append a fallback we already parsed from the HTML.
+	seen := make(map[string]struct{}, len(candidates))
 	for _, c := range candidates {
-		if c.String() == rootStr {
-			return candidates
+		seen[c.String()] = struct{}{}
+	}
+	for _, fb := range fallbacks {
+		if _, dup := seen[fb.String()]; !dup {
+			candidates = append(candidates, fb)
+			seen[fb.String()] = struct{}{}
 		}
 	}
-	return append(candidates, &rootFavicon)
+	return candidates
+}
+
+// faviconCandidate carries the resolved URL plus a score derived from the
+// <link sizes> attribute (and rel type as a fallback). Higher score = bigger
+// icon, so we try the crispest candidate first and fall back if it fails.
+type faviconCandidate struct {
+	url   *url.URL
+	score int
 }
 
 // parseFaviconLinksFromPage fetches pageURL, parses the HTML, and returns the
-// absolute URLs of any <link rel="icon"|"shortcut icon"|"apple-touch-icon">.
-// Returns an empty slice on any fetch/parse failure so the caller falls back
-// to /favicon.ico.
+// absolute URLs of any <link rel="icon"|"shortcut icon"|"apple-touch-icon">,
+// sorted largest-first so the user gets a crisp icon when the site provides
+// multiple sizes. Returns an empty slice on any fetch/parse failure so the
+// caller falls back to /favicon.ico.
 func parseFaviconLinksFromPage(ctx context.Context, pageURL *url.URL) []*url.URL {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, pageURL.String(), nil)
 	if err != nil {
@@ -159,22 +196,29 @@ func parseFaviconLinksFromPage(ctx context.Context, pageURL *url.URL) []*url.URL
 		return nil
 	}
 
-	var out []*url.URL
+	var candidates []faviconCandidate
 	var walk func(*html.Node)
 	walk = func(n *html.Node) {
 		if n.Type == html.ElementNode && n.Data == "link" {
-			var rel, href string
+			var rel, href, sizes, typ string
 			for _, a := range n.Attr {
 				switch strings.ToLower(a.Key) {
 				case "rel":
 					rel = strings.ToLower(a.Val)
 				case "href":
 					href = a.Val
+				case "sizes":
+					sizes = a.Val
+				case "type":
+					typ = strings.ToLower(a.Val)
 				}
 			}
 			if href != "" && isIconRel(rel) {
 				if u, err := url.Parse(strings.TrimSpace(href)); err == nil {
-					out = append(out, pageURL.ResolveReference(u))
+					candidates = append(candidates, faviconCandidate{
+						url:   pageURL.ResolveReference(u),
+						score: faviconSizeScore(rel, sizes, typ),
+					})
 				}
 			}
 		}
@@ -183,7 +227,69 @@ func parseFaviconLinksFromPage(ctx context.Context, pageURL *url.URL) []*url.URL
 		}
 	}
 	walk(doc)
+
+	// Stable sort so equal-score candidates retain document order.
+	sort.SliceStable(candidates, func(i, j int) bool {
+		return candidates[i].score > candidates[j].score
+	})
+
+	out := make([]*url.URL, len(candidates))
+	for i, c := range candidates {
+		out[i] = c.url
+	}
 	return out
+}
+
+// faviconSizeScore turns a <link>'s sizes/type attributes into a comparable
+// "px" value so we can pick the crispest icon. SVG (vector) wins over any
+// raster. Falls back to a sensible default based on the rel type when no
+// sizes attribute is set.
+//
+// Examples:
+//
+//	type="image/svg+xml"     → 1024 (vector beats any raster)
+//	sizes="any"              → 1024 (vector convention)
+//	sizes="192x192"          → 192
+//	sizes="16x16 32x32"      → 32 (largest pair wins)
+//	rel=apple-touch-icon     → 180 (Apple default)
+//	rel=icon, no sizes       → 32  (typical favicon)
+func faviconSizeScore(rel, sizes, typ string) int {
+	if strings.TrimSpace(typ) == "image/svg+xml" {
+		return 1024
+	}
+	if s := strings.TrimSpace(strings.ToLower(sizes)); s != "" {
+		if s == "any" {
+			return 1024
+		}
+		best := 0
+		for _, pair := range strings.Fields(s) {
+			parts := strings.Split(pair, "x")
+			if len(parts) != 2 {
+				continue
+			}
+			w, errW := strconv.Atoi(parts[0])
+			h, errH := strconv.Atoi(parts[1])
+			if errW != nil || errH != nil {
+				continue
+			}
+			if w > best {
+				best = w
+			}
+			if h > best {
+				best = h
+			}
+		}
+		if best > 0 {
+			return best
+		}
+	}
+	// No usable sizes attribute - infer from rel.
+	for _, part := range strings.Fields(rel) {
+		if part == "apple-touch-icon" || part == "apple-touch-icon-precomposed" {
+			return 180
+		}
+	}
+	return 32
 }
 
 // isIconRel reports whether a rel attribute denotes a favicon. Handles "icon",

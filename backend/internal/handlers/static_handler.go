@@ -92,6 +92,10 @@ func getContentTypeFromExtension(ext string) string {
 		return "image/gif"
 	case ".webp":
 		return "image/webp"
+	case ".ico":
+		return "image/x-icon"
+	case ".svg":
+		return "image/svg+xml"
 	default:
 		return "application/octet-stream"
 	}
