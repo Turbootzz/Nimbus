@@ -3,8 +3,10 @@ package handlers
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,6 +21,16 @@ const (
 	UploadDir        = "uploads/service-icons"
 	AvatarUploadDir  = "uploads/avatars"
 	AllowedMimeTypes = "image/jpeg,image/png,image/gif,image/webp"
+	// FaviconAllowedMimeTypes extends the upload set with .ico so server-fetched
+	// favicons can be stored even when sites still serve image/x-icon.
+	FaviconAllowedMimeTypes = AllowedMimeTypes + ",image/x-icon,image/vnd.microsoft.icon"
+)
+
+// errImageTooLarge / errImageInvalidType are returned by saveValidatedImage so
+// callers can map them to 400 responses instead of 500.
+var (
+	errImageTooLarge    = errors.New("image exceeds maximum allowed size")
+	errImageInvalidType = errors.New("image content does not match allowed types")
 )
 
 type UploadHandler struct {
@@ -31,16 +43,43 @@ func NewUploadHandler(userRepo *repository.UserRepository) *UploadHandler {
 	}
 }
 
+// saveValidatedImage reads bytes from src, validates the magic-byte content
+// type against allowedTypes, picks a unique filename + extension, and writes
+// the data under dir. Returns the bare filename (no dir prefix).
+// Caller is responsible for MkdirAll on dir before invocation.
+func saveValidatedImage(src io.Reader, dir string, maxSize int64, allowedTypes string) (string, error) {
+	// Cap the reader so an attacker can't blow up memory with a huge stream.
+	limited := io.LimitReader(src, maxSize+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return "", fmt.Errorf("read image: %w", err)
+	}
+	if int64(len(data)) > maxSize {
+		return "", errImageTooLarge
+	}
+
+	detected := detectContentType(data)
+	if !isAllowedMimeType(detected, allowedTypes) {
+		return "", errImageInvalidType
+	}
+
+	filename := generateUniqueFilename() + getExtensionFromMimeType(detected)
+	filePath := filepath.Join(dir, filename)
+
+	if err := os.WriteFile(filePath, data, 0o644); err != nil {
+		return "", fmt.Errorf("write image: %w", err)
+	}
+	return filename, nil
+}
+
 // UploadServiceIcon handles service icon image uploads
 func (h *UploadHandler) UploadServiceIcon(c *fiber.Ctx) error {
-	// Ensure upload directory exists
-	if err := os.MkdirAll(UploadDir, 0755); err != nil {
+	if err := os.MkdirAll(UploadDir, 0o755); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create upload directory",
 		})
 	}
 
-	// Get the uploaded file
 	file, err := c.FormFile("icon")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -48,22 +87,20 @@ func (h *UploadHandler) UploadServiceIcon(c *fiber.Ctx) error {
 		})
 	}
 
-	// Check file size
 	if file.Size > MaxUploadSize {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("File size exceeds maximum allowed size of %d bytes", MaxUploadSize),
 		})
 	}
 
-	// Validate file type
-	contentType := file.Header.Get("Content-Type")
-	if !isAllowedMimeType(contentType) {
+	// Cheap up-front check on the declared content type. The real validation
+	// happens via magic-byte sniffing inside saveValidatedImage.
+	if declared := file.Header.Get("Content-Type"); declared != "" && !isAllowedMimeType(declared, AllowedMimeTypes) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": fmt.Sprintf("Invalid file type. Allowed types: %s", AllowedMimeTypes),
 		})
 	}
 
-	// Open the file
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -72,62 +109,120 @@ func (h *UploadHandler) UploadServiceIcon(c *fiber.Ctx) error {
 	}
 	defer src.Close()
 
-	// Read first 512 bytes to detect actual content type (prevents MIME type spoofing)
-	buffer := make([]byte, 512)
-	n, err := src.Read(buffer)
-	if err != nil && err != io.EOF {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to read file",
+	filename, err := saveValidatedImage(src, UploadDir, MaxUploadSize, AllowedMimeTypes)
+	if err != nil {
+		return saveImageErrorResponse(c, err)
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"icon_image_path": filename,
+		"message":         "File uploaded successfully",
+	})
+}
+
+// UploadAvatar handles user avatar uploads (local users only)
+func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+
+	user, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"error": "User not found",
 		})
 	}
 
-	// Validate actual content type
-	detectedType := detectContentType(buffer[:n])
-	if !isAllowedMimeType(detectedType) {
+	if user.Provider != "local" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "Avatar uploads are only allowed for local accounts. Your profile picture is synced from " + user.Provider,
+		})
+	}
+
+	if err := os.MkdirAll(AvatarUploadDir, 0o755); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to create upload directory",
+		})
+	}
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "No file uploaded",
+		})
+	}
+
+	if file.Size > MaxAvatarSize {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("File size exceeds maximum allowed size of %d MB", MaxAvatarSize/(1024*1024)),
+		})
+	}
+
+	if declared := file.Header.Get("Content-Type"); declared != "" && !isAllowedMimeType(declared, AllowedMimeTypes) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": fmt.Sprintf("Invalid file type. Allowed types: %s", AllowedMimeTypes),
+		})
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to open uploaded file",
+		})
+	}
+	defer src.Close()
+
+	// Delete old avatar (if any) before writing the new one.
+	if user.AvatarURL != nil && strings.HasPrefix(*user.AvatarURL, "/uploads/avatars/") {
+		oldFilename := strings.TrimPrefix(*user.AvatarURL, "/uploads/avatars/")
+		os.Remove(filepath.Join(AvatarUploadDir, oldFilename))
+	}
+
+	filename, err := saveValidatedImage(src, AvatarUploadDir, MaxAvatarSize, AllowedMimeTypes)
+	if err != nil {
+		return saveImageErrorResponse(c, err)
+	}
+
+	avatarURL := "/uploads/avatars/" + filename
+	if err := h.userRepo.UpdateAvatar(userID, &avatarURL); err != nil {
+		os.Remove(filepath.Join(AvatarUploadDir, filename))
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to update user avatar",
+		})
+	}
+
+	updatedUser, err := h.userRepo.GetByID(userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to retrieve updated user",
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"message": "Avatar uploaded successfully",
+		"user":    updatedUser,
+	})
+}
+
+// saveImageErrorResponse maps saveValidatedImage errors to appropriate HTTP responses.
+// Unexpected errors (disk full, EACCES, etc.) are logged so ops can debug.
+func saveImageErrorResponse(c *fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, errImageTooLarge):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Image exceeds maximum allowed size",
+		})
+	case errors.Is(err, errImageInvalidType):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "File content does not match allowed image types",
 		})
-	}
-
-	// Reset read position
-	if _, err := src.Seek(0, 0); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to process file",
-		})
-	}
-
-	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
-	if ext == "" {
-		ext = getExtensionFromMimeType(contentType)
-	}
-	filename := generateUniqueFilename() + ext
-
-	// Full path
-	filePath := filepath.Join(UploadDir, filename)
-
-	// Create destination file
-	dst, err := os.Create(filePath)
-	if err != nil {
+	default:
+		log.Printf("saveValidatedImage failed: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to save file",
 		})
 	}
-	defer dst.Close()
-
-	// Copy file content
-	if _, err := io.Copy(dst, src); err != nil {
-		os.Remove(filePath) // Clean up on error
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to save file",
-		})
-	}
-
-	// Return the relative path (without "uploads/" prefix for API consistency)
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"icon_image_path": filename, // Just the filename, path will be constructed in frontend
-		"message":         "File uploaded successfully",
-	})
 }
 
 // generateUniqueFilename creates a random filename
@@ -140,10 +235,9 @@ func generateUniqueFilename() string {
 	return hex.EncodeToString(bytes)
 }
 
-// isAllowedMimeType checks if the mime type is allowed
-func isAllowedMimeType(mimeType string) bool {
-	allowed := strings.Split(AllowedMimeTypes, ",")
-	for _, a := range allowed {
+// isAllowedMimeType checks if the mime type appears in the comma-separated allow list.
+func isAllowedMimeType(mimeType, allowList string) bool {
+	for _, a := range strings.Split(allowList, ",") {
 		if strings.TrimSpace(a) == mimeType {
 			return true
 		}
@@ -151,13 +245,8 @@ func isAllowedMimeType(mimeType string) bool {
 	return false
 }
 
-// detectContentType detects content type from file bytes
+// detectContentType detects content type from file bytes via magic-byte sniffing.
 func detectContentType(data []byte) string {
-	if len(data) < 12 {
-		return "application/octet-stream"
-	}
-
-	// Check for common image signatures
 	switch {
 	case len(data) >= 2 && data[0] == 0xFF && data[1] == 0xD8:
 		return "image/jpeg"
@@ -167,6 +256,9 @@ func detectContentType(data []byte) string {
 		return "image/gif"
 	case len(data) >= 12 && string(data[8:12]) == "WEBP":
 		return "image/webp"
+	// ICO: 00 00 01 00 (reserved=0, type=1)
+	case len(data) >= 4 && data[0] == 0x00 && data[1] == 0x00 && data[2] == 0x01 && data[3] == 0x00:
+		return "image/x-icon"
 	default:
 		return "application/octet-stream"
 	}
@@ -183,152 +275,9 @@ func getExtensionFromMimeType(mimeType string) string {
 		return ".gif"
 	case "image/webp":
 		return ".webp"
+	case "image/x-icon", "image/vnd.microsoft.icon":
+		return ".ico"
 	default:
 		return ".bin"
 	}
-}
-
-// UploadAvatar handles user avatar uploads (local users only)
-func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
-	userID, err := RequireUserID(c)
-	if err != nil {
-		return err
-	}
-
-	// Get user to check provider
-	user, err := h.userRepo.GetByID(userID)
-	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "User not found",
-		})
-	}
-
-	// Only allow local users to upload avatars
-	if user.Provider != "local" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Avatar uploads are only allowed for local accounts. Your profile picture is synced from " + user.Provider,
-		})
-	}
-
-	// Ensure upload directory exists
-	if err := os.MkdirAll(AvatarUploadDir, 0755); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to create upload directory",
-		})
-	}
-
-	// Get the uploaded file
-	file, err := c.FormFile("avatar")
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "No file uploaded",
-		})
-	}
-
-	// Check file size
-	if file.Size > MaxAvatarSize {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("File size exceeds maximum allowed size of %d MB", MaxAvatarSize/(1024*1024)),
-		})
-	}
-
-	// Validate file type
-	contentType := file.Header.Get("Content-Type")
-	if !isAllowedMimeType(contentType) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Invalid file type. Allowed types: %s", AllowedMimeTypes),
-		})
-	}
-
-	// Open the file
-	src, err := file.Open()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to open uploaded file",
-		})
-	}
-	defer src.Close()
-
-	// Read first 512 bytes to detect actual content type
-	buffer := make([]byte, 512)
-	n, err := src.Read(buffer)
-	if err != nil && err != io.EOF {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to read file",
-		})
-	}
-
-	// Validate actual content type
-	detectedType := detectContentType(buffer[:n])
-	if !isAllowedMimeType(detectedType) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "File content does not match allowed image types",
-		})
-	}
-
-	// Reset read position
-	if _, err := src.Seek(0, 0); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to process file",
-		})
-	}
-
-	// Delete old avatar if exists
-	if user.AvatarURL != nil && *user.AvatarURL != "" {
-		// Extract filename from URL (assumes format: /uploads/avatars/filename.jpg)
-		if strings.HasPrefix(*user.AvatarURL, "/uploads/avatars/") {
-			oldFilename := strings.TrimPrefix(*user.AvatarURL, "/uploads/avatars/")
-			oldPath := filepath.Join(AvatarUploadDir, oldFilename)
-			os.Remove(oldPath) // Ignore error if file doesn't exist
-		}
-	}
-
-	// Generate unique filename
-	ext := filepath.Ext(file.Filename)
-	if ext == "" {
-		ext = getExtensionFromMimeType(contentType)
-	}
-	filename := generateUniqueFilename() + ext
-
-	// Full path
-	filePath := filepath.Join(AvatarUploadDir, filename)
-
-	// Create destination file
-	dst, err := os.Create(filePath)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to save file",
-		})
-	}
-	defer dst.Close()
-
-	// Copy file content
-	if _, err := io.Copy(dst, src); err != nil {
-		os.Remove(filePath) // Clean up on error
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to save file",
-		})
-	}
-
-	// Update user avatar URL in database
-	avatarURL := "/uploads/avatars/" + filename
-	if err := h.userRepo.UpdateAvatar(userID, &avatarURL); err != nil {
-		os.Remove(filePath) // Clean up uploaded file
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update user avatar",
-		})
-	}
-
-	// Get updated user
-	updatedUser, err := h.userRepo.GetByID(userID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to retrieve updated user",
-		})
-	}
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"message": "Avatar uploaded successfully",
-		"user":    updatedUser,
-	})
 }

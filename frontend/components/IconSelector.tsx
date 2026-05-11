@@ -2,16 +2,20 @@
 
 import { useState, useRef, ChangeEvent } from 'react'
 import type { IconType } from '@/types'
+import { api } from '@/lib/api'
+import { isValidUrl } from '@/lib/utils/url'
 import EmojiPicker from './EmojiPicker'
 
 interface IconSelectorProps {
   icon: string
   iconType: IconType
   iconImagePath: string
+  /** Current value of the service URL field. Used to enable the "Fetch favicon" shortcut. */
+  serviceUrl: string
   onIconChange: (icon: string) => void
   onIconTypeChange: (iconType: IconType) => void
   onIconImagePathChange: (path: string) => void
-  onFileSelect: (file: File) => void
+  onFileSelect: (file: File | null) => void
 }
 
 // Helper function to check if a string contains only emojis
@@ -26,6 +30,7 @@ export default function IconSelector({
   icon,
   iconType,
   iconImagePath,
+  serviceUrl,
   onIconChange,
   onIconTypeChange,
   onIconImagePathChange,
@@ -33,7 +38,40 @@ export default function IconSelector({
 }: IconSelectorProps) {
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [faviconFetching, setFaviconFetching] = useState(false)
+  const [faviconError, setFaviconError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const canFetchFavicon = isValidUrl(serviceUrl)
+
+  const handleFetchFavicon = async () => {
+    if (!canFetchFavicon || faviconFetching) return
+    setFaviconError('')
+    setFaviconFetching(true)
+    try {
+      const response = await api.fetchServiceFavicon(serviceUrl)
+      if (response.error || !response.data?.icon_image_path) {
+        setFaviconError(
+          response.error?.message || "Couldn't fetch favicon — try uploading manually"
+        )
+        return
+      }
+      // Switch into image_upload mode pointing at the fetched-and-stored file.
+      // The server already persisted it, so we clear any pending File so the
+      // parent's submit flow doesn't re-upload on top of it.
+      onIconTypeChange('image_upload')
+      onIconImagePathChange(response.data.icon_image_path)
+      onFileSelect(null)
+      setPreviewUrl('')
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    } catch (err) {
+      setFaviconError(err instanceof Error ? err.message : 'Failed to fetch favicon')
+    } finally {
+      setFaviconFetching(false)
+    }
+  }
 
   const handleModeChange = (mode: IconType) => {
     // No-op if clicking the already-selected mode
@@ -94,6 +132,30 @@ export default function IconSelector({
 
   return (
     <div className="space-y-4">
+      {/* Fetch favicon shortcut */}
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleFetchFavicon}
+            disabled={!canFetchFavicon || faviconFetching}
+            aria-busy={faviconFetching}
+            title={canFetchFavicon ? 'Fetch the favicon from the service URL' : 'Enter a URL first'}
+            className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {faviconFetching ? 'Fetching favicon...' : 'Fetch favicon from URL'}
+          </button>
+          {faviconError && (
+            <span className="text-error text-sm" role="alert">
+              {faviconError}
+            </span>
+          )}
+        </div>
+        <p className="text-text-muted mt-1 text-xs">
+          Automatically grab the site&apos;s favicon and save it as the service icon.
+        </p>
+      </div>
+
       {/* Mode selector */}
       <div>
         <label className="text-text-secondary mb-2 block text-sm font-medium">Icon Type</label>

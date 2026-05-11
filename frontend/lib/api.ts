@@ -304,6 +304,14 @@ class ApiClient {
     })
   }
 
+  async fetchServiceFavicon(
+    url: string
+  ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
+    return this.request<{ icon_image_path: string; message: string }>(
+      `/services/favicon?url=${encodeURIComponent(url)}`
+    )
+  }
+
   async uploadServiceIcon(
     file: File
   ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
