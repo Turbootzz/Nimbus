@@ -27,12 +27,27 @@ const (
 	// find <link> tags.
 	faviconUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	faviconMaxRedirects = 5
-	// dashboardIconsURLTemplate maps a service-name slug to the curated SVG in
-	// homarr-labs/dashboard-icons (Apache 2.0). For a homelab dashboard this is
-	// almost always crisper than scraping origin sites, which often expose only
-	// small favicons or live behind LAN IPs with no useful icon at all.
-	dashboardIconsURLTemplate = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/%s.svg"
+	// dashboardIconsDefaultBase is the canonical jsDelivr URL for the curated
+	// homarr-labs/dashboard-icons (Apache 2.0) SVG collection. For a homelab
+	// dashboard this is almost always crisper than scraping origin sites, which
+	// often expose only small favicons or live behind LAN IPs with no useful
+	// icon at all. The base is overridable via DASHBOARD_ICONS_BASE_URL — useful
+	// for self-hosted mirrors, airgapped deployments, or setting it to empty to
+	// disable the curated lookup entirely (in which case only origin scraping
+	// runs).
+	dashboardIconsDefaultBase = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg"
+	dashboardIconsEnvVar      = "DASHBOARD_ICONS_BASE_URL"
 )
+
+// dashboardIconsBase returns the configured base URL (no trailing slash) for
+// the curated icon lookup. An empty value (env explicitly set to empty)
+// disables curated lookup.
+func dashboardIconsBase() string {
+	if v, ok := os.LookupEnv(dashboardIconsEnvVar); ok {
+		return strings.TrimRight(strings.TrimSpace(v), "/")
+	}
+	return dashboardIconsDefaultBase
+}
 
 // blockedFaviconHosts are hosts we refuse to fetch from even though Nimbus is
 // otherwise permissive about private addresses (homelab services often live
@@ -139,8 +154,12 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 	// user a friendly, context-aware message that doesn't leak CDN URLs or
 	// status codes (those imply a problem the user can't act on).
 	if lastErr != nil {
+		urlStr := ""
+		if pageURL != nil {
+			urlStr = pageURL.String()
+		}
 		log.Printf("FetchServiceFavicon: all candidates failed (name=%q, url=%q): %v",
-			name, displayURL(pageURL), lastErr)
+			name, urlStr, lastErr)
 	}
 	return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{
 		"error": iconNotFoundMessage(name, pageURL),
@@ -162,27 +181,51 @@ func iconNotFoundMessage(name string, pageURL *url.URL) string {
 	}
 }
 
-func displayURL(u *url.URL) string {
-	if u == nil {
-		return ""
-	}
-	return u.String()
-}
-
 // buildIconCandidates returns the full ordered list of URLs to try, starting
-// with the curated dashboard-icons lookup (when a name is provided) and then
-// origin-site candidates (when a URL is provided).
+// with the curated dashboard-icons lookup (when a name is provided and the
+// curated base is configured) and then origin-site candidates (when a URL is
+// provided).
 func buildIconCandidates(ctx context.Context, name string, pageURL *url.URL) []*url.URL {
-	var candidates []*url.URL
-	if slug := serviceNameSlug(name); slug != "" {
-		if u, err := url.Parse(fmt.Sprintf(dashboardIconsURLTemplate, slug)); err == nil {
-			candidates = append(candidates, u)
-		}
-	}
+	candidates := dashboardIconsCandidates(name)
 	if pageURL != nil {
 		candidates = append(candidates, resolveFaviconCandidates(ctx, pageURL)...)
 	}
 	return candidates
+}
+
+// dashboardIconsCandidates returns dashboard-icons URLs to try for a service
+// name, in order of specificity:
+//  1. Full kebab-case slug of the whole name ("My Plex Server" → "my-plex-server")
+//  2. Each whitespace-separated token ("my", "plex", "server")
+//
+// Duplicates are removed. The token fallback exists because dashboard-icons
+// is indexed by brand name (plex.svg), so "Plex Media Server" — which a user
+// would naturally type — needs to fall through to the bare "plex" lookup.
+// Returns nil when curated lookup is disabled or the name is empty.
+func dashboardIconsCandidates(name string) []*url.URL {
+	base := dashboardIconsBase()
+	if base == "" {
+		return nil
+	}
+	seen := make(map[string]struct{})
+	var out []*url.URL
+	addSlug := func(slug string) {
+		if slug == "" {
+			return
+		}
+		if _, dup := seen[slug]; dup {
+			return
+		}
+		seen[slug] = struct{}{}
+		if u, err := url.Parse(fmt.Sprintf("%s/%s.svg", base, slug)); err == nil {
+			out = append(out, u)
+		}
+	}
+	addSlug(serviceNameSlug(name))
+	for _, token := range strings.Fields(strings.ToLower(name)) {
+		addSlug(serviceNameSlug(token))
+	}
+	return out
 }
 
 // serviceNameSlug turns a service name into the kebab-case lookup key used by

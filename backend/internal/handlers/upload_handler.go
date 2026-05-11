@@ -269,21 +269,40 @@ func detectContentType(data []byte) string {
 	}
 }
 
-// looksLikeSVG does a loose text scan for the SVG root element. Real-world SVG
-// files may start with an XML declaration, a doctype, comments, or whitespace
-// before <svg>, so we scan the first chunk rather than just the first bytes.
+// looksLikeSVG decides whether a byte chunk is a real SVG file. We scan the
+// first 1KB rather than just the first bytes because real-world SVGs may begin
+// with whitespace, a BOM, an XML declaration, or a doctype before the <svg>
+// element.
+//
+// IMPORTANT: HTML pages frequently contain an inline <svg> (e.g. Cloudflare
+// challenge pages embed an SVG logo in the first KB). A naive "contains <svg>"
+// check would misclassify those as SVG and we'd save the entire HTML as .svg.
+// So we explicitly reject anything that starts with an HTML doctype or <html>,
+// and otherwise require <svg> to follow either directly, after a comment, or
+// after an XML prolog \u2014 never deep inside a different document.
 func looksLikeSVG(data []byte) bool {
 	const scan = 1024
 	if len(data) > scan {
 		data = data[:scan]
 	}
-	lower := strings.ToLower(string(data))
-	// Skip BOM (U+FEFF) and leading whitespace
-	lower = strings.TrimLeft(lower, " \t\r\n\ufeff")
-	if !strings.HasPrefix(lower, "<") {
+	lower := strings.TrimLeft(strings.ToLower(string(data)), " \t\r\n\ufeff")
+	if lower == "" {
 		return false
 	}
-	return strings.Contains(lower, "<svg")
+	// Explicit reject: this is HTML, not SVG, even if <svg> appears later.
+	if strings.HasPrefix(lower, "<!doctype html") || strings.HasPrefix(lower, "<html") {
+		return false
+	}
+	// Direct SVG starts.
+	if strings.HasPrefix(lower, "<svg") || strings.HasPrefix(lower, "<!doctype svg") {
+		return true
+	}
+	// XML prolog: must lead into <svg>, not <html> (we already rejected the
+	// HTML-doctype variant above, but XHTML can sneak through with <?xml).
+	if strings.HasPrefix(lower, "<?xml") {
+		return strings.Contains(lower, "<svg") && !strings.Contains(lower, "<html")
+	}
+	return false
 }
 
 // getExtensionFromMimeType returns file extension for a mime type

@@ -256,6 +256,8 @@ When you click "Auto-fetch icon", Nimbus may download an SVG from the following 
 
 - [Dashboard Icons](https://github.com/homarr-labs/dashboard-icons) — Apache License 2.0
 
+You can point the curated lookup at a self-hosted mirror or disable it entirely with the `DASHBOARD_ICONS_BASE_URL` env var (see [.env.example](.env.example)).
+
 ## 📄 License
 
 [GNU Affero General Public License v3](LICENSE)

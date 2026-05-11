@@ -212,6 +212,63 @@ func TestFetchServiceFavicon_RejectsMissingNameAndURL(t *testing.T) {
 	assert.Equal(t, fiber.StatusBadRequest, resp.StatusCode)
 }
 
+func TestBuildIconCandidates_TriesSlugVariants(t *testing.T) {
+	// "My Plex Server" → full slug fails (no such file), then we should also
+	// have tried each token so "plex" can win.
+	got := buildIconCandidates(context.Background(), "My Plex Server", nil)
+	require.NotEmpty(t, got)
+
+	urls := make([]string, len(got))
+	for i, u := range got {
+		urls[i] = u.String()
+	}
+	assert.Equal(t,
+		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/my-plex-server.svg",
+		urls[0],
+		"full slug must be tried first",
+	)
+	assert.Contains(t, urls, "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/my.svg")
+	assert.Contains(t, urls, "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg")
+	assert.Contains(t, urls, "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/server.svg")
+}
+
+func TestBuildIconCandidates_SingleTokenNameProducesOneCandidate(t *testing.T) {
+	// Single-token name: the per-token slug equals the full slug, so dedup
+	// should leave us with exactly one curated candidate.
+	got := buildIconCandidates(context.Background(), "Plex", nil)
+	require.Len(t, got, 1)
+	assert.Equal(t,
+		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
+		got[0].String(),
+	)
+}
+
+func TestBuildIconCandidates_EnvOverrideBaseURL(t *testing.T) {
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "https://icons.mirror.example.com/svg/")
+
+	got := buildIconCandidates(context.Background(), "Plex", nil)
+	require.Len(t, got, 1)
+	// Trailing slash in env should be stripped; result is well-formed.
+	assert.Equal(t, "https://icons.mirror.example.com/svg/plex.svg", got[0].String())
+}
+
+func TestBuildIconCandidates_EmptyEnvDisablesCuratedLookup(t *testing.T) {
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "")
+
+	// With a name but no URL, the result should be empty (curated lookup off,
+	// no origin to fall back to).
+	got := buildIconCandidates(context.Background(), "Plex", nil)
+	assert.Empty(t, got, "empty env var must disable curated lookup")
+
+	// With a URL, only origin candidates remain — no dashboard-icons URLs.
+	pageURL, _ := url.Parse("https://example.com")
+	got = buildIconCandidates(context.Background(), "Plex", pageURL)
+	for _, c := range got {
+		assert.NotContains(t, c.String(), "dashboard-icons",
+			"curated lookup must stay off when env is empty")
+	}
+}
+
 func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
 	pageURL, _ := url.Parse("https://example.com")
 	got := buildIconCandidates(context.Background(), "Plex", pageURL)
@@ -558,14 +615,27 @@ func TestLooksLikeSVG(t *testing.T) {
 		data string
 		want bool
 	}{
+		// Real SVGs.
 		{"xml decl + svg", `<?xml version="1.0"?><svg xmlns="..."></svg>`, true},
 		{"bare svg", `<svg></svg>`, true},
+		{"uppercase tag", `<SVG></SVG>`, true},
 		{"doctype + svg", `<!DOCTYPE svg PUBLIC "..."><svg/>`, true},
 		{"leading whitespace", "\n\n  <svg/>", true},
-		{"html not svg", `<html><body></body></html>`, false},
+
+		// Definitely not SVG.
 		{"plain text", `not xml at all`, false},
 		{"empty", ``, false},
+		{"only whitespace", "  \n\t  ", false},
 		{"png bytes", string([]byte{0x89, 0x50, 0x4E, 0x47}), false},
+
+		// HTML pages must NOT be classified as SVG even when they embed <svg>
+		// somewhere (Cloudflare challenge pages, regular pages with inline icons, etc.).
+		{"plain html no svg", `<html><body></body></html>`, false},
+		{"html5 doctype with embedded svg", `<!DOCTYPE html><html><head><svg></svg></head></html>`, false},
+		{"html with capital doctype", `<!DOCTYPE HTML><html><svg/></html>`, false},
+		{"cloudflare challenge style", `<!DOCTYPE html>` + strings.Repeat(" ", 50) + `<svg viewBox="0 0 24 24"></svg>`, false},
+		{"xhtml with html root after xml decl", `<?xml version="1.0"?><html><body><svg></svg></body></html>`, false},
+		{"xml prolog but no svg in chunk", `<?xml version="1.0"?><rss><channel></channel></rss>`, false},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
