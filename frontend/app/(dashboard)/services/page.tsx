@@ -16,12 +16,14 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import type { Service } from '@/types'
+import type { Service, Group } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
+import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/monitoring'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
+  const [groups, setGroups] = useState<Group[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -50,12 +52,21 @@ export default function ServicesPage() {
     setError('')
 
     try {
-      const response = await api.getServices()
+      const [servicesResponse, groupsResponse] = await Promise.all([
+        api.getServices(),
+        api.getGroups(),
+      ])
 
-      if (response.error) {
-        setError(response.error.message)
-      } else if (response.data) {
-        setServices(response.data)
+      if (servicesResponse.error) {
+        setError(servicesResponse.error.message)
+      } else if (servicesResponse.data) {
+        setServices(servicesResponse.data)
+      }
+
+      // Groups are only used to derive monitoring state, so a failure here is
+      // non-fatal — fall back to the service-level flag.
+      if (groupsResponse.data) {
+        setGroups(groupsResponse.data)
       }
     } catch (error) {
       console.error('Failed to fetch services:', error)
@@ -150,6 +161,7 @@ export default function ServicesPage() {
   }
 
   const activeService = services.find((s) => s.id === activeId)
+  const groupMonitoringMap = buildGroupMonitoringMap(groups)
 
   return (
     <div>
@@ -215,6 +227,7 @@ export default function ServicesPage() {
                   key={service.id}
                   service={service}
                   onDelete={handleDelete}
+                  isMonitored={isServiceEffectivelyMonitored(service, groupMonitoringMap)}
                 />
               ))}
             </div>
@@ -226,6 +239,7 @@ export default function ServicesPage() {
                 service={activeService}
                 onDelete={handleDelete}
                 style={{ opacity: 0.5 }}
+                isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
               />
             ) : null}
           </DragOverlay>

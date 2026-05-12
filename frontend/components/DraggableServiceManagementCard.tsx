@@ -14,13 +14,18 @@ import ServiceIcon from '@/components/ServiceIcon'
 interface DraggableServiceManagementCardProps {
   service: Service
   onDelete: (id: string, name: string) => void
+  // Effective monitoring state (accounts for the group's monitoring flag too).
+  // Defaults to service.monitoring_enabled when not provided.
+  isMonitored?: boolean
 }
 
 export function DraggableServiceManagementCard({
   service,
   onDelete,
+  isMonitored,
 }: DraggableServiceManagementCardProps) {
   const { openInNewTab } = useTheme()
+  const monitored = isMonitored ?? service.monitoring_enabled
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
@@ -51,10 +56,14 @@ export function DraggableServiceManagementCard({
           >
             <Bars3Icon className="text-text-muted h-5 w-5" />
           </div>
-          <div className={`order-1 flex items-center ${getStatusColor(service.status)}`}>
-            {getStatusIcon(service.status)}
-            <span className="ml-1 text-sm capitalize">{service.status}</span>
-          </div>
+          {monitored ? (
+            <div className={`order-1 flex items-center ${getStatusColor(service.status)}`}>
+              {getStatusIcon(service.status)}
+              <span className="ml-1 text-sm capitalize">{service.status}</span>
+            </div>
+          ) : (
+            <span className="text-text-muted order-1 text-xs">Not monitored</span>
+          )}
         </div>
       </div>
 
@@ -78,7 +87,8 @@ export function DraggableServiceManagementCard({
 
       {/* Response time and last checked */}
       <div className="text-text-muted mb-4 space-y-1 text-xs">
-        {service.status === 'online' &&
+        {monitored &&
+          service.status === 'online' &&
           service.response_time !== undefined &&
           service.response_time !== null && (
             <div className="flex items-center">
@@ -88,7 +98,7 @@ export function DraggableServiceManagementCard({
               </span>
             </div>
           )}
-        {service.updated_at && service.status !== 'unknown' && (
+        {monitored && service.updated_at && service.status !== 'unknown' && (
           <div className="flex items-center">
             <ClockIcon className="mr-1 h-3 w-3" />
             Last checked: {formatRelativeTime(service.updated_at)}
