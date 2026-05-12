@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
@@ -37,6 +38,14 @@ func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID st
 	if h.groupRepo == nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Group validation unavailable",
+		})
+		return false
+	}
+	// Reject non-UUID group_id from the request body before it reaches SQL,
+	// so Postgres doesn't log "invalid input syntax for type uuid".
+	if _, err := uuid.Parse(groupID); err != nil {
+		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid group_id: must be a UUID",
 		})
 		return false
 	}
@@ -223,12 +232,10 @@ func (h *ServiceHandler) GetService(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Get service ID from URL params
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+	// Get and validate service ID from URL params (UUID-only).
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Get service from database
@@ -261,12 +268,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Get service ID from URL params
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+	// Get and validate service ID from URL params (UUID-only).
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	var req models.ServiceUpdateRequest
@@ -431,12 +436,10 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Get service ID from URL params
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+	// Get and validate service ID from URL params (UUID-only).
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Get existing service to check for uploaded images to clean up
@@ -495,12 +498,10 @@ func (h *ServiceHandler) CheckService(c *fiber.Ctx) error {
 		return err
 	}
 
-	// Get service ID from URL params
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Service ID is required",
-		})
+	// Get and validate service ID from URL params (UUID-only).
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Get service from database
@@ -580,6 +581,12 @@ func (h *ServiceHandler) ReorderServices(c *fiber.Ctx) error {
 		if sp.ID == "" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Service ID cannot be empty",
+			})
+		}
+		// Reject non-UUID service IDs before they reach SQL.
+		if _, err := uuid.Parse(sp.ID); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Service ID must be a UUID",
 			})
 		}
 		if sp.Position < 0 {

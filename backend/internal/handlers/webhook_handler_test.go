@@ -118,7 +118,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 	}{
 		{
 			name:   "Successfully create webhook",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				Name:   "Test Webhook",
 				URL:    "https://discord.com/api/webhooks/123/abc",
@@ -129,7 +129,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 		},
 		{
 			name:   "Missing name",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				URL: "https://example.com/webhook",
 			},
@@ -138,7 +138,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 		},
 		{
 			name:   "Missing URL",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				Name: "Test Webhook",
 			},
@@ -147,7 +147,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 		},
 		{
 			name:   "Invalid format",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				Name:   "Test Webhook",
 				URL:    "https://example.com/webhook",
@@ -158,7 +158,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 		},
 		{
 			name:   "Name too long",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				Name: string(make([]byte, 101)), // 101 chars
 				URL:  "https://example.com/webhook",
@@ -168,7 +168,7 @@ func TestWebhookHandler_CreateWebhook(t *testing.T) {
 		},
 		{
 			name:   "Default format when not provided",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.WebhookCreateRequest{
 				Name: "Default Format Webhook",
 				URL:  "https://example.com/webhook",
@@ -242,7 +242,7 @@ func TestWebhookHandler_CreateWebhook_MaxLimit(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		createWebhookDirectly(t, db, &models.Webhook{
 			ID:        "webhook-" + string(rune('0'+i)),
-			UserID:    "user-1",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			Name:      "Webhook " + string(rune('0'+i)),
 			URL:       "https://example.com/webhook",
 			Enabled:   true,
@@ -255,7 +255,7 @@ func TestWebhookHandler_CreateWebhook_MaxLimit(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/webhooks", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.CreateWebhook(c)
 	})
 
@@ -287,8 +287,8 @@ func TestWebhookHandler_GetWebhooks(t *testing.T) {
 
 	// Create test webhooks
 	createWebhookDirectly(t, db, &models.Webhook{
-		ID:        "webhook-1",
-		UserID:    "user-1",
+		ID:        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Webhook 1",
 		URL:       "https://example.com/webhook1",
 		Enabled:   true,
@@ -299,8 +299,8 @@ func TestWebhookHandler_GetWebhooks(t *testing.T) {
 	})
 
 	createWebhookDirectly(t, db, &models.Webhook{
-		ID:        "webhook-2",
-		UserID:    "user-1",
+		ID:        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Webhook 2",
 		URL:       "https://example.com/webhook2",
 		Enabled:   false,
@@ -313,7 +313,7 @@ func TestWebhookHandler_GetWebhooks(t *testing.T) {
 	// Different user's webhook
 	createWebhookDirectly(t, db, &models.Webhook{
 		ID:        "webhook-3",
-		UserID:    "user-2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Other User Webhook",
 		URL:       "https://example.com/webhook3",
 		Enabled:   true,
@@ -325,7 +325,7 @@ func TestWebhookHandler_GetWebhooks(t *testing.T) {
 
 	app := fiber.New()
 	app.Get("/webhooks", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.GetWebhooks(c)
 	})
 
@@ -359,8 +359,8 @@ func TestWebhookHandler_GetWebhook(t *testing.T) {
 	handler := NewWebhookHandler(webhookRepo, nil)
 
 	createWebhookDirectly(t, db, &models.Webhook{
-		ID:        "webhook-1",
-		UserID:    "user-1",
+		ID:        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Test Webhook",
 		URL:       "https://example.com/webhook",
 		Enabled:   true,
@@ -378,20 +378,20 @@ func TestWebhookHandler_GetWebhook(t *testing.T) {
 	}{
 		{
 			name:           "Get existing webhook",
-			userID:         "user-1",
-			webhookID:      "webhook-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID:      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Get non-existent webhook",
-			userID:         "user-1",
-			webhookID:      "non-existent",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID:      "99999999-9999-9999-9999-999999999999",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "Get other user's webhook",
-			userID:         "user-2",
-			webhookID:      "webhook-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+			webhookID:      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -425,8 +425,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 	handler := NewWebhookHandler(webhookRepo, nil)
 
 	createWebhookDirectly(t, db, &models.Webhook{
-		ID:        "webhook-1",
-		UserID:    "user-1",
+		ID:        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Test Webhook",
 		URL:       "https://example.com/webhook",
 		Enabled:   true,
@@ -449,8 +449,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 	}{
 		{
 			name:      "Update name",
-			userID:    "user-1",
-			webhookID: "webhook-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			requestBody: models.WebhookUpdateRequest{
 				Name: &newName,
 			},
@@ -458,8 +458,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 		},
 		{
 			name:      "Update URL",
-			userID:    "user-1",
-			webhookID: "webhook-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			requestBody: models.WebhookUpdateRequest{
 				URL: &newURL,
 			},
@@ -467,8 +467,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 		},
 		{
 			name:      "Disable webhook",
-			userID:    "user-1",
-			webhookID: "webhook-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			requestBody: models.WebhookUpdateRequest{
 				Enabled: &disabled,
 			},
@@ -476,8 +476,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 		},
 		{
 			name:      "Update non-existent webhook",
-			userID:    "user-1",
-			webhookID: "non-existent",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID: "99999999-9999-9999-9999-999999999999",
 			requestBody: models.WebhookUpdateRequest{
 				Name: &newName,
 			},
@@ -485,8 +485,8 @@ func TestWebhookHandler_UpdateWebhook(t *testing.T) {
 		},
 		{
 			name:      "Update other user's webhook",
-			userID:    "user-2",
-			webhookID: "webhook-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
+			webhookID: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			requestBody: models.WebhookUpdateRequest{
 				Name: &newName,
 			},
@@ -526,8 +526,8 @@ func TestWebhookHandler_DeleteWebhook(t *testing.T) {
 	handler := NewWebhookHandler(webhookRepo, nil)
 
 	createWebhookDirectly(t, db, &models.Webhook{
-		ID:        "webhook-1",
-		UserID:    "user-1",
+		ID:        "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Test Webhook",
 		URL:       "https://example.com/webhook",
 		Enabled:   true,
@@ -545,14 +545,14 @@ func TestWebhookHandler_DeleteWebhook(t *testing.T) {
 	}{
 		{
 			name:           "Delete existing webhook",
-			userID:         "user-1",
-			webhookID:      "webhook-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID:      "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1",
 			expectedStatus: http.StatusNoContent,
 		},
 		{
 			name:           "Delete non-existent webhook",
-			userID:         "user-1",
-			webhookID:      "non-existent",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			webhookID:      "99999999-9999-9999-9999-999999999999",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -587,7 +587,7 @@ func TestWebhookHandler_InvalidJSON(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/webhooks", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.CreateWebhook(c)
 	})
 

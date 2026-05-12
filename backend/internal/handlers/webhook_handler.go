@@ -174,11 +174,9 @@ func (h *WebhookHandler) GetWebhook(c *fiber.Ctx) error {
 		return err
 	}
 
-	webhookID := c.Params("id")
-	if webhookID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Webhook ID is required",
-		})
+	webhookID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	webhook, err := h.webhookRepo.GetByID(c.Context(), webhookID, userID)
@@ -203,11 +201,9 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 		return err
 	}
 
-	webhookID := c.Params("id")
-	if webhookID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Webhook ID is required",
-		})
+	webhookID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	var req models.WebhookUpdateRequest
@@ -308,11 +304,9 @@ func (h *WebhookHandler) DeleteWebhook(c *fiber.Ctx) error {
 		return err
 	}
 
-	webhookID := c.Params("id")
-	if webhookID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Webhook ID is required",
-		})
+	webhookID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	if err := h.webhookRepo.Delete(c.Context(), webhookID, userID); err != nil {
@@ -336,11 +330,9 @@ func (h *WebhookHandler) TestWebhook(c *fiber.Ctx) error {
 		return err
 	}
 
-	webhookID := c.Params("id")
-	if webhookID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Webhook ID is required",
-		})
+	webhookID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Verify webhook exists and belongs to user
@@ -393,11 +385,9 @@ func (h *WebhookHandler) GetWebhookLogs(c *fiber.Ctx) error {
 		return err
 	}
 
-	webhookID := c.Params("id")
-	if webhookID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Webhook ID is required",
-		})
+	webhookID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Verify webhook exists and belongs to user

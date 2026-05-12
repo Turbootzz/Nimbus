@@ -25,9 +25,9 @@ func NewMetricsHandler(metricsService *services.MetricsService, serviceRepo repo
 // GetServiceMetrics retrieves metrics for a specific service
 // GET /api/v1/metrics/:serviceID
 func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return BadRequest(c, "Service ID is required")
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Get authenticated user
@@ -86,9 +86,9 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 // GetRecentStatusLogs retrieves recent status logs for a service
 // GET /api/v1/services/:id/status-logs
 func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
-	serviceID := c.Params("id")
-	if serviceID == "" {
-		return BadRequest(c, "Service ID is required")
+	serviceID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Get authenticated user
@@ -151,10 +151,10 @@ func (h *MetricsHandler) GetPrometheusMetrics(c *fiber.Ctx) error {
 // GetUserPrometheusMetrics exports metrics for a specific user (authenticated via JWT or API key)
 // GET /api/v1/prometheus/metrics/user/:userID
 func (h *MetricsHandler) GetUserPrometheusMetrics(c *fiber.Ctx) error {
-	// Get requested user ID from URL and validate
-	requestedUserID := c.Params("userID")
-	if requestedUserID == "" {
-		return c.Status(fiber.StatusBadRequest).SendString("# User ID required\n")
+	// Get and validate requested user ID from URL (UUID-only).
+	requestedUserID, err := RequireUUIDParam(c, "userID")
+	if err != nil {
+		return err
 	}
 
 	// Try JWT authentication first (from middleware)
