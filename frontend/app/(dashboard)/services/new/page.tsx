@@ -34,6 +34,20 @@ function NewServiceContent() {
     monitoring_enabled: true,
   })
 
+  // The backend skips health checks for services in groups that have monitoring
+  // disabled, so allowing the user to flip this on would only produce a stuck
+  // "unknown" status. Lock the toggle off whenever the selected group opts out.
+  const selectedGroup = enableServiceGrouping
+    ? groups.find((g) => g.id === formData.group_id)
+    : undefined
+  const groupMonitoringDisabled = selectedGroup?.monitoring_enabled === false
+
+  useEffect(() => {
+    if (groupMonitoringDisabled && formData.monitoring_enabled) {
+      setFormData((prev) => ({ ...prev, monitoring_enabled: false }))
+    }
+  }, [groupMonitoringDisabled, formData.monitoring_enabled])
+
   // Fetch groups when grouping is enabled
   useEffect(() => {
     const fetchGroups = async () => {
@@ -291,8 +305,12 @@ function NewServiceContent() {
               setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
             }
             label="Enable Monitoring"
-            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
-            disabled={isLoading}
+            description={
+              groupMonitoringDisabled
+                ? `Monitoring is disabled for the "${selectedGroup?.name}" group, so services in it are never health-checked`
+                : "When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
+            }
+            disabled={isLoading || groupMonitoringDisabled}
           />
 
           {/* Form Actions */}

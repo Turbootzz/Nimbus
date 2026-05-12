@@ -4,8 +4,9 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { ChartBarIcon, ServerIcon } from '@heroicons/react/24/outline'
 import { CheckCircleIcon, ExclamationCircleIcon } from '@heroicons/react/24/solid'
-import { Service, Group } from '@/types'
+import { Service } from '@/types'
 import { api } from '@/lib/api'
+import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import CombinedMetricsChart from '@/components/graphs/CombinedMetricsChart'
 import ServiceIcon from '@/components/ServiceIcon'
 
@@ -29,27 +30,11 @@ export default function MetricsPage() {
         if (servicesResponse.data) {
           const allServices = servicesResponse.data
           const groups = groupsResponse.data || []
+          const groupMonitoringMap = buildGroupMonitoringMap(groups)
 
-          // Create a map of group IDs to their monitoring status
-          const groupMonitoringMap = new Map<string, boolean>()
-          groups.forEach((g: Group) => {
-            groupMonitoringMap.set(g.id, g.monitoring_enabled)
-          })
-
-          // Filter services: must have monitoring enabled AND group (if any) must have monitoring enabled
-          const monitoredServices = allServices.filter((s) => {
-            // Service must have monitoring enabled
-            if (!s.monitoring_enabled) return false
-
-            // If service has a group, check group's monitoring status
-            if (s.group_id) {
-              const groupMonitoring = groupMonitoringMap.get(s.group_id)
-              // If group exists and has monitoring disabled, exclude service
-              if (groupMonitoring === false) return false
-            }
-
-            return true
-          })
+          const monitoredServices = allServices.filter((s) =>
+            isServiceEffectivelyMonitored(s, groupMonitoringMap)
+          )
 
           setServices(monitoredServices)
         }

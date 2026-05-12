@@ -4,6 +4,7 @@ import type { Service, CardSize, CardScale, ViewMode } from '@/types'
 import ServiceCard from '@/components/ServiceCard'
 import SortableServiceCard from '@/components/SortableServiceCard'
 import ServicesList from '@/components/ServicesList'
+import { isServiceEffectivelyMonitored, type GroupMonitoringMap } from '@/lib/monitoring'
 
 // Grid classes for different card scales
 // Mobile always uses large layout (grid-cols-2) to avoid clutter
@@ -22,6 +23,7 @@ interface ServicesGridProps {
   viewMode: ViewMode
   isEditMode?: boolean
   onSizeChange?: (id: string, newSize: CardSize) => void
+  groupMonitoringMap?: GroupMonitoringMap
 }
 
 export default function ServicesGrid({
@@ -32,15 +34,24 @@ export default function ServicesGrid({
   viewMode,
   isEditMode = false,
   onSizeChange,
+  groupMonitoringMap,
 }: ServicesGridProps) {
   // Render list view if viewMode is 'list'
   if (viewMode === 'list') {
-    return <ServicesList services={services} openInNewTab={openInNewTab} isEditMode={isEditMode} />
+    return (
+      <ServicesList
+        services={services}
+        openInNewTab={openInNewTab}
+        isEditMode={isEditMode}
+        groupMonitoringMap={groupMonitoringMap}
+      />
+    )
   }
 
   // Render grid view
-  const gridContent = services.map((service) =>
-    isEditMode && onSizeChange ? (
+  const gridContent = services.map((service) => {
+    const monitored = isServiceEffectivelyMonitored(service, groupMonitoringMap)
+    return isEditMode && onSizeChange ? (
       <SortableServiceCard
         key={service.id}
         service={service}
@@ -49,6 +60,7 @@ export default function ServicesGrid({
         onSizeChange={onSizeChange}
         enableCardResizing={enableCardResizing}
         cardScale={cardScale}
+        isMonitored={monitored}
       />
     ) : (
       <ServiceCard
@@ -57,9 +69,10 @@ export default function ServicesGrid({
         openInNewTab={openInNewTab}
         enableCardResizing={enableCardResizing}
         cardScale={cardScale}
+        isMonitored={monitored}
       />
     )
-  )
+  })
 
   return (
     <div className={`grid ${gridClasses[cardScale]}`} style={{ gridAutoFlow: 'dense' }}>

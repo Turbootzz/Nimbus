@@ -32,6 +32,7 @@ import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
+import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 
 function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
@@ -117,15 +118,10 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
 
-    // Filter to only monitored services (both service and group monitoring enabled)
-    const monitoredServices = servicesToCount.filter((s) => {
-      if (!s.monitoring_enabled) return false
-      if (s.group_id) {
-        const groupMonitoring = groupMonitoringMap.get(s.group_id)
-        if (groupMonitoring === false) return false
-      }
-      return true
-    })
+    // Filter to only effectively-monitored services (both service and group flag on)
+    const monitoredServices = servicesToCount.filter((s) =>
+      isServiceEffectivelyMonitored(s, groupMonitoringMap)
+    )
 
     const online = monitoredServices.filter((s) => s.status === 'online').length
     const offline = monitoredServices.filter((s) => s.status === 'offline').length
@@ -658,6 +654,7 @@ export default function DashboardPage() {
               viewMode={viewMode}
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
+              groupMonitoringMap={groupMonitoringMap}
             />
           </SortableContext>
 
@@ -669,6 +666,7 @@ export default function DashboardPage() {
                   openInNewTab={openInNewTab}
                   isEditMode={true}
                   isDragging={true}
+                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
                 />
               ) : (
                 <ServiceCard
@@ -679,6 +677,7 @@ export default function DashboardPage() {
                   isDragging={true}
                   enableCardResizing={enableCardResizing}
                   cardScale={cardScale}
+                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
                 />
               ))}
           </DragOverlay>
@@ -706,6 +705,7 @@ export default function DashboardPage() {
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             viewMode={viewMode}
+            groupMonitoringMap={groupMonitoringMap}
           />
         </>
       )}
