@@ -30,7 +30,7 @@ export function ServiceManagementCardPresentation({
   return (
     <div
       style={style}
-      className="bg-card border-card-border group relative rounded-lg border p-6 transition-all hover:shadow-lg"
+      className="bg-card border-card-border group relative flex h-full flex-col rounded-lg border p-6 transition-all hover:shadow-lg"
     >
       {/* Service icon and status */}
       <div className="mb-4 flex items-start justify-between">
@@ -82,7 +82,7 @@ export function ServiceManagementCardPresentation({
 
       {/* Actions */}
       <div
-        className="flex items-center gap-2 border-t pt-4"
+        className="mt-auto flex items-center gap-2 border-t pt-4"
         style={{ borderColor: 'var(--color-card-border)' }}
       >
         <Link
