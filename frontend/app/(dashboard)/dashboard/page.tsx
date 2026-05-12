@@ -512,7 +512,11 @@ export default function DashboardPage() {
           setGroups(groups.map((g) => (g.id === editingGroup.id ? response.data! : g)))
         }
       } else {
-        const response = await api.createGroup({ name: data.name!, color: data.color })
+        const response = await api.createGroup({
+          name: data.name!,
+          color: data.color,
+          monitoring_enabled: data.monitoring_enabled,
+        })
         if (response.error) {
           throw new Error(response.error.message)
         }
