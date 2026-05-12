@@ -21,6 +21,9 @@ interface ServiceCardProps {
   isDragging?: boolean
   enableCardResizing?: boolean
   cardScale?: CardScale
+  // Effective monitoring state (accounts for the group's monitoring flag too).
+  // Defaults to service.monitoring_enabled when not provided.
+  isMonitored?: boolean
 }
 
 export default function ServiceCard({
@@ -32,7 +35,9 @@ export default function ServiceCard({
   isDragging = false,
   enableCardResizing = true,
   cardScale = 'medium',
+  isMonitored,
 }: ServiceCardProps) {
+  const monitored = isMonitored ?? service.monitoring_enabled
   // When card resizing is disabled, always use 2x1
   const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
   // In edit mode, the wrapper div handles grid spanning, so card just fills container
@@ -62,6 +67,7 @@ export default function ServiceCard({
     cardSize,
     showSizeBadge: enableCardResizing,
     cardScale,
+    monitored,
   }
 
   // When resizing is disabled, always use StandardCard (2x1)
@@ -94,6 +100,7 @@ interface CardVariantProps {
   cardSize: CardSize
   showSizeBadge: boolean
   cardScale: CardScale
+  monitored: boolean
 }
 
 // Icon sizes based on cardScale - icons shrink with denser grids
@@ -167,6 +174,7 @@ function CompactCard({
   cardSize,
   showSizeBadge,
   cardScale,
+  monitored,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].compact
   const iconSize = scaleIconSizes[cardScale].large
@@ -194,7 +202,7 @@ function CompactCard({
       </div>
       {/* Title with inline status indicator */}
       <div className="flex w-full items-center justify-center gap-1.5">
-        {service.monitoring_enabled && (
+        {monitored && (
           <div
             className={`${statusDotSize} shrink-0 rounded-full ${getStatusBgColor(service.status)}`}
           />
@@ -231,6 +239,7 @@ function StandardCard({
   cardSize,
   showSizeBadge,
   cardScale,
+  monitored,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].standard
@@ -255,7 +264,7 @@ function StandardCard({
       )}
       <div className={`${marginBottom} flex items-start justify-between`}>
         <ServiceIcon service={service} size={iconSize} />
-        {service.monitoring_enabled ? (
+        {monitored ? (
           <div className={`flex items-center ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
             <span className="ml-1 text-sm capitalize">{service.status}</span>
@@ -272,7 +281,7 @@ function StandardCard({
         <p className={`text-text-secondary line-clamp-1 ${descSize}`}>{service.description}</p>
       )}
 
-      {service.monitoring_enabled && (
+      {monitored && (
         <div
           className={`mt-auto flex items-center py-1 text-xs ${service.status === 'online' && service.response_time !== undefined && service.response_time !== null ? getResponseTimeColor(service.response_time) : 'text-transparent'}`}
         >
@@ -314,6 +323,7 @@ function LargeCard({
   cardSize,
   showSizeBadge,
   cardScale,
+  monitored,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].large
@@ -344,7 +354,7 @@ function LargeCard({
       )}
       {/* Status in top right */}
       <div className={`${marginBottom} flex justify-end`}>
-        {service.monitoring_enabled ? (
+        {monitored ? (
           <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
             <span className="ml-1 capitalize">{service.status}</span>
@@ -370,7 +380,7 @@ function LargeCard({
       {/* Footer with URL and response time */}
       <div className={`${marginTop} space-y-2`}>
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
-        {service.monitoring_enabled &&
+        {monitored &&
           service.status === 'online' &&
           service.response_time !== undefined &&
           service.response_time !== null && (

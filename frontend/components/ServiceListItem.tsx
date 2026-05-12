@@ -12,6 +12,9 @@ interface ServiceListItemProps {
   isEditMode?: boolean
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
+  // Effective monitoring state (accounts for the group's monitoring flag too).
+  // Defaults to service.monitoring_enabled when not provided.
+  isMonitored?: boolean
 }
 
 export default function ServiceListItem({
@@ -20,7 +23,9 @@ export default function ServiceListItem({
   isEditMode = false,
   dragHandleProps,
   isDragging = false,
+  isMonitored,
 }: ServiceListItemProps) {
+  const monitored = isMonitored ?? service.monitoring_enabled
   const linkProps = {
     href: service.url,
     target: openInNewTab ? '_blank' : '_self',
@@ -63,14 +68,26 @@ export default function ServiceListItem({
 
       {/* Status indicator - compact dot style */}
       <div className="flex shrink-0 items-center gap-1.5">
-        <div className={`h-2 w-2 rounded-full ${getStatusBgColor(service.status)}`} />
-        <span className="text-text-secondary hidden text-xs capitalize sm:inline">
-          {service.status}
-        </span>
+        {monitored ? (
+          <>
+            <div className={`h-2 w-2 rounded-full ${getStatusBgColor(service.status)}`} />
+            <span className="text-text-secondary hidden text-xs capitalize sm:inline">
+              {service.status}
+            </span>
+          </>
+        ) : (
+          <>
+            {/* Muted dot on mobile mirrors the monitored layout so the row */}
+            {/* doesn't collapse into having no status indicator at all. */}
+            <div className="h-2 w-2 rounded-full bg-gray-400" />
+            <span className="text-text-muted hidden text-xs sm:inline">Not monitored</span>
+          </>
+        )}
       </div>
 
       {/* Response time - only show for online services */}
-      {service.status === 'online' &&
+      {monitored &&
+        service.status === 'online' &&
         service.response_time !== undefined &&
         service.response_time !== null && (
           <div

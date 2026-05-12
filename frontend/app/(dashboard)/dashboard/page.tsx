@@ -32,6 +32,7 @@ import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
+import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 
 function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
@@ -117,15 +118,10 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
 
-    // Filter to only monitored services (both service and group monitoring enabled)
-    const monitoredServices = servicesToCount.filter((s) => {
-      if (!s.monitoring_enabled) return false
-      if (s.group_id) {
-        const groupMonitoring = groupMonitoringMap.get(s.group_id)
-        if (groupMonitoring === false) return false
-      }
-      return true
-    })
+    // Filter to only effectively-monitored services (both service and group flag on)
+    const monitoredServices = servicesToCount.filter((s) =>
+      isServiceEffectivelyMonitored(s, groupMonitoringMap)
+    )
 
     const online = monitoredServices.filter((s) => s.status === 'online').length
     const offline = monitoredServices.filter((s) => s.status === 'offline').length
@@ -338,9 +334,9 @@ export default function DashboardPage() {
       const targetGroup = groups.find((g) => g.id === targetGroupId)
       const isTargetDefault = targetGroup?.is_default
 
-      // For default group: set group_id to null (ungrouped services appear there)
+      // For default group: empty string clears the group (services become ungrouped)
       // For other groups: set group_id to the target group's ID
-      const newGroupId = isTargetDefault ? null : targetGroupId
+      const newGroupId = isTargetDefault ? '' : targetGroupId
 
       // Check if already in the target group
       // Service is in default if: group_id is null/undefined OR matches default group ID
@@ -355,7 +351,7 @@ export default function DashboardPage() {
       // Optimistic update - move service to new group
       setServices(
         services.map((s) =>
-          s.id === activeServiceId ? { ...s, group_id: newGroupId ?? undefined } : s
+          s.id === activeServiceId ? { ...s, group_id: newGroupId || undefined } : s
         )
       )
 
@@ -457,6 +453,7 @@ export default function DashboardPage() {
         icon: freshService.icon || '',
         icon_type: freshService.icon_type || 'emoji',
         icon_image_path: freshService.icon_image_path || '',
+        group_id: freshService.group_id ?? '',
         card_size: newSize,
       })
     } catch (error) {
@@ -515,7 +512,11 @@ export default function DashboardPage() {
           setGroups(groups.map((g) => (g.id === editingGroup.id ? response.data! : g)))
         }
       } else {
-        const response = await api.createGroup({ name: data.name!, color: data.color })
+        const response = await api.createGroup({
+          name: data.name!,
+          color: data.color,
+          monitoring_enabled: data.monitoring_enabled,
+        })
         if (response.error) {
           throw new Error(response.error.message)
         }
@@ -657,6 +658,7 @@ export default function DashboardPage() {
               viewMode={viewMode}
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
+              groupMonitoringMap={groupMonitoringMap}
             />
           </SortableContext>
 
@@ -668,6 +670,7 @@ export default function DashboardPage() {
                   openInNewTab={openInNewTab}
                   isEditMode={true}
                   isDragging={true}
+                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
                 />
               ) : (
                 <ServiceCard
@@ -678,6 +681,7 @@ export default function DashboardPage() {
                   isDragging={true}
                   enableCardResizing={enableCardResizing}
                   cardScale={cardScale}
+                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
                 />
               ))}
           </DragOverlay>
@@ -705,6 +709,7 @@ export default function DashboardPage() {
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             viewMode={viewMode}
+            groupMonitoringMap={groupMonitoringMap}
           />
         </>
       )}

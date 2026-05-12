@@ -12,6 +12,9 @@ interface ServiceManagementCardPresentationProps {
   service: Service
   onDelete: (id: string, name: string) => void
   style?: React.CSSProperties
+  // Effective monitoring state (accounts for the group's monitoring flag too).
+  // Defaults to service.monitoring_enabled when not provided.
+  isMonitored?: boolean
 }
 
 // Presentation-only component for DragOverlay (no useSortable hook)
@@ -19,22 +22,28 @@ export function ServiceManagementCardPresentation({
   service,
   onDelete,
   style,
+  isMonitored,
 }: ServiceManagementCardPresentationProps) {
   const { openInNewTab } = useTheme()
+  const monitored = isMonitored ?? service.monitoring_enabled
 
   return (
     <div
       style={style}
-      className="bg-card border-card-border group relative rounded-lg border p-6 transition-all hover:shadow-lg"
+      className="bg-card border-card-border group relative flex h-full flex-col rounded-lg border p-6 transition-all hover:shadow-lg"
     >
       {/* Service icon and status */}
       <div className="mb-4 flex items-start justify-between">
         <ServiceIcon service={service} size="md" />
         <div className="flex items-center gap-3">
-          <div className={`order-1 flex items-center ${getStatusColor(service.status)}`}>
-            {getStatusIcon(service.status)}
-            <span className="ml-1 text-sm capitalize">{service.status}</span>
-          </div>
+          {monitored ? (
+            <div className={`order-1 flex items-center ${getStatusColor(service.status)}`}>
+              {getStatusIcon(service.status)}
+              <span className="ml-1 text-sm capitalize">{service.status}</span>
+            </div>
+          ) : (
+            <span className="text-text-muted order-1 text-xs">Not monitored</span>
+          )}
         </div>
       </div>
 
@@ -52,7 +61,8 @@ export function ServiceManagementCardPresentation({
 
       {/* Response time and last checked */}
       <div className="text-text-muted mb-4 space-y-1 text-xs">
-        {service.status === 'online' &&
+        {monitored &&
+          service.status === 'online' &&
           service.response_time !== undefined &&
           service.response_time !== null && (
             <div className="flex items-center">
@@ -62,7 +72,7 @@ export function ServiceManagementCardPresentation({
               </span>
             </div>
           )}
-        {service.updated_at && service.status !== 'unknown' && (
+        {monitored && service.updated_at && service.status !== 'unknown' && (
           <div className="flex items-center">
             <ClockIcon className="mr-1 h-3 w-3" />
             Last checked: {formatRelativeTime(service.updated_at)}
@@ -72,7 +82,7 @@ export function ServiceManagementCardPresentation({
 
       {/* Actions */}
       <div
-        className="flex items-center gap-2 border-t pt-4"
+        className="mt-auto flex items-center gap-2 border-t pt-4"
         style={{ borderColor: 'var(--color-card-border)' }}
       >
         <Link

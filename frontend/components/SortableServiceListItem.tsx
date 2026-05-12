@@ -8,11 +8,13 @@ import ServiceListItem from '@/components/ServiceListItem'
 interface SortableServiceListItemProps {
   service: Service
   openInNewTab: boolean
+  isMonitored?: boolean
 }
 
 export default function SortableServiceListItem({
   service,
   openInNewTab,
+  isMonitored,
 }: SortableServiceListItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
@@ -33,6 +35,7 @@ export default function SortableServiceListItem({
         isEditMode={true}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
+        isMonitored={isMonitored}
       />
     </div>
   )

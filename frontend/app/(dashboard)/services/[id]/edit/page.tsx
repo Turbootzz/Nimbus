@@ -11,6 +11,7 @@ import GroupSelector from '@/components/GroupSelector'
 import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 
 export default function EditServicePage() {
   const router = useRouter()
@@ -34,6 +35,14 @@ export default function EditServicePage() {
     description: '',
     group_id: '' as string,
     monitoring_enabled: true,
+  })
+
+  const { groupMonitoringDisabled, monitoringDescription } = useGroupMonitoringLock({
+    groups,
+    selectedGroupId: formData.group_id,
+    enableServiceGrouping,
+    monitoringEnabled: formData.monitoring_enabled,
+    setMonitoringEnabled: (next) => setFormData((prev) => ({ ...prev, monitoring_enabled: next })),
   })
 
   // Fetch service data
@@ -140,7 +149,7 @@ export default function EditServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
-        group_id: enableServiceGrouping ? formData.group_id || null : undefined,
+        group_id: enableServiceGrouping ? formData.group_id : undefined,
         monitoring_enabled: formData.monitoring_enabled,
       })
 
@@ -323,8 +332,8 @@ export default function EditServicePage() {
               setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
             }
             label="Enable Monitoring"
-            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
-            disabled={isSaving}
+            description={monitoringDescription}
+            disabled={isSaving || groupMonitoringDisabled}
           />
 
           {/* Form Actions */}

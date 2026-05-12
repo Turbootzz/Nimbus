@@ -11,6 +11,7 @@ import GroupSelector from '@/components/GroupSelector'
 import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 
 function NewServiceContent() {
   const router = useRouter()
@@ -32,6 +33,14 @@ function NewServiceContent() {
     description: '',
     group_id: '' as string,
     monitoring_enabled: true,
+  })
+
+  const { groupMonitoringDisabled, monitoringDescription } = useGroupMonitoringLock({
+    groups,
+    selectedGroupId: formData.group_id,
+    enableServiceGrouping,
+    monitoringEnabled: formData.monitoring_enabled,
+    setMonitoringEnabled: (next) => setFormData((prev) => ({ ...prev, monitoring_enabled: next })),
   })
 
   // Fetch groups when grouping is enabled
@@ -291,8 +300,8 @@ function NewServiceContent() {
               setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
             }
             label="Enable Monitoring"
-            description="When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
-            disabled={isLoading}
+            description={monitoringDescription}
+            disabled={isLoading || groupMonitoringDisabled}
           />
 
           {/* Form Actions */}

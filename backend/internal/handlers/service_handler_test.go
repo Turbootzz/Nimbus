@@ -665,6 +665,128 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 	}
 }
 
+// TestServiceHandler_UpdateService_PreservesGroupID covers a regression where
+// resizing a card sent a PUT without group_id and the handler wiped the
+// existing group assignment. The contract is:
+//
+//	group_id omitted (nil pointer)   -> preserve existing
+//	group_id == ""  (empty string)   -> clear the group
+//	group_id == "<uuid>"             -> set to that group (must be owned by user)
+func TestServiceHandler_UpdateService_PreservesGroupID(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+
+	userID := "cccccccc-cccc-cccc-cccc-ccccccccccc1"
+	groupID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+	serviceID := "11111111-1111-1111-1111-111111111111"
+
+	createGroupDirectly(t, db, &models.Group{
+		ID:                groupID,
+		UserID:            userID,
+		Name:              "My Group",
+		Color:             "#3B82F6",
+		Position:          0,
+		MonitoringEnabled: true,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	})
+
+	createServiceDirectly(t, db, &models.Service{
+		ID:        serviceID,
+		UserID:    userID,
+		Name:      "Service",
+		URL:       "https://example.com",
+		Icon:      "🔗",
+		Status:    models.StatusUnknown,
+		CardSize:  models.CardSize2x1,
+		GroupID:   &groupID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	})
+
+	put := func(t *testing.T, body []byte) *http.Response {
+		t.Helper()
+		app := fiber.New()
+		app.Put("/services/:id", func(c *fiber.Ctx) error {
+			c.Locals("user_id", userID)
+			return handler.UpdateService(c)
+		})
+		req := httptest.NewRequest(http.MethodPut, "/services/"+serviceID, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		return resp
+	}
+
+	currentGroupID := func(t *testing.T) *string {
+		t.Helper()
+		svc, err := serviceRepo.GetByID(context.Background(), serviceID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve service: %v", err)
+		}
+		return svc.GroupID
+	}
+
+	t.Run("omitting group_id preserves the existing assignment", func(t *testing.T) {
+		// PUT body intentionally omits group_id (mirrors the dashboard
+		// resize PUT before the fix).
+		body := []byte(`{"name":"Service","url":"https://example.com","card_size":"2x2"}`)
+		resp := put(t, body)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", resp.StatusCode)
+		}
+		gid := currentGroupID(t)
+		if gid == nil || *gid != groupID {
+			t.Errorf("group_id was wiped: got %v, want %q", gid, groupID)
+		}
+	})
+
+	t.Run("explicit empty string clears the group", func(t *testing.T) {
+		body := []byte(`{"name":"Service","url":"https://example.com","group_id":""}`)
+		resp := put(t, body)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", resp.StatusCode)
+		}
+		if gid := currentGroupID(t); gid != nil {
+			t.Errorf("group_id should be nil after clear, got %q", *gid)
+		}
+	})
+
+	t.Run("setting group_id restores the assignment", func(t *testing.T) {
+		body := []byte(`{"name":"Service","url":"https://example.com","group_id":"` + groupID + `"}`)
+		resp := put(t, body)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", resp.StatusCode)
+		}
+		gid := currentGroupID(t)
+		if gid == nil || *gid != groupID {
+			t.Errorf("group_id not restored: got %v, want %q", gid, groupID)
+		}
+	})
+
+	t.Run("omitting group_id after a clear keeps it cleared", func(t *testing.T) {
+		// First clear, then omit — should remain cleared (preserve nil).
+		clearBody := []byte(`{"name":"Service","url":"https://example.com","group_id":""}`)
+		if resp := put(t, clearBody); resp.StatusCode != http.StatusOK {
+			t.Fatalf("Setup clear failed: %d", resp.StatusCode)
+		}
+		omitBody := []byte(`{"name":"Service","url":"https://example.com","card_size":"2x1"}`)
+		resp := put(t, omitBody)
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", resp.StatusCode)
+		}
+		if gid := currentGroupID(t); gid != nil {
+			t.Errorf("group_id should remain cleared, got %q", *gid)
+		}
+	})
+}
+
 func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()

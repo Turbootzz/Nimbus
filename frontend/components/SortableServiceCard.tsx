@@ -12,6 +12,7 @@ interface SortableServiceCardProps {
   onSizeChange: (id: string, newSize: CardSize) => void
   enableCardResizing: boolean
   cardScale: CardScale
+  isMonitored?: boolean
 }
 
 export default function SortableServiceCard({
@@ -21,6 +22,7 @@ export default function SortableServiceCard({
   onSizeChange,
   enableCardResizing,
   cardScale,
+  isMonitored,
 }: SortableServiceCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useSortable({
     id: service.id,
@@ -48,6 +50,7 @@ export default function SortableServiceCard({
         isDragging={false}
         enableCardResizing={enableCardResizing}
         cardScale={cardScale}
+        isMonitored={isMonitored}
       />
     </div>
   )

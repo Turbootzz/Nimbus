@@ -73,7 +73,7 @@ export interface ServiceUpdateRequest {
   icon_image_path?: string
   description?: string
   card_size?: CardSize
-  group_id?: string | null
+  group_id?: string
   monitoring_enabled?: boolean
 }
 
