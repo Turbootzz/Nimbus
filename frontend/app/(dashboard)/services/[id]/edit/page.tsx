@@ -140,7 +140,7 @@ export default function EditServicePage() {
         icon_type: formData.icon_type,
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
-        group_id: enableServiceGrouping ? formData.group_id || null : undefined,
+        group_id: enableServiceGrouping ? formData.group_id : undefined,
         monitoring_enabled: formData.monitoring_enabled,
       })
 

@@ -82,7 +82,7 @@ type ServiceUpdateRequest struct {
 	IconImagePath     string  `json:"icon_image_path"` // File path or URL for image icons
 	Description       string  `json:"description"`
 	CardSize          string  `json:"card_size"`          // '1x1', '2x1', or '2x2' (preserves existing if empty)
-	GroupID           *string `json:"group_id"`           // Optional group ID (nil clears the group)
+	GroupID           *string `json:"group_id"`           // Omit to preserve existing; empty string clears the group
 	MonitoringEnabled *bool   `json:"monitoring_enabled"` // Optional, preserves existing if nil
 }
 

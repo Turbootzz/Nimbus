@@ -338,9 +338,9 @@ export default function DashboardPage() {
       const targetGroup = groups.find((g) => g.id === targetGroupId)
       const isTargetDefault = targetGroup?.is_default
 
-      // For default group: set group_id to null (ungrouped services appear there)
+      // For default group: empty string clears the group (services become ungrouped)
       // For other groups: set group_id to the target group's ID
-      const newGroupId = isTargetDefault ? null : targetGroupId
+      const newGroupId = isTargetDefault ? '' : targetGroupId
 
       // Check if already in the target group
       // Service is in default if: group_id is null/undefined OR matches default group ID
@@ -355,7 +355,7 @@ export default function DashboardPage() {
       // Optimistic update - move service to new group
       setServices(
         services.map((s) =>
-          s.id === activeServiceId ? { ...s, group_id: newGroupId ?? undefined } : s
+          s.id === activeServiceId ? { ...s, group_id: newGroupId || undefined } : s
         )
       )
 
@@ -457,6 +457,7 @@ export default function DashboardPage() {
         icon: freshService.icon || '',
         icon_type: freshService.icon_type || 'emoji',
         icon_image_path: freshService.icon_image_path || '',
+        group_id: freshService.group_id ?? '',
         card_size: newSize,
       })
     } catch (error) {

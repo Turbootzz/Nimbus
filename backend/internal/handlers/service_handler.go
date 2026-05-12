@@ -413,7 +413,14 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	existingService.IconImagePath = iconImagePath
 	existingService.Description = req.Description
 	existingService.CardSize = cardSize
-	existingService.GroupID = req.GroupID
+	// GroupID: nil (field omitted) preserves existing; empty string explicitly clears
+	if req.GroupID != nil {
+		if *req.GroupID == "" {
+			existingService.GroupID = nil
+		} else {
+			existingService.GroupID = req.GroupID
+		}
+	}
 	// Update monitoring_enabled if provided
 	if req.MonitoringEnabled != nil {
 		existingService.MonitoringEnabled = *req.MonitoringEnabled
