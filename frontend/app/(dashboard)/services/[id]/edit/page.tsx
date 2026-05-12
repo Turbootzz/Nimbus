@@ -11,6 +11,7 @@ import GroupSelector from '@/components/GroupSelector'
 import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 
 export default function EditServicePage() {
   const router = useRouter()
@@ -36,19 +37,13 @@ export default function EditServicePage() {
     monitoring_enabled: true,
   })
 
-  // The backend skips health checks for services in groups that have monitoring
-  // disabled, so allowing the user to flip this on would only produce a stuck
-  // "unknown" status. Lock the toggle off whenever the selected group opts out.
-  const selectedGroup = enableServiceGrouping
-    ? groups.find((g) => g.id === formData.group_id)
-    : undefined
-  const groupMonitoringDisabled = selectedGroup?.monitoring_enabled === false
-
-  useEffect(() => {
-    if (groupMonitoringDisabled && formData.monitoring_enabled) {
-      setFormData((prev) => ({ ...prev, monitoring_enabled: false }))
-    }
-  }, [groupMonitoringDisabled, formData.monitoring_enabled])
+  const { groupMonitoringDisabled, monitoringDescription } = useGroupMonitoringLock({
+    groups,
+    selectedGroupId: formData.group_id,
+    enableServiceGrouping,
+    monitoringEnabled: formData.monitoring_enabled,
+    setMonitoringEnabled: (next) => setFormData((prev) => ({ ...prev, monitoring_enabled: next })),
+  })
 
   // Fetch service data
   useEffect(() => {
@@ -337,11 +332,7 @@ export default function EditServicePage() {
               setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
             }
             label="Enable Monitoring"
-            description={
-              groupMonitoringDisabled
-                ? `Monitoring is disabled for the "${selectedGroup?.name}" group, so services in it are never health-checked`
-                : "When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
-            }
+            description={monitoringDescription}
             disabled={isSaving || groupMonitoringDisabled}
           />
 
