@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import type { Group } from '@/types'
 
 const DEFAULT_MONITORING_DESCRIPTION =
@@ -41,11 +41,19 @@ export function useGroupMonitoringLock({
     : undefined
   const groupMonitoringDisabled = selectedGroup?.monitoring_enabled === false
 
+  // Callers pass an inline setter (new identity each render). Keep the latest
+  // setter in a ref, synced via an effect, so the force-off effect below can
+  // depend on the booleans only and not re-fire on every parent render.
+  const setMonitoringEnabledRef = useRef(setMonitoringEnabled)
+  useEffect(() => {
+    setMonitoringEnabledRef.current = setMonitoringEnabled
+  }, [setMonitoringEnabled])
+
   useEffect(() => {
     if (groupMonitoringDisabled && monitoringEnabled) {
-      setMonitoringEnabled(false)
+      setMonitoringEnabledRef.current(false)
     }
-  }, [groupMonitoringDisabled, monitoringEnabled, setMonitoringEnabled])
+  }, [groupMonitoringDisabled, monitoringEnabled])
 
   const monitoringDescription = groupMonitoringDisabled
     ? `Monitoring is disabled for the "${selectedGroup?.name}" group, so services in it are never health-checked`

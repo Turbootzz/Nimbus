@@ -76,7 +76,12 @@ export default function ServiceListItem({
             </span>
           </>
         ) : (
-          <span className="text-text-muted hidden text-xs sm:inline">Not monitored</span>
+          <>
+            {/* Muted dot on mobile mirrors the monitored layout so the row */}
+            {/* doesn't collapse into having no status indicator at all. */}
+            <div className="h-2 w-2 rounded-full bg-gray-400" />
+            <span className="text-text-muted hidden text-xs sm:inline">Not monitored</span>
+          </>
         )}
       </div>
 
