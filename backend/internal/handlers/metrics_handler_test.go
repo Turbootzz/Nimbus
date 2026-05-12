@@ -143,8 +143,8 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 	// Create test services for user-1
 	responseTime := 100
 	createTestService(t, db, &models.Service{
-		ID:                "service-1",
-		UserID:            "user-1",
+		ID:                "11111111-1111-1111-1111-111111111111",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "Test Service 1",
 		URL:               "https://example1.com",
 		Icon:              "🔗",
@@ -157,8 +157,8 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 	})
 
 	createTestService(t, db, &models.Service{
-		ID:                "service-2",
-		UserID:            "user-1",
+		ID:                "22222222-2222-2222-2222-222222222222",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "Test Service 2",
 		URL:               "https://example2.com",
 		Icon:              "🔗",
@@ -171,8 +171,8 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 
 	// Create test service for user-2 (should not appear in user-1's metrics)
 	createTestService(t, db, &models.Service{
-		ID:                "service-3",
-		UserID:            "user-2",
+		ID:                "33333333-3333-3333-3333-333333333333",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:              "User 2 Service",
 		URL:               "https://example3.com",
 		Icon:              "🔗",
@@ -195,7 +195,7 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 	}{
 		{
 			name:           "Valid API key - should return user's metrics",
-			userID:         "user-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			apiKey:         testAPIKey,
 			expectedStatus: 200,
 			checkBody: func(t *testing.T, body string) {
@@ -221,7 +221,7 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 		},
 		{
 			name:           "Invalid API key - should return 401",
-			userID:         "user-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			apiKey:         "wrong-api-key",
 			expectedStatus: 401,
 			checkBody: func(t *testing.T, body string) {
@@ -232,7 +232,7 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 		},
 		{
 			name:           "Missing API key - should return 401",
-			userID:         "user-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			apiKey:         "",
 			expectedStatus: 401,
 			checkBody: func(t *testing.T, body string) {
@@ -243,7 +243,7 @@ func TestGetUserPrometheusMetrics_WithAPIKey(t *testing.T) {
 		},
 		{
 			name:           "Valid API key for different user - should return their metrics",
-			userID:         "user-2",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 			apiKey:         testAPIKey,
 			expectedStatus: 200,
 			checkBody: func(t *testing.T, body string) {
@@ -304,8 +304,8 @@ func TestGetUserPrometheusMetrics_WithXAPIKeyHeader(t *testing.T) {
 
 	// Create test service
 	createTestService(t, db, &models.Service{
-		ID:                "service-1",
-		UserID:            "user-1",
+		ID:                "11111111-1111-1111-1111-111111111111",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "Test Service",
 		URL:               "https://example.com",
 		Icon:              "🔗",
@@ -320,7 +320,7 @@ func TestGetUserPrometheusMetrics_WithXAPIKeyHeader(t *testing.T) {
 	app.Get("/api/v1/prometheus/metrics/user/:userID", handler.GetUserPrometheusMetrics)
 
 	// Test with X-API-Key header
-	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/user-1", nil)
+	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/cccccccc-cccc-cccc-cccc-ccccccccccc1", nil)
 	req.Header.Set("X-API-Key", testAPIKey)
 
 	resp, err := app.Test(req)
@@ -358,8 +358,8 @@ func TestGetUserPrometheusMetrics_WithJWTAuthentication(t *testing.T) {
 
 	// Create test services
 	createTestService(t, db, &models.Service{
-		ID:                "service-1",
-		UserID:            "user-1",
+		ID:                "11111111-1111-1111-1111-111111111111",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "User 1 Service",
 		URL:               "https://example1.com",
 		Icon:              "🔗",
@@ -371,8 +371,8 @@ func TestGetUserPrometheusMetrics_WithJWTAuthentication(t *testing.T) {
 	})
 
 	createTestService(t, db, &models.Service{
-		ID:                "service-2",
-		UserID:            "user-2",
+		ID:                "22222222-2222-2222-2222-222222222222",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:              "User 2 Service",
 		URL:               "https://example2.com",
 		Icon:              "🔗",
@@ -388,7 +388,7 @@ func TestGetUserPrometheusMetrics_WithJWTAuthentication(t *testing.T) {
 	// Middleware to simulate JWT authentication
 	app.Use(func(c *fiber.Ctx) error {
 		// Simulate authenticated user (would normally come from JWT)
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		c.Locals("role", "user")
 		return c.Next()
 	})
@@ -403,13 +403,13 @@ func TestGetUserPrometheusMetrics_WithJWTAuthentication(t *testing.T) {
 	}{
 		{
 			name:           "User accessing their own metrics - should succeed",
-			requestUserID:  "user-1",
+			requestUserID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			expectedStatus: 200,
 			expectService:  "User 1 Service",
 		},
 		{
 			name:           "User accessing another user's metrics - should be forbidden",
-			requestUserID:  "user-2",
+			requestUserID:  "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 			expectedStatus: 403,
 			expectService:  "",
 		},
@@ -453,8 +453,8 @@ func TestGetUserPrometheusMetrics_AdminAccess(t *testing.T) {
 
 	// Create test service for user-2
 	createTestService(t, db, &models.Service{
-		ID:                "service-1",
-		UserID:            "user-2",
+		ID:                "11111111-1111-1111-1111-111111111111",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:              "User 2 Service",
 		URL:               "https://example.com",
 		Icon:              "🔗",
@@ -477,7 +477,7 @@ func TestGetUserPrometheusMetrics_AdminAccess(t *testing.T) {
 	app.Get("/api/v1/prometheus/metrics/user/:userID", handler.GetUserPrometheusMetrics)
 
 	// Admin should be able to access any user's metrics
-	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/user-2", nil)
+	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/cccccccc-cccc-cccc-cccc-ccccccccccc2", nil)
 
 	resp, err := app.Test(req)
 	if err != nil {
@@ -516,7 +516,7 @@ func TestGetUserPrometheusMetrics_EmptyServices(t *testing.T) {
 	app.Get("/api/v1/prometheus/metrics/user/:userID", handler.GetUserPrometheusMetrics)
 
 	// Request metrics for user with no services
-	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/user-no-services", nil)
+	req := httptest.NewRequest("GET", "/api/v1/prometheus/metrics/user/dddddddd-dddd-dddd-dddd-dddddddddddd", nil)
 	req.Header.Set("Authorization", "Bearer "+testAPIKey)
 
 	resp, err := app.Test(req)

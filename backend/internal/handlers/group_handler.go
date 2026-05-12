@@ -121,11 +121,9 @@ func (h *GroupHandler) GetGroup(c *fiber.Ctx) error {
 		return err
 	}
 
-	groupID := c.Params("id")
-	if groupID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Group ID is required",
-		})
+	groupID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	group, err := h.groupRepo.GetByID(c.Context(), groupID)
@@ -156,11 +154,9 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 		return err
 	}
 
-	groupID := c.Params("id")
-	if groupID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Group ID is required",
-		})
+	groupID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	var req models.GroupUpdateRequest
@@ -233,11 +229,9 @@ func (h *GroupHandler) DeleteGroup(c *fiber.Ctx) error {
 		return err
 	}
 
-	groupID := c.Params("id")
-	if groupID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Group ID is required",
-		})
+	groupID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Check if services should be deleted with the group

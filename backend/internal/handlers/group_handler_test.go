@@ -94,7 +94,7 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 	}{
 		{
 			name:   "Missing name",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupCreateRequest{
 				Color: "#ff0000",
 			},
@@ -103,7 +103,7 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 		},
 		{
 			name:   "Invalid color format",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupCreateRequest{
 				Name:  "Test Group",
 				Color: "invalid",
@@ -113,7 +113,7 @@ func TestGroupHandler_CreateGroup(t *testing.T) {
 		},
 		{
 			name:   "Name too long",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupCreateRequest{
 				Name:  string(make([]byte, 36)),
 				Color: "#ff0000",
@@ -185,8 +185,8 @@ func TestGroupHandler_GetGroups(t *testing.T) {
 
 	// Create test groups for user-1
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-1",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Group 1",
 		Color:     "#ff0000",
 		Position:  0,
@@ -196,8 +196,8 @@ func TestGroupHandler_GetGroups(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-2",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Group 2",
 		Color:     "#00ff00",
 		Position:  1,
@@ -208,8 +208,8 @@ func TestGroupHandler_GetGroups(t *testing.T) {
 
 	// Create group for different user
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-3",
-		UserID:    "user-2",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Group 3",
 		Color:     "#0000ff",
 		Position:  0,
@@ -220,7 +220,7 @@ func TestGroupHandler_GetGroups(t *testing.T) {
 
 	app := fiber.New()
 	app.Get("/groups", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.GetGroups(c)
 	})
 
@@ -247,7 +247,7 @@ func TestGroupHandler_GetGroups(t *testing.T) {
 
 	// Verify user isolation
 	for _, g := range groups {
-		if g.ID == "group-3" {
+		if g.ID == "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3" {
 			t.Error("GetGroups returned another user's group")
 		}
 	}
@@ -262,8 +262,8 @@ func TestGroupHandler_GetGroup(t *testing.T) {
 
 	// Create test groups
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-1",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Group 1",
 		Color:     "#ff0000",
 		Position:  0,
@@ -273,8 +273,8 @@ func TestGroupHandler_GetGroup(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-2",
-		UserID:    "user-2",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Group 2",
 		Color:     "#00ff00",
 		Position:  0,
@@ -291,20 +291,20 @@ func TestGroupHandler_GetGroup(t *testing.T) {
 	}{
 		{
 			name:           "Get own group",
-			userID:         "user-1",
-			groupID:        "group-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Get another user's group",
-			userID:         "user-1",
-			groupID:        "group-2",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
 			expectedStatus: http.StatusForbidden,
 		},
 		{
 			name:           "Get non-existent group",
-			userID:         "user-1",
-			groupID:        "non-existent",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "99999999-9999-9999-9999-999999999999",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -339,8 +339,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 
 	// Create test groups
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-1",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Group 1",
 		Color:     "#ff0000",
 		Position:  0,
@@ -350,8 +350,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-2",
-		UserID:    "user-2",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Group 2",
 		Color:     "#00ff00",
 		Position:  0,
@@ -370,8 +370,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 	}{
 		{
 			name:    "Successfully update group",
-			userID:  "user-1",
-			groupID: "group-1",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			requestBody: models.GroupUpdateRequest{
 				Name:  "Updated Name",
 				Color: "#00ff00",
@@ -381,8 +381,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Update only name",
-			userID:  "user-1",
-			groupID: "group-1",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			requestBody: models.GroupUpdateRequest{
 				Name: "Another Name",
 			},
@@ -391,8 +391,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Update only color",
-			userID:  "user-1",
-			groupID: "group-1",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			requestBody: models.GroupUpdateRequest{
 				Color: "#0000ff",
 			},
@@ -401,8 +401,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Invalid color format",
-			userID:  "user-1",
-			groupID: "group-1",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			requestBody: models.GroupUpdateRequest{
 				Color: "not-a-color",
 			},
@@ -411,8 +411,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Name too long",
-			userID:  "user-1",
-			groupID: "group-1",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			requestBody: models.GroupUpdateRequest{
 				Name: string(make([]byte, 36)), // 36 chars exceeds MaxGroupNameLen (35)
 			},
@@ -421,8 +421,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Update another user's group",
-			userID:  "user-1",
-			groupID: "group-2",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
 			requestBody: models.GroupUpdateRequest{
 				Name: "Hacked",
 			},
@@ -431,8 +431,8 @@ func TestGroupHandler_UpdateGroup(t *testing.T) {
 		},
 		{
 			name:    "Update non-existent group",
-			userID:  "user-1",
-			groupID: "non-existent",
+			userID:  "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID: "99999999-9999-9999-9999-999999999999",
 			requestBody: models.GroupUpdateRequest{
 				Name: "Updated",
 			},
@@ -488,8 +488,8 @@ func TestGroupHandler_DeleteGroup(t *testing.T) {
 
 	// Create test groups
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-1",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Regular Group",
 		Color:     "#ff0000",
 		Position:  1,
@@ -499,8 +499,8 @@ func TestGroupHandler_DeleteGroup(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-2",
-		UserID:    "user-1",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Default Group",
 		Color:     "#6366f1",
 		Position:  0,
@@ -510,8 +510,8 @@ func TestGroupHandler_DeleteGroup(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:        "group-3",
-		UserID:    "user-2",
+		ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Other User Group",
 		Color:     "#0000ff",
 		Position:  0,
@@ -528,26 +528,26 @@ func TestGroupHandler_DeleteGroup(t *testing.T) {
 	}{
 		{
 			name:           "Delete regular group",
-			userID:         "user-1",
-			groupID:        "group-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Delete default group (should fail)",
-			userID:         "user-1",
-			groupID:        "group-2",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
 			expectedStatus: http.StatusForbidden,
 		},
 		{
 			name:           "Delete another user's group",
-			userID:         "user-1",
-			groupID:        "group-3",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
 			expectedStatus: http.StatusNotFound,
 		},
 		{
 			name:           "Delete non-existent group",
-			userID:         "user-1",
-			groupID:        "non-existent",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "99999999-9999-9999-9999-999999999999",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -583,8 +583,8 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 	// Create test groups
 	groups := []*models.Group{
 		{
-			ID:        "group-1",
-			UserID:    "user-1",
+			ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			Name:      "Group 1",
 			Color:     "#ff0000",
 			Position:  0,
@@ -593,8 +593,8 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 			UpdatedAt: time.Now(),
 		},
 		{
-			ID:        "group-2",
-			UserID:    "user-1",
+			ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			Name:      "Group 2",
 			Color:     "#00ff00",
 			Position:  1,
@@ -603,8 +603,8 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 			UpdatedAt: time.Now(),
 		},
 		{
-			ID:        "group-3",
-			UserID:    "user-2",
+			ID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 			Name:      "Group 3",
 			Color:     "#0000ff",
 			Position:  0,
@@ -627,11 +627,11 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 	}{
 		{
 			name:   "Successfully reorder groups",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-1", Position: 1},
-					{ID: "group-2", Position: 0},
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", Position: 1},
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2", Position: 0},
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -639,10 +639,10 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Reorder single group",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-1", Position: 1}, // Valid position within bounds (user-1 has 2 groups)
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", Position: 1}, // Valid position within bounds (user-1 has 2 groups)
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -650,10 +650,10 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Attempt to reorder another user's group",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-3", Position: 0}, // Valid position, but wrong user
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3", Position: 0}, // Valid position, but wrong user
 				},
 			},
 			expectedStatus: http.StatusNotFound,
@@ -661,10 +661,10 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Position out of bounds",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-1", Position: 10}, // Invalid: user-1 only has 2 groups (positions 0-1)
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", Position: 10}, // Invalid: user-1 only has 2 groups (positions 0-1)
 				},
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -672,7 +672,7 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Empty group ID",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
 					{ID: "", Position: 0},
@@ -683,10 +683,10 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Negative position",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "group-1", Position: -1},
+					{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", Position: -1},
 				},
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -694,7 +694,7 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Empty groups array",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{},
 			},
@@ -703,10 +703,10 @@ func TestGroupHandler_ReorderGroups(t *testing.T) {
 		},
 		{
 			name:   "Non-existent group",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.GroupReorderRequest{
 				Groups: []models.GroupPosition{
-					{ID: "non-existent", Position: 0},
+					{ID: "99999999-9999-9999-9999-999999999999", Position: 0},
 				},
 			},
 			expectedStatus: http.StatusNotFound,
@@ -764,7 +764,7 @@ func TestGroupHandler_ReorderGroups_NoAuth(t *testing.T) {
 
 	requestBody := models.GroupReorderRequest{
 		Groups: []models.GroupPosition{
-			{ID: "group-1", Position: 0},
+			{ID: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1", Position: 0},
 		},
 	}
 
@@ -791,7 +791,7 @@ func TestGroupHandler_ReorderGroups_InvalidJSON(t *testing.T) {
 
 	app := fiber.New()
 	app.Put("/groups/reorder", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.ReorderGroups(c)
 	})
 

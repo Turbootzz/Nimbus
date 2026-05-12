@@ -193,30 +193,32 @@ func main() {
 	services.Get("/", serviceHandler.GetServices)
 	services.Put("/reorder", serviceHandler.ReorderServices)     // Must be before /:id routes
 	services.Get("/favicon", serviceHandler.FetchServiceFavicon) // Must be before /:id routes
-	services.Get("/:id", serviceHandler.GetService)
-	services.Put("/:id", serviceHandler.UpdateService)
-	services.Delete("/:id", serviceHandler.DeleteService)
-	services.Post("/:id/check", serviceHandler.CheckService)
-	services.Get("/:id/status-logs", metricsHandler.GetRecentStatusLogs)
+	// <guid> constraint rejects non-UUID :id at the router level (404)
+	// so reserved-word paths like /favicon never crash through to SQL.
+	services.Get("/:id<guid>", serviceHandler.GetService)
+	services.Put("/:id<guid>", serviceHandler.UpdateService)
+	services.Delete("/:id<guid>", serviceHandler.DeleteService)
+	services.Post("/:id<guid>/check", serviceHandler.CheckService)
+	services.Get("/:id<guid>/status-logs", metricsHandler.GetRecentStatusLogs)
 
 	// Group routes (all protected)
 	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo))
 	groups.Post("/", groupHandler.CreateGroup)
 	groups.Get("/", groupHandler.GetGroups)
 	groups.Put("/reorder", groupHandler.ReorderGroups) // Must be before /:id routes
-	groups.Get("/:id", groupHandler.GetGroup)
-	groups.Put("/:id", groupHandler.UpdateGroup)
-	groups.Delete("/:id", groupHandler.DeleteGroup)
+	groups.Get("/:id<guid>", groupHandler.GetGroup)
+	groups.Put("/:id<guid>", groupHandler.UpdateGroup)
+	groups.Delete("/:id<guid>", groupHandler.DeleteGroup)
 
 	// Webhook routes (all protected)
 	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo))
 	webhooks.Post("/", webhookHandler.CreateWebhook)
 	webhooks.Get("/", webhookHandler.GetWebhooks)
-	webhooks.Get("/:id", webhookHandler.GetWebhook)
-	webhooks.Put("/:id", webhookHandler.UpdateWebhook)
-	webhooks.Delete("/:id", webhookHandler.DeleteWebhook)
-	webhooks.Post("/:id/test", webhookHandler.TestWebhook)
-	webhooks.Get("/:id/logs", webhookHandler.GetWebhookLogs)
+	webhooks.Get("/:id<guid>", webhookHandler.GetWebhook)
+	webhooks.Put("/:id<guid>", webhookHandler.UpdateWebhook)
+	webhooks.Delete("/:id<guid>", webhookHandler.DeleteWebhook)
+	webhooks.Post("/:id<guid>/test", webhookHandler.TestWebhook)
+	webhooks.Get("/:id<guid>/logs", webhookHandler.GetWebhookLogs)
 
 	// Static file serving (public, but files are only accessible if you know the filename)
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
@@ -233,12 +235,12 @@ func main() {
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))
-	metrics.Get("/:id", metricsHandler.GetServiceMetrics)
+	metrics.Get("/:id<guid>", metricsHandler.GetServiceMetrics)
 
 	// Prometheus metrics endpoint (supports both JWT and API key authentication)
 	// Middleware is optional - handler checks for both JWT (from middleware) and API key
 	prometheus := v1.Group("/prometheus")
-	prometheus.Get("/metrics/user/:userID", middleware.OptionalAuthMiddleware(authService, userRepo), metricsHandler.GetUserPrometheusMetrics)
+	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo), metricsHandler.GetUserPrometheusMetrics)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo))
@@ -255,8 +257,8 @@ func main() {
 	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo), middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
-	admin.Put("/users/:id/role", adminHandler.UpdateUserRole)
-	admin.Delete("/users/:id", adminHandler.DeleteUser)
+	admin.Put("/users/:id<guid>/role", adminHandler.UpdateUserRole)
+	admin.Delete("/users/:id<guid>", adminHandler.DeleteUser)
 	admin.Get("/settings", settingsHandler.GetSettings)
 	admin.Get("/settings/smtp/status", settingsHandler.GetSMTPStatus)
 	admin.Put("/settings/smtp", settingsHandler.UpdateSMTPSettings)
@@ -280,6 +282,14 @@ func main() {
 	// Start rate limit cache cleanup worker
 	rateLimitCleanup := workers.NewRateLimitCleanupWorker()
 	rateLimitCleanup.Start()
+
+	// Catch-all 404 handler — registered last so it only fires for paths no
+	// other route matched. Returns JSON so API clients can parse it uniformly;
+	// in particular this covers Fiber's <guid> constraint rejections, which
+	// would otherwise hit Fiber's default text/plain "Cannot GET …" body.
+	app.Use(func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Not found"})
+	})
 
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)

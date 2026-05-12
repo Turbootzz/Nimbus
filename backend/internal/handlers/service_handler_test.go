@@ -116,8 +116,8 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 	// Create test services
 	services := []*models.Service{
 		{
-			ID:        "service-1",
-			UserID:    "user-1",
+			ID:        "11111111-1111-1111-1111-111111111111",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			Name:      "Service 1",
 			URL:       "https://example1.com",
 			Icon:      "🔗",
@@ -127,8 +127,8 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 			UpdatedAt: time.Now(),
 		},
 		{
-			ID:        "service-2",
-			UserID:    "user-1",
+			ID:        "22222222-2222-2222-2222-222222222222",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			Name:      "Service 2",
 			URL:       "https://example2.com",
 			Icon:      "🔗",
@@ -138,8 +138,8 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 			UpdatedAt: time.Now(),
 		},
 		{
-			ID:        "service-3",
-			UserID:    "user-2",
+			ID:        "33333333-3333-3333-3333-333333333333",
+			UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 			Name:      "Service 3",
 			URL:       "https://example3.com",
 			Icon:      "🔗",
@@ -163,11 +163,11 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 	}{
 		{
 			name:   "Successfully reorder services",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
-					{ID: "service-1", Position: 1},
-					{ID: "service-2", Position: 0},
+					{ID: "11111111-1111-1111-1111-111111111111", Position: 1},
+					{ID: "22222222-2222-2222-2222-222222222222", Position: 0},
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -175,10 +175,10 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Reorder single service",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
-					{ID: "service-1", Position: 5},
+					{ID: "11111111-1111-1111-1111-111111111111", Position: 5},
 				},
 			},
 			expectedStatus: http.StatusOK,
@@ -186,10 +186,10 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Attempt to reorder another user's service",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
-					{ID: "service-3", Position: 10},
+					{ID: "33333333-3333-3333-3333-333333333333", Position: 10},
 				},
 			},
 			expectedStatus: http.StatusNotFound,
@@ -197,7 +197,7 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Empty service ID",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
 					{ID: "", Position: 0},
@@ -208,10 +208,10 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Negative position",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
-					{ID: "service-1", Position: -1},
+					{ID: "11111111-1111-1111-1111-111111111111", Position: -1},
 				},
 			},
 			expectedStatus: http.StatusBadRequest,
@@ -219,7 +219,7 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Empty services array",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{},
 			},
@@ -228,10 +228,11 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 		},
 		{
 			name:   "Non-existent service",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
 				Services: []models.ServicePosition{
-					{ID: "non-existent", Position: 0},
+					// Valid UUID format, but no service with this ID exists.
+					{ID: "99999999-9999-9999-9999-999999999999", Position: 0},
 				},
 			},
 			expectedStatus: http.StatusNotFound,
@@ -297,7 +298,7 @@ func TestServiceHandler_ReorderServices_NoAuth(t *testing.T) {
 
 	requestBody := models.ServiceReorderRequest{
 		Services: []models.ServicePosition{
-			{ID: "service-1", Position: 0},
+			{ID: "11111111-1111-1111-1111-111111111111", Position: 0},
 		},
 	}
 
@@ -325,7 +326,7 @@ func TestServiceHandler_ReorderServices_InvalidJSON(t *testing.T) {
 	app := fiber.New()
 
 	app.Put("/services/reorder", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.ReorderServices(c)
 	})
 
@@ -358,7 +359,7 @@ func TestServiceHandler_CreateService(t *testing.T) {
 	}{
 		{
 			name:   "Missing name",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceCreateRequest{
 				URL: "https://example.com",
 			},
@@ -367,7 +368,7 @@ func TestServiceHandler_CreateService(t *testing.T) {
 		},
 		{
 			name:   "Missing URL",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceCreateRequest{
 				Name: "Test Service",
 			},
@@ -376,7 +377,7 @@ func TestServiceHandler_CreateService(t *testing.T) {
 		},
 		{
 			name:   "Invalid URL format",
-			userID: "user-1",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceCreateRequest{
 				Name: "Test Service",
 				URL:  "not-a-valid-url",
@@ -419,8 +420,8 @@ func TestServiceHandler_GetServices(t *testing.T) {
 
 	// Create test services for user-1
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
+		ID:        "11111111-1111-1111-1111-111111111111",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Service 1",
 		URL:       "https://example1.com",
 		Icon:      "🔗",
@@ -430,8 +431,8 @@ func TestServiceHandler_GetServices(t *testing.T) {
 	})
 
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-2",
-		UserID:    "user-1",
+		ID:        "22222222-2222-2222-2222-222222222222",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Service 2",
 		URL:       "https://example2.com",
 		Icon:      "🔗",
@@ -442,7 +443,7 @@ func TestServiceHandler_GetServices(t *testing.T) {
 
 	app := fiber.New()
 	app.Get("/services", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.GetServices(c)
 	})
 
@@ -465,8 +466,8 @@ func TestServiceHandler_DeleteService(t *testing.T) {
 	handler := NewServiceHandler(serviceRepo, nil, nil)
 
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
+		ID:        "11111111-1111-1111-1111-111111111111",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Service 1",
 		URL:       "https://example1.com",
 		Icon:      "🔗",
@@ -483,14 +484,14 @@ func TestServiceHandler_DeleteService(t *testing.T) {
 	}{
 		{
 			name:           "Successfully delete service",
-			userID:         "user-1",
-			serviceID:      "service-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID:      "11111111-1111-1111-1111-111111111111",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Delete non-existent service",
-			userID:         "user-1",
-			serviceID:      "non-existent",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID:      "99999999-9999-9999-9999-999999999999",
 			expectedStatus: http.StatusNotFound,
 		},
 	}
@@ -525,8 +526,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 
 	// Create test service
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
+		ID:        "11111111-1111-1111-1111-111111111111",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Service 1",
 		URL:       "https://example1.com",
 		Icon:      "🔗",
@@ -538,8 +539,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 
 	// Create service owned by different user
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-2",
-		UserID:    "user-2",
+		ID:        "22222222-2222-2222-2222-222222222222",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:      "Service 2",
 		URL:       "https://example2.com",
 		Icon:      "🔗",
@@ -558,8 +559,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 	}{
 		{
 			name:      "Successfully update service with valid card_size",
-			userID:    "user-1",
-			serviceID: "service-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "11111111-1111-1111-1111-111111111111",
 			requestBody: models.ServiceUpdateRequest{
 				Name:     "Updated Service",
 				URL:      "https://updated.com",
@@ -570,8 +571,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 		},
 		{
 			name:      "Update service with 1x1 card size",
-			userID:    "user-1",
-			serviceID: "service-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "11111111-1111-1111-1111-111111111111",
 			requestBody: models.ServiceUpdateRequest{
 				Name:     "Updated Service",
 				URL:      "https://updated.com",
@@ -582,8 +583,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 		},
 		{
 			name:      "Update with invalid card_size",
-			userID:    "user-1",
-			serviceID: "service-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "11111111-1111-1111-1111-111111111111",
 			requestBody: models.ServiceUpdateRequest{
 				Name:     "Updated Service",
 				URL:      "https://updated.com",
@@ -594,8 +595,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 		},
 		{
 			name:      "Update preserves card_size when not provided",
-			userID:    "user-1",
-			serviceID: "service-1",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "11111111-1111-1111-1111-111111111111",
 			requestBody: models.ServiceUpdateRequest{
 				Name: "Updated Service",
 				URL:  "https://updated.com",
@@ -606,8 +607,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 		},
 		{
 			name:      "Attempt to update another user's service",
-			userID:    "user-1",
-			serviceID: "service-2",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "22222222-2222-2222-2222-222222222222",
 			requestBody: models.ServiceUpdateRequest{
 				Name:     "Updated Service",
 				URL:      "https://updated.com",
@@ -618,8 +619,8 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 		},
 		{
 			name:      "Update non-existent service",
-			userID:    "user-1",
-			serviceID: "non-existent",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "99999999-9999-9999-9999-999999999999",
 			requestBody: models.ServiceUpdateRequest{
 				Name: "Updated Service",
 				URL:  "https://updated.com",
@@ -704,8 +705,8 @@ func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
 
 	// Create a group for user-1
 	createGroupDirectly(t, db, &models.Group{
-		ID:                "group-1",
-		UserID:            "user-1",
+		ID:                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "User 1 Group",
 		Color:             "#3B82F6",
 		Position:          0,
@@ -716,8 +717,8 @@ func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
 
 	// Create a group for user-2
 	createGroupDirectly(t, db, &models.Group{
-		ID:                "group-2",
-		UserID:            "user-2",
+		ID:                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:              "User 2 Group",
 		Color:             "#3B82F6",
 		Position:          0,
@@ -737,14 +738,14 @@ func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
 	}{
 		{
 			name:           "Create service with non-existent group_id",
-			userID:         "user-1",
-			groupID:        "non-existent-group",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "88888888-8888-8888-8888-888888888888",
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "Create service with group_id belonging to another user",
-			userID:         "user-1",
-			groupID:        "group-2",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
 			expectedStatus: http.StatusForbidden,
 		},
 	}
@@ -789,8 +790,8 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 
 	// Create groups
 	createGroupDirectly(t, db, &models.Group{
-		ID:                "group-1",
-		UserID:            "user-1",
+		ID:                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:              "User 1 Group",
 		Color:             "#3B82F6",
 		Position:          0,
@@ -800,8 +801,8 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 	})
 
 	createGroupDirectly(t, db, &models.Group{
-		ID:                "group-2",
-		UserID:            "user-2",
+		ID:                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
+		UserID:            "cccccccc-cccc-cccc-cccc-ccccccccccc2",
 		Name:              "User 2 Group",
 		Color:             "#3B82F6",
 		Position:          0,
@@ -812,8 +813,8 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 
 	// Create test service
 	createServiceDirectly(t, db, &models.Service{
-		ID:        "service-1",
-		UserID:    "user-1",
+		ID:        "11111111-1111-1111-1111-111111111111",
+		UserID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 		Name:      "Test Service",
 		URL:       "https://example.com",
 		Icon:      "🔗",
@@ -831,23 +832,23 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 	}{
 		{
 			name:           "Update service with valid group_id",
-			userID:         "user-1",
-			serviceID:      "service-1",
-			groupID:        "group-1",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID:      "11111111-1111-1111-1111-111111111111",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1",
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "Update service with non-existent group_id",
-			userID:         "user-1",
-			serviceID:      "service-1",
-			groupID:        "non-existent-group",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID:      "11111111-1111-1111-1111-111111111111",
+			groupID:        "88888888-8888-8888-8888-888888888888",
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "Update service with group_id belonging to another user",
-			userID:         "user-1",
-			serviceID:      "service-1",
-			groupID:        "group-2",
+			userID:         "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID:      "11111111-1111-1111-1111-111111111111",
+			groupID:        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2",
 			expectedStatus: http.StatusForbidden,
 		},
 	}
@@ -892,7 +893,7 @@ func TestServiceHandler_CreateService_NilGroupRepo(t *testing.T) {
 
 	app := fiber.New()
 	app.Post("/services", func(c *fiber.Ctx) error {
-		c.Locals("user_id", "user-1")
+		c.Locals("user_id", "cccccccc-cccc-cccc-cccc-ccccccccccc1")
 		return handler.CreateService(c)
 	})
 

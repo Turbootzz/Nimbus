@@ -306,7 +306,7 @@ func TestAdminHandler_DeleteUser(t *testing.T) {
 		},
 		{
 			name:           "Delete non-existent user",
-			userID:         "non-existent-id",
+			userID:         "99999999-9999-9999-9999-999999999999",
 			currentUserID:  admin.ID,
 			expectedStatus: fiber.StatusNotFound,
 		},

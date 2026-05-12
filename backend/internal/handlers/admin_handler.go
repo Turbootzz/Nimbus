@@ -92,11 +92,9 @@ func (h *AdminHandler) GetUserStats(c *fiber.Ctx) error {
 
 // UpdateUserRole updates a user's role (admin only)
 func (h *AdminHandler) UpdateUserRole(c *fiber.Ctx) error {
-	userID := c.Params("id")
-	if userID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User ID is required",
-		})
+	userID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Parse request body
@@ -148,11 +146,9 @@ func (h *AdminHandler) UpdateUserRole(c *fiber.Ctx) error {
 
 // DeleteUser deletes a user (admin only)
 func (h *AdminHandler) DeleteUser(c *fiber.Ctx) error {
-	userID := c.Params("id")
-	if userID == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "User ID is required",
-		})
+	userID, err := RequireUUIDParam(c, "id")
+	if err != nil {
+		return err
 	}
 
 	// Prevent admin from deleting themselves
