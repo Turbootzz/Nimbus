@@ -52,21 +52,29 @@ export default function ServicesPage() {
     setError('')
 
     try {
-      const [servicesResponse, groupsResponse] = await Promise.all([
+      // allSettled (vs Promise.all): groups are only used to derive monitoring
+      // state, so a groups failure must not abort the services render.
+      const [servicesSettled, groupsSettled] = await Promise.allSettled([
         api.getServices(),
         api.getGroups(),
       ])
 
-      if (servicesResponse.error) {
-        setError(servicesResponse.error.message)
-      } else if (servicesResponse.data) {
-        setServices(servicesResponse.data)
+      if (servicesSettled.status === 'fulfilled') {
+        const servicesResponse = servicesSettled.value
+        if (servicesResponse.error) {
+          setError(servicesResponse.error.message)
+        } else if (servicesResponse.data) {
+          setServices(servicesResponse.data)
+        }
+      } else {
+        console.error('Failed to fetch services:', servicesSettled.reason)
+        setError('Unable to load services. Please try again.')
       }
 
-      // Groups are only used to derive monitoring state, so a failure here is
-      // non-fatal — fall back to the service-level flag.
-      if (groupsResponse.data) {
-        setGroups(groupsResponse.data)
+      if (groupsSettled.status === 'fulfilled' && groupsSettled.value.data) {
+        setGroups(groupsSettled.value.data)
+      } else if (groupsSettled.status === 'rejected') {
+        console.error('Failed to fetch groups:', groupsSettled.reason)
       }
     } catch (error) {
       console.error('Failed to fetch services:', error)
