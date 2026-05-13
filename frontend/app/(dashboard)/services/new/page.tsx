@@ -14,14 +14,18 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 
 // Whitelist of valid `from` values to prevent open-redirect via crafted URLs.
-const RETURN_PATHS: Record<string, string> = { dashboard: '/dashboard' }
+// href and label live together so adding a target can't leave the back-link
+// pointing one place while the label says another.
+const RETURN_TARGETS: Record<string, { href: string; label: string }> = {
+  dashboard: { href: '/dashboard', label: 'Dashboard' },
+}
+const DEFAULT_RETURN = { href: '/services', label: 'Services' }
 
 function NewServiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const preselectedGroupId = searchParams.get('group')
-  const returnHref = RETURN_PATHS[searchParams.get('from') ?? ''] ?? '/services'
-  const returnLabel = returnHref === '/dashboard' ? 'Dashboard' : 'Services'
+  const returnTarget = RETURN_TARGETS[searchParams.get('from') ?? ''] ?? DEFAULT_RETURN
   const { enableServiceGrouping } = useTheme()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -138,7 +142,7 @@ function NewServiceContent() {
       if (response.error) {
         setError(response.error.message)
       } else {
-        router.push(returnHref)
+        router.push(returnTarget.href)
       }
     } catch (error) {
       console.error('Failed to create service:', error)
@@ -163,11 +167,11 @@ function NewServiceContent() {
     <div className="mx-auto max-w-2xl">
       {/* Back button */}
       <Link
-        href={returnHref}
+        href={returnTarget.href}
         className="text-text-secondary hover:text-text-primary mb-6 inline-flex items-center text-sm transition-colors"
       >
         <ArrowLeftIcon className="mr-2 h-4 w-4" />
-        Back to {returnLabel}
+        Back to {returnTarget.label}
       </Link>
 
       {/* Page header */}
@@ -314,7 +318,7 @@ function NewServiceContent() {
             style={{ borderColor: 'var(--color-card-border)' }}
           >
             <Link
-              href={returnHref}
+              href={returnTarget.href}
               className="hover:bg-card-border text-text-secondary hover:text-text-primary rounded-md px-4 py-2 text-sm font-medium transition-colors"
             >
               Cancel
