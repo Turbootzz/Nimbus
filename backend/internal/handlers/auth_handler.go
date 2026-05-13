@@ -298,6 +298,9 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 		})
 	}
 
+	// Run after the DB delete so we never orphan a row pointing at a missing file.
+	removeLocalAvatar(user.AvatarURL, "DeleteAccount")
+
 	c.Cookie(utils.ClearAuthCookie(h.cookieConfig))
 	return c.JSON(fiber.Map{
 		"message": "Account deleted successfully",

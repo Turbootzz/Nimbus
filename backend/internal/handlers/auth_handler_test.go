@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -849,6 +850,52 @@ func TestAuthHandler_DeleteAccount(t *testing.T) {
 
 		if resp.StatusCode != http.StatusNotFound {
 			t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
+		}
+	})
+
+	t.Run("Removes local avatar file from disk", func(t *testing.T) {
+		// Integration check: DeleteAccount wires the helper through.
+		// Per-branch behaviour of removeLocalAvatar (nil, remote, traversal,
+		// missing file) is covered by TestRemoveLocalAvatar in
+		// avatar_cleanup_test.go.
+		dir := withTempAvatarDir(t)
+		avatarPath := filepath.Join(dir, "avatar.jpg")
+		if err := os.WriteFile(avatarPath, []byte("x"), 0o644); err != nil {
+			t.Fatalf("Failed to write fake avatar: %v", err)
+		}
+
+		userWithAvatar := &models.User{
+			ID:        "user-with-local-avatar",
+			Email:     "local-avatar@example.com",
+			Name:      "Local Avatar",
+			Password:  &hashedPassword,
+			Role:      "user",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		createUserDirectly(t, db, userWithAvatar)
+		avatarURL := "/uploads/avatars/avatar.jpg"
+		if err := userRepo.UpdateAvatar(userWithAvatar.ID, &avatarURL); err != nil {
+			t.Fatalf("Failed to set avatar URL: %v", err)
+		}
+
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", userWithAvatar.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+
+		if _, err := os.Stat(avatarPath); !os.IsNotExist(err) {
+			t.Errorf("Avatar file should be removed from disk, got err=%v", err)
 		}
 	})
 }
