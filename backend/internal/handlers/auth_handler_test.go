@@ -851,4 +851,84 @@ func TestAuthHandler_DeleteAccount(t *testing.T) {
 			t.Errorf("Expected status %d, got %d", http.StatusNotFound, resp.StatusCode)
 		}
 	})
+
+	t.Run("Removes local avatar file from disk", func(t *testing.T) {
+		tempDir := t.TempDir()
+		originalDir := AvatarUploadDir
+		AvatarUploadDir = tempDir
+		t.Cleanup(func() { AvatarUploadDir = originalDir })
+
+		avatarPath := tempDir + "/avatar.jpg"
+		if err := os.WriteFile(avatarPath, []byte("x"), 0o644); err != nil {
+			t.Fatalf("Failed to write fake avatar: %v", err)
+		}
+
+		userWithAvatar := &models.User{
+			ID:        "user-with-local-avatar",
+			Email:     "local-avatar@example.com",
+			Name:      "Local Avatar",
+			Password:  &hashedPassword,
+			Role:      "user",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		createUserDirectly(t, db, userWithAvatar)
+		avatarURL := "/uploads/avatars/avatar.jpg"
+		if err := userRepo.UpdateAvatar(userWithAvatar.ID, &avatarURL); err != nil {
+			t.Fatalf("Failed to set avatar URL: %v", err)
+		}
+
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", userWithAvatar.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+
+		if _, err := os.Stat(avatarPath); !os.IsNotExist(err) {
+			t.Errorf("Avatar file should be removed from disk, got err=%v", err)
+		}
+	})
+
+	t.Run("Leaves remote avatar URLs alone", func(t *testing.T) {
+		// Regression guard: the helper must skip OAuth-style remote URLs without
+		// attempting any disk I/O.
+		userOAuth := &models.User{
+			ID:        "user-with-remote-avatar",
+			Email:     "remote-avatar@example.com",
+			Name:      "Remote Avatar",
+			Password:  &hashedPassword,
+			Role:      "user",
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+		}
+		createUserDirectly(t, db, userOAuth)
+		remoteURL := "https://lh3.googleusercontent.com/a/example"
+		if err := userRepo.UpdateAvatar(userOAuth.ID, &remoteURL); err != nil {
+			t.Fatalf("Failed to set avatar URL: %v", err)
+		}
+
+		app := fiber.New()
+		app.Delete("/auth/me", func(c *fiber.Ctx) error {
+			c.Locals("user_id", userOAuth.ID)
+			return handler.DeleteAccount(c)
+		})
+
+		req := httptest.NewRequest(http.MethodDelete, "/auth/me", nil)
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d, got %d", http.StatusOK, resp.StatusCode)
+		}
+	})
 }

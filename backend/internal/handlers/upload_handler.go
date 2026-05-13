@@ -19,13 +19,15 @@ const (
 	MaxUploadSize    = 512 * 1024      // 512KB - reasonable for icons
 	MaxAvatarSize    = 5 * 1024 * 1024 // 5MB for avatars
 	UploadDir        = "uploads/service-icons"
-	AvatarUploadDir  = "uploads/avatars"
 	AllowedMimeTypes = "image/jpeg,image/png,image/gif,image/webp"
 	// FaviconAllowedMimeTypes extends the upload set with .ico and SVG so server-fetched
 	// favicons can be stored in their original (often crispest) form. SVG is safe to
 	// serve via <img> because browsers disable scripts in that context.
 	FaviconAllowedMimeTypes = AllowedMimeTypes + ",image/x-icon,image/vnd.microsoft.icon,image/svg+xml"
 )
+
+// AvatarUploadDir is a var (not const) so tests can redirect uploads to t.TempDir().
+var AvatarUploadDir = "uploads/avatars"
 
 // errImageTooLarge / errImageInvalidType are returned by saveValidatedImage so
 // callers can map them to 400 responses instead of 500.
@@ -178,16 +180,10 @@ func (h *UploadHandler) UploadAvatar(c *fiber.Ctx) error {
 	}
 	defer src.Close()
 
-	// Delete old avatar (if any) before writing the new one. Warn rather than
-	// fail if the unlink errors — most likely "file already gone" — so we
-	// don't block the user, but ops can spot orphaned files in the log.
-	if user.AvatarURL != nil && strings.HasPrefix(*user.AvatarURL, "/uploads/avatars/") {
-		oldFilename := strings.TrimPrefix(*user.AvatarURL, "/uploads/avatars/")
-		oldPath := filepath.Join(AvatarUploadDir, oldFilename)
-		if err := os.Remove(oldPath); err != nil && !os.IsNotExist(err) {
-			log.Printf("UploadAvatar: failed to remove old avatar %q: %v", oldPath, err)
-		}
-	}
+	// Delete old avatar before writing the new one. The helper logs but never
+	// returns errors — most likely "file already gone" — so we don't block the
+	// user, but ops can spot true orphans in the log.
+	removeLocalAvatar(user.AvatarURL, "UploadAvatar")
 
 	filename, err := saveValidatedImage(src, AvatarUploadDir, MaxAvatarSize, AllowedMimeTypes)
 	if err != nil {
