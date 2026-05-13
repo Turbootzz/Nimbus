@@ -487,14 +487,14 @@ export default function DashboardPage() {
     setIsEditMode((prev) => !prev)
   }, [])
 
-  // Memoize add service href to avoid recalculating on every render
-  const addServiceHref = useMemo(
-    () =>
-      enableServiceGrouping && selectedGroupId
-        ? `/services/new?group=${selectedGroupId}`
-        : '/services/new',
-    [enableServiceGrouping, selectedGroupId]
-  )
+  // Memoize add service href to avoid recalculating on every render.
+  // `from=dashboard` tells /services/new where to redirect after create.
+  const addServiceHref = useMemo(() => {
+    const params = new URLSearchParams()
+    if (enableServiceGrouping && selectedGroupId) params.set('group', selectedGroupId)
+    params.set('from', 'dashboard')
+    return `/services/new?${params.toString()}`
+  }, [enableServiceGrouping, selectedGroupId])
 
   const handleGroupFormSubmit = async (data: {
     name?: string
