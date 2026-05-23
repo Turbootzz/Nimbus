@@ -47,7 +47,7 @@ const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       <div
         ref={innerRef}
         onWheel={handleWheel}
-        className={` ${overflowClass} [&::-webkit-scrollbar-thumb]:bg-text-muted [&::-webkit-scrollbar-thumb:hover]:bg-text-secondary [scrollbar-color:var(--color-text-muted)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${className} `}
+        className={` ${overflowClass} [&::-webkit-scrollbar-thumb]:bg-text-muted [&::-webkit-scrollbar-thumb:hover]:bg-text-secondary [scrollbar-width:thin] [scrollbar-color:var(--color-text-muted)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${className} `}
         {...props}
       >
         {children}
