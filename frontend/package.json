@@ -20,7 +20,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@heroicons/react": "^2.2.0",
-    "date-fns": "^4.1.0",
+    "date-fns": "^4.3.0",
     "jose": "^6.2.3",
     "next": "16.2.6",
     "react": "19.2.6",
@@ -38,7 +38,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^5.2.0",
-    "baseline-browser-mapping": "^2.10.30",
+    "baseline-browser-mapping": "^2.10.32",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "happy-dom": "^20.9.0",
@@ -46,6 +46,6 @@
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.7"
   }
 }
