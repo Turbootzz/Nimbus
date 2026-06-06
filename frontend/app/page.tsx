@@ -7,10 +7,7 @@ import {
   CpuChipIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
-
-const NimbusLogo = ({ size = 32 }: { size?: number }) => (
-  <Image src="/images/logo.png" alt="Nimbus" width={size} height={size} />
-)
+import NimbusLogo from '@/components/NimbusLogo'
 
 const features = [
   {
@@ -99,21 +96,31 @@ export default function LandingPage() {
               The open-source homelab dashboard, hosted for you. No Docker, no maintenance — just
               organize your services.
             </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link
-                href="/login"
-                className="group flex items-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-base font-medium text-white shadow-lg transition-all hover:bg-sky-600 hover:shadow-xl"
-              >
-                Launch demo
-                <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-              </Link>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4">
+              <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
+                <a
+                  href="https://nimbusapp.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-2 rounded-lg bg-sky-500 px-6 py-3 text-base font-medium text-white shadow-lg transition-all hover:bg-sky-600 hover:shadow-xl"
+                >
+                  Try Nimbus Cloud
+                  <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </a>
+                <Link
+                  href="/login"
+                  className="rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                >
+                  Launch demo
+                </Link>
+              </div>
               <a
                 href="https://github.com/Turbootzz/Nimbus#-quick-start"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="rounded-lg border border-gray-300 bg-white px-6 py-3 text-base font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                className="text-sm text-gray-500 transition-colors hover:text-gray-700"
               >
-                Self-Host in 2 Minutes
+                or self-host in 2 minutes →
               </a>
             </div>
           </div>
