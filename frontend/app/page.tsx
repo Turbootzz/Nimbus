@@ -7,16 +7,7 @@ import {
   CpuChipIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
-
-const NimbusLogo = ({ size = 32 }: { size?: number }) => (
-  <Image
-    src="/images/logo.png"
-    alt="Nimbus"
-    width={272}
-    height={202}
-    style={{ width: size, height: 'auto' }}
-  />
-)
+import NimbusLogo from '@/components/NimbusLogo'
 
 const features = [
   {
