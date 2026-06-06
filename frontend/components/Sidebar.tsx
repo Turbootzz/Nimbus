@@ -212,7 +212,13 @@ export default function Sidebar({
           <div
             className={`border-sidebar-border flex h-16 shrink-0 items-center border-b ${isDesktopCollapsed ? 'justify-center px-3' : 'px-6'}`}
           >
-            <Image src="/images/logo.png" alt="Nimbus Logo" width={30} height={30} />
+            <Image
+              src="/images/logo.png"
+              alt="Nimbus Logo"
+              width={272}
+              height={202}
+              style={{ width: 30, height: 'auto' }}
+            />
             <span
               className={`text-text-primary overflow-hidden text-xl font-semibold whitespace-nowrap transition-all duration-300 ${
                 isDesktopCollapsed
@@ -270,7 +276,13 @@ export default function Sidebar({
           {/* Logo and close button */}
           <div className="border-sidebar-border flex h-16 items-center justify-between border-b px-6">
             <div className="flex items-center">
-              <Image src="/images/logo.png" alt="Nimbus Logo" width={32} height={32} />
+              <Image
+                src="/images/logo.png"
+                alt="Nimbus Logo"
+                width={272}
+                height={202}
+                style={{ width: 32, height: 'auto' }}
+              />
               <span className="text-text-primary ml-2 text-xl font-semibold">Nimbus</span>
             </div>
             <button

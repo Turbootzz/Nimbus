@@ -13,7 +13,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         {/* Logo/Branding */}
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-2 flex items-center gap-3">
-            <Image src="/images/logo.png" alt="Nimbus Logo" width={48} height={48} priority />
+            <Image
+              src="/images/logo.png"
+              alt="Nimbus Logo"
+              width={272}
+              height={202}
+              style={{ width: 48, height: 'auto' }}
+              priority
+            />
             <h1 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
               Nimbus
             </h1>
