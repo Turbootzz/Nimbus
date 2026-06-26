@@ -155,6 +155,12 @@ func oidcService(userInfoURL string) *OAuthService {
 func userInfoServer(t *testing.T, status int, body string) *httptest.Server {
 	t.Helper()
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Assert the userinfo-call contract, not just response parsing: the
+		// request must be a GET carrying the access token as a bearer header.
+		// (assert, not require: a require failure would Goexit this server
+		// goroutine rather than the test.)
+		assert.Equal(t, http.MethodGet, r.Method)
+		assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		_, _ = w.Write([]byte(body))
@@ -171,7 +177,7 @@ func TestFetchOIDCUserInfo_Success(t *testing.T) {
 	}`)
 	defer srv.Close()
 
-	info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+	info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 	require.NoError(t, err)
 	assert.Equal(t, "user-123", info.ProviderID)
 	assert.Equal(t, "ada@example.com", info.Email)
@@ -203,7 +209,7 @@ func TestFetchOIDCUserInfo_NameFallbacks(t *testing.T) {
 			srv := userInfoServer(t, http.StatusOK, tt.body)
 			defer srv.Close()
 
-			info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+			info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantName, info.Name)
 		})
@@ -228,7 +234,7 @@ func TestFetchOIDCUserInfo_EmailVerifiedFormats(t *testing.T) {
 			srv := userInfoServer(t, http.StatusOK, tt.body)
 			defer srv.Close()
 
-			info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+			info, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, info.EmailVerified)
 		})
@@ -258,7 +264,7 @@ func TestFetchOIDCUserInfo_MissingRequiredClaims(t *testing.T) {
 			srv := userInfoServer(t, http.StatusOK, tt.body)
 			defer srv.Close()
 
-			_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+			_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 			require.Error(t, err)
 			assert.ErrorIs(t, err, ErrFetchUserInfo)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -270,7 +276,7 @@ func TestFetchOIDCUserInfo_Non200(t *testing.T) {
 	srv := userInfoServer(t, http.StatusUnauthorized, `{"error":"invalid_token"}`)
 	defer srv.Close()
 
-	_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+	_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrFetchUserInfo)
 	assert.Contains(t, err.Error(), "status 401")
@@ -280,7 +286,7 @@ func TestFetchOIDCUserInfo_InvalidJSON(t *testing.T) {
 	srv := userInfoServer(t, http.StatusOK, `not json`)
 	defer srv.Close()
 
-	_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "x"})
+	_, err := oidcService(srv.URL).fetchOIDCUserInfo(t.Context(), &oauth2.Token{AccessToken: "test-token"})
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrFetchUserInfo))
 }
