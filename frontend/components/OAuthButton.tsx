@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import GoogleIcon from './icons/GoogleIcon'
 import GitHubIcon from './icons/GitHubIcon'
 import DiscordIcon from './icons/DiscordIcon'
+import OIDCIcon from './icons/OIDCIcon'
 
 interface OAuthButtonProps {
   provider: OAuthProvider
@@ -38,6 +39,14 @@ const providerConfig = {
     bgColor: 'bg-[#5865F2] hover:bg-[#4752C4]',
     textColor: 'text-white',
     borderColor: 'border-[#5865F2]',
+  },
+  oidc: {
+    name: 'SSO',
+    icon: OIDCIcon,
+    iconSize: 'h-5 w-5',
+    bgColor: 'bg-gray-700 hover:bg-gray-600',
+    textColor: 'text-white',
+    borderColor: 'border-gray-700',
   },
 }
 

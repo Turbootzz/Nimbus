@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -26,8 +28,9 @@ var (
 
 // OAuthService handles OAuth authentication flows
 type OAuthService struct {
-	configs     map[models.OAuthProvider]*oauth2.Config
-	stateSecret string
+	configs         map[models.OAuthProvider]*oauth2.Config
+	oidcUserInfoURL string // discovered at startup for the OIDC provider
+	stateSecret     string
 }
 
 // NewOAuthService creates a new OAuth service
@@ -35,6 +38,7 @@ func NewOAuthService(
 	googleConfig models.OAuthConfig,
 	githubConfig models.OAuthConfig,
 	discordConfig models.OAuthConfig,
+	oidcConfig models.OAuthConfig,
 	stateSecret string,
 ) *OAuthService {
 	service := &OAuthService{
@@ -81,7 +85,70 @@ func NewOAuthService(
 		}
 	}
 
+	// Configure generic OIDC — discover endpoints from the issuer URL
+	if oidcConfig.ClientID != "" && oidcConfig.IssuerURL != "" {
+		if endpoint, userInfoURL, err := discoverOIDCEndpoints(oidcConfig.IssuerURL); err != nil {
+			log.Printf("OIDC provider disabled: failed to discover endpoints for %s: %v", oidcConfig.IssuerURL, err)
+		} else {
+			service.configs[models.ProviderOIDC] = &oauth2.Config{
+				ClientID:     oidcConfig.ClientID,
+				ClientSecret: oidcConfig.ClientSecret,
+				RedirectURL:  oidcConfig.RedirectURL,
+				Scopes:       []string{"openid", "profile", "email"},
+				Endpoint:     endpoint,
+			}
+			service.oidcUserInfoURL = userInfoURL
+		}
+	}
+
 	return service
+}
+
+// discoverOIDCEndpoints fetches the provider's discovery document and returns
+// the oauth2.Endpoint and userinfo URL.
+func discoverOIDCEndpoints(issuerURL string) (oauth2.Endpoint, string, error) {
+	discoveryURL := strings.TrimRight(issuerURL, "/") + "/.well-known/openid-configuration"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+	if err != nil {
+		return oauth2.Endpoint{}, "", fmt.Errorf("build request: %w", err)
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return oauth2.Endpoint{}, "", fmt.Errorf("fetch discovery document: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return oauth2.Endpoint{}, "", fmt.Errorf("discovery document returned status %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return oauth2.Endpoint{}, "", fmt.Errorf("read discovery document: %w", err)
+	}
+
+	var doc struct {
+		AuthorizationEndpoint string `json:"authorization_endpoint"`
+		TokenEndpoint         string `json:"token_endpoint"`
+		UserinfoEndpoint      string `json:"userinfo_endpoint"`
+	}
+	if err := json.Unmarshal(body, &doc); err != nil {
+		return oauth2.Endpoint{}, "", fmt.Errorf("parse discovery document: %w", err)
+	}
+
+	if doc.AuthorizationEndpoint == "" || doc.TokenEndpoint == "" {
+		return oauth2.Endpoint{}, "", fmt.Errorf("discovery document missing required endpoints")
+	}
+
+	return oauth2.Endpoint{
+		AuthURL:  doc.AuthorizationEndpoint,
+		TokenURL: doc.TokenEndpoint,
+	}, doc.UserinfoEndpoint, nil
 }
 
 // GetAuthURL generates the OAuth authorization URL with state token
@@ -212,6 +279,8 @@ func (s *OAuthService) fetchUserInfo(ctx context.Context, provider models.OAuthP
 		return s.fetchGitHubUserInfo(ctx, token)
 	case models.ProviderDiscord:
 		return s.fetchDiscordUserInfo(ctx, token)
+	case models.ProviderOIDC:
+		return s.fetchOIDCUserInfo(ctx, token)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrInvalidProvider, provider)
 	}
@@ -405,6 +474,63 @@ func (s *OAuthService) fetchDiscordUserInfo(ctx context.Context, token *oauth2.T
 		Name:          name,
 		AvatarURL:     avatarURL,
 		EmailVerified: discordUser.Verified,
+	}, nil
+}
+
+// fetchOIDCUserInfo fetches user info from a generic OIDC provider's userinfo endpoint.
+// The endpoint URL is discovered at startup from the issuer's discovery document.
+func (s *OAuthService) fetchOIDCUserInfo(ctx context.Context, token *oauth2.Token) (*models.OAuthUserInfo, error) {
+	client := s.configs[models.ProviderOIDC].Client(ctx, token)
+	resp, err := client.Get(s.oidcUserInfoURL)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrFetchUserInfo, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: status %d", ErrFetchUserInfo, resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrFetchUserInfo, err)
+	}
+
+	var u struct {
+		Sub           string      `json:"sub"`
+		Name          string      `json:"name"`
+		GivenName     string      `json:"given_name"`
+		FamilyName    string      `json:"family_name"`
+		Email         string      `json:"email"`
+		Picture       string      `json:"picture"`
+		EmailVerified interface{} `json:"email_verified"` // bool or string depending on provider
+	}
+	if err := json.Unmarshal(body, &u); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrFetchUserInfo, err)
+	}
+
+	name := u.Name
+	if name == "" {
+		name = strings.TrimSpace(u.GivenName + " " + u.FamilyName)
+	}
+	if name == "" {
+		name = u.Email
+	}
+
+	emailVerified := false
+	switch v := u.EmailVerified.(type) {
+	case bool:
+		emailVerified = v
+	case string:
+		emailVerified = v == "true"
+	}
+
+	return &models.OAuthUserInfo{
+		ProviderID:    u.Sub,
+		Email:         u.Email,
+		Name:          name,
+		AvatarURL:     u.Picture,
+		EmailVerified: emailVerified,
 	}, nil
 }
 

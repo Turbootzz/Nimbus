@@ -168,3 +168,15 @@ func GetDiscordOAuthConfig() models.OAuthConfig {
 		RedirectURL:  os.Getenv("DISCORD_REDIRECT_URL"),
 	}
 }
+
+// GetOIDCConfig returns the generic OIDC configuration.
+// Set OIDC_ISSUER_URL to the provider's issuer URL (e.g. https://auth.example.com/realms/master).
+// Endpoints are discovered automatically from {issuer}/.well-known/openid-configuration.
+func GetOIDCConfig() models.OAuthConfig {
+	return models.OAuthConfig{
+		ClientID:     os.Getenv("OIDC_CLIENT_ID"),
+		ClientSecret: os.Getenv("OIDC_CLIENT_SECRET"),
+		RedirectURL:  os.Getenv("OIDC_REDIRECT_URL"),
+		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
+	}
+}

@@ -4,7 +4,7 @@ export interface User {
   email: string
   name: string
   role: 'admin' | 'user'
-  provider: 'local' | 'google' | 'github' | 'discord'
+  provider: 'local' | 'google' | 'github' | 'discord' | 'oidc'
   avatar_url?: string
   email_verified: boolean
   last_activity_at?: string
@@ -227,7 +227,7 @@ export interface MetricsResponse {
 export type TimeRangeOption = '1h' | '6h' | '24h' | '7d' | '30d'
 
 // OAuth types
-export type OAuthProvider = 'google' | 'github' | 'discord'
+export type OAuthProvider = 'google' | 'github' | 'discord' | 'oidc'
 
 export interface OAuthProviderConfig {
   name: OAuthProvider

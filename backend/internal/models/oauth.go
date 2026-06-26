@@ -10,12 +10,13 @@ const (
 	ProviderGoogle  OAuthProvider = "google"
 	ProviderGitHub  OAuthProvider = "github"
 	ProviderDiscord OAuthProvider = "discord"
+	ProviderOIDC    OAuthProvider = "oidc"
 )
 
 // IsValid checks if the provider is supported
 func (p OAuthProvider) IsValid() bool {
 	switch p {
-	case ProviderLocal, ProviderGoogle, ProviderGitHub, ProviderDiscord:
+	case ProviderLocal, ProviderGoogle, ProviderGitHub, ProviderDiscord, ProviderOIDC:
 		return true
 	default:
 		return false
@@ -28,6 +29,7 @@ type OAuthConfig struct {
 	ClientSecret string
 	RedirectURL  string
 	Scopes       []string
+	IssuerURL    string // OIDC only: used for endpoint discovery
 }
 
 // OAuthUserInfo represents user information from OAuth providers
