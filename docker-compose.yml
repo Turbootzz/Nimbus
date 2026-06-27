@@ -41,6 +41,11 @@ services:
       DB_HOST: db
       # Public URL for password reset emails and OAuth redirects:
       # FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      # Generic OIDC (Keycloak, Authentik, Dex, etc.):
+      # OIDC_ISSUER_URL: ${OIDC_ISSUER_URL:-}
+      # OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      # OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # OIDC_REDIRECT_URL: ${OIDC_REDIRECT_URL:-}
       # Optional overrides:
       # DB_PORT: 5432
       # DB_USER: nimbus

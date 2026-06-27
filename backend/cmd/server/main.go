@@ -98,11 +98,12 @@ func main() {
 	googleConfig := config.GetGoogleOAuthConfig()
 	githubConfig := config.GetGitHubOAuthConfig()
 	discordConfig := config.GetDiscordOAuthConfig()
+	oidcConfig := config.GetOIDCConfig()
 	oauthStateSecret := os.Getenv("OAUTH_STATE_SECRET")
 	if oauthStateSecret == "" {
 		oauthStateSecret = os.Getenv("JWT_SECRET") // Fallback to JWT_SECRET
 	}
-	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oauthStateSecret)
+	oauthService := services.NewOAuthService(googleConfig, githubConfig, discordConfig, oidcConfig, oauthStateSecret)
 
 	// Initialize notification service
 	notificationService := services.NewNotificationService(webhookRepo, serviceRepo)

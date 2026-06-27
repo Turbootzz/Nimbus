@@ -291,6 +291,9 @@ function LoginForm() {
             {oauthProviders.includes('discord') && (
               <OAuthButton provider="discord" redirectTo="/dashboard" rememberMe={rememberMe} />
             )}
+            {oauthProviders.includes('oidc') && (
+              <OAuthButton provider="oidc" redirectTo="/dashboard" rememberMe={rememberMe} />
+            )}
           </div>
         </>
       )}

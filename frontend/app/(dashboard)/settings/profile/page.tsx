@@ -9,6 +9,7 @@ import DangerZoneSection from '@/components/DangerZoneSection'
 import GoogleIcon from '@/components/icons/GoogleIcon'
 import GitHubIcon from '@/components/icons/GitHubIcon'
 import DiscordIcon from '@/components/icons/DiscordIcon'
+import OIDCIcon from '@/components/icons/OIDCIcon'
 
 export default function ProfilePage() {
   const [user, setUser] = useState<User | null>(null)
@@ -73,6 +74,8 @@ export default function ProfilePage() {
         return <GitHubIcon className="h-5 w-5" />
       case 'discord':
         return <DiscordIcon className="h-5 w-5" />
+      case 'oidc':
+        return <OIDCIcon className="h-5 w-5" />
       default:
         return null
     }
@@ -88,6 +91,8 @@ export default function ProfilePage() {
         return 'Discord'
       case 'local':
         return 'Email & Password'
+      case 'oidc':
+        return 'SSO'
       default:
         return provider
     }

@@ -298,6 +298,11 @@ func (h *OAuthHandler) GetProviderStatus(c *fiber.Ctx) error {
 			"enabled":   h.oauthService.IsProviderConfigured(models.ProviderDiscord),
 			"configure": h.oauthService.IsProviderConfigured(models.ProviderDiscord),
 		},
+		{
+			"name":      "oidc",
+			"enabled":   h.oauthService.IsProviderConfigured(models.ProviderOIDC),
+			"configure": h.oauthService.IsProviderConfigured(models.ProviderOIDC),
+		},
 	}
 
 	return c.JSON(fiber.Map{
