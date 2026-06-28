@@ -84,11 +84,13 @@ func (h *OAuthHandler) InitiateOAuth(c *fiber.Ctx) error {
 // failure site.
 var (
 	errEmailNotVerified     = errors.New("oauth email not verified")
+	errMissingEmail         = errors.New("oauth missing email")
 	errRegistrationDisabled = errors.New("oauth registration disabled")
 	errLinkFailed           = errors.New("oauth link failed")
 	errFetchFailed          = errors.New("oauth fetch user failed")
 	errCreateFailed         = errors.New("oauth create user failed")
 	errRegistrationCheck    = errors.New("oauth registration check failed")
+	errLookupFailed         = errors.New("oauth user lookup failed")
 )
 
 // HandleCallback processes the OAuth callback from the provider
@@ -131,6 +133,8 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 		switch {
 		case errors.Is(err, errEmailNotVerified):
 			return h.redirectWithError(c, "Email not verified with provider; cannot link to an existing account")
+		case errors.Is(err, errMissingEmail):
+			return h.redirectWithError(c, "No email address provided by the identity provider")
 		case errors.Is(err, errRegistrationDisabled):
 			return h.redirectWithError(c, "Public registration is disabled")
 		case errors.Is(err, errLinkFailed):
@@ -139,6 +143,8 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 			return h.redirectWithError(c, "Failed to fetch user")
 		case errors.Is(err, errRegistrationCheck):
 			return h.redirectWithError(c, "Failed to check registration status")
+		case errors.Is(err, errLookupFailed):
+			return h.redirectWithError(c, "Failed to look up account")
 		default: // errCreateFailed and anything unexpected
 			return h.redirectWithError(c, "Failed to create account")
 		}
@@ -167,6 +173,10 @@ func (h *OAuthHandler) resolveOAuthUser(
 		}
 		return existingUser, nil
 	}
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		log.Printf("Failed to look up user by provider id: %v", err)
+		return nil, errLookupFailed
+	}
 
 	// 2. Email match -> link, but ONLY if the provider verified a non-empty email.
 	//    Without this gate, an attacker who registers at an IdP using a victim's
@@ -192,9 +202,18 @@ func (h *OAuthHandler) resolveOAuthUser(
 		}
 		return refreshed, nil
 	}
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		log.Printf("Failed to look up user by email: %v", err)
+		return nil, errLookupFailed
+	}
 
 	// 3. Brand-new user -> gated only by public registration. Unverified email is
 	//    fine here: no pre-existing row exists, so there is nothing to take over.
+	//    Refuse outright if the provider gave us no email: the column is
+	//    NOT NULL/unique, so a blank email yields a malformed/colliding account.
+	if userInfo.Email == "" {
+		return nil, errMissingEmail
+	}
 	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(ctx)
 	if err != nil {
 		log.Printf("Failed to check registration setting: %v", err)

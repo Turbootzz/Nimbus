@@ -415,6 +415,27 @@ func TestResolveOAuthUser_EmptyEmail_DoesNotLink(t *testing.T) {
 	assert.Nil(t, unchanged.ProviderID)
 }
 
+// TestResolveOAuthUser_EmptyEmail_NoUser_DoesNotCreate verifies that an empty
+// provider email cannot fall through into the new-user creation branch (which
+// would persist a malformed, NOT NULL/unique-colliding account).
+func TestResolveOAuthUser_EmptyEmail_NoUser_DoesNotCreate(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db) // empty users table, registration enabled by default
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderOIDC, &models.OAuthUserInfo{
+		ProviderID:    "g9",
+		Email:         "",
+		EmailVerified: true,
+	})
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, errMissingEmail)
+
+	// Nothing should have been created.
+	_, err = h.userRepo.GetByEmail("")
+	assert.ErrorIs(t, err, repository.ErrUserNotFound)
+}
+
 // TestResolveOAuthUser_NewVerifiedUser_Created confirms a brand-new verified
 // login creates an account.
 func TestResolveOAuthUser_NewVerifiedUser_Created(t *testing.T) {
