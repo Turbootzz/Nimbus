@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http/httptest"
@@ -301,292 +302,290 @@ func setupOAuthTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func TestOAuthHandler_RegistrationDisabledCheck(t *testing.T) {
-	// This test simulates the registration check that happens in OAuth callback
-	// when a new user tries to sign up via OAuth
-
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	// Insert setting with registration disabled
-	_, err := db.Exec(`
-		INSERT INTO system_settings (key, value, updated_at)
-		VALUES (?, ?, ?)
-	`, "public_registration_enabled", "false", time.Now())
-	if err != nil {
-		t.Fatalf("Failed to insert setting: %v", err)
+// newResolveTestHandler builds a real OAuthHandler wired to in-memory repos.
+// oauthService/authService are intentionally nil — resolveOAuthUser never uses
+// them, which is exactly what lets us unit-test the security logic without any
+// HTTP/provider calls.
+func newResolveTestHandler(db *sql.DB) *OAuthHandler {
+	return &OAuthHandler{
+		userRepo:     repository.NewUserRepository(db),
+		settingsRepo: repository.NewSettingsRepository(db),
 	}
-
-	settingsRepo := repository.NewSettingsRepository(db)
-
-	// Simulate the OAuth callback handler logic for new user registration
-	app := fiber.New()
-	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
-		// Simulate: user not found in database (new OAuth user)
-		userExists := false
-
-		if !userExists {
-			// Check if public registration is enabled
-			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to check registration status",
-				})
-			}
-			if !isEnabled {
-				// Redirect with error (simulating actual handler behavior)
-				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-					"error": "Public registration is disabled",
-				})
-			}
-		}
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
-	resp, err := app.Test(req)
-	assert.NoError(t, err)
-	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
-
-	var result map[string]string
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	assert.NoError(t, err)
-	assert.Equal(t, "Public registration is disabled", result["error"])
 }
 
-func TestOAuthHandler_RegistrationEnabledCheck(t *testing.T) {
-	// This test verifies OAuth registration works when enabled
-
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	// Insert setting with registration enabled
-	_, err := db.Exec(`
-		INSERT INTO system_settings (key, value, updated_at)
-		VALUES (?, ?, ?)
-	`, "public_registration_enabled", "true", time.Now())
-	if err != nil {
-		t.Fatalf("Failed to insert setting: %v", err)
-	}
-
-	settingsRepo := repository.NewSettingsRepository(db)
-
-	app := fiber.New()
-	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
-		userExists := false
-
-		if !userExists {
-			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to check registration status",
-				})
-			}
-			if !isEnabled {
-				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-					"error": "Public registration is disabled",
-				})
-			}
-		}
-		// Registration allowed - would create user here
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
-	resp, err := app.Test(req)
-	assert.NoError(t, err)
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-}
-
-// runAvatarRefreshSim simulates the avatar-refresh slice of HandleCallback
-// against the seeded user and returns the user's avatar_url after the call.
-func runAvatarRefreshSim(t *testing.T, db *sql.DB, providerURL string) *string {
+// seedResolveUser inserts a user row. Empty providerID/avatar are stored as NULL.
+func seedResolveUser(t *testing.T, db *sql.DB, id, email, provider, providerID, avatar string) {
 	t.Helper()
-	userRepo := repository.NewUserRepository(db)
-
-	app := fiber.New()
-	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
-		existingUser, err := userRepo.GetByProviderID("discord", "123")
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-		}
-		isLocalUpload := existingUser.AvatarURL != nil &&
-			len(*existingUser.AvatarURL) >= 9 && (*existingUser.AvatarURL)[:9] == "/uploads/"
-		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != providerURL) {
-			if err := userRepo.UpdateAvatar(existingUser.ID, &providerURL); err != nil {
-				return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
-			}
-		}
-		return c.SendStatus(fiber.StatusOK)
-	})
-
-	resp, err := app.Test(httptest.NewRequest("GET", "/oauth/discord/callback", nil))
-	assert.NoError(t, err)
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	refreshed, err := userRepo.GetByID("user-1")
-	assert.NoError(t, err)
-	return refreshed.AvatarURL
-}
-
-// seedDiscordUser inserts a Discord OAuth user with the given starting avatar.
-func seedDiscordUser(t *testing.T, db *sql.DB, startingAvatar string) {
-	t.Helper()
-	user := &models.User{
-		ID:         "user-1",
-		Email:      "discord@example.com",
-		Name:       "Discord User",
-		Provider:   "discord",
-		ProviderID: stringPtr("123"),
-		Role:       "user",
-		CreatedAt:  time.Now(),
-		UpdatedAt:  time.Now(),
+	var pid, av interface{}
+	if providerID != "" {
+		pid = providerID
 	}
+	if avatar != "" {
+		av = avatar
+	}
+	now := time.Now()
 	if _, err := db.Exec(`
 		INSERT INTO users (id, email, name, provider, provider_id, avatar_url, role, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`, user.ID, user.Email, user.Name, user.Provider, user.ProviderID, startingAvatar, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
+		VALUES (?, ?, 'Test User', ?, ?, ?, 'user', ?, ?)
+	`, id, email, provider, pid, av, now, now); err != nil {
 		t.Fatalf("Failed to seed user: %v", err)
 	}
 }
 
-func TestOAuthHandler_AvatarRefresh_StaleURLIsRefreshed(t *testing.T) {
-	// On every OAuth login, the handler should refresh the cached avatar URL
-	// so that providers (e.g. Discord) rotating the URL after an avatar change
-	// don't leave the user with a stale, 404-ing image.
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	staleURL := "https://cdn.discordapp.com/avatars/123/old_hash.png"
-	freshURL := "https://cdn.discordapp.com/avatars/123/new_hash.png"
-	seedDiscordUser(t, db, staleURL)
-
-	got := runAvatarRefreshSim(t, db, freshURL)
-	assert.NotNil(t, got)
-	assert.Equal(t, freshURL, *got)
-}
-
-func TestOAuthHandler_AvatarRefresh_MatchingURLIsSkipped(t *testing.T) {
-	// When the provider returns the same URL we already have, nothing should change.
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	url := "https://cdn.discordapp.com/avatars/123/hash.png"
-	seedDiscordUser(t, db, url)
-
-	got := runAvatarRefreshSim(t, db, url)
-	assert.NotNil(t, got)
-	assert.Equal(t, url, *got)
-}
-
-func TestOAuthHandler_LinkProvider_LocalUploadIsPreserved(t *testing.T) {
-	// When a local-account user signs in via OAuth with a matching email, the
-	// link path must preserve their locally-uploaded avatar instead of
-	// overwriting it with the provider's URL.
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	userRepo := repository.NewUserRepository(db)
-
-	localPath := "/uploads/avatars/custom.png"
-	providerURL := "https://cdn.discordapp.com/avatars/123/hash.png"
-	user := &models.User{
-		ID:        "user-1",
-		Email:     "linker@example.com",
-		Name:      "Linker",
-		Provider:  "local",
-		AvatarURL: &localPath,
-		Role:      "user",
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+func setRegistration(t *testing.T, db *sql.DB, enabled bool) {
+	t.Helper()
+	value := "true"
+	if !enabled {
+		value = "false"
 	}
 	if _, err := db.Exec(`
-		INSERT INTO users (id, email, name, provider, avatar_url, role, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-	`, user.ID, user.Email, user.Name, user.Provider, *user.AvatarURL, user.Role, user.CreatedAt, user.UpdatedAt); err != nil {
-		t.Fatalf("Failed to seed user: %v", err)
+		INSERT INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)
+	`, "public_registration_enabled", value, time.Now()); err != nil {
+		t.Fatalf("Failed to set registration: %v", err)
 	}
+}
 
-	// Mirror the link slice of HandleCallback.
-	avatarToStore := &providerURL
-	if user.AvatarURL != nil && len(*user.AvatarURL) >= 9 && (*user.AvatarURL)[:9] == "/uploads/" {
-		avatarToStore = user.AvatarURL
-	}
-	if err := userRepo.LinkOAuthProvider(user.ID, "discord", "123", avatarToStore); err != nil {
-		t.Fatalf("LinkOAuthProvider failed: %v", err)
-	}
+// TestResolveOAuthUser_VerifiedEmail_Links is the positive case for #167: a
+// provider-verified email may link into a matching pre-existing account.
+func TestResolveOAuthUser_VerifiedEmail_Links(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	seedResolveUser(t, db, "victim-1", "victim@example.com", "local", "", "")
 
-	linked, err := userRepo.GetByID(user.ID)
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g1",
+		Email:         "victim@example.com",
+		EmailVerified: true,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, "victim-1", user.ID)
+
+	linked, err := h.userRepo.GetByID("victim-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "google", linked.Provider)
+	assert.NotNil(t, linked.ProviderID)
+	assert.Equal(t, "g1", *linked.ProviderID)
+}
+
+// TestResolveOAuthUser_UnverifiedEmail_DoesNotLink is the load-bearing security
+// regression for #167: an unverified email must NOT link, and the existing
+// account must be left completely untouched (no takeover).
+func TestResolveOAuthUser_UnverifiedEmail_DoesNotLink(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	seedResolveUser(t, db, "victim-1", "victim@example.com", "local", "", "")
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g1",
+		Email:         "victim@example.com",
+		EmailVerified: false,
+	})
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, errEmailNotVerified)
+
+	// The victim's account must be unchanged: still local, no provider linked.
+	unchanged, err := h.userRepo.GetByID("victim-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "local", unchanged.Provider)
+	assert.Nil(t, unchanged.ProviderID)
+}
+
+// TestResolveOAuthUser_EmptyEmail_DoesNotLink covers the defense-in-depth guard:
+// a permissive IdP returning an empty email must not match/link an account.
+func TestResolveOAuthUser_EmptyEmail_DoesNotLink(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	seedResolveUser(t, db, "ghost-1", "", "local", "", "")
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderOIDC, &models.OAuthUserInfo{
+		ProviderID:    "g9",
+		Email:         "",
+		EmailVerified: true,
+	})
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, errEmailNotVerified)
+
+	unchanged, err := h.userRepo.GetByID("ghost-1")
+	assert.NoError(t, err)
+	assert.Equal(t, "local", unchanged.Provider)
+	assert.Nil(t, unchanged.ProviderID)
+}
+
+// TestResolveOAuthUser_EmptyEmail_NoUser_DoesNotCreate verifies that an empty
+// provider email cannot fall through into the new-user creation branch (which
+// would persist a malformed, NOT NULL/unique-colliding account).
+func TestResolveOAuthUser_EmptyEmail_NoUser_DoesNotCreate(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db) // empty users table, registration enabled by default
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderOIDC, &models.OAuthUserInfo{
+		ProviderID:    "g9",
+		Email:         "",
+		EmailVerified: true,
+	})
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, errMissingEmail)
+
+	// Nothing should have been created.
+	_, err = h.userRepo.GetByEmail("")
+	assert.ErrorIs(t, err, repository.ErrUserNotFound)
+}
+
+// TestResolveOAuthUser_NewVerifiedUser_Created confirms a brand-new verified
+// login creates an account.
+func TestResolveOAuthUser_NewVerifiedUser_Created(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db) // registration defaults to enabled (no setting row)
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g2",
+		Email:         "new@example.com",
+		Name:          "New User",
+		EmailVerified: true,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+
+	created, err := h.userRepo.GetByEmail("new@example.com")
+	assert.NoError(t, err)
+	assert.Equal(t, "google", created.Provider)
+	assert.True(t, created.EmailVerified)
+}
+
+// TestResolveOAuthUser_NewUnverifiedUser_Created confirms creating a fresh
+// account is still allowed when unverified — there is no existing row to take
+// over, so only LINKING (not creation) needs verification. The flag is persisted
+// honestly as false.
+func TestResolveOAuthUser_NewUnverifiedUser_Created(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g3",
+		Email:         "unverified@example.com",
+		Name:          "Unverified User",
+		EmailVerified: false,
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+
+	created, err := h.userRepo.GetByEmail("unverified@example.com")
+	assert.NoError(t, err)
+	assert.False(t, created.EmailVerified)
+}
+
+// TestResolveOAuthUser_RegistrationDisabled_Refused confirms new accounts are
+// blocked when public registration is off.
+func TestResolveOAuthUser_RegistrationDisabled_Refused(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	setRegistration(t, db, false)
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g4",
+		Email:         "new@example.com",
+		EmailVerified: true,
+	})
+	assert.Nil(t, user)
+	assert.ErrorIs(t, err, errRegistrationDisabled)
+
+	_, err = h.userRepo.GetByEmail("new@example.com")
+	assert.ErrorIs(t, err, repository.ErrUserNotFound)
+}
+
+// TestResolveOAuthUser_ExistingProviderID_LogsIn proves a known provider id
+// short-circuits before the email, verification, and registration checks.
+func TestResolveOAuthUser_ExistingProviderID_LogsIn(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	setRegistration(t, db, false) // even with registration off...
+	seedResolveUser(t, db, "user-1", "user@example.com", "google", "g1", "")
+
+	user, err := h.resolveOAuthUser(context.Background(), models.ProviderGoogle, &models.OAuthUserInfo{
+		ProviderID:    "g1",
+		Email:         "user@example.com",
+		EmailVerified: false, // ...and an unverified claim, this still logs in
+	})
+	assert.NoError(t, err)
+	assert.NotNil(t, user)
+	assert.Equal(t, "user-1", user.ID)
+}
+
+// TestResolveOAuthUser_EmailLink_PreservesLocalAvatar confirms a locally
+// uploaded avatar survives an email-link.
+func TestResolveOAuthUser_EmailLink_PreservesLocalAvatar(t *testing.T) {
+	db := setupOAuthTestDB(t)
+	defer db.Close()
+	h := newResolveTestHandler(db)
+	seedResolveUser(t, db, "user-1", "linker@example.com", "local", "", "/uploads/avatars/custom.png")
+
+	_, err := h.resolveOAuthUser(context.Background(), models.ProviderDiscord, &models.OAuthUserInfo{
+		ProviderID:    "d1",
+		Email:         "linker@example.com",
+		AvatarURL:     "https://cdn.discordapp.com/avatars/d1/hash.png",
+		EmailVerified: true,
+	})
+	assert.NoError(t, err)
+
+	linked, err := h.userRepo.GetByID("user-1")
 	assert.NoError(t, err)
 	assert.NotNil(t, linked.AvatarURL)
-	assert.Equal(t, localPath, *linked.AvatarURL)
+	assert.Equal(t, "/uploads/avatars/custom.png", *linked.AvatarURL)
 }
 
-func TestOAuthHandler_AvatarRefresh_LocalUploadIsPreserved(t *testing.T) {
-	// If the user has a locally-uploaded avatar (path under /uploads/), the
-	// OAuth refresh must not clobber it on subsequent logins.
+// TestResolveOAuthUser_ProviderIDLogin_RefreshesStaleAvatar confirms a rotated
+// provider avatar URL is refreshed on login.
+func TestResolveOAuthUser_ProviderIDLogin_RefreshesStaleAvatar(t *testing.T) {
 	db := setupOAuthTestDB(t)
 	defer db.Close()
+	h := newResolveTestHandler(db)
+	seedResolveUser(t, db, "user-1", "disco@example.com", "discord", "d1", "https://cdn.discordapp.com/avatars/d1/old.png")
 
-	localPath := "/uploads/avatars/custom.png"
-	providerURL := "https://cdn.discordapp.com/avatars/123/hash.png"
-	seedDiscordUser(t, db, localPath)
+	_, err := h.resolveOAuthUser(context.Background(), models.ProviderDiscord, &models.OAuthUserInfo{
+		ProviderID: "d1",
+		Email:      "disco@example.com",
+		AvatarURL:  "https://cdn.discordapp.com/avatars/d1/new.png",
+	})
+	assert.NoError(t, err)
 
-	got := runAvatarRefreshSim(t, db, providerURL)
-	assert.NotNil(t, got)
-	assert.Equal(t, localPath, *got)
+	refreshed, err := h.userRepo.GetByID("user-1")
+	assert.NoError(t, err)
+	assert.NotNil(t, refreshed.AvatarURL)
+	assert.Equal(t, "https://cdn.discordapp.com/avatars/d1/new.png", *refreshed.AvatarURL)
 }
 
-func stringPtr(s string) *string { return &s }
+// TestShouldRefreshAvatar covers the avatar-refresh decision directly, including
+// the "URL unchanged -> skip the write" branch (previously verified end-to-end
+// by TestOAuthHandler_AvatarRefresh_MatchingURLIsSkipped).
+func TestShouldRefreshAvatar(t *testing.T) {
+	local := "/uploads/avatars/custom.png"
+	same := "https://cdn/avatar.png"
+	stale := "https://cdn/old.png"
 
-func TestOAuthHandler_ExistingUserBypassesRegistrationCheck(t *testing.T) {
-	// This test verifies existing OAuth users can log in even when registration is disabled
-
-	db := setupOAuthTestDB(t)
-	defer db.Close()
-
-	// Insert setting with registration disabled
-	_, err := db.Exec(`
-		INSERT INTO system_settings (key, value, updated_at)
-		VALUES (?, ?, ?)
-	`, "public_registration_enabled", "false", time.Now())
-	if err != nil {
-		t.Fatalf("Failed to insert setting: %v", err)
+	tests := []struct {
+		name        string
+		current     *string
+		providerURL string
+		want        bool
+	}{
+		{"nil current -> refresh", nil, "https://cdn/new.png", true},
+		{"different URL -> refresh", &stale, "https://cdn/new.png", true},
+		{"same URL -> skip", &same, same, false},
+		{"local upload -> never clobber", &local, "https://cdn/new.png", false},
 	}
 
-	settingsRepo := repository.NewSettingsRepository(db)
-
-	app := fiber.New()
-	app.Get("/oauth/:provider/callback", func(c *fiber.Ctx) error {
-		// Simulate: user exists in database (existing OAuth user)
-		userExists := true
-
-		if !userExists {
-			isEnabled, err := settingsRepo.IsPublicRegistrationEnabled(c.Context())
-			if err != nil {
-				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-					"error": "Failed to check registration status",
-				})
-			}
-			if !isEnabled {
-				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-					"error": "Public registration is disabled",
-				})
-			}
-		}
-		// Existing user - log them in
-		return c.JSON(fiber.Map{
-			"message": "User logged in successfully",
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, shouldRefreshAvatar(tt.current, tt.providerURL))
 		})
-	})
-
-	req := httptest.NewRequest("GET", "/oauth/google/callback?code=abc&state=xyz", nil)
-	resp, err := app.Test(req)
-	assert.NoError(t, err)
-	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
-
-	var result map[string]string
-	err = json.NewDecoder(resp.Body).Decode(&result)
-	assert.NoError(t, err)
-	assert.Equal(t, "User logged in successfully", result["message"])
+	}
 }

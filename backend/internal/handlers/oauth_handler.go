@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -78,6 +79,20 @@ func (h *OAuthHandler) InitiateOAuth(c *fiber.Ctx) error {
 	return c.Redirect(authURL, fiber.StatusTemporaryRedirect)
 }
 
+// Sentinel errors returned by resolveOAuthUser. HandleCallback maps each to a
+// user-facing redirect message; the underlying error (if any) is logged at the
+// failure site.
+var (
+	errEmailNotVerified     = errors.New("oauth email not verified")
+	errMissingEmail         = errors.New("oauth missing email")
+	errRegistrationDisabled = errors.New("oauth registration disabled")
+	errLinkFailed           = errors.New("oauth link failed")
+	errFetchFailed          = errors.New("oauth fetch user failed")
+	errCreateFailed         = errors.New("oauth create user failed")
+	errRegistrationCheck    = errors.New("oauth registration check failed")
+	errLookupFailed         = errors.New("oauth user lookup failed")
+)
+
 // HandleCallback processes the OAuth callback from the provider
 // GET /api/v1/auth/oauth/:provider/callback
 func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
@@ -113,83 +128,134 @@ func (h *OAuthHandler) HandleCallback(c *fiber.Ctx) error {
 		return h.redirectWithError(c, "OAuth authentication failed")
 	}
 
-	// Check if user already exists with this OAuth provider
+	user, err := h.resolveOAuthUser(c.Context(), provider, userInfo)
+	if err != nil {
+		switch {
+		case errors.Is(err, errEmailNotVerified):
+			return h.redirectWithError(c, "Email not verified with provider; cannot link to an existing account")
+		case errors.Is(err, errMissingEmail):
+			return h.redirectWithError(c, "No email address provided by the identity provider")
+		case errors.Is(err, errRegistrationDisabled):
+			return h.redirectWithError(c, "Public registration is disabled")
+		case errors.Is(err, errLinkFailed):
+			return h.redirectWithError(c, "Failed to link account")
+		case errors.Is(err, errFetchFailed):
+			return h.redirectWithError(c, "Failed to fetch user")
+		case errors.Is(err, errRegistrationCheck):
+			return h.redirectWithError(c, "Failed to check registration status")
+		case errors.Is(err, errLookupFailed):
+			return h.redirectWithError(c, "Failed to look up account")
+		default: // errCreateFailed and anything unexpected
+			return h.redirectWithError(c, "Failed to create account")
+		}
+	}
+
+	return h.loginUser(c, user, rememberMe)
+}
+
+// resolveOAuthUser maps a verified provider identity to a Nimbus user, creating
+// one if appropriate. Performs NO HTTP/provider calls, so it is unit-testable
+// against real in-memory repositories. Returns a sentinel error that
+// HandleCallback maps to a user-facing redirect.
+func (h *OAuthHandler) resolveOAuthUser(
+	ctx context.Context,
+	provider models.OAuthProvider,
+	userInfo *models.OAuthUserInfo,
+) (*models.User, error) {
+	// 1. Already linked by provider id -> log in. Refresh the cached avatar URL
+	//    (providers, Discord especially, rotate it) but preserve local uploads.
 	existingUser, err := h.userRepo.GetByProviderID(string(provider), userInfo.ProviderID)
 	if err == nil {
-		// Refresh the cached avatar URL — providers (Discord especially)
-		// rotate the URL when the user changes their avatar, so without
-		// this the stored URL goes stale and 404s on the frontend. Skip
-		// if the user has a locally-uploaded avatar so we don't clobber it.
-		isLocalUpload := existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/")
-		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL) {
+		if shouldRefreshAvatar(existingUser.AvatarURL, userInfo.AvatarURL) {
 			if updateErr := h.userRepo.UpdateAvatar(existingUser.ID, &userInfo.AvatarURL); updateErr != nil {
 				log.Printf("Failed to refresh avatar for user %s: %v", existingUser.ID, updateErr)
 			}
 		}
-		return h.loginUser(c, existingUser, rememberMe)
+		return existingUser, nil
+	}
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		log.Printf("Failed to look up user by provider id: %v", err)
+		return nil, errLookupFailed
 	}
 
-	// Check if user exists with this email (different provider)
+	// 2. Email match -> link, but ONLY if the provider verified a non-empty email.
+	//    Without this gate, an attacker who registers at an IdP using a victim's
+	//    email would be linked into the victim's account on first login (#167).
 	existingUser, err = h.userRepo.GetByEmail(userInfo.Email)
 	if err == nil {
-		// Email exists - link this provider to the existing account.
+		if userInfo.Email == "" || !userInfo.EmailVerified {
+			return nil, errEmailNotVerified
+		}
 		// Preserve a locally-uploaded avatar; otherwise adopt the provider's.
 		avatarToStore := &userInfo.AvatarURL
-		if existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/") {
+		if isLocalAvatarUpload(existingUser.AvatarURL) {
 			avatarToStore = existingUser.AvatarURL
 		}
-		err = h.userRepo.LinkOAuthProvider(
-			existingUser.ID,
-			string(provider),
-			userInfo.ProviderID,
-			avatarToStore,
-		)
-		if err != nil {
+		if err := h.userRepo.LinkOAuthProvider(existingUser.ID, string(provider), userInfo.ProviderID, avatarToStore); err != nil {
 			log.Printf("Failed to link OAuth provider: %v", err)
-			return h.redirectWithError(c, "Failed to link account")
+			return nil, errLinkFailed
 		}
-
-		// Refresh user data
-		existingUser, err = h.userRepo.GetByID(existingUser.ID)
+		refreshed, err := h.userRepo.GetByID(existingUser.ID)
 		if err != nil {
 			log.Printf("Failed to fetch user: %v", err)
-			return h.redirectWithError(c, "Failed to fetch user")
+			return nil, errFetchFailed
 		}
-
-		return h.loginUser(c, existingUser, rememberMe)
+		return refreshed, nil
+	}
+	if !errors.Is(err, repository.ErrUserNotFound) {
+		log.Printf("Failed to look up user by email: %v", err)
+		return nil, errLookupFailed
 	}
 
-	// User doesn't exist - check if registration is enabled before creating account
-	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(c.Context())
+	// 3. Brand-new user -> gated only by public registration. Unverified email is
+	//    fine here: no pre-existing row exists, so there is nothing to take over.
+	//    Refuse outright if the provider gave us no email: the column is
+	//    NOT NULL/unique, so a blank email yields a malformed/colliding account.
+	if userInfo.Email == "" {
+		return nil, errMissingEmail
+	}
+	isEnabled, err := h.settingsRepo.IsPublicRegistrationEnabled(ctx)
 	if err != nil {
 		log.Printf("Failed to check registration setting: %v", err)
-		return h.redirectWithError(c, "Failed to check registration status")
+		return nil, errRegistrationCheck
 	}
 	if !isEnabled {
-		return h.redirectWithError(c, "Public registration is disabled")
+		return nil, errRegistrationDisabled
 	}
 
-	// Create new account
 	newUser := &models.User{
 		Email:         userInfo.Email,
 		Name:          userInfo.Name,
 		Provider:      string(provider),
 		ProviderID:    &userInfo.ProviderID,
 		AvatarURL:     &userInfo.AvatarURL,
-		EmailVerified: userInfo.EmailVerified,
-		Role:          "user", // Default role
-		Password:      nil,    // OAuth users don't have passwords
+		EmailVerified: userInfo.EmailVerified, // persist honestly; never forced true
+		Role:          "user",                 // Default role
+		Password:      nil,                    // OAuth users don't have passwords
 		CreatedAt:     time.Now(),
 		UpdatedAt:     time.Now(),
 	}
-
-	err = h.userRepo.Create(newUser)
-	if err != nil {
+	if err := h.userRepo.Create(newUser); err != nil {
 		log.Printf("Failed to create OAuth user: %v", err)
-		return h.redirectWithError(c, "Failed to create account")
+		return nil, errCreateFailed
 	}
+	return newUser, nil
+}
 
-	return h.loginUser(c, newUser, rememberMe)
+// isLocalAvatarUpload reports whether the avatar is a locally-uploaded file
+// (served from /uploads/) that must never be clobbered by a provider URL.
+func isLocalAvatarUpload(avatarURL *string) bool {
+	return avatarURL != nil && strings.HasPrefix(*avatarURL, "/uploads/")
+}
+
+// shouldRefreshAvatar reports whether the cached avatar should be replaced with
+// the provider's URL. Local uploads are preserved, and an unchanged URL is left
+// alone to avoid a redundant write on every login.
+func shouldRefreshAvatar(current *string, providerURL string) bool {
+	if isLocalAvatarUpload(current) {
+		return false
+	}
+	return current == nil || *current != providerURL
 }
 
 // LinkProvider links an OAuth provider to the currently logged-in user
