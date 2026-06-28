@@ -541,3 +541,30 @@ func TestResolveOAuthUser_ProviderIDLogin_RefreshesStaleAvatar(t *testing.T) {
 	assert.NotNil(t, refreshed.AvatarURL)
 	assert.Equal(t, "https://cdn.discordapp.com/avatars/d1/new.png", *refreshed.AvatarURL)
 }
+
+// TestShouldRefreshAvatar covers the avatar-refresh decision directly, including
+// the "URL unchanged -> skip the write" branch (previously verified end-to-end
+// by TestOAuthHandler_AvatarRefresh_MatchingURLIsSkipped).
+func TestShouldRefreshAvatar(t *testing.T) {
+	local := "/uploads/avatars/custom.png"
+	same := "https://cdn/avatar.png"
+	stale := "https://cdn/old.png"
+
+	tests := []struct {
+		name        string
+		current     *string
+		providerURL string
+		want        bool
+	}{
+		{"nil current -> refresh", nil, "https://cdn/new.png", true},
+		{"different URL -> refresh", &stale, "https://cdn/new.png", true},
+		{"same URL -> skip", &same, same, false},
+		{"local upload -> never clobber", &local, "https://cdn/new.png", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, shouldRefreshAvatar(tt.current, tt.providerURL))
+		})
+	}
+}

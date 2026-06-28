@@ -160,8 +160,7 @@ func (h *OAuthHandler) resolveOAuthUser(
 	//    (providers, Discord especially, rotate it) but preserve local uploads.
 	existingUser, err := h.userRepo.GetByProviderID(string(provider), userInfo.ProviderID)
 	if err == nil {
-		isLocalUpload := existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/")
-		if !isLocalUpload && (existingUser.AvatarURL == nil || *existingUser.AvatarURL != userInfo.AvatarURL) {
+		if shouldRefreshAvatar(existingUser.AvatarURL, userInfo.AvatarURL) {
 			if updateErr := h.userRepo.UpdateAvatar(existingUser.ID, &userInfo.AvatarURL); updateErr != nil {
 				log.Printf("Failed to refresh avatar for user %s: %v", existingUser.ID, updateErr)
 			}
@@ -179,7 +178,7 @@ func (h *OAuthHandler) resolveOAuthUser(
 		}
 		// Preserve a locally-uploaded avatar; otherwise adopt the provider's.
 		avatarToStore := &userInfo.AvatarURL
-		if existingUser.AvatarURL != nil && strings.HasPrefix(*existingUser.AvatarURL, "/uploads/") {
+		if isLocalAvatarUpload(existingUser.AvatarURL) {
 			avatarToStore = existingUser.AvatarURL
 		}
 		if err := h.userRepo.LinkOAuthProvider(existingUser.ID, string(provider), userInfo.ProviderID, avatarToStore); err != nil {
@@ -222,6 +221,22 @@ func (h *OAuthHandler) resolveOAuthUser(
 		return nil, errCreateFailed
 	}
 	return newUser, nil
+}
+
+// isLocalAvatarUpload reports whether the avatar is a locally-uploaded file
+// (served from /uploads/) that must never be clobbered by a provider URL.
+func isLocalAvatarUpload(avatarURL *string) bool {
+	return avatarURL != nil && strings.HasPrefix(*avatarURL, "/uploads/")
+}
+
+// shouldRefreshAvatar reports whether the cached avatar should be replaced with
+// the provider's URL. Local uploads are preserved, and an unchanged URL is left
+// alone to avoid a redundant write on every login.
+func shouldRefreshAvatar(current *string, providerURL string) bool {
+	if isLocalAvatarUpload(current) {
+		return false
+	}
+	return current == nil || *current != providerURL
 }
 
 // LinkProvider links an OAuth provider to the currently logged-in user
