@@ -5,12 +5,32 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/nimbus/backend/internal/models"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const apiTokenTestSchema = `
+	CREATE TABLE IF NOT EXISTS users (
+		id TEXT PRIMARY KEY
+	);
+
+	CREATE TABLE IF NOT EXISTS api_tokens (
+		id TEXT PRIMARY KEY,
+		user_id TEXT NOT NULL,
+		name TEXT NOT NULL,
+		token_hash TEXT NOT NULL UNIQUE,
+		token_prefix TEXT NOT NULL,
+		read_only INTEGER NOT NULL DEFAULT 1,
+		last_used_at TIMESTAMP,
+		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+	);
+
+	INSERT INTO users (id) VALUES ('user-1'), ('user-2');
+`
 
 // setupAPITokenTestDB creates an in-memory SQLite database with the api_tokens table
 func setupAPITokenTestDB(t *testing.T) *sql.DB {
@@ -19,20 +39,7 @@ func setupAPITokenTestDB(t *testing.T) *sql.DB {
 		t.Fatalf("Failed to open test database: %v", err)
 	}
 
-	schema := `
-		CREATE TABLE IF NOT EXISTS api_tokens (
-			id TEXT PRIMARY KEY,
-			user_id TEXT NOT NULL,
-			name TEXT NOT NULL,
-			token_hash TEXT NOT NULL UNIQUE,
-			token_prefix TEXT NOT NULL,
-			read_only INTEGER NOT NULL DEFAULT 1,
-			last_used_at TIMESTAMP,
-			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-		);
-	`
-
-	if _, err := db.Exec(schema); err != nil {
+	if _, err := db.Exec(apiTokenTestSchema); err != nil {
 		t.Fatalf("Failed to create test tables: %v", err)
 	}
 
@@ -218,6 +225,59 @@ func TestAPITokenRepository_Create_EnforcesLimit(t *testing.T) {
 	}
 	if err := repo.Create(ctx, other, 2); err != nil {
 		t.Errorf("expected create for other user to succeed, got %v", err)
+	}
+}
+
+func TestAPITokenRepository_Create_ConcurrentRespectsLimit(t *testing.T) {
+	// Single connection: SQLite has no concurrent writers (shared-cache mode
+	// returns SQLITE_LOCKED instead of waiting). Goroutines still race on the
+	// pool, proving the limit invariant holds under concurrent Create calls;
+	// cross-connection serialization on Postgres comes from the user row lock.
+	db, err := sql.Open("sqlite3", ":memory:")
+	if err != nil {
+		t.Fatalf("Failed to open test database: %v", err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+
+	if _, err := db.Exec(apiTokenTestSchema); err != nil {
+		t.Fatalf("Failed to create test tables: %v", err)
+	}
+
+	repo := NewAPITokenRepository(db)
+	const limit = 5
+	const attempts = 10
+
+	var wg sync.WaitGroup
+	errs := make([]error, attempts)
+	for i := 0; i < attempts; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			token := &models.APIToken{
+				UserID:      "user-1",
+				Name:        "Concurrent",
+				TokenHash:   fmt.Sprintf("hash-concurrent-%d", i),
+				TokenPrefix: "nimbus_abcde",
+				ReadOnly:    true,
+			}
+			errs[i] = repo.Create(context.Background(), token, limit)
+		}(i)
+	}
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil && !errors.Is(err, ErrAPITokenLimitReached) {
+			t.Errorf("create %d returned unexpected error: %v", i, err)
+		}
+	}
+
+	tokens, err := repo.ListByUserID(context.Background(), "user-1")
+	if err != nil {
+		t.Fatalf("ListByUserID returned error: %v", err)
+	}
+	if len(tokens) > limit {
+		t.Errorf("limit exceeded under concurrency: got %d tokens, limit %d", len(tokens), limit)
 	}
 }
 

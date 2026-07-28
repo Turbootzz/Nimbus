@@ -28,6 +28,10 @@ func setupAPITokenTestDB(t *testing.T) *sql.DB {
 	}
 
 	schema := `
+		CREATE TABLE IF NOT EXISTS users (
+			id TEXT PRIMARY KEY
+		);
+
 		CREATE TABLE IF NOT EXISTS api_tokens (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
@@ -38,6 +42,10 @@ func setupAPITokenTestDB(t *testing.T) *sql.DB {
 			last_used_at TIMESTAMP,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
+
+		INSERT INTO users (id) VALUES
+			('cccccccc-cccc-cccc-cccc-ccccccccccc1'),
+			('cccccccc-cccc-cccc-cccc-ccccccccccc2');
 	`
 
 	if _, err := db.Exec(schema); err != nil {

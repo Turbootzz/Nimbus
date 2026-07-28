@@ -24,9 +24,9 @@ func NewAPITokenRepository(db *sql.DB) *APITokenRepository {
 	return &APITokenRepository{db: db}
 }
 
-// Create stores a new API token if the user is under maxPerUser. The insert
-// and recount run in one transaction so concurrent creates can't exceed the
-// limit. The ID is generated in Go so tests can run on SQLite, which lacks
+// Create stores a new API token if the user is under maxPerUser. A row lock
+// on the owning user serializes concurrent creates so the limit can't be
+// exceeded. The ID is generated in Go so tests can run on SQLite, which lacks
 // gen_random_uuid().
 func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken, maxPerUser int) error {
 	token.ID = uuid.New().String()
@@ -36,6 +36,13 @@ func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken,
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+
+	// Self-assign UPDATE takes an exclusive row lock on the owner until commit,
+	// serializing concurrent creates per user. Portable across Postgres and
+	// SQLite, unlike SELECT ... FOR UPDATE.
+	if _, err := tx.ExecContext(ctx, `UPDATE users SET id = id WHERE id = $1`, token.UserID); err != nil {
+		return fmt.Errorf("failed to lock user for token create: %w", err)
+	}
 
 	insert := `
 		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only)
