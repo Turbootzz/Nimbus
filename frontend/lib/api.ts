@@ -24,6 +24,9 @@ import type {
   WebhookUpdateRequest,
   WebhookLog,
   WebhookTestResult,
+  ApiToken,
+  ApiTokenCreateRequest,
+  ApiTokenCreateResponse,
   SetupStatusResponse,
   RegistrationStatusResponse,
   SystemSetting,
@@ -553,6 +556,27 @@ class ApiClient {
   async getWebhookLogs(id: string, limit?: number): Promise<ApiResponse<WebhookLog[]>> {
     const query = limit ? `?limit=${limit}` : ''
     return this.request<WebhookLog[]>(`/webhooks/${id}/logs${query}`)
+  }
+
+  // ============================================
+  // API Tokens (personal access tokens)
+  // ============================================
+
+  async getApiTokens(): Promise<ApiResponse<ApiToken[]>> {
+    return this.request<ApiToken[]>('/tokens')
+  }
+
+  async createApiToken(data: ApiTokenCreateRequest): Promise<ApiResponse<ApiTokenCreateResponse>> {
+    return this.request<ApiTokenCreateResponse>('/tokens', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteApiToken(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/tokens/${id}`, {
+      method: 'DELETE',
+    })
   }
 
   // ============================================

@@ -50,6 +50,7 @@ func main() {
 	groupRepo := repository.NewGroupRepository(database)
 	webhookRepo := repository.NewWebhookRepository(database)
 	settingsRepo := repository.NewSettingsRepository(database)
+	apiTokenRepo := repository.NewAPITokenRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -129,6 +130,7 @@ func main() {
 	passwordHandler := handlers.NewPasswordHandler(userRepo, authService, emailService, passwordResetRepo)
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
+	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -180,8 +182,9 @@ func main() {
 	auth.Get("/oauth/:provider", oauthHandler.InitiateOAuth)
 	auth.Get("/oauth/:provider/callback", oauthHandler.HandleCallback)
 
-	// Protected auth routes
-	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo))
+	// Protected auth routes (session only — account management is off-limits
+	// for API tokens)
+	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
 	authProtected.Get("/me", authHandler.GetMe)
 	authProtected.Delete("/me", authHandler.DeleteAccount)
 	authProtected.Put("/change-password", passwordHandler.ChangePassword)
@@ -189,7 +192,7 @@ func main() {
 	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
 	// Service routes (all protected)
-	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo))
+	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
 	services.Put("/reorder", serviceHandler.ReorderServices)     // Must be before /:id routes
@@ -203,7 +206,7 @@ func main() {
 	services.Get("/:id<guid>/status-logs", metricsHandler.GetRecentStatusLogs)
 
 	// Group routes (all protected)
-	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo))
+	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	groups.Post("/", groupHandler.CreateGroup)
 	groups.Get("/", groupHandler.GetGroups)
 	groups.Put("/reorder", groupHandler.ReorderGroups) // Must be before /:id routes
@@ -212,7 +215,7 @@ func main() {
 	groups.Delete("/:id<guid>", groupHandler.DeleteGroup)
 
 	// Webhook routes (all protected)
-	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo))
+	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	webhooks.Post("/", webhookHandler.CreateWebhook)
 	webhooks.Get("/", webhookHandler.GetWebhooks)
 	webhooks.Get("/:id<guid>", webhookHandler.GetWebhook)
@@ -227,24 +230,31 @@ func main() {
 	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
 
 	// Upload routes (protected)
-	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo))
+	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	uploads.Post("/service-icon", uploadHandler.UploadServiceIcon)
 
 	// User avatar route (protected)
-	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo))
+	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	users.Put("/avatar", uploadHandler.UploadAvatar)
 
 	// Metrics routes (protected)
-	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo))
+	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	metrics.Get("/:id<guid>", metricsHandler.GetServiceMetrics)
 
 	// Prometheus metrics endpoint (supports both JWT and API key authentication)
 	// Middleware is optional - handler checks for both JWT (from middleware) and API key
 	prometheus := v1.Group("/prometheus")
-	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo), metricsHandler.GetUserPrometheusMetrics)
+	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo, apiTokenRepo), metricsHandler.GetUserPrometheusMetrics)
+
+	// API token routes (protected; session auth only so a leaked token
+	// can never create or revoke tokens)
+	apiTokens := v1.Group("/tokens", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	apiTokens.Post("/", apiTokenHandler.CreateToken)
+	apiTokens.Get("/", apiTokenHandler.ListTokens)
+	apiTokens.Delete("/:id<guid>", apiTokenHandler.DeleteToken)
 
 	// User preferences routes (protected)
-	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo))
+	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	preferences.Get("/", preferencesHandler.GetPreferences)
 	preferences.Put("/", preferencesHandler.UpdatePreferences)
 
@@ -254,8 +264,9 @@ func main() {
 	setup.Post("/admin", setupHandler.CreateInitialAdmin)
 	setup.Get("/registration-status", settingsHandler.GetPublicRegistrationStatus)
 
-	// Admin routes (protected, admin only)
-	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo), middleware.AdminOnly())
+	// Admin routes (protected, admin only, session only — API tokens can't
+	// reach admin surfaces like SMTP settings)
+	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
 	admin.Put("/users/:id<guid>/role", adminHandler.UpdateUserRole)

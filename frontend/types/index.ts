@@ -310,6 +310,26 @@ export interface WebhookTestResult {
   error?: string
 }
 
+// API token types (personal access tokens)
+export interface ApiToken {
+  id: string
+  name: string
+  token_prefix: string
+  read_only: boolean
+  last_used_at: string | null
+  created_at: string
+}
+
+export interface ApiTokenCreateRequest {
+  name: string
+  read_only: boolean
+}
+
+export interface ApiTokenCreateResponse {
+  token: string
+  api_token: ApiToken
+}
+
 // Password reset types
 export interface ForgotPasswordRequest {
   email: string
