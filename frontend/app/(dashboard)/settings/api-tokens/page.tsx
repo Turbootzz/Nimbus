@@ -183,7 +183,8 @@ export default function ApiTokensPage() {
                 </div>
                 <p className="text-text-muted mt-1 font-mono text-xs">{token.token_prefix}…</p>
                 <p className="text-text-secondary mt-1 text-xs">
-                  Created {formatDate(token.created_at)} · Last used {formatDate(token.last_used_at)}
+                  Created {formatDate(token.created_at)} · Last used{' '}
+                  {formatDate(token.last_used_at)}
                 </p>
               </div>
               <button

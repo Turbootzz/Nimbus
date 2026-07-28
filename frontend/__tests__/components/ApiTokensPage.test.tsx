@@ -80,7 +80,10 @@ describe('ApiTokensPage', () => {
     const user = userEvent.setup()
     vi.mocked(api.getApiTokens).mockResolvedValue({ data: [mockToken] })
     vi.mocked(api.deleteApiToken).mockResolvedValue({})
-    vi.stubGlobal('confirm', vi.fn(() => true))
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true)
+    )
 
     render(<ApiTokensPage />)
 
