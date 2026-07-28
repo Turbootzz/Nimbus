@@ -15,6 +15,7 @@ export default function ApiTokensPage() {
   const [creating, setCreating] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [revokingId, setRevokingId] = useState<string | null>(null)
 
   const fetchTokens = useCallback(async () => {
     try {
@@ -71,12 +72,18 @@ export default function ApiTokensPage() {
   }
 
   const handleRevoke = async (token: ApiToken) => {
+    if (revokingId) return
     if (!confirm(`Revoke "${token.name}"? Clients using it will stop working immediately.`)) return
-    const response = await api.deleteApiToken(token.id)
-    if (!response.error) {
-      setTokens(tokens.filter((t) => t.id !== token.id))
-    } else {
-      setError(response.error.message)
+    setRevokingId(token.id)
+    try {
+      const response = await api.deleteApiToken(token.id)
+      if (!response.error) {
+        setTokens(tokens.filter((t) => t.id !== token.id))
+      } else {
+        setError(response.error.message)
+      }
+    } finally {
+      setRevokingId(null)
     }
   }
 
@@ -189,9 +196,10 @@ export default function ApiTokensPage() {
               </div>
               <button
                 onClick={() => handleRevoke(token)}
-                className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10"
+                disabled={revokingId !== null}
+                className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Revoke
+                {revokingId === token.id ? 'Revoking…' : 'Revoke'}
               </button>
             </div>
           ))

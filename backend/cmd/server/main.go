@@ -182,8 +182,9 @@ func main() {
 	auth.Get("/oauth/:provider", oauthHandler.InitiateOAuth)
 	auth.Get("/oauth/:provider/callback", oauthHandler.HandleCallback)
 
-	// Protected auth routes
-	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	// Protected auth routes (session only — account management is off-limits
+	// for API tokens)
+	authProtected := auth.Group("", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
 	authProtected.Get("/me", authHandler.GetMe)
 	authProtected.Delete("/me", authHandler.DeleteAccount)
 	authProtected.Put("/change-password", passwordHandler.ChangePassword)
@@ -263,8 +264,9 @@ func main() {
 	setup.Post("/admin", setupHandler.CreateInitialAdmin)
 	setup.Get("/registration-status", settingsHandler.GetPublicRegistrationStatus)
 
-	// Admin routes (protected, admin only)
-	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.AdminOnly())
+	// Admin routes (protected, admin only, session only — API tokens can't
+	// reach admin surfaces like SMTP settings)
+	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
 	admin.Put("/users/:id<guid>/role", adminHandler.UpdateUserRole)

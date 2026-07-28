@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
@@ -34,26 +37,15 @@ func (h *APITokenHandler) CreateToken(c *fiber.Ctx) error {
 		})
 	}
 
+	req.Name = strings.TrimSpace(req.Name)
 	if req.Name == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Name is required",
 		})
 	}
-	if len(req.Name) > 100 {
+	if utf8.RuneCountInString(req.Name) > 100 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Name must be 100 characters or less",
-		})
-	}
-
-	count, err := h.tokenRepo.CountByUserID(c.Context(), userID)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to check token limit",
-		})
-	}
-	if count >= maxAPITokensPerUser {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Maximum token limit reached (10)",
 		})
 	}
 
@@ -78,7 +70,12 @@ func (h *APITokenHandler) CreateToken(c *fiber.Ctx) error {
 		ReadOnly:    readOnly,
 	}
 
-	if err := h.tokenRepo.Create(c.Context(), apiToken); err != nil {
+	if err := h.tokenRepo.Create(c.Context(), apiToken, maxAPITokensPerUser); err != nil {
+		if errors.Is(err, repository.ErrAPITokenLimitReached) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": fmt.Sprintf("Maximum token limit reached (%d)", maxAPITokensPerUser),
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create token",
 		})

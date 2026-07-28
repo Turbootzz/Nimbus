@@ -79,3 +79,5 @@ backend/uploads/
 
 # Prod
 docker-compose.prod.yml
+# Local planning docs
+docs/superpowers/

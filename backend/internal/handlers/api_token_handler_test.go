@@ -133,6 +133,12 @@ func TestAPITokenHandler_CreateToken_Validation(t *testing.T) {
 		t.Errorf("expected 400 for missing name, got %d", resp.StatusCode)
 	}
 
+	// Whitespace-only name
+	resp = createTokenRequest(t, app, `{"name":"   "}`)
+	if resp.StatusCode != fiber.StatusBadRequest {
+		t.Errorf("expected 400 for whitespace-only name, got %d", resp.StatusCode)
+	}
+
 	// Name too long
 	longName := strings.Repeat("a", 101)
 	resp = createTokenRequest(t, app, fmt.Sprintf(`{"name":"%s"}`, longName))
@@ -211,6 +217,9 @@ func TestAPITokenHandler_DeleteToken(t *testing.T) {
 	app := setupAPITokenTestApp(db, testTokenUserID)
 
 	resp := createTokenRequest(t, app, `{"name":"Doomed"}`)
+	if resp.StatusCode != fiber.StatusCreated {
+		t.Fatalf("expected 201, got %d", resp.StatusCode)
+	}
 	var result models.APITokenCreateResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/nimbus/backend/internal/models"
@@ -47,7 +48,7 @@ func createTestToken(t *testing.T, repo *APITokenRepository, userID, name, hash 
 		TokenPrefix: "nimbus_abcde",
 		ReadOnly:    readOnly,
 	}
-	if err := repo.Create(context.Background(), token); err != nil {
+	if err := repo.Create(context.Background(), token, 10); err != nil {
 		t.Fatalf("Failed to create token: %v", err)
 	}
 	return token
@@ -167,30 +168,56 @@ func TestAPITokenRepository_Delete(t *testing.T) {
 	}
 }
 
-func TestAPITokenRepository_CountByUserID(t *testing.T) {
+func TestAPITokenRepository_Create_EnforcesLimit(t *testing.T) {
 	db := setupAPITokenTestDB(t)
 	defer db.Close()
 
 	repo := NewAPITokenRepository(db)
 	ctx := context.Background()
 
-	createTestToken(t, repo, "user-1", "Token A", "hash-a", true)
-	createTestToken(t, repo, "user-1", "Token B", "hash-b", true)
+	for i := 0; i < 2; i++ {
+		token := &models.APIToken{
+			UserID:      "user-1",
+			Name:        "Token",
+			TokenHash:   fmt.Sprintf("hash-%d", i),
+			TokenPrefix: "nimbus_abcde",
+			ReadOnly:    true,
+		}
+		if err := repo.Create(ctx, token, 2); err != nil {
+			t.Fatalf("Failed to create token %d: %v", i, err)
+		}
+	}
 
-	count, err := repo.CountByUserID(ctx, "user-1")
-	if err != nil {
-		t.Fatalf("CountByUserID returned error: %v", err)
+	over := &models.APIToken{
+		UserID:      "user-1",
+		Name:        "Over limit",
+		TokenHash:   "hash-over",
+		TokenPrefix: "nimbus_abcde",
+		ReadOnly:    true,
 	}
-	if count != 2 {
-		t.Errorf("expected count 2, got %d", count)
+	if err := repo.Create(ctx, over, 2); !errors.Is(err, ErrAPITokenLimitReached) {
+		t.Errorf("expected ErrAPITokenLimitReached, got %v", err)
 	}
 
-	count, err = repo.CountByUserID(ctx, "user-2")
+	// Rejected insert must be rolled back
+	tokens, err := repo.ListByUserID(ctx, "user-1")
 	if err != nil {
-		t.Fatalf("CountByUserID returned error: %v", err)
+		t.Fatalf("ListByUserID returned error: %v", err)
 	}
-	if count != 0 {
-		t.Errorf("expected count 0, got %d", count)
+	if len(tokens) != 2 {
+		t.Errorf("expected 2 tokens after rejected create, got %d", len(tokens))
+	}
+
+	// Other users are unaffected by user-1's limit
+	other := &models.APIToken{
+		UserID:      "user-2",
+		Name:        "Other user",
+		TokenHash:   "hash-other",
+		TokenPrefix: "nimbus_abcde",
+		ReadOnly:    true,
+	}
+	if err := repo.Create(ctx, other, 2); err != nil {
+		t.Errorf("expected create for other user to succeed, got %v", err)
 	}
 }
 

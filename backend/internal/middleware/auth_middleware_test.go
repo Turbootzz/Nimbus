@@ -2,6 +2,8 @@ package middleware
 
 import (
 	"database/sql"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -707,12 +709,19 @@ func TestOptionalAuthMiddleware_APIToken(t *testing.T) {
 		return c.JSON(fiber.Map{"authenticated": true, "user_id": userID})
 	})
 
+	decodeAuth := func(resp *http.Response) map[string]any {
+		var body map[string]any
+		assert.NoError(t, json.NewDecoder(resp.Body).Decode(&body))
+		return body
+	}
+
 	// Valid PAT authenticates
 	req := httptest.NewRequest("GET", "/maybe-protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	assert.Equal(t, true, decodeAuth(resp)["authenticated"])
 
 	// Unknown PAT falls through unauthenticated (no error)
 	req = httptest.NewRequest("GET", "/maybe-protected", nil)
@@ -720,4 +729,20 @@ func TestOptionalAuthMiddleware_APIToken(t *testing.T) {
 	resp, err = app.Test(req)
 	assert.NoError(t, err)
 	assert.Equal(t, fiber.StatusOK, resp.StatusCode)
+	assert.Equal(t, false, decodeAuth(resp)["authenticated"])
+}
+
+func TestRequireSessionAuth_DeniesWithoutAuthMethod(t *testing.T) {
+	setupTestEnv()
+	// No auth middleware ran at all — must deny by default
+	app := fiber.New()
+	app.Use(RequireSessionAuth())
+	app.Get("/tokens", func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("GET", "/tokens", nil)
+	resp, err := app.Test(req)
+	assert.NoError(t, err)
+	assert.Equal(t, fiber.StatusForbidden, resp.StatusCode)
 }

@@ -3,8 +3,10 @@ package middleware
 import (
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 	"github.com/nimbus/backend/internal/utils"
@@ -97,45 +99,63 @@ func AuthMiddleware(authService *services.AuthService, userRepo *repository.User
 	}
 }
 
-// authenticateAPIToken validates a personal access token, enforces its
-// read-only flag, and stores the owner's identity in the request context
-func authenticateAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) error {
+// errReadOnlyTokenWrite marks a write attempt with a read-only token
+var errReadOnlyTokenWrite = errors.New("read-only token cannot modify resources")
+
+// resolveAPIToken looks up a PAT and its owner, enforcing the read-only flag
+// and stamping usage. Callers map the returned error to their own semantics:
+// repository.ErrAPITokenNotFound, errReadOnlyTokenWrite,
+// repository.ErrUserNotFound, or an infrastructure error.
+func resolveAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) (*models.User, *models.APIToken, error) {
 	apiToken, err := apiTokenRepo.GetByTokenHash(c.Context(), utils.HashAPIToken(token))
 	if err != nil {
-		if errors.Is(err, repository.ErrAPITokenNotFound) {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid API token",
-			})
-		}
-		c.Context().Logger().Printf("API token auth DB error: %v", err)
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "Authentication service unavailable",
-		})
+		return nil, nil, err
 	}
 
 	// Read-only tokens can never modify anything, even if leaked
 	if apiToken.ReadOnly && c.Method() != fiber.MethodGet && c.Method() != fiber.MethodHead {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-			"error": "Read-only token cannot modify resources",
-		})
+		return nil, nil, errReadOnlyTokenWrite
 	}
 
 	user, err := userRepo.GetByID(apiToken.UserID)
 	if err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
+		return nil, nil, err
+	}
+
+	// Best-effort usage stamp, throttled so polling clients don't write per request
+	if apiToken.LastUsedAt == nil || time.Since(*apiToken.LastUsedAt) > time.Minute {
+		if err := apiTokenRepo.UpdateLastUsed(c.Context(), apiToken.ID); err != nil {
+			c.Context().Logger().Printf("Failed to update api token last_used_at: %v", err)
+		}
+	}
+
+	return user, apiToken, nil
+}
+
+// authenticateAPIToken validates a personal access token and stores the
+// owner's identity in the request context
+func authenticateAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) error {
+	user, _, err := resolveAPIToken(c, token, userRepo, apiTokenRepo)
+	if err != nil {
+		switch {
+		case errors.Is(err, repository.ErrAPITokenNotFound):
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "Invalid API token",
+			})
+		case errors.Is(err, errReadOnlyTokenWrite):
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Read-only token cannot modify resources",
+			})
+		case errors.Is(err, repository.ErrUserNotFound):
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": "User not found - invalid token",
 			})
+		default:
+			c.Context().Logger().Printf("API token auth DB error: %v", err)
+			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+				"error": "Authentication service unavailable",
+			})
 		}
-		c.Context().Logger().Printf("API token auth DB error: %v", err)
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-			"error": "Authentication service unavailable",
-		})
-	}
-
-	// Best-effort usage stamp; auth must not fail on this
-	if err := apiTokenRepo.UpdateLastUsed(c.Context(), apiToken.ID); err != nil {
-		c.Context().Logger().Printf("Failed to update api token last_used_at: %v", err)
 	}
 
 	c.Locals("user_id", user.ID)
@@ -160,19 +180,9 @@ func OptionalAuthMiddleware(authService *services.AuthService, userRepo *reposit
 		// Personal access token: authenticate against the database, but keep
 		// optional semantics — any failure falls through unauthenticated
 		if utils.IsAPIToken(token) {
-			apiToken, err := apiTokenRepo.GetByTokenHash(c.Context(), utils.HashAPIToken(token))
+			user, _, err := resolveAPIToken(c, token, userRepo, apiTokenRepo)
 			if err != nil {
 				return c.Next()
-			}
-			if apiToken.ReadOnly && c.Method() != fiber.MethodGet && c.Method() != fiber.MethodHead {
-				return c.Next()
-			}
-			user, err := userRepo.GetByID(apiToken.UserID)
-			if err != nil {
-				return c.Next()
-			}
-			if err := apiTokenRepo.UpdateLastUsed(c.Context(), apiToken.ID); err != nil {
-				c.Context().Logger().Printf("Failed to update api token last_used_at: %v", err)
 			}
 			c.Locals("user_id", user.ID)
 			c.Locals("email", user.Email)
@@ -223,13 +233,15 @@ func AdminOnly() fiber.Handler {
 	}
 }
 
-// RequireSessionAuth blocks API-token authentication. Used on token-management
-// routes so a leaked token can never create or revoke tokens.
+// RequireSessionAuth restricts a route to session (JWT) authentication.
+// Used on sensitive routes (token management, account management, admin) so a
+// leaked API token can never reach them. Denies by default when no auth
+// middleware ran at all.
 func RequireSessionAuth() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		if c.Locals("auth_method") == AuthMethodAPIToken {
+		if c.Locals("auth_method") != AuthMethodSession {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "API tokens cannot manage API tokens",
+				"error": "Session authentication required",
 			})
 		}
 		return c.Next()

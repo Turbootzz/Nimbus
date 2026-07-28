@@ -12,7 +12,8 @@ import (
 
 // Sentinel errors for api token repository
 var (
-	ErrAPITokenNotFound = errors.New("api token not found")
+	ErrAPITokenNotFound     = errors.New("api token not found")
+	ErrAPITokenLimitReached = errors.New("api token limit reached")
 )
 
 type APITokenRepository struct {
@@ -23,17 +24,25 @@ func NewAPITokenRepository(db *sql.DB) *APITokenRepository {
 	return &APITokenRepository{db: db}
 }
 
-// Create stores a new API token. The ID is generated in Go so tests can run
-// on SQLite, which lacks gen_random_uuid().
-func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken) error {
+// Create stores a new API token if the user is under maxPerUser. The insert
+// and recount run in one transaction so concurrent creates can't exceed the
+// limit. The ID is generated in Go so tests can run on SQLite, which lacks
+// gen_random_uuid().
+func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken, maxPerUser int) error {
 	token.ID = uuid.New().String()
-	query := `
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	insert := `
 		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING created_at
 	`
-
-	err := r.db.QueryRowContext(ctx, query,
+	err = tx.QueryRowContext(ctx, insert,
 		token.ID,
 		token.UserID,
 		token.Name,
@@ -41,9 +50,21 @@ func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken)
 		token.TokenPrefix,
 		token.ReadOnly,
 	).Scan(&token.CreatedAt)
-
 	if err != nil {
 		return fmt.Errorf("failed to create api token: %w", err)
+	}
+
+	var count int
+	countQuery := `SELECT COUNT(*) FROM api_tokens WHERE user_id = $1`
+	if err := tx.QueryRowContext(ctx, countQuery, token.UserID).Scan(&count); err != nil {
+		return fmt.Errorf("failed to count api tokens: %w", err)
+	}
+	if count > maxPerUser {
+		return ErrAPITokenLimitReached
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit api token: %w", err)
 	}
 
 	return nil
@@ -149,16 +170,4 @@ func (r *APITokenRepository) UpdateLastUsed(ctx context.Context, id string) erro
 	}
 
 	return nil
-}
-
-// CountByUserID returns the number of tokens a user has
-func (r *APITokenRepository) CountByUserID(ctx context.Context, userID string) (int, error) {
-	query := `SELECT COUNT(*) FROM api_tokens WHERE user_id = $1`
-
-	var count int
-	if err := r.db.QueryRowContext(ctx, query, userID).Scan(&count); err != nil {
-		return 0, fmt.Errorf("failed to count api tokens: %w", err)
-	}
-
-	return count, nil
 }
