@@ -130,6 +130,7 @@ func main() {
 	passwordHandler := handlers.NewPasswordHandler(userRepo, authService, emailService, passwordResetRepo)
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
+	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -243,6 +244,13 @@ func main() {
 	// Middleware is optional - handler checks for both JWT (from middleware) and API key
 	prometheus := v1.Group("/prometheus")
 	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo, apiTokenRepo), metricsHandler.GetUserPrometheusMetrics)
+
+	// API token routes (protected; session auth only so a leaked token
+	// can never create or revoke tokens)
+	apiTokens := v1.Group("/tokens", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	apiTokens.Post("/", apiTokenHandler.CreateToken)
+	apiTokens.Get("/", apiTokenHandler.ListTokens)
+	apiTokens.Delete("/:id<guid>", apiTokenHandler.DeleteToken)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
