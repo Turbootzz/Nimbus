@@ -266,18 +266,30 @@ func TestAPITokenRepository_Create_ConcurrentRespectsLimit(t *testing.T) {
 	}
 	wg.Wait()
 
+	successes, limitErrors := 0, 0
 	for i, err := range errs {
-		if err != nil && !errors.Is(err, ErrAPITokenLimitReached) {
+		switch {
+		case err == nil:
+			successes++
+		case errors.Is(err, ErrAPITokenLimitReached):
+			limitErrors++
+		default:
 			t.Errorf("create %d returned unexpected error: %v", i, err)
 		}
+	}
+	if successes != limit {
+		t.Errorf("expected exactly %d successful creates, got %d", limit, successes)
+	}
+	if limitErrors != attempts-limit {
+		t.Errorf("expected %d limit errors, got %d", attempts-limit, limitErrors)
 	}
 
 	tokens, err := repo.ListByUserID(context.Background(), "user-1")
 	if err != nil {
 		t.Fatalf("ListByUserID returned error: %v", err)
 	}
-	if len(tokens) > limit {
-		t.Errorf("limit exceeded under concurrency: got %d tokens, limit %d", len(tokens), limit)
+	if len(tokens) != limit {
+		t.Errorf("expected exactly %d tokens after concurrent creates, got %d", limit, len(tokens))
 	}
 }
 
