@@ -115,6 +115,35 @@ func TestAPITokenRepository_ListByUserID(t *testing.T) {
 	}
 }
 
+func TestAPITokenRepository_ListByUserID_NewestFirst(t *testing.T) {
+	db := setupAPITokenTestDB(t)
+	defer db.Close()
+
+	repo := NewAPITokenRepository(db)
+	ctx := context.Background()
+
+	// Insert directly with explicit timestamps; CURRENT_TIMESTAMP resolution
+	// would make same-second inserts an ordering tie
+	insert := `INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only, created_at) VALUES (?, ?, ?, ?, ?, 1, ?)`
+	if _, err := db.Exec(insert, "id-old", "user-1", "Old", "hash-old", "nimbus_old", "2026-01-01 10:00:00"); err != nil {
+		t.Fatalf("Failed to insert: %v", err)
+	}
+	if _, err := db.Exec(insert, "id-new", "user-1", "New", "hash-new", "nimbus_new", "2026-06-01 10:00:00"); err != nil {
+		t.Fatalf("Failed to insert: %v", err)
+	}
+
+	tokens, err := repo.ListByUserID(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("ListByUserID returned error: %v", err)
+	}
+	if len(tokens) != 2 {
+		t.Fatalf("expected 2 tokens, got %d", len(tokens))
+	}
+	if tokens[0].Name != "New" || tokens[1].Name != "Old" {
+		t.Errorf("expected newest first, got order: %s, %s", tokens[0].Name, tokens[1].Name)
+	}
+}
+
 func TestAPITokenRepository_Delete(t *testing.T) {
 	db := setupAPITokenTestDB(t)
 	defer db.Close()

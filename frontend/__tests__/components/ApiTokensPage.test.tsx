@@ -76,6 +76,43 @@ describe('ApiTokensPage', () => {
     expect(screen.getByText(/won't be able to see this token again/i)).toBeInTheDocument()
   })
 
+  it('shows an error when loading tokens fails', async () => {
+    vi.mocked(api.getApiTokens).mockResolvedValue({
+      error: { message: 'Something went wrong' },
+    })
+
+    render(<ApiTokensPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument()
+    })
+  })
+
+  it('shows an error when revoking fails and keeps the token listed', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.getApiTokens).mockResolvedValue({ data: [mockToken] })
+    vi.mocked(api.deleteApiToken).mockResolvedValue({
+      error: { message: 'Failed to delete token' },
+    })
+    vi.stubGlobal(
+      'confirm',
+      vi.fn(() => true)
+    )
+
+    render(<ApiTokensPage />)
+
+    await waitFor(() => {
+      expect(screen.getByText('Hearth')).toBeInTheDocument()
+    })
+
+    await user.click(screen.getByRole('button', { name: /revoke/i }))
+
+    await waitFor(() => {
+      expect(screen.getByText('Failed to delete token')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Hearth')).toBeInTheDocument()
+  })
+
   it('revokes a token', async () => {
     const user = userEvent.setup()
     vi.mocked(api.getApiTokens).mockResolvedValue({ data: [mockToken] })
