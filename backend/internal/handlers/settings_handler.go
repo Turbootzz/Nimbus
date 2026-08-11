@@ -4,12 +4,22 @@ import (
 	"errors"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 )
+
+const (
+	invalidTLSModeError       = "SMTP TLS mode must be 'starttls', 'tls' or 'none'"
+	plaintextCredentialsError = "SMTP username and password must be empty when encryption is disabled"
+)
+
+func isNoTLS(mode string) bool {
+	return strings.EqualFold(strings.TrimSpace(mode), services.TLSModeNone)
+}
 
 type SettingsHandler struct {
 	settingsRepo *repository.SettingsRepository
@@ -21,6 +31,15 @@ func NewSettingsHandler(settingsRepo *repository.SettingsRepository, emailServic
 		settingsRepo: settingsRepo,
 		emailService: emailService,
 	}
+}
+
+// storedSetting returns the saved value, or "" when it is missing
+func (h *SettingsHandler) storedSetting(c *fiber.Ctx, key string) string {
+	setting, err := h.settingsRepo.Get(c.Context(), key)
+	if err != nil {
+		return ""
+	}
+	return setting.Value
 }
 
 // GetSettings returns all system settings (admin only)
@@ -94,7 +113,7 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 
 	// Validate value for known settings
 	switch key {
-	case "public_registration_enabled", "smtp_enabled":
+	case "public_registration_enabled", "smtp_enabled", "smtp_tls_skip_verify":
 		if req.Value != "true" && req.Value != "false" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Value must be 'true' or 'false'",
@@ -110,6 +129,23 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 		if err != nil || port < 1 || port > 65535 {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "SMTP port must be a valid number",
+			})
+		}
+	case "smtp_tls_mode":
+		if !services.IsValidTLSMode(req.Value) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": invalidTLSModeError,
+			})
+		}
+		if isNoTLS(req.Value) && (h.storedSetting(c, "smtp_username") != "" || h.storedSetting(c, "smtp_password") != "") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": plaintextCredentialsError,
+			})
+		}
+	case "smtp_username", "smtp_password":
+		if req.Value != "" && isNoTLS(h.storedSetting(c, "smtp_tls_mode")) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": plaintextCredentialsError,
 			})
 		}
 	}
@@ -139,17 +175,44 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 	return c.JSON(setting)
 }
 
+// TLS fields are pointers so an omitted field leaves the stored value untouched
+type smtpSettingsRequest struct {
+	Host          string  `json:"smtp_host"`
+	Port          string  `json:"smtp_port"`
+	Username      string  `json:"smtp_username"`
+	Password      string  `json:"smtp_password"`
+	FromEmail     string  `json:"smtp_from_email"`
+	FromName      string  `json:"smtp_from_name"`
+	Enabled       string  `json:"smtp_enabled"`
+	TLSMode       *string `json:"smtp_tls_mode"`
+	TLSSkipVerify *string `json:"smtp_tls_skip_verify"`
+}
+
+func (r smtpSettingsRequest) tlsMode() string {
+	if r.TLSMode == nil {
+		return ""
+	}
+	return *r.TLSMode
+}
+
+func (r smtpSettingsRequest) tlsSkipVerify() string {
+	if r.TLSSkipVerify == nil {
+		return ""
+	}
+	return *r.TLSSkipVerify
+}
+
+// effectiveTLSMode is the request's mode, or the stored one when it is omitted
+func (h *SettingsHandler) effectiveTLSMode(c *fiber.Ctx, req smtpSettingsRequest) string {
+	if req.TLSMode != nil {
+		return *req.TLSMode
+	}
+	return h.storedSetting(c, "smtp_tls_mode")
+}
+
 // UpdateSMTPSettings saves all SMTP settings atomically
 func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
-	var req struct {
-		Host      string `json:"smtp_host"`
-		Port      string `json:"smtp_port"`
-		Username  string `json:"smtp_username"`
-		Password  string `json:"smtp_password"`
-		FromEmail string `json:"smtp_from_email"`
-		FromName  string `json:"smtp_from_name"`
-		Enabled   string `json:"smtp_enabled"`
-	}
+	var req smtpSettingsRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -160,6 +223,25 @@ func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
 	if req.Enabled != "true" && req.Enabled != "false" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "smtp_enabled must be 'true' or 'false'",
+		})
+	}
+
+	if v := req.tlsSkipVerify(); v != "" && v != "true" && v != "false" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "smtp_tls_skip_verify must be 'true' or 'false'",
+		})
+	}
+
+	if !services.IsValidTLSMode(req.tlsMode()) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": invalidTLSModeError,
+		})
+	}
+
+	// Reject at save time what the send path would reject anyway
+	if isNoTLS(h.effectiveTLSMode(c, req)) && (req.Username != "" || req.Password != "") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": plaintextCredentialsError,
 		})
 	}
 
@@ -201,6 +283,12 @@ func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
 		"smtp_from_name":  req.FromName,
 		"smtp_enabled":    req.Enabled,
 	}
+	if req.TLSMode != nil {
+		settings["smtp_tls_mode"] = *req.TLSMode
+	}
+	if req.TLSSkipVerify != nil {
+		settings["smtp_tls_skip_verify"] = *req.TLSSkipVerify
+	}
 
 	if err := h.settingsRepo.UpdateBatch(c.Context(), settings, &userID); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -226,17 +314,16 @@ func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
 	var testErr error
 
 	// Try to parse inline config from request body
-	var req struct {
-		Host      string `json:"smtp_host"`
-		Port      string `json:"smtp_port"`
-		Username  string `json:"smtp_username"`
-		Password  string `json:"smtp_password"`
-		FromEmail string `json:"smtp_from_email"`
-		FromName  string `json:"smtp_from_name"`
-		Enabled   string `json:"smtp_enabled"`
-	}
+	var req smtpSettingsRequest
 
 	if len(c.Body()) > 0 && c.BodyParser(&req) == nil && req.Host != "" {
+		if !services.IsValidTLSMode(req.tlsMode()) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": invalidTLSModeError,
+			})
+		}
+
 		// Use inline config for pre-save testing
 		port := 587
 		if req.Port != "" {
@@ -245,15 +332,17 @@ func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
 			}
 		}
 		config := &services.SMTPConfig{
-			Host:      req.Host,
-			Port:      port,
-			Username:  req.Username,
-			Password:  req.Password,
-			FromEmail: req.FromEmail,
-			FromName:  req.FromName,
-			Enabled:   req.Enabled != "false",
+			Host:          req.Host,
+			Port:          port,
+			Username:      req.Username,
+			Password:      req.Password,
+			FromEmail:     req.FromEmail,
+			FromName:      req.FromName,
+			Enabled:       req.Enabled != "false",
+			TLSMode:       req.tlsMode(),
+			TLSSkipVerify: req.tlsSkipVerify() == "true",
 		}
-		testErr = h.emailService.TestConnectionWithConfig(config)
+		testErr = h.emailService.TestConnectionWithConfig(c.Context(), config)
 	} else {
 		// Fall back to saved config
 		testErr = h.emailService.TestConnection(c.Context())

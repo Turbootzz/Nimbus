@@ -18,18 +18,55 @@ import (
 	"github.com/nimbus/backend/internal/repository"
 )
 
-const smtpDialTimeout = 10 * time.Second
+const (
+	smtpDialTimeout    = 10 * time.Second
+	smtpSessionTimeout = 30 * time.Second
+)
+
+// TLS modes for outgoing SMTP connections
+const (
+	TLSModeSTARTTLS = "starttls" // plaintext connection upgraded via STARTTLS
+	TLSModeImplicit = "tls"      // TLS from the first byte, typically port 465
+	TLSModeNone     = "none"     // no encryption, for trusted local relays only
+)
 
 // SMTPConfig holds SMTP connection settings
 type SMTPConfig struct {
-	Host       string
-	Port       int
-	Username   string
-	Password   string
-	FromEmail  string
-	FromName   string
-	Enabled    bool
-	enabledSet bool // tracks whether Enabled was explicitly configured
+	Host          string
+	Port          int
+	Username      string
+	Password      string
+	FromEmail     string
+	FromName      string
+	Enabled       bool
+	TLSMode       string // one of the TLSMode constants; empty derives from the port
+	TLSSkipVerify bool   // skip certificate verification (self-signed relays)
+	enabledSet    bool   // tracks whether Enabled was explicitly configured
+}
+
+// IsValidTLSMode reports whether mode is supported; empty means "derive from port"
+func IsValidTLSMode(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "", TLSModeSTARTTLS, TLSModeImplicit, TLSModeNone:
+		return true
+	}
+	return false
+}
+
+// resolveTLSMode normalizes mode; unset falls back to implicit TLS on 465, STARTTLS elsewhere
+func resolveTLSMode(mode string, port int) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case TLSModeSTARTTLS:
+		return TLSModeSTARTTLS
+	case TLSModeImplicit:
+		return TLSModeImplicit
+	case TLSModeNone:
+		return TLSModeNone
+	}
+	if port == 465 {
+		return TLSModeImplicit
+	}
+	return TLSModeSTARTTLS
 }
 
 type EmailService struct {
@@ -43,6 +80,7 @@ func NewEmailService(settingsRepo *repository.SettingsRepository) *EmailService 
 // GetSMTPConfig loads SMTP config from system_settings with env var fallback
 func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 	config := &SMTPConfig{}
+	skipVerifySet := false
 
 	// Try loading from system_settings first
 	settings, err := s.settingsRepo.GetAll(ctx)
@@ -76,6 +114,13 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 			config.Enabled = v == "true"
 			config.enabledSet = true
 		}
+		if v, ok := settingsMap["smtp_tls_mode"]; ok && v != "" {
+			config.TLSMode = v
+		}
+		if v, ok := settingsMap["smtp_tls_skip_verify"]; ok && v != "" {
+			config.TLSSkipVerify = v == "true"
+			skipVerifySet = true
+		}
 	}
 
 	// Fall back to env vars for any unset values
@@ -89,12 +134,6 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 			}
 		}
 	}
-	if config.Username == "" {
-		config.Username = os.Getenv("SMTP_USERNAME")
-	}
-	if config.Password == "" {
-		config.Password = os.Getenv("SMTP_PASSWORD")
-	}
 	if config.FromEmail == "" {
 		config.FromEmail = os.Getenv("SMTP_FROM_EMAIL")
 	}
@@ -102,6 +141,23 @@ func (s *EmailService) GetSMTPConfig(ctx context.Context) (*SMTPConfig, error) {
 		config.FromName = os.Getenv("SMTP_FROM_NAME")
 		if config.FromName == "" {
 			config.FromName = "Nimbus"
+		}
+	}
+	if config.TLSMode == "" {
+		config.TLSMode = os.Getenv("SMTP_TLS_MODE")
+	}
+	if !skipVerifySet {
+		config.TLSSkipVerify = os.Getenv("SMTP_TLS_SKIP_VERIFY") == "true"
+	}
+
+	// Credentials are unusable without encryption, so don't resurrect env
+	// leftovers that the admin cleared for an unencrypted relay
+	if resolveTLSMode(config.TLSMode, config.Port) != TLSModeNone {
+		if config.Username == "" {
+			config.Username = os.Getenv("SMTP_USERNAME")
+		}
+		if config.Password == "" {
+			config.Password = os.Getenv("SMTP_PASSWORD")
 		}
 	}
 
@@ -146,12 +202,8 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 		return fmt.Errorf("failed to get SMTP config: %w", err)
 	}
 
-	if !config.Enabled || config.Host == "" {
-		return errors.New("SMTP is not configured")
-	}
-
-	if config.Port == 0 {
-		config.Port = 587
+	if err := prepareSMTPConfig(config); err != nil {
+		return err
 	}
 
 	from := config.FromEmail
@@ -170,14 +222,35 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 		encodedName, from, to, subject)
 	msg := []byte(headers + htmlBody)
 
-	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
+	c, err := dialSMTP(ctx, config)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
 
-	// Use TLS for port 465, STARTTLS for others
-	if config.Port == 465 {
-		return s.sendWithImplicitTLS(config, addr, from, to, msg)
+	if err := authenticateSMTP(c, config); err != nil {
+		return err
 	}
 
-	return s.sendWithSTARTTLS(config, addr, from, to, msg)
+	if err := c.Mail(from); err != nil {
+		return fmt.Errorf("SMTP MAIL FROM failed: %w", err)
+	}
+	if err := c.Rcpt(to); err != nil {
+		return fmt.Errorf("SMTP RCPT TO failed: %w", err)
+	}
+
+	w, err := c.Data()
+	if err != nil {
+		return fmt.Errorf("SMTP DATA failed: %w", err)
+	}
+	if _, err := w.Write(msg); err != nil {
+		return fmt.Errorf("failed to write email body: %w", err)
+	}
+	if err := w.Close(); err != nil {
+		return fmt.Errorf("failed to close email writer: %w", err)
+	}
+
+	return c.Quit()
 }
 
 // sanitizeHeader strips CR and LF characters to prevent CRLF header injection
@@ -185,104 +258,103 @@ func sanitizeHeader(s string) string {
 	return strings.NewReplacer("\r", "", "\n", "").Replace(s)
 }
 
-// sendWithSTARTTLS sends email using STARTTLS (port 587)
-func (s *EmailService) sendWithSTARTTLS(config *SMTPConfig, addr, from, to string, msg []byte) error {
-	dialer := net.Dialer{Timeout: smtpDialTimeout}
-	conn, err := dialer.Dial("tcp", addr)
-	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+// prepareSMTPConfig validates a config and applies the port and TLS mode defaults.
+func prepareSMTPConfig(config *SMTPConfig) error {
+	if !config.Enabled || config.Host == "" {
+		return errors.New("SMTP is not configured")
 	}
 
-	c, err := smtp.NewClient(conn, config.Host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to create SMTP client: %w", err)
+	if config.Port == 0 {
+		config.Port = 587
 	}
-	defer c.Close()
+	config.TLSMode = resolveTLSMode(config.TLSMode, config.Port)
 
-	// Check if server supports STARTTLS before attempting
-	if ok, _ := c.Extension("STARTTLS"); !ok {
-		return errors.New("SMTP server does not support STARTTLS")
+	// Credentials would travel in cleartext without encryption
+	if config.TLSMode == TLSModeNone && (config.Username != "" || config.Password != "") {
+		return errors.New("SMTP authentication requires TLS: use the starttls or tls mode, or clear the username and password")
 	}
 
-	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
-	if err := c.StartTLS(tlsConfig); err != nil {
-		return fmt.Errorf("STARTTLS failed: %w", err)
-	}
-
-	// Auth if credentials provided
-	if config.Username != "" && config.Password != "" {
-		auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
-		if err := c.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication failed: %w", err)
-		}
-	}
-
-	if err := c.Mail(from); err != nil {
-		return fmt.Errorf("SMTP MAIL FROM failed: %w", err)
-	}
-	if err := c.Rcpt(to); err != nil {
-		return fmt.Errorf("SMTP RCPT TO failed: %w", err)
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP DATA failed: %w", err)
-	}
-	if _, err := w.Write(msg); err != nil {
-		return fmt.Errorf("failed to write email body: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("failed to close email writer: %w", err)
-	}
-
-	return c.Quit()
+	return nil
 }
 
-// sendWithImplicitTLS sends email using implicit TLS (port 465)
-func (s *EmailService) sendWithImplicitTLS(config *SMTPConfig, addr, from, to string, msg []byte) error {
-	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
-	dialer := net.Dialer{Timeout: smtpDialTimeout}
+func tlsConfigFor(config *SMTPConfig) *tls.Config {
+	return &tls.Config{
+		ServerName:         config.Host,
+		MinVersion:         tls.VersionTLS12,
+		InsecureSkipVerify: config.TLSSkipVerify, //nolint:gosec // opt-in for self-signed relays
+	}
+}
 
-	conn, err := tls.DialWithDialer(&dialer, "tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("failed to connect via TLS: %w", err)
+// dialSMTP opens an SMTP client using the config's TLS mode. Caller must close it.
+func dialSMTP(ctx context.Context, config *SMTPConfig) (*smtp.Client, error) {
+	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
+	dialer := &net.Dialer{Timeout: smtpDialTimeout}
+
+	if config.TLSMode == TLSModeImplicit {
+		tlsDialer := tls.Dialer{NetDialer: dialer, Config: tlsConfigFor(config)}
+		conn, err := tlsDialer.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to connect via TLS: %w", err)
+		}
+		return newSMTPClient(ctx, conn, config.Host)
 	}
 
-	c, err := smtp.NewClient(conn, config.Host)
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+
+	c, err := newSMTPClient(ctx, conn, config.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	if config.TLSMode == TLSModeNone {
+		return c, nil
+	}
+
+	if ok, _ := c.Extension("STARTTLS"); !ok {
+		c.Close()
+		return nil, errors.New("SMTP server does not support STARTTLS")
+	}
+	if err := c.StartTLS(tlsConfigFor(config)); err != nil {
+		c.Close()
+		return nil, fmt.Errorf("STARTTLS failed: %w", err)
+	}
+
+	return c, nil
+}
+
+func newSMTPClient(ctx context.Context, conn net.Conn, host string) (*smtp.Client, error) {
+	// A TLS-only port accepts the connection but never sends a plaintext
+	// greeting, so bound the session instead of blocking forever
+	deadline := time.Now().Add(smtpSessionTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := conn.SetDeadline(deadline); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to set SMTP connection deadline: %w", err)
+	}
+
+	c, err := smtp.NewClient(conn, host)
 	if err != nil {
 		conn.Close()
-		return fmt.Errorf("failed to create SMTP client: %w", err)
+		return nil, fmt.Errorf("failed to create SMTP client: %w", err)
 	}
-	defer c.Close()
+	return c, nil
+}
 
-	// Auth if credentials provided
-	if config.Username != "" && config.Password != "" {
-		auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
-		if err := c.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication failed: %w", err)
-		}
+func authenticateSMTP(c *smtp.Client, config *SMTPConfig) error {
+	if config.Username == "" || config.Password == "" {
+		return nil
 	}
 
-	if err := c.Mail(from); err != nil {
-		return fmt.Errorf("SMTP MAIL FROM failed: %w", err)
+	auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
+	if err := c.Auth(auth); err != nil {
+		return fmt.Errorf("SMTP authentication failed: %w", err)
 	}
-	if err := c.Rcpt(to); err != nil {
-		return fmt.Errorf("SMTP RCPT TO failed: %w", err)
-	}
-
-	w, err := c.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP DATA failed: %w", err)
-	}
-	if _, err := w.Write(msg); err != nil {
-		return fmt.Errorf("failed to write email body: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return fmt.Errorf("failed to close email writer: %w", err)
-	}
-
-	return c.Quit()
+	return nil
 }
 
 // SendPasswordResetEmail sends a password reset email
@@ -313,73 +385,23 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get SMTP config: %w", err)
 	}
-	return s.TestConnectionWithConfig(config)
+	return s.TestConnectionWithConfig(ctx, config)
 }
 
 // TestConnectionWithConfig tests the SMTP connection using the provided config
-func (s *EmailService) TestConnectionWithConfig(config *SMTPConfig) error {
-	if !config.Enabled || config.Host == "" {
-		return errors.New("SMTP is not configured")
+func (s *EmailService) TestConnectionWithConfig(ctx context.Context, config *SMTPConfig) error {
+	if err := prepareSMTPConfig(config); err != nil {
+		return err
 	}
 
-	if config.Port == 0 {
-		config.Port = 587
-	}
-
-	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-
-	dialer := net.Dialer{Timeout: smtpDialTimeout}
-
-	// Test TLS connection for port 465
-	if config.Port == 465 {
-		tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
-		conn, err := tls.DialWithDialer(&dialer, "tcp", addr, tlsConfig)
-		if err != nil {
-			return fmt.Errorf("failed to connect via TLS: %w", err)
-		}
-		c, err := smtp.NewClient(conn, config.Host)
-		if err != nil {
-			conn.Close()
-			return fmt.Errorf("failed to create SMTP client: %w", err)
-		}
-		defer c.Close()
-
-		if config.Username != "" && config.Password != "" {
-			auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
-			if err := c.Auth(auth); err != nil {
-				return fmt.Errorf("SMTP authentication failed: %w", err)
-			}
-		}
-		return c.Quit()
-	}
-
-	// Test STARTTLS connection
-	conn, err := dialer.Dial("tcp", addr)
+	c, err := dialSMTP(ctx, config)
 	if err != nil {
-		return fmt.Errorf("failed to connect to SMTP server: %w", err)
-	}
-
-	c, err := smtp.NewClient(conn, config.Host)
-	if err != nil {
-		conn.Close()
-		return fmt.Errorf("failed to create SMTP client: %w", err)
+		return err
 	}
 	defer c.Close()
 
-	if ok, _ := c.Extension("STARTTLS"); !ok {
-		return errors.New("SMTP server does not support STARTTLS")
-	}
-
-	tlsConfig := &tls.Config{ServerName: config.Host, MinVersion: tls.VersionTLS12}
-	if err := c.StartTLS(tlsConfig); err != nil {
-		return fmt.Errorf("STARTTLS failed: %w", err)
-	}
-
-	if config.Username != "" && config.Password != "" {
-		auth := smtp.PlainAuth("", config.Username, config.Password, config.Host)
-		if err := c.Auth(auth); err != nil {
-			return fmt.Errorf("SMTP authentication failed: %w", err)
-		}
+	if err := authenticateSMTP(c, config); err != nil {
+		return err
 	}
 
 	return c.Quit()

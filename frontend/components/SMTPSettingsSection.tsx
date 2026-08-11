@@ -4,7 +4,12 @@ import { useState, useEffect } from 'react'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { api } from '@/lib/api'
-import type { SystemSetting, SMTPStatusResponse } from '@/types'
+import type {
+  SystemSetting,
+  SMTPStatusResponse,
+  SMTPTLSMode,
+  UpdateSMTPSettingsRequest,
+} from '@/types'
 
 const SMTP_KEYS = [
   'smtp_host',
@@ -14,9 +19,23 @@ const SMTP_KEYS = [
   'smtp_from_email',
   'smtp_from_name',
   'smtp_enabled',
+  'smtp_tls_mode',
+  'smtp_tls_skip_verify',
 ] as const
 
 type SMTPKey = (typeof SMTP_KEYS)[number]
+
+const BOOLEAN_KEYS: SMTPKey[] = ['smtp_enabled', 'smtp_tls_skip_verify']
+
+// '' lets the backend pick: implicit TLS on port 465, STARTTLS elsewhere
+type TLSSelection = SMTPTLSMode | ''
+
+const TLS_MODES: { value: TLSSelection; label: string }[] = [
+  { value: '', label: 'Automatic (based on port)' },
+  { value: 'starttls', label: 'STARTTLS' },
+  { value: 'tls', label: 'Implicit TLS (port 465)' },
+  { value: 'none', label: 'None (unencrypted)' },
+]
 
 interface SMTPFormData {
   smtp_host: string
@@ -26,6 +45,8 @@ interface SMTPFormData {
   smtp_from_email: string
   smtp_from_name: string
   smtp_enabled: boolean
+  smtp_tls_mode: TLSSelection
+  smtp_tls_skip_verify: boolean
 }
 
 const defaultFormData: SMTPFormData = {
@@ -36,6 +57,12 @@ const defaultFormData: SMTPFormData = {
   smtp_from_email: '',
   smtp_from_name: 'Nimbus',
   smtp_enabled: false,
+  smtp_tls_mode: '',
+  smtp_tls_skip_verify: false,
+}
+
+function toTLSSelection(value: string): TLSSelection {
+  return TLS_MODES.some((mode) => mode.value === value) ? (value as TLSSelection) : ''
 }
 
 export default function SMTPSettingsSection({ settings }: { settings: SystemSetting[] }) {
@@ -57,16 +84,31 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
   useEffect(() => {
     const data = { ...defaultFormData }
     for (const setting of settings) {
-      if (SMTP_KEYS.includes(setting.key as SMTPKey)) {
-        if (setting.key === 'smtp_enabled') {
-          data.smtp_enabled = setting.value === 'true'
-        } else {
-          ;(data as Record<string, string | boolean>)[setting.key] = setting.value
-        }
+      const key = setting.key as SMTPKey
+      if (!SMTP_KEYS.includes(key)) continue
+
+      if (key === 'smtp_tls_mode') {
+        data.smtp_tls_mode = toTLSSelection(setting.value)
+      } else if (BOOLEAN_KEYS.includes(key)) {
+        ;(data as Record<string, string | boolean>)[key] = setting.value === 'true'
+      } else {
+        ;(data as Record<string, string | boolean>)[key] = setting.value
       }
     }
     setFormData(data)
   }, [settings])
+
+  const buildPayload = (): UpdateSMTPSettingsRequest => ({
+    smtp_host: formData.smtp_host,
+    smtp_port: formData.smtp_port,
+    smtp_username: formData.smtp_username,
+    smtp_password: formData.smtp_password,
+    smtp_from_email: formData.smtp_from_email,
+    smtp_from_name: formData.smtp_from_name,
+    smtp_enabled: String(formData.smtp_enabled),
+    smtp_tls_mode: formData.smtp_tls_mode,
+    smtp_tls_skip_verify: String(formData.smtp_tls_skip_verify),
+  })
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -74,15 +116,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
     setSuccess('')
 
     try {
-      const response = await api.updateSMTPSettings({
-        smtp_host: formData.smtp_host,
-        smtp_port: formData.smtp_port,
-        smtp_username: formData.smtp_username,
-        smtp_password: formData.smtp_password,
-        smtp_from_email: formData.smtp_from_email,
-        smtp_from_name: formData.smtp_from_name,
-        smtp_enabled: String(formData.smtp_enabled),
-      })
+      const response = await api.updateSMTPSettings(buildPayload())
       if (response.error) {
         setError(response.error.message)
       } else {
@@ -101,15 +135,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
     setSuccess('')
 
     try {
-      const response = await api.testSMTPConnection({
-        smtp_host: formData.smtp_host,
-        smtp_port: formData.smtp_port,
-        smtp_username: formData.smtp_username,
-        smtp_password: formData.smtp_password,
-        smtp_from_email: formData.smtp_from_email,
-        smtp_from_name: formData.smtp_from_name,
-        smtp_enabled: String(formData.smtp_enabled),
-      })
+      const response = await api.testSMTPConnection(buildPayload())
       if (response.data?.success) {
         setSuccess('SMTP connection successful')
       } else {
@@ -220,6 +246,31 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
         </div>
         <div>
           <label
+            htmlFor="smtp-tls-mode"
+            className="mb-1 block text-xs font-medium"
+            style={{ color: 'var(--color-text-secondary)' }}
+          >
+            Encryption
+          </label>
+          <select
+            id="smtp-tls-mode"
+            value={formData.smtp_tls_mode}
+            onChange={(e) => updateField('smtp_tls_mode', e.target.value)}
+            className="border-card-border focus:border-primary focus:ring-opacity-50 w-full rounded-md border px-4 py-2 transition focus:ring-2 focus:outline-none"
+            style={{
+              backgroundColor: 'var(--color-background)',
+              color: 'var(--color-text-primary)',
+            }}
+          >
+            {TLS_MODES.map((mode) => (
+              <option key={mode.value} value={mode.value}>
+                {mode.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label
             htmlFor="smtp-username"
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
@@ -281,6 +332,23 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           />
         </div>
       </div>
+
+      {formData.smtp_tls_mode === 'none' ? (
+        <div
+          className="rounded-lg p-3 text-sm"
+          style={{ backgroundColor: 'var(--color-error)', color: 'white', opacity: 0.9 }}
+        >
+          Emails are sent unencrypted. Only use this for a relay on a trusted network. Username and
+          password must be left empty, since they would be sent in cleartext.
+        </div>
+      ) : (
+        <Toggle
+          enabled={formData.smtp_tls_skip_verify}
+          onChange={(enabled) => updateField('smtp_tls_skip_verify', enabled)}
+          label="Skip certificate verification"
+          description="Allows self-signed certificates. Leave off unless your relay needs it."
+        />
+      )}
 
       <div className="flex space-x-3">
         <button
