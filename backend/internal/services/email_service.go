@@ -222,7 +222,7 @@ func (s *EmailService) SendEmail(ctx context.Context, to, subject, htmlBody stri
 		encodedName, from, to, subject)
 	msg := []byte(headers + htmlBody)
 
-	c, err := dialSMTP(config)
+	c, err := dialSMTP(ctx, config)
 	if err != nil {
 		return err
 	}
@@ -270,7 +270,7 @@ func prepareSMTPConfig(config *SMTPConfig) error {
 	config.TLSMode = resolveTLSMode(config.TLSMode, config.Port)
 
 	// Credentials would travel in cleartext without encryption
-	if config.TLSMode == TLSModeNone && config.Username != "" && config.Password != "" {
+	if config.TLSMode == TLSModeNone && (config.Username != "" || config.Password != "") {
 		return errors.New("SMTP authentication requires TLS: use the starttls or tls mode, or clear the username and password")
 	}
 
@@ -286,24 +286,25 @@ func tlsConfigFor(config *SMTPConfig) *tls.Config {
 }
 
 // dialSMTP opens an SMTP client using the config's TLS mode. Caller must close it.
-func dialSMTP(config *SMTPConfig) (*smtp.Client, error) {
+func dialSMTP(ctx context.Context, config *SMTPConfig) (*smtp.Client, error) {
 	addr := net.JoinHostPort(config.Host, strconv.Itoa(config.Port))
-	dialer := net.Dialer{Timeout: smtpDialTimeout}
+	dialer := &net.Dialer{Timeout: smtpDialTimeout}
 
 	if config.TLSMode == TLSModeImplicit {
-		conn, err := tls.DialWithDialer(&dialer, "tcp", addr, tlsConfigFor(config))
+		tlsDialer := tls.Dialer{NetDialer: dialer, Config: tlsConfigFor(config)}
+		conn, err := tlsDialer.DialContext(ctx, "tcp", addr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to connect via TLS: %w", err)
 		}
-		return newSMTPClient(conn, config.Host)
+		return newSMTPClient(ctx, conn, config.Host)
 	}
 
-	conn, err := dialer.Dial("tcp", addr)
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
 
-	c, err := newSMTPClient(conn, config.Host)
+	c, err := newSMTPClient(ctx, conn, config.Host)
 	if err != nil {
 		return nil, err
 	}
@@ -324,10 +325,14 @@ func dialSMTP(config *SMTPConfig) (*smtp.Client, error) {
 	return c, nil
 }
 
-func newSMTPClient(conn net.Conn, host string) (*smtp.Client, error) {
+func newSMTPClient(ctx context.Context, conn net.Conn, host string) (*smtp.Client, error) {
 	// A TLS-only port accepts the connection but never sends a plaintext
 	// greeting, so bound the session instead of blocking forever
-	if err := conn.SetDeadline(time.Now().Add(smtpSessionTimeout)); err != nil {
+	deadline := time.Now().Add(smtpSessionTimeout)
+	if ctxDeadline, ok := ctx.Deadline(); ok && ctxDeadline.Before(deadline) {
+		deadline = ctxDeadline
+	}
+	if err := conn.SetDeadline(deadline); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to set SMTP connection deadline: %w", err)
 	}
@@ -380,16 +385,16 @@ func (s *EmailService) TestConnection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get SMTP config: %w", err)
 	}
-	return s.TestConnectionWithConfig(config)
+	return s.TestConnectionWithConfig(ctx, config)
 }
 
 // TestConnectionWithConfig tests the SMTP connection using the provided config
-func (s *EmailService) TestConnectionWithConfig(config *SMTPConfig) error {
+func (s *EmailService) TestConnectionWithConfig(ctx context.Context, config *SMTPConfig) error {
 	if err := prepareSMTPConfig(config); err != nil {
 		return err
 	}
 
-	c, err := dialSMTP(config)
+	c, err := dialSMTP(ctx, config)
 	if err != nil {
 		return err
 	}

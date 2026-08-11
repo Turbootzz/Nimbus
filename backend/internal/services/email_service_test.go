@@ -269,7 +269,7 @@ func TestTestConnectionWithConfig_NotConfigured(t *testing.T) {
 	repo := repository.NewSettingsRepository(db)
 	svc := NewEmailService(repo)
 
-	err := svc.TestConnectionWithConfig(&SMTPConfig{})
+	err := svc.TestConnectionWithConfig(context.Background(), &SMTPConfig{})
 	if err == nil {
 		t.Error("Expected error for unconfigured SMTP")
 	}
@@ -285,7 +285,7 @@ func TestTestConnectionWithConfig_DisabledSMTP(t *testing.T) {
 	repo := repository.NewSettingsRepository(db)
 	svc := NewEmailService(repo)
 
-	err := svc.TestConnectionWithConfig(&SMTPConfig{
+	err := svc.TestConnectionWithConfig(context.Background(), &SMTPConfig{
 		Host:    "smtp.example.com",
 		Enabled: false,
 	})
@@ -356,21 +356,36 @@ func TestPrepare_AppliesDefaults(t *testing.T) {
 }
 
 func TestPrepare_RejectsAuthWithoutTLS(t *testing.T) {
-	config := &SMTPConfig{
-		Host:     "relay.internal",
-		Port:     1025,
-		Username: "user",
-		Password: "secret",
-		Enabled:  true,
-		TLSMode:  TLSModeNone,
+	// A partially filled credential is a misconfiguration, not a reason to skip auth
+	tests := []struct {
+		name     string
+		username string
+		password string
+	}{
+		{"both", "user", "secret"},
+		{"username only", "user", ""},
+		{"password only", "", "secret"},
 	}
 
-	err := prepareSMTPConfig(config)
-	if err == nil {
-		t.Fatal("Expected error when credentials are used without TLS")
-	}
-	if !strings.Contains(err.Error(), "requires TLS") {
-		t.Errorf("Unexpected error: %v", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &SMTPConfig{
+				Host:     "relay.internal",
+				Port:     1025,
+				Username: tt.username,
+				Password: tt.password,
+				Enabled:  true,
+				TLSMode:  TLSModeNone,
+			}
+
+			err := prepareSMTPConfig(config)
+			if err == nil {
+				t.Fatal("Expected error when credentials are used without TLS")
+			}
+			if !strings.Contains(err.Error(), "requires TLS") {
+				t.Errorf("Unexpected error: %v", err)
+			}
+		})
 	}
 }
 

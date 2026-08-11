@@ -12,7 +12,14 @@ import (
 	"github.com/nimbus/backend/internal/services"
 )
 
-const invalidTLSModeError = "SMTP TLS mode must be 'starttls', 'tls' or 'none'"
+const (
+	invalidTLSModeError       = "SMTP TLS mode must be 'starttls', 'tls' or 'none'"
+	plaintextCredentialsError = "SMTP username and password must be empty when encryption is disabled"
+)
+
+func isNoTLS(mode string) bool {
+	return strings.EqualFold(strings.TrimSpace(mode), services.TLSModeNone)
+}
 
 type SettingsHandler struct {
 	settingsRepo *repository.SettingsRepository
@@ -24,6 +31,15 @@ func NewSettingsHandler(settingsRepo *repository.SettingsRepository, emailServic
 		settingsRepo: settingsRepo,
 		emailService: emailService,
 	}
+}
+
+// storedSetting returns the saved value, or "" when it is missing
+func (h *SettingsHandler) storedSetting(c *fiber.Ctx, key string) string {
+	setting, err := h.settingsRepo.Get(c.Context(), key)
+	if err != nil {
+		return ""
+	}
+	return setting.Value
 }
 
 // GetSettings returns all system settings (admin only)
@@ -121,6 +137,17 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 				"error": invalidTLSModeError,
 			})
 		}
+		if isNoTLS(req.Value) && (h.storedSetting(c, "smtp_username") != "" || h.storedSetting(c, "smtp_password") != "") {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": plaintextCredentialsError,
+			})
+		}
+	case "smtp_username", "smtp_password":
+		if req.Value != "" && isNoTLS(h.storedSetting(c, "smtp_tls_mode")) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": plaintextCredentialsError,
+			})
+		}
 	}
 
 	// Get current user ID for audit trail
@@ -175,8 +202,12 @@ func (r smtpSettingsRequest) tlsSkipVerify() string {
 	return *r.TLSSkipVerify
 }
 
-func (r smtpSettingsRequest) usesNoTLS() bool {
-	return strings.EqualFold(strings.TrimSpace(r.tlsMode()), services.TLSModeNone)
+// effectiveTLSMode is the request's mode, or the stored one when it is omitted
+func (h *SettingsHandler) effectiveTLSMode(c *fiber.Ctx, req smtpSettingsRequest) string {
+	if req.TLSMode != nil {
+		return *req.TLSMode
+	}
+	return h.storedSetting(c, "smtp_tls_mode")
 }
 
 // UpdateSMTPSettings saves all SMTP settings atomically
@@ -208,9 +239,9 @@ func (h *SettingsHandler) UpdateSMTPSettings(c *fiber.Ctx) error {
 	}
 
 	// Reject at save time what the send path would reject anyway
-	if req.usesNoTLS() && (req.Username != "" || req.Password != "") {
+	if isNoTLS(h.effectiveTLSMode(c, req)) && (req.Username != "" || req.Password != "") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "SMTP username and password must be empty when encryption is disabled",
+			"error": plaintextCredentialsError,
 		})
 	}
 
@@ -311,7 +342,7 @@ func (h *SettingsHandler) TestSMTPConnection(c *fiber.Ctx) error {
 			TLSMode:       req.tlsMode(),
 			TLSSkipVerify: req.tlsSkipVerify() == "true",
 		}
-		testErr = h.emailService.TestConnectionWithConfig(config)
+		testErr = h.emailService.TestConnectionWithConfig(c.Context(), config)
 	} else {
 		// Fall back to saved config
 		testErr = h.emailService.TestConnection(c.Context())
