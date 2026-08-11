@@ -933,3 +933,172 @@ func TestSettingsHandler_GetSMTPStatus_Env(t *testing.T) {
 		t.Errorf("Expected source 'env', got '%v'", result["source"])
 	}
 }
+
+func newSMTPSettingsApp(t *testing.T, db *sql.DB) *fiber.App {
+	t.Helper()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/smtp", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSMTPSettings(c)
+	})
+	return app
+}
+
+func putSMTPSettings(t *testing.T, app *fiber.App, payload map[string]string) *http.Response {
+	t.Helper()
+
+	body, _ := json.Marshal(payload)
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+	return resp
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_SavesTLSMode(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	resp := putSMTPSettings(t, newSMTPSettingsApp(t, db), map[string]string{
+		"smtp_host":            "mailpit",
+		"smtp_port":            "1025",
+		"smtp_from_email":      "noreply@example.com",
+		"smtp_enabled":         "true",
+		"smtp_tls_mode":        "none",
+		"smtp_tls_skip_verify": "false",
+	})
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	var value string
+	if err := db.QueryRow("SELECT value FROM system_settings WHERE key = ?", "smtp_tls_mode").Scan(&value); err != nil {
+		t.Fatalf("Failed to query smtp_tls_mode: %v", err)
+	}
+	if value != "none" {
+		t.Errorf("Expected smtp_tls_mode 'none', got '%s'", value)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_InvalidTLSMode(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	resp := putSMTPSettings(t, newSMTPSettingsApp(t, db), map[string]string{
+		"smtp_host":       "smtp.example.com",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_enabled":    "true",
+		"smtp_tls_mode":   "ssl",
+	})
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for invalid TLS mode, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_InvalidSkipVerify(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	resp := putSMTPSettings(t, newSMTPSettingsApp(t, db), map[string]string{
+		"smtp_host":            "smtp.example.com",
+		"smtp_from_email":      "noreply@example.com",
+		"smtp_enabled":         "true",
+		"smtp_tls_skip_verify": "yes",
+	})
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for invalid skip verify value, got %d", resp.StatusCode)
+	}
+}
+
+func TestSettingsHandler_UpdateSMTPSettings_CredentialsWithoutTLSRejected(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	resp := putSMTPSettings(t, newSMTPSettingsApp(t, db), map[string]string{
+		"smtp_host":       "mailpit",
+		"smtp_port":       "1025",
+		"smtp_username":   "user",
+		"smtp_password":   "secret",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_enabled":    "true",
+		"smtp_tls_mode":   "none",
+	})
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for credentials without TLS, got %d", resp.StatusCode)
+	}
+}
+
+// An older client that does not know the TLS fields must not wipe them
+func TestSettingsHandler_UpdateSMTPSettings_OmittedTLSFieldsKeepStoredValue(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	app := newSMTPSettingsApp(t, db)
+
+	resp := putSMTPSettings(t, app, map[string]string{
+		"smtp_host":       "mailpit",
+		"smtp_port":       "1025",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_enabled":    "true",
+		"smtp_tls_mode":   "none",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	resp = putSMTPSettings(t, app, map[string]string{
+		"smtp_host":       "mailpit",
+		"smtp_port":       "1025",
+		"smtp_from_email": "noreply@example.com",
+		"smtp_enabled":    "true",
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("Expected status 200 when TLS mode is omitted, got %d", resp.StatusCode)
+	}
+
+	var value string
+	if err := db.QueryRow("SELECT value FROM system_settings WHERE key = ?", "smtp_tls_mode").Scan(&value); err != nil {
+		t.Fatalf("Failed to query smtp_tls_mode: %v", err)
+	}
+	if value != "none" {
+		t.Errorf("Expected stored smtp_tls_mode to remain 'none', got '%s'", value)
+	}
+}
+
+func TestSettingsHandler_UpdateSetting_InvalidTLSMode(t *testing.T) {
+	db := setupSettingsTestDB(t)
+	defer db.Close()
+
+	settingsRepo := repository.NewSettingsRepository(db)
+	handler := NewSettingsHandler(settingsRepo, services.NewEmailService(settingsRepo))
+
+	app := fiber.New()
+	app.Put("/admin/settings/:key", func(c *fiber.Ctx) error {
+		c.Locals("user_id", "admin-1")
+		return handler.UpdateSetting(c)
+	})
+
+	body, _ := json.Marshal(map[string]string{"value": "ssl"})
+	req := httptest.NewRequest(http.MethodPut, "/admin/settings/smtp_tls_mode", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatalf("Request failed: %v", err)
+	}
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("Expected status 400 for invalid TLS mode, got %d", resp.StatusCode)
+	}
+}

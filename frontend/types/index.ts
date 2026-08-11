@@ -350,6 +350,8 @@ export interface SMTPStatusResponse {
   source: 'env' | 'database' | 'none'
 }
 
+export type SMTPTLSMode = 'starttls' | 'tls' | 'none'
+
 export interface UpdateSMTPSettingsRequest {
   smtp_host: string
   smtp_port: string
@@ -358,6 +360,8 @@ export interface UpdateSMTPSettingsRequest {
   smtp_from_email: string
   smtp_from_name: string
   smtp_enabled: string
+  smtp_tls_mode: string
+  smtp_tls_skip_verify: string
 }
 
 // Setup types

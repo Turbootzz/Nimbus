@@ -1,10 +1,15 @@
 package services
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
+	"net"
 	"os"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/nimbus/backend/internal/repository"
 
@@ -286,5 +291,317 @@ func TestTestConnectionWithConfig_DisabledSMTP(t *testing.T) {
 	})
 	if err == nil {
 		t.Error("Expected error for disabled SMTP")
+	}
+}
+
+func TestIsValidTLSMode(t *testing.T) {
+	valid := []string{"", TLSModeSTARTTLS, TLSModeImplicit, TLSModeNone}
+	for _, mode := range valid {
+		if !IsValidTLSMode(mode) {
+			t.Errorf("Expected '%s' to be valid", mode)
+		}
+	}
+
+	// Values are normalized, so case and surrounding spaces are accepted
+	if !IsValidTLSMode("  STARTTLS ") {
+		t.Error("Expected normalized input to be valid")
+	}
+
+	invalid := []string{"ssl", "off", "true"}
+	for _, mode := range invalid {
+		if IsValidTLSMode(mode) {
+			t.Errorf("Expected '%s' to be invalid", mode)
+		}
+	}
+}
+
+func TestResolveTLSMode(t *testing.T) {
+	tests := []struct {
+		name string
+		mode string
+		port int
+		want string
+	}{
+		{"unset on 465 defaults to implicit TLS", "", 465, TLSModeImplicit},
+		{"unset on 587 defaults to STARTTLS", "", 587, TLSModeSTARTTLS},
+		{"unset on 1025 defaults to STARTTLS", "", 1025, TLSModeSTARTTLS},
+		{"explicit none wins over port", TLSModeNone, 465, TLSModeNone},
+		{"explicit STARTTLS wins over port", TLSModeSTARTTLS, 465, TLSModeSTARTTLS},
+		{"explicit implicit TLS on custom port", TLSModeImplicit, 2465, TLSModeImplicit},
+		{"case and spaces are normalized", "  NONE ", 587, TLSModeNone},
+		{"unknown value falls back to port default", "garbage", 465, TLSModeImplicit},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := resolveTLSMode(tt.mode, tt.port); got != tt.want {
+				t.Errorf("resolveTLSMode(%q, %d) = %q, want %q", tt.mode, tt.port, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPrepare_AppliesDefaults(t *testing.T) {
+	config := &SMTPConfig{Host: "smtp.example.com", Enabled: true}
+
+	if err := prepareSMTPConfig(config); err != nil {
+		t.Fatalf("prepare failed: %v", err)
+	}
+	if config.Port != 587 {
+		t.Errorf("Expected default port 587, got %d", config.Port)
+	}
+	if config.TLSMode != TLSModeSTARTTLS {
+		t.Errorf("Expected default mode starttls, got %s", config.TLSMode)
+	}
+}
+
+func TestPrepare_RejectsAuthWithoutTLS(t *testing.T) {
+	config := &SMTPConfig{
+		Host:     "relay.internal",
+		Port:     1025,
+		Username: "user",
+		Password: "secret",
+		Enabled:  true,
+		TLSMode:  TLSModeNone,
+	}
+
+	err := prepareSMTPConfig(config)
+	if err == nil {
+		t.Fatal("Expected error when credentials are used without TLS")
+	}
+	if !strings.Contains(err.Error(), "requires TLS") {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestPrepare_AllowsNoTLSWithoutCredentials(t *testing.T) {
+	config := &SMTPConfig{Host: "mailpit", Port: 1025, Enabled: true, TLSMode: TLSModeNone}
+
+	if err := prepareSMTPConfig(config); err != nil {
+		t.Fatalf("Expected no error for credential-less plaintext relay, got: %v", err)
+	}
+}
+
+func TestGetSMTPConfig_TLSSettingsFromDatabase(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	t.Setenv("SMTP_HOST", "")
+	t.Setenv("SMTP_TLS_MODE", "")
+	t.Setenv("SMTP_TLS_SKIP_VERIFY", "")
+
+	settings := map[string]string{
+		"smtp_host":            "mailpit",
+		"smtp_port":            "1025",
+		"smtp_enabled":         "true",
+		"smtp_tls_mode":        TLSModeNone,
+		"smtp_tls_skip_verify": "true",
+	}
+	for k, v := range settings {
+		if _, err := db.Exec("INSERT INTO system_settings (key, value) VALUES (?, ?)", k, v); err != nil {
+			t.Fatalf("Failed to insert setting %s: %v", k, err)
+		}
+	}
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+	config, err := svc.GetSMTPConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetSMTPConfig failed: %v", err)
+	}
+
+	if config.TLSMode != TLSModeNone {
+		t.Errorf("Expected TLS mode 'none', got '%s'", config.TLSMode)
+	}
+	if !config.TLSSkipVerify {
+		t.Error("Expected TLSSkipVerify to be true")
+	}
+}
+
+func TestGetSMTPConfig_TLSSettingsFromEnv(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	t.Setenv("SMTP_HOST", "mailpit")
+	t.Setenv("SMTP_PORT", "1025")
+	t.Setenv("SMTP_TLS_MODE", TLSModeNone)
+	t.Setenv("SMTP_TLS_SKIP_VERIFY", "true")
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+	config, err := svc.GetSMTPConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetSMTPConfig failed: %v", err)
+	}
+
+	if config.TLSMode != TLSModeNone {
+		t.Errorf("Expected TLS mode 'none', got '%s'", config.TLSMode)
+	}
+	if !config.TLSSkipVerify {
+		t.Error("Expected TLSSkipVerify to be true")
+	}
+}
+
+func TestGetSMTPConfig_DatabaseSkipVerifyOverridesEnv(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	t.Setenv("SMTP_HOST", "mailpit")
+	t.Setenv("SMTP_TLS_SKIP_VERIFY", "true")
+
+	if _, err := db.Exec("INSERT INTO system_settings (key, value) VALUES (?, ?)", "smtp_tls_skip_verify", "false"); err != nil {
+		t.Fatalf("Failed to insert setting: %v", err)
+	}
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+	config, err := svc.GetSMTPConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetSMTPConfig failed: %v", err)
+	}
+
+	if config.TLSSkipVerify {
+		t.Error("Expected database value 'false' to override env var")
+	}
+}
+
+// startFakeSMTP starts a plaintext SMTP server that never advertises STARTTLS.
+// The returned channel receives the body of the first delivered message.
+func startFakeSMTP(t *testing.T) (host string, port int, delivered <-chan string) {
+	t.Helper()
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Failed to start fake SMTP server: %v", err)
+	}
+	t.Cleanup(func() { ln.Close() })
+
+	out := make(chan string, 1)
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		reader := bufio.NewReader(conn)
+		write := func(s string) {
+			conn.Write([]byte(s + "\r\n"))
+		}
+
+		write("220 fake ESMTP")
+
+		var body strings.Builder
+		inData := false
+
+		for {
+			line, err := reader.ReadString('\n')
+			if err != nil {
+				return
+			}
+			line = strings.TrimRight(line, "\r\n")
+
+			if inData {
+				if line == "." {
+					inData = false
+					write("250 OK")
+					out <- body.String()
+					continue
+				}
+				body.WriteString(line + "\n")
+				continue
+			}
+
+			switch {
+			case strings.HasPrefix(line, "DATA"):
+				inData = true
+				write("354 Send data")
+			case strings.HasPrefix(line, "QUIT"):
+				write("221 Bye")
+				return
+			default:
+				write("250 OK")
+			}
+		}
+	}()
+
+	return "127.0.0.1", ln.Addr().(*net.TCPAddr).Port, out
+}
+
+func TestSendEmail_PlaintextRelay(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	host, port, delivered := startFakeSMTP(t)
+
+	t.Setenv("SMTP_HOST", host)
+	t.Setenv("SMTP_PORT", strconv.Itoa(port))
+	t.Setenv("SMTP_FROM_EMAIL", "noreply@example.com")
+	t.Setenv("SMTP_TLS_MODE", TLSModeNone)
+	t.Setenv("SMTP_USERNAME", "")
+	t.Setenv("SMTP_PASSWORD", "")
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+
+	if err := svc.SendEmail(context.Background(), "user@example.com", "Test subject", "<p>Hello</p>"); err != nil {
+		t.Fatalf("SendEmail failed: %v", err)
+	}
+
+	select {
+	case msg := <-delivered:
+		if !strings.Contains(msg, "Subject: Test subject") {
+			t.Errorf("Delivered message missing subject:\n%s", msg)
+		}
+		if !strings.Contains(msg, "<p>Hello</p>") {
+			t.Errorf("Delivered message missing body:\n%s", msg)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Timed out waiting for delivered message")
+	}
+}
+
+func TestSendEmail_STARTTLSRequiredOnServerWithoutSupport(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	host, port, _ := startFakeSMTP(t)
+
+	t.Setenv("SMTP_HOST", host)
+	t.Setenv("SMTP_PORT", strconv.Itoa(port))
+	t.Setenv("SMTP_FROM_EMAIL", "noreply@example.com")
+	t.Setenv("SMTP_TLS_MODE", TLSModeSTARTTLS)
+	t.Setenv("SMTP_USERNAME", "")
+	t.Setenv("SMTP_PASSWORD", "")
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+
+	err := svc.SendEmail(context.Background(), "user@example.com", "Test subject", "<p>Hello</p>")
+	if err == nil {
+		t.Fatal("Expected STARTTLS mode to fail against a server without STARTTLS")
+	}
+	if !strings.Contains(err.Error(), "does not support STARTTLS") {
+		t.Errorf("Unexpected error: %v", err)
+	}
+}
+
+func TestGetSMTPConfig_NoTLSIgnoresEnvCredentials(t *testing.T) {
+	db := setupEmailTestDB(t)
+	defer db.Close()
+
+	t.Setenv("SMTP_HOST", "mailpit")
+	t.Setenv("SMTP_PORT", "1025")
+	t.Setenv("SMTP_TLS_MODE", TLSModeNone)
+	t.Setenv("SMTP_USERNAME", "leftover")
+	t.Setenv("SMTP_PASSWORD", "leftover")
+
+	svc := NewEmailService(repository.NewSettingsRepository(db))
+	config, err := svc.GetSMTPConfig(context.Background())
+	if err != nil {
+		t.Fatalf("GetSMTPConfig failed: %v", err)
+	}
+
+	if config.Username != "" || config.Password != "" {
+		t.Errorf("Expected env credentials to be ignored without TLS, got '%s'/'%s'", config.Username, config.Password)
+	}
+	if err := prepareSMTPConfig(config); err != nil {
+		t.Errorf("Expected an unencrypted relay to be usable, got: %v", err)
 	}
 }
