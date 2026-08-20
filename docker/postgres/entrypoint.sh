@@ -61,11 +61,11 @@ nimbus_migrate_legacy_data() {
 
         # Refuse to merge into existing entries - a collision means $PGDATA
         # holds leftovers of another (partial) cluster; moving would interleave them
-        for entry in "$LEGACY_DIR"/* "$LEGACY_DIR"/.[!.]*; do
-            [ -e "$entry" ] || continue
+        for entry in "$LEGACY_DIR"/* "$LEGACY_DIR"/.[!.]* "$LEGACY_DIR"/..?*; do
+            [ -e "$entry" ] || [ -L "$entry" ] || continue
             name=$(basename "$entry")
             [ "$PGDATA/$name" = "$LEGACY_DIR" ] && continue
-            if [ -e "$PGDATA/$name" ]; then
+            if [ -e "$PGDATA/$name" ] || [ -L "$PGDATA/$name" ]; then
                 echo "Nimbus: ERROR - Cannot migrate: $PGDATA already contains '$name'"
                 echo "Nimbus: Resolve manually, nothing was moved."
                 exit 1
@@ -82,8 +82,8 @@ nimbus_migrate_legacy_data() {
         fi
 
         # Move hidden files (may not exist, so check first)
-        for f in "$LEGACY_DIR"/.[!.]*; do
-            if [ -e "$f" ]; then
+        for f in "$LEGACY_DIR"/.[!.]* "$LEGACY_DIR"/..?*; do
+            if [ -e "$f" ] || [ -L "$f" ]; then
                 mv "$f" "$PGDATA/" || { echo "Nimbus: ERROR - Failed to move $f"; exit 1; }
             fi
         done

@@ -207,7 +207,45 @@ test_cleanup_preserves_18_siblings() {
 }
 
 # =============================================================================
-# Test 10: PGDATA validation rejects wrong path
+# Test 10: Dot-dot-prefixed entries and dangling symlinks are migrated
+# =============================================================================
+test_migrates_odd_entries() {
+    setup
+    make_cluster "$PGDATA/data"
+    echo "keep" > "$PGDATA/data/..legacy_marker"
+    ln -s /nonexistent "$PGDATA/data/dangling"
+
+    nimbus_migrate_legacy_data
+
+    if [ -f "$PGDATA/..legacy_marker" ] && [ -L "$PGDATA/dangling" ] && [ ! -d "$PGDATA/data" ]; then
+        pass "..-prefixed entries and dangling symlinks are migrated"
+    else
+        fail "..-prefixed entries and dangling symlinks should be migrated"
+    fi
+    teardown
+}
+
+# =============================================================================
+# Test 11: Dangling destination symlink triggers collision abort
+# =============================================================================
+test_dangling_dest_symlink_collides() {
+    setup
+    make_cluster "$PGDATA/data"
+    ln -s /nonexistent "$PGDATA/base"
+
+    RESULT=$( (nimbus_migrate_legacy_data) 2>&1 )
+    STATUS=$?
+
+    if [ "$STATUS" -ne 0 ] && [ -f "$PGDATA/data/PG_VERSION" ]; then
+        pass "dangling destination symlink aborts migration"
+    else
+        fail "dangling destination symlink should abort migration (status=$STATUS)"
+    fi
+    teardown
+}
+
+# =============================================================================
+# Test 12: PGDATA validation rejects wrong path
 # =============================================================================
 test_pgdata_validation() {
     setup
@@ -237,6 +275,8 @@ test_removes_stale_symlink
 test_fresh_empty_pgdata
 test_collision_aborts_migration
 test_cleanup_preserves_18_siblings
+test_migrates_odd_entries
+test_dangling_dest_symlink_collides
 test_pgdata_validation
 
 echo "================================"
