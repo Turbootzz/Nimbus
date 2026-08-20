@@ -169,7 +169,45 @@ test_fresh_empty_pgdata() {
 }
 
 # =============================================================================
-# Test 8: PGDATA validation rejects wrong path
+# Test 8: Migration aborts on destination collision without moving anything
+# =============================================================================
+test_collision_aborts_migration() {
+    setup
+    make_cluster "$PGDATA/data"
+    mkdir -p "$PGDATA/base"
+    echo "keep" > "$PGDATA/base/leftover"
+
+    RESULT=$( (nimbus_migrate_legacy_data) 2>&1 )
+    STATUS=$?
+
+    if [ "$STATUS" -ne 0 ] && [ -f "$PGDATA/data/PG_VERSION" ] && [ -f "$PGDATA/base/leftover" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
+        pass "destination collision aborts migration, nothing moved"
+    else
+        fail "destination collision should abort migration untouched (status=$STATUS)"
+    fi
+    teardown
+}
+
+# =============================================================================
+# Test 9: Cleanup keeps siblings next to 18/docker
+# =============================================================================
+test_cleanup_preserves_18_siblings() {
+    setup
+    make_cluster "$PGDATA/18/docker"
+    echo "keep" > "$PGDATA/18/sibling"
+
+    nimbus_migrate_legacy_data
+
+    if [ -f "$PGDATA/PG_VERSION" ] && [ ! -d "$PGDATA/18/docker" ] && [ -f "$PGDATA/18/sibling" ]; then
+        pass "cleanup preserves sibling files under 18/"
+    else
+        fail "cleanup should preserve sibling files under 18/"
+    fi
+    teardown
+}
+
+# =============================================================================
+# Test 10: PGDATA validation rejects wrong path
 # =============================================================================
 test_pgdata_validation() {
     setup
@@ -197,6 +235,8 @@ test_migrates_root_18_docker
 test_existing_root_cluster_untouched
 test_removes_stale_symlink
 test_fresh_empty_pgdata
+test_collision_aborts_migration
+test_cleanup_preserves_18_siblings
 test_pgdata_validation
 
 echo "================================"

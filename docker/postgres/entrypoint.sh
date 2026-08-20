@@ -58,6 +58,20 @@ nimbus_migrate_legacy_data() {
 
     if [ -n "$LEGACY_DIR" ] && [ ! -f "$PGDATA/PG_VERSION" ]; then
         echo "Nimbus: Migrating PostgreSQL data from legacy location ($LEGACY_DIR)..."
+
+        # Refuse to merge into existing entries - a collision means $PGDATA
+        # holds leftovers of another (partial) cluster; moving would interleave them
+        for entry in "$LEGACY_DIR"/* "$LEGACY_DIR"/.[!.]*; do
+            [ -e "$entry" ] || continue
+            name=$(basename "$entry")
+            [ "$PGDATA/$name" = "$LEGACY_DIR" ] && continue
+            if [ -e "$PGDATA/$name" ]; then
+                echo "Nimbus: ERROR - Cannot migrate: $PGDATA already contains '$name'"
+                echo "Nimbus: Resolve manually, nothing was moved."
+                exit 1
+            fi
+        done
+
         src_count=$(ls -1A "$LEGACY_DIR" | wc -l)
         initial_dest_count=$(ls -1A "$PGDATA" | wc -l)
 
@@ -82,11 +96,11 @@ nimbus_migrate_legacy_data() {
             exit 1
         fi
 
-        # Safe to remove source now
+        # Safe to remove the emptied legacy dir now; only remove its parent
+        # (the 18/ dir) when nothing else lives there
+        rm -rf "$LEGACY_DIR"
         case "$LEGACY_DIR" in
-            "$PGDATA/18/docker") rm -rf "$PGDATA/18" ;;
-            "$PGDATA/data")      rm -rf "$PGDATA/data" ;;
-            *)                   rm -rf "$NIMBUS_PG_ROOT/18" ;;
+            */18/docker) rmdir "$(dirname "$LEGACY_DIR")" 2>/dev/null || true ;;
         esac
         if [ "$(id -u)" = "0" ]; then
             chown -R postgres:postgres "$PGDATA"
