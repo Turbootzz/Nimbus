@@ -36,14 +36,44 @@ if [ -f "$SETUP_MARKER" ]; then
     else
         # Retry loop for database readiness
         USER_COUNT="error"
+        PSQL_ERR=""
+        PSQL_ERR_FILE=$(mktemp)
         for i in 1 2 3; do
-            USER_COUNT=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -tAc "SELECT COUNT(*) FROM users;" 2>/dev/null || echo "error")
-            [ "$USER_COUNT" != "error" ] && break
+            if PSQL_OUT=$(PGPASSWORD="${DB_PASSWORD}" psql -h "${DB_HOST}" -p "${DB_PORT}" -U "${DB_USER}" -d "${DB_NAME}" -tAc "SELECT COUNT(*) FROM users;" 2>"$PSQL_ERR_FILE"); then
+                USER_COUNT="$PSQL_OUT"
+                break
+            fi
+            PSQL_ERR=$(cat "$PSQL_ERR_FILE")
             sleep 2
         done
+        rm -f "$PSQL_ERR_FILE"
     fi
 
-    if [ "$USER_COUNT" = "0" ] || [ "$USER_COUNT" = "error" ]; then
+    if [ "$USER_COUNT" = "error" ]; then
+        echo ""
+        echo "============================================================"
+        echo "  ERROR: Cannot query the Nimbus database!"
+        echo "============================================================"
+        echo ""
+        echo "  psql said: ${PSQL_ERR}"
+        echo ""
+        echo "  The database container is likely down or failing to start."
+        echo "  Check its logs first: docker logs nimbus-db"
+        echo ""
+        echo "  If those logs show 'directory exists but is not empty',"
+        echo "  pull the latest db image and restart - Nimbus migrates"
+        echo "  your data automatically:"
+        echo ""
+        echo "    docker-compose pull db && docker-compose up -d"
+        echo ""
+        echo "  To skip this check: SKIP_DB_CHECK=true"
+        echo "============================================================"
+        echo ""
+
+        if [ "${SKIP_DB_CHECK}" != "true" ]; then
+            exit 1
+        fi
+    elif [ "$USER_COUNT" = "0" ]; then
         echo ""
         echo "============================================================"
         echo "  ERROR: Database appears empty but Nimbus was initialized!"

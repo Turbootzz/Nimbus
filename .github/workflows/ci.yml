@@ -150,6 +150,9 @@ jobs:
       - name: Test entrypoint script
         run: sh docker/entrypoint.test.sh
 
+      - name: Test postgres entrypoint script
+        run: sh docker/postgres/entrypoint.test.sh
+
   # nimbus.turboot.com prod image
   docker-demo:
     name: Build Demo Image

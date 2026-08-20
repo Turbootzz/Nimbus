@@ -122,6 +122,7 @@ clean:
 test-docker:
 	@echo "🐳 Testing Docker scripts..."
 	@sh docker/entrypoint.test.sh
+	@sh docker/postgres/entrypoint.test.sh
 	@echo ""
 
 # Run all CI checks locally (same as GitHub Actions)
@@ -138,6 +139,7 @@ ci-check:
 	@echo ""
 	@echo "🐳 Docker script checks..."
 	@sh docker/entrypoint.test.sh
+	@sh docker/postgres/entrypoint.test.sh
 	@echo ""
 	@echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 	@echo "✅ All CI checks passed!"
