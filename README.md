@@ -170,6 +170,12 @@ This requires configuring `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` manually.
 
 ---
 
+## ☁️ One-Click Cloud Deploy
+
+[![Deploy on RepoCloud](https://d16t0pc4846x52.cloudfront.net/deploylobe.svg)](https://repocloud.io/details/Nimbus/)
+
+---
+
 ## ☁️ Don't want to self-host?
 
 [**Nimbus Cloud**](https://nimbusapp.dev) is a managed hosting option for €5/month — same Nimbus, zero setup.
