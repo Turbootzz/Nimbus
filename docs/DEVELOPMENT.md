@@ -14,6 +14,7 @@ Complete guide for setting up and developing Nimbus locally.
 - [Running the Application](#running-the-application)
 - [Testing](#testing)
 - [Code Quality](#code-quality)
+- [Branches & Releases](#branches--releases)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -320,6 +321,42 @@ This runs:
 - Go tests with race detector
 - Frontend linting
 - Frontend build
+
+---
+
+## Branches & Releases
+
+| Branch / tag | Purpose | Unified image (`turboot/nimbus`) |
+|--------------|---------|----------------------------------|
+| `main` | Stable, what most users run | `latest`, `main-<sha>` |
+| `develop` | Next major version (Nimbus 2.0) | `dev`, `develop-<sha>` |
+| `vX.Y.Z` tag | Stable release | `X.Y.Z`, `X.Y`, `X` |
+| `vX.Y.Z-beta.N` tag | Pre-release for testers | `X.Y.Z-beta.N`, `beta` |
+
+Pull requests build the unified image (both platforms) without pushing it. The postgres, legacy (`nimbus-backend`, `nimbus-frontend`), demo and cloud images are only built from `main`.
+
+### Workflow
+
+- **New features**: branch from `develop`, open the PR into `develop`.
+- **Fixes for current users**: branch from `main`, open the PR into `main`, then bring the fix to `develop`:
+  ```bash
+  git switch develop && git pull && git merge origin/main && git push
+  ```
+- **Beta**: tag a green `develop` commit as a pre-release:
+  ```bash
+  gh release create v2.0.0-beta.1 --target develop --prerelease --generate-notes
+  ```
+- **Stable**: open a PR from `develop` into `main` and merge it with **Create a merge commit** (a squash merge rewrites history, so the next `develop` → `main` PR conflicts). Then tag it:
+  ```bash
+  gh release create v2.0.0 --target main --generate-notes
+  ```
+
+### Good to know
+
+- CI runs one workflow per branch at a time, and one for all release tags together. Pushes queue in order, so `latest`, `dev` and the shared version tags always end on the newest push. A queued run that gets superseded by a newer push is cancelled; re-run it from the Actions tab if it was a release tag.
+- Floating tags (`X.Y`, `X`, `beta`) only move forward. A backport like `v1.4.2` after `v1.5.0` gets `1.4.2` and `1.4`, while `1` stays on `1.5.0`.
+- Migrations are tracked by file name. Never rename a migration once it is on `develop`: dev databases would run it again.
+- Test a pre-release locally with `docker compose -f docker-compose.dev.yml up -d` (port 3001, separate volumes).
 
 ---
 

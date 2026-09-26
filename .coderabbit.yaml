@@ -10,5 +10,8 @@ reviews:
   auto_review:
     enabled: true
     drafts: false
+    # Default branch (main) is always reviewed; also review PRs into develop
+    base_branches:
+      - develop
 chat:
   auto_reply: true
