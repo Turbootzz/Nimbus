@@ -131,7 +131,7 @@ Navigate to **http://localhost:3000** and create your first account!
 
 > **Note:** Secrets are auto-generated on first run. For production, see [Configuration](docs/CONFIGURATION.md) to set custom passwords.
 >
-> **Upgrading from separate container images?** See our [Migration Guide](docs/MIGRATION.md) for step-by-step instructions. PostgreSQL data migrates automatically!
+> **Still on the separate `nimbus-backend` and `nimbus-frontend` images?** They no longer get updates. Switching to the unified image takes about 5 minutes and keeps all your data: see the [Migration Guide](docs/MIGRATION.md).
 
 ### Image tags
 
@@ -166,18 +166,6 @@ JWT_SECRET=your-32-char-secret
 ```
 
 **Need OAuth, Prometheus, or custom domains?** See the [Advanced Configuration Guide](docs/CONFIGURATION.md).
-
-<details>
-<summary><b>Advanced: Separate Container Deployment</b></summary>
-
-For users who prefer separate frontend/backend containers (e.g., for custom reverse proxy setups), use `docker-compose.deprecated.yml`:
-
-```bash
-docker-compose -f docker-compose.deprecated.yml up -d
-```
-
-This requires configuring `CORS_ORIGINS` and `NEXT_PUBLIC_API_URL` manually.
-</details>
 
 ---
 

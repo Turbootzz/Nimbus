@@ -135,24 +135,24 @@ OAuth providers are optional. Leave the variables empty to disable a provider.
 3. Navigate to **APIs & Services** → **Credentials**
 4. Click **Create Credentials** → **OAuth client ID**
 5. Select **Web application**
-6. Add authorized redirect URI: `http://localhost:8080/api/v1/auth/oauth/google/callback`
+6. Add authorized redirect URI: `http://localhost:3000/api/v1/auth/oauth/google/callback`
 
 ```bash
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=your-client-secret
-GOOGLE_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/google/callback
+GOOGLE_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/google/callback
 ```
 
 ### GitHub OAuth
 
 1. Go to [GitHub Developer Settings](https://github.com/settings/developers)
 2. Click **New OAuth App**
-3. Set Authorization callback URL: `http://localhost:8080/api/v1/auth/oauth/github/callback`
+3. Set Authorization callback URL: `http://localhost:3000/api/v1/auth/oauth/github/callback`
 
 ```bash
 GITHUB_CLIENT_ID=your-client-id
 GITHUB_CLIENT_SECRET=your-client-secret
-GITHUB_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/github/callback
+GITHUB_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/github/callback
 ```
 
 ### Discord OAuth
@@ -160,12 +160,12 @@ GITHUB_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/github/callback
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
 2. Create a new application
 3. Go to **OAuth2** → **General**
-4. Add redirect: `http://localhost:8080/api/v1/auth/oauth/discord/callback`
+4. Add redirect: `http://localhost:3000/api/v1/auth/oauth/discord/callback`
 
 ```bash
 DISCORD_CLIENT_ID=your-client-id
 DISCORD_CLIENT_SECRET=your-client-secret
-DISCORD_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/discord/callback
+DISCORD_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/discord/callback
 ```
 
 ### OAuth State Secret (Optional)
@@ -210,7 +210,7 @@ scrape_configs:
       type: Bearer
       credentials: 'YOUR_API_KEY'
     static_configs:
-      - targets: ['localhost:8080']
+      - targets: ['host.docker.internal:3000']
 ```
 
 ### 4. Deploy Prometheus
@@ -219,6 +219,7 @@ scrape_configs:
 docker run -d \
   --name prometheus \
   -p 9090:9090 \
+  --add-host=host.docker.internal:host-gateway \
   -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
   prom/prometheus:latest
 ```
@@ -276,25 +277,9 @@ server {
 }
 ```
 
-### Separate Containers (Advanced)
+### Separate Containers (Legacy)
 
-For users who prefer separate frontend/backend containers, use `docker-compose.deprecated.yml`:
-
-```bash
-docker-compose -f docker-compose.deprecated.yml up -d
-```
-
-This requires additional configuration:
-
-```yaml
-environment:
-  DB_PASSWORD: ${DB_PASSWORD}
-  JWT_SECRET: ${JWT_SECRET}
-  CORS_ORIGINS: https://nimbus.yourdomain.com
-  COOKIE_SECURE: "true"
-```
-
----
+The separate `nimbus-backend` and `nimbus-frontend` images from `docker-compose.deprecated.yml` no longer get updates. Use the unified image instead; the [Migration Guide](MIGRATION.md) explains how to switch.
 
 ## Complete Example
 
@@ -325,15 +310,15 @@ JWT_SECRET=your-32-character-minimum-secret-key
 # OAuth (optional)
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-GOOGLE_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/google/callback
+GOOGLE_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/google/callback
 
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
-GITHUB_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/github/callback
+GITHUB_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/github/callback
 
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-DISCORD_REDIRECT_URL=http://localhost:8080/api/v1/auth/oauth/discord/callback
+DISCORD_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/discord/callback
 
 # Prometheus (optional)
 PROMETHEUS_API_KEY=

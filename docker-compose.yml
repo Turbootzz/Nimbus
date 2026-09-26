@@ -9,7 +9,7 @@
 #   DB_PASSWORD=your-custom-password    # Default: nimbus-default-password
 #   JWT_SECRET=your-custom-secret       # Auto-generated if not set
 #
-# For advanced users who prefer separate containers, see docker-compose.deprecated.yml
+# Coming from the old separate backend/frontend containers? See docs/MIGRATION.md
 
 services:
   db:
