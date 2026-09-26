@@ -337,7 +337,7 @@ This runs:
 | `vX.Y.Z` tag | Stable release | `X.Y.Z`, `X.Y`, `X` |
 | `vX.Y.Z-beta.N` tag | Pre-release for testers | `X.Y.Z-beta.N`, `beta` |
 
-Pull requests build the unified image (both platforms) without pushing it. The postgres, demo and cloud images are only built from `main`. The separate `nimbus-backend` and `nimbus-frontend` images are no longer built.
+Pull requests build the unified image (both platforms) without pushing it. The postgres and cloud images are only built from `main`. The demo image (`ghcr.io/turbootzz/nimbus-demo`) gets `latest` from `main` and `dev` from `develop`. The separate `nimbus-backend` and `nimbus-frontend` images are no longer built.
 
 ### Workflow
 
