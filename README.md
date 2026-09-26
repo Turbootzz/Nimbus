@@ -188,7 +188,7 @@ Nimbus is and will always be free and open source. Nimbus Cloud is simply for th
 ## 💻 Local Development
 
 ### Prerequisites
-- Node.js 24+ / Go 1.25+ / PostgreSQL
+- Node.js 24+ / Go 1.26+ / PostgreSQL
 
 ### Quick Start
 
