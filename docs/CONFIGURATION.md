@@ -210,7 +210,7 @@ scrape_configs:
       type: Bearer
       credentials: 'YOUR_API_KEY'
     static_configs:
-      - targets: ['localhost:3000']
+      - targets: ['host.docker.internal:3000']
 ```
 
 ### 4. Deploy Prometheus
@@ -219,6 +219,7 @@ scrape_configs:
 docker run -d \
   --name prometheus \
   -p 9090:9090 \
+  --add-host=host.docker.internal:host-gateway \
   -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
   prom/prometheus:latest
 ```

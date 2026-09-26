@@ -87,6 +87,7 @@ docker compose -f docker-compose.deprecated.yml up -d
 If the old version shows database errors, the unified image has already updated your database. Load your backup to undo that:
 
 ```bash
+docker stop nimbus-backend
 docker exec -i nimbus-db psql -U nimbus nimbus < nimbus-backup.sql
-docker restart nimbus-backend
+docker start nimbus-backend
 ```
