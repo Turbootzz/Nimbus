@@ -32,6 +32,7 @@ func TestIsBlockedIP(t *testing.T) {
 		"169.254.169.254": true,
 		"100.100.100.200": true,
 		"168.63.129.16":   true,
+		"169.254.170.2":   true, // ECS task credentials
 		// IPv4-mapped IPv6: an attacker resolving to ::ffff:169.254.169.254
 		// must NOT bypass the deny list.
 		"::ffff:169.254.169.254": true,

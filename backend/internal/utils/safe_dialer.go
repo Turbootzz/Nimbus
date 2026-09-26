@@ -22,6 +22,7 @@ const safeClientMaxRedirects = 5
 var blockedHosts = map[string]struct{}{
 	"169.254.169.254":          {}, // AWS / Azure / GCP / DO IMDS
 	"fd00:ec2::254":            {}, // AWS IMDS over IPv6
+	"169.254.170.2":            {}, // AWS ECS task metadata and credentials
 	"100.100.100.200":          {}, // Alibaba Cloud metadata
 	"168.63.129.16":            {}, // Azure WireServer
 	"metadata.google.internal": {}, // GCP DNS alias for 169.254.169.254
@@ -45,6 +46,7 @@ func IsBlockedHost(host string) bool {
 var blockedIPs = []net.IP{
 	net.ParseIP("169.254.169.254"), // AWS / Azure / GCP / DO IMDS
 	net.ParseIP("fd00:ec2::254"),   // AWS IMDS over IPv6
+	net.ParseIP("169.254.170.2"),   // AWS ECS task metadata and credentials
 	net.ParseIP("100.100.100.200"), // Alibaba Cloud metadata
 	net.ParseIP("168.63.129.16"),   // Azure WireServer
 }
