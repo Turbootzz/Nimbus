@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  // Don't let `next dev` generate AGENTS.md / CLAUDE.md in the repo
+  agentRules: false,
   images: {
     // Allow external images from any domain for user-provided icon URLs
     remotePatterns: [

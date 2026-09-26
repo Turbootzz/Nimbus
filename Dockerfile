@@ -5,7 +5,7 @@
 # =============================================================================
 # Stage 1: Build Go backend
 # =============================================================================
-FROM golang:1.25-alpine AS backend-builder
+FROM golang:1.27-alpine AS backend-builder
 
 WORKDIR /build
 
@@ -44,7 +44,7 @@ RUN npm run build
 # =============================================================================
 # Stage 3: Production runtime
 # =============================================================================
-FROM alpine:3.21
+FROM alpine:3.24
 
 WORKDIR /app
 
