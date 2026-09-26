@@ -1,5 +1,5 @@
 #!/bin/sh
-# Tests for entrypoint.sh JWT auto-generation logic
+# Tests for entrypoint.sh secret auto-generation logic (JWT_SECRET, ENCRYPTION_KEY)
 # Run with: sh docker/entrypoint.test.sh
 
 set -e
@@ -32,16 +32,38 @@ fail() {
     printf "${RED}✗ FAIL${NC}: %s\n" "$1"
 }
 
+# Helper: simulate loading the secrets file from entrypoint.sh
+load_secrets() {
+    if [ -f "${SECRETS_FILE}" ]; then
+        set -a
+        . "${SECRETS_FILE}"
+        set +a
+    fi
+}
+
+# Helper: simulate the ENCRYPTION_KEY generation logic from entrypoint.sh
+run_encryption_key_logic() {
+    mkdir -p "${SECRETS_DIR}"
+    chmod 700 "${SECRETS_DIR}"
+
+    load_secrets
+
+    if [ -z "${ENCRYPTION_KEY}" ]; then
+        export ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')
+        if ! grep -q "^ENCRYPTION_KEY=" "${SECRETS_FILE}" 2>/dev/null; then
+            echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> "${SECRETS_FILE}"
+            chmod 600 "${SECRETS_FILE}"
+        fi
+    fi
+}
+
 # Helper: simulate the JWT generation logic from entrypoint.sh
 run_jwt_logic() {
     # Create secrets directory with restrictive permissions
     mkdir -p "${SECRETS_DIR}"
     chmod 700 "${SECRETS_DIR}"
 
-    # Load previously generated secrets if they exist
-    if [ -f "${SECRETS_FILE}" ]; then
-        . "${SECRETS_FILE}"
-    fi
+    load_secrets
 
     # Auto-generate JWT_SECRET if not provided
     if [ -z "${JWT_SECRET}" ]; then
@@ -227,6 +249,87 @@ test_jwt_alphanumeric() {
 }
 
 # =============================================================================
+# Test 10: ENCRYPTION_KEY is generated as base64 of 32 bytes and persisted
+# =============================================================================
+test_encryption_key_generated() {
+    unset ENCRYPTION_KEY
+    rm -rf "${SECRETS_DIR}"
+
+    run_encryption_key_logic
+
+    BYTES=$(printf '%s' "${ENCRYPTION_KEY}" | base64 -d 2>/dev/null | wc -c | tr -d ' ')
+    if [ "${BYTES}" = "32" ] && grep -q "^ENCRYPTION_KEY=${ENCRYPTION_KEY}$" "${SECRETS_FILE}"; then
+        pass "ENCRYPTION_KEY is generated (32 bytes, base64) and persisted"
+    else
+        fail "ENCRYPTION_KEY should be 32 base64 bytes and persisted (got ${BYTES} bytes)"
+    fi
+}
+
+# =============================================================================
+# Test 11: ENCRYPTION_KEY survives a restart (same key, no duplicates)
+# =============================================================================
+test_encryption_key_stable_across_restarts() {
+    unset ENCRYPTION_KEY
+    rm -rf "${SECRETS_DIR}"
+
+    run_encryption_key_logic
+    FIRST_KEY="${ENCRYPTION_KEY}"
+
+    # Restart: fresh environment, same volume
+    unset ENCRYPTION_KEY
+    run_encryption_key_logic
+
+    COUNT=$(grep -c "^ENCRYPTION_KEY=" "${SECRETS_FILE}")
+    if [ "${ENCRYPTION_KEY}" = "${FIRST_KEY}" ] && [ "${COUNT}" = "1" ]; then
+        pass "ENCRYPTION_KEY is reused after restart without duplicates"
+    else
+        fail "ENCRYPTION_KEY changed or duplicated after restart (count ${COUNT})"
+    fi
+}
+
+# =============================================================================
+# Test 12: Provided ENCRYPTION_KEY is not overwritten or persisted
+# =============================================================================
+test_provided_encryption_key_not_overwritten() {
+    export ENCRYPTION_KEY="dXNlci1wcm92aWRlZC1rZXktMzItYnl0ZXMtbG9uZyE="
+    rm -rf "${SECRETS_DIR}"
+
+    run_encryption_key_logic
+
+    if [ "${ENCRYPTION_KEY}" = "dXNlci1wcm92aWRlZC1rZXktMzItYnl0ZXMtbG9uZyE=" ] && \
+        ! grep -q "^ENCRYPTION_KEY=" "${SECRETS_FILE}" 2>/dev/null; then
+        pass "Provided ENCRYPTION_KEY is not overwritten or persisted"
+    else
+        fail "Provided ENCRYPTION_KEY should be used as is"
+    fi
+}
+
+# =============================================================================
+# Test 13: Secrets loaded from file are exported to child processes
+# =============================================================================
+test_loaded_secrets_are_exported() {
+    rm -rf "${SECRETS_DIR}"
+    mkdir -p "${SECRETS_DIR}"
+    echo "ENCRYPTION_KEY=from-file-key" > "${SECRETS_FILE}"
+
+    # Run in a subshell without the variable in its environment, like a
+    # container started without ENCRYPTION_KEY declared
+    CHILD_VALUE=$(env -u ENCRYPTION_KEY sh -c '
+        SECRETS_FILE="$1"
+        set -a
+        . "${SECRETS_FILE}"
+        set +a
+        sh -c "printf %s \"\${ENCRYPTION_KEY}\""
+    ' _ "${SECRETS_FILE}")
+
+    if [ "${CHILD_VALUE}" = "from-file-key" ]; then
+        pass "Secrets loaded from file are exported to child processes"
+    else
+        fail "Secrets loaded from file should be exported (child saw '${CHILD_VALUE}')"
+    fi
+}
+
+# =============================================================================
 # Run all tests
 # =============================================================================
 echo "Running entrypoint.sh tests..."
@@ -241,6 +344,10 @@ test_secrets_dir_permissions
 test_secrets_file_permissions
 test_jwt_length
 test_jwt_alphanumeric
+test_encryption_key_generated
+test_encryption_key_stable_across_restarts
+test_provided_encryption_key_not_overwritten
+test_loaded_secrets_are_exported
 
 echo "================================"
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"

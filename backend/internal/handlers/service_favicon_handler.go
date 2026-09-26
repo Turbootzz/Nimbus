@@ -2,21 +2,19 @@ package handlers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
-	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/utils"
 	"golang.org/x/net/html"
 )
 
@@ -35,8 +33,7 @@ const (
 	// Cloudflare-protected sites (e.g. claude.ai), even though the well-known
 	// favicon paths themselves are served — we want the HTML too so we can
 	// find <link> tags.
-	faviconUserAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-	faviconMaxRedirects = 5
+	faviconUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 	// dashboardIconsDefaultBase is the canonical jsDelivr URL for the curated
 	// homarr-labs/dashboard-icons (Apache 2.0) SVG collection. For a homelab
 	// dashboard this is almost always crisper than scraping origin sites, which
@@ -59,105 +56,9 @@ func dashboardIconsBase() string {
 	return dashboardIconsDefaultBase
 }
 
-// blockedFaviconHosts are hosts we refuse to fetch from even though Nimbus is
-// otherwise permissive about private addresses (homelab services often live
-// on RFC1918). These hosts expose credentials on cloud VMs, so an authenticated
-// user must not be able to coax the server into hitting them — directly or via
-// a redirect from an attacker-controlled public URL.
-var blockedFaviconHosts = map[string]struct{}{
-	"169.254.169.254":          {}, // AWS / Azure / GCP / DO IMDS
-	"fd00:ec2::254":            {}, // AWS IMDS over IPv6
-	"100.100.100.200":          {}, // Alibaba Cloud metadata
-	"metadata.google.internal": {}, // GCP DNS alias for 169.254.169.254
-}
-
-func isBlockedFaviconHost(host string) bool {
-	_, blocked := blockedFaviconHosts[strings.ToLower(host)]
-	return blocked
-}
-
-// blockedFaviconIPs are the actual resolved IPs we refuse to dial. The hostname
-// check above is a first-pass filter; this one defeats DNS rebinding, where an
-// attacker-controlled domain resolves to one of these addresses despite the
-// hostname not matching the deny list.
-//
-// IPs are stored as parsed net.IP so the comparison covers IPv4-mapped IPv6
-// representations (e.g. ::ffff:169.254.169.254) — a plain string-compare would
-// miss those and a clever attacker could resolve to that form to bypass.
-var blockedFaviconIPs = []net.IP{
-	net.ParseIP("169.254.169.254"), // AWS / Azure / GCP / DO IMDS
-	net.ParseIP("fd00:ec2::254"),   // AWS IMDS over IPv6
-	net.ParseIP("100.100.100.200"), // Alibaba Cloud metadata
-}
-
-func isBlockedFaviconIP(addr string) bool {
-	ip := net.ParseIP(addr)
-	if ip == nil {
-		return false
-	}
-	// Normalize IPv4-mapped IPv6 down to plain IPv4 so the .Equal compare
-	// matches the IPv4 literals above. .To4() returns the IPv4 form or nil.
-	if v4 := ip.To4(); v4 != nil {
-		ip = v4
-	}
-	for _, blocked := range blockedFaviconIPs {
-		if blocked == nil {
-			continue
-		}
-		b := blocked
-		if v4 := b.To4(); v4 != nil {
-			b = v4
-		}
-		if b.Equal(ip) {
-			return true
-		}
-	}
-	return false
-}
-
-// errBlockedFaviconRedirect is returned by CheckRedirect when the favicon
-// client is asked to follow a redirect to a metadata-style host. It is wrapped
-// in url.Error by net/http so callers should errors.Is it.
-var errBlockedFaviconRedirect = errors.New("redirect to blocked host")
-
-// faviconDialer enforces the deny list at the network layer, after DNS
-// resolution. Without this, an attacker domain resolving to 169.254.169.254
-// would bypass the hostname check and hit the cloud-metadata service anyway.
-var faviconDialer = &net.Dialer{
-	Timeout: faviconFetchTimeout,
-	Control: func(_, address string, _ syscall.RawConn) error {
-		host, _, err := net.SplitHostPort(address)
-		if err != nil {
-			host = address
-		}
-		if isBlockedFaviconIP(host) {
-			return errBlockedFaviconRedirect
-		}
-		return nil
-	},
-}
-
 // faviconHTTPClient is shared across requests so the connection pool is reused.
-// Defense in depth: CheckRedirect blocks by hostname, the Dialer's Control blocks
-// by resolved IP (so DNS rebinding can't sneak through).
-var faviconHTTPClient = &http.Client{
-	Timeout: faviconFetchTimeout,
-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
-		if len(via) >= faviconMaxRedirects {
-			return fmt.Errorf("stopped after %d redirects", faviconMaxRedirects)
-		}
-		if isBlockedFaviconHost(req.URL.Hostname()) {
-			return errBlockedFaviconRedirect
-		}
-		return nil
-	},
-	Transport: &http.Transport{
-		DialContext:           faviconDialer.DialContext,
-		ForceAttemptHTTP2:     true,
-		TLSHandshakeTimeout:   faviconFetchTimeout,
-		ResponseHeaderTimeout: faviconFetchTimeout,
-	},
-}
+// It blocks cloud metadata hosts by name and by resolved IP (see utils.NewSafeClient).
+var faviconHTTPClient = utils.NewSafeClient(true, faviconFetchTimeout)
 
 // FetchServiceFavicon resolves an icon image for a service and stores it under
 // the same directory as uploaded icons, returning the bare filename. It tries,
@@ -193,7 +94,7 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 				"error": "Invalid URL. Must include http:// or https:// scheme",
 			})
 		}
-		if isBlockedFaviconHost(parsed.Hostname()) {
+		if utils.IsBlockedHost(parsed.Hostname()) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Refusing to fetch from cloud metadata host",
 			})

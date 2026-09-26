@@ -5,10 +5,13 @@ import (
 	"testing"
 )
 
+// testEncryptionKey is 32 bytes, base64 encoded
+const testEncryptionKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
+
 // TestValidateRequiredEnvVars tests environment variable validation
 // Note: PORT, DB_HOST, DB_PORT, DB_USER, DB_NAME have defaults
 // CORS_ORIGINS intentionally has no default (enables same-origin mode in unified Docker image)
-// Only JWT_SECRET and DB_PASSWORD are strictly required
+// Only JWT_SECRET, ENCRYPTION_KEY and DB_PASSWORD are strictly required
 func TestValidateRequiredEnvVars(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -19,24 +22,45 @@ func TestValidateRequiredEnvVars(t *testing.T) {
 		{
 			name: "all required vars present and valid",
 			envVars: map[string]string{
-				"JWT_SECRET":   "this-is-a-very-long-secret-key-minimum-32-characters",
-				"DB_HOST":      "localhost",
-				"DB_PORT":      "5432",
-				"DB_NAME":      "nimbus",
-				"DB_USER":      "postgres",
-				"DB_PASSWORD":  "password",
-				"PORT":         "8080",
-				"CORS_ORIGINS": "http://localhost:3000",
+				"JWT_SECRET":     "this-is-a-very-long-secret-key-minimum-32-characters",
+				"ENCRYPTION_KEY": testEncryptionKey,
+				"DB_HOST":        "localhost",
+				"DB_PORT":        "5432",
+				"DB_NAME":        "nimbus",
+				"DB_USER":        "postgres",
+				"DB_PASSWORD":    "password",
+				"PORT":           "8080",
+				"CORS_ORIGINS":   "http://localhost:3000",
 			},
 			wantErr: false,
 		},
 		{
-			name: "only truly required vars (JWT_SECRET + DB_PASSWORD) with defaults",
+			name: "only truly required vars (JWT_SECRET + ENCRYPTION_KEY + DB_PASSWORD) with defaults",
+			envVars: map[string]string{
+				"JWT_SECRET":     "this-is-a-very-long-secret-key-minimum-32-characters",
+				"ENCRYPTION_KEY": testEncryptionKey,
+				"DB_PASSWORD":    "password",
+			},
+			wantErr: false,
+		},
+		{
+			name: "ENCRYPTION_KEY missing",
 			envVars: map[string]string{
 				"JWT_SECRET":  "this-is-a-very-long-secret-key-minimum-32-characters",
 				"DB_PASSWORD": "password",
 			},
-			wantErr: false,
+			wantErr: true,
+			errMsg:  "ENCRYPTION_KEY is required",
+		},
+		{
+			name: "ENCRYPTION_KEY not 32 bytes",
+			envVars: map[string]string{
+				"JWT_SECRET":     "this-is-a-very-long-secret-key-minimum-32-characters",
+				"ENCRYPTION_KEY": "c2hvcnQ=",
+				"DB_PASSWORD":    "password",
+			},
+			wantErr: true,
+			errMsg:  "ENCRYPTION_KEY must be 32 bytes",
 		},
 		{
 			name: "JWT_SECRET too short",
@@ -166,6 +190,7 @@ func TestValidateRequiredEnvVars_EdgeCases(t *testing.T) {
 	t.Run("JWT_SECRET with spaces is trimmed", func(t *testing.T) {
 		clearEnv()
 		os.Setenv("JWT_SECRET", "  this-is-a-very-long-secret-key-minimum-32-characters  ")
+		os.Setenv("ENCRYPTION_KEY", testEncryptionKey)
 		os.Setenv("DB_PASSWORD", "password")
 
 		applyDefaults()
@@ -191,6 +216,7 @@ func TestValidateRequiredEnvVars_EdgeCases(t *testing.T) {
 		for _, tc := range testCases {
 			clearEnv()
 			os.Setenv("JWT_SECRET", "this-is-a-very-long-secret-key-minimum-32-characters")
+			os.Setenv("ENCRYPTION_KEY", testEncryptionKey)
 			os.Setenv("DB_PASSWORD", "password")
 			os.Setenv("PORT", tc.port)
 
@@ -292,6 +318,7 @@ func TestGetEnvOrDefault(t *testing.T) {
 func clearEnv() {
 	vars := []string{
 		"JWT_SECRET",
+		"ENCRYPTION_KEY",
 		"DB_HOST",
 		"DB_PORT",
 		"DB_NAME",

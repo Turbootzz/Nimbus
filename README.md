@@ -104,6 +104,7 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
       JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     volumes:
       - uploads_data:/app/backend/uploads
     ports:
@@ -154,6 +155,7 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in volume, back it up) |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |

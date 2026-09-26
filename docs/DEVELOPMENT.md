@@ -52,7 +52,8 @@ make setup
 # CREATE DATABASE nimbus;
 
 # 4. Configure environment
-# Edit .env with your PostgreSQL credentials
+# Edit .env with your PostgreSQL credentials, JWT_SECRET and
+# ENCRYPTION_KEY (generate with: openssl rand -base64 32)
 
 # 5. Test database connection
 make testdb
@@ -190,6 +191,8 @@ DB_PORT=5432
 DB_NAME=nimbus
 DB_USER=postgres       # Your PostgreSQL user
 DB_PASSWORD=password   # Your PostgreSQL password
+JWT_SECRET=            # At least 32 characters
+ENCRYPTION_KEY=        # openssl rand -base64 32
 ```
 
 ### Verify Connection
