@@ -84,8 +84,11 @@ func optionsJSON(options json.RawMessage) string {
 
 // Create stores a new integration if the user is under maxPerUser. Uses the
 // same per-user row lock as APITokenRepository.Create to keep the limit exact.
+// A preset ID is kept, since encrypted credentials are bound to it.
 func (r *IntegrationRepository) Create(ctx context.Context, integration *models.Integration, credentialsEnc []byte, maxPerUser int) error {
-	integration.ID = uuid.New().String()
+	if integration.ID == "" {
+		integration.ID = uuid.New().String()
+	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -192,14 +195,15 @@ func (r *IntegrationRepository) ListByUserID(ctx context.Context, userID string)
 }
 
 // Update saves all editable fields, including the credentials blob (nil
-// clears it). Kind and test results are not touched.
+// clears it) and the last test result. Kind is never changed.
 func (r *IntegrationRepository) Update(ctx context.Context, integration *models.Integration, credentialsEnc []byte) error {
 	query := `
 		UPDATE integrations
 		SET name = $1, base_url = $2, auth_type = $3, credentials_enc = $4,
 			verify_tls = $5, options = $6, refresh_seconds = $7,
+			last_test_at = $8, last_test_ok = $9, last_error = $10,
 			updated_at = CURRENT_TIMESTAMP
-		WHERE id = $8 AND user_id = $9
+		WHERE id = $11 AND user_id = $12
 		RETURNING updated_at
 	`
 	err := r.db.QueryRowContext(ctx, query,
@@ -210,6 +214,9 @@ func (r *IntegrationRepository) Update(ctx context.Context, integration *models.
 		integration.VerifyTLS,
 		optionsJSON(integration.Options),
 		integration.RefreshSeconds,
+		integration.LastTestAt,
+		integration.LastTestOK,
+		integration.LastError,
 		integration.ID,
 		integration.UserID,
 	).Scan(&integration.UpdatedAt)

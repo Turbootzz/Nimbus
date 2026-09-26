@@ -24,6 +24,8 @@ var ErrDecrypt = errors.New("failed to decrypt data")
 
 // Cipher encrypts small secrets with AES-256-GCM.
 // Blob format: version (1 byte) || nonce (12 bytes) || ciphertext+tag.
+// The aad argument binds a blob to its context (e.g. a row id), so a blob
+// copied to another row fails to decrypt.
 type Cipher struct {
 	aead cipher.AEAD
 }
@@ -67,23 +69,23 @@ func NewCipherFromEnv() (*Cipher, error) {
 }
 
 // Encrypt seals plaintext with a fresh random nonce.
-func (c *Cipher) Encrypt(plaintext []byte) ([]byte, error) {
+func (c *Cipher) Encrypt(plaintext, aad []byte) ([]byte, error) {
 	nonceSize := c.aead.NonceSize()
 	out := make([]byte, 1+nonceSize, 1+nonceSize+len(plaintext)+c.aead.Overhead())
 	out[0] = cipherVersion
 	if _, err := rand.Read(out[1:]); err != nil {
 		return nil, fmt.Errorf("failed to generate nonce: %w", err)
 	}
-	return c.aead.Seal(out, out[1:], plaintext, nil), nil
+	return c.aead.Seal(out, out[1:], plaintext, aad), nil
 }
 
-// Decrypt opens a blob produced by Encrypt.
-func (c *Cipher) Decrypt(blob []byte) ([]byte, error) {
+// Decrypt opens a blob produced by Encrypt with the same aad.
+func (c *Cipher) Decrypt(blob, aad []byte) ([]byte, error) {
 	nonceSize := c.aead.NonceSize()
 	if len(blob) < 1+nonceSize+c.aead.Overhead() || blob[0] != cipherVersion {
 		return nil, ErrDecrypt
 	}
-	plaintext, err := c.aead.Open(nil, blob[1:1+nonceSize], blob[1+nonceSize:], nil)
+	plaintext, err := c.aead.Open(nil, blob[1:1+nonceSize], blob[1+nonceSize:], aad)
 	if err != nil {
 		return nil, ErrDecrypt
 	}

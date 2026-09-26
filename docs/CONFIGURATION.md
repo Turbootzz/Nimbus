@@ -110,7 +110,7 @@ CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
 |----------|---------|-------------|
 | `ENCRYPTION_KEY` | *required* | Base64 encoded 32-byte key that encrypts integration credentials (AES-256-GCM) |
 
-Generate one with `openssl rand -base64 32`. The unified image creates it on first start and saves it in `uploads/.secrets/generated.env`, next to `JWT_SECRET`.
+Generate one with `openssl rand -base64 32`. The unified image creates it on first start and saves it in `uploads/.secrets/generated.env`, next to `JWT_SECRET`. A key you set yourself always wins over the generated one.
 
 **Keep this key safe.** API keys and passwords of your integrations are stored encrypted with it. If the key is lost or changed, Nimbus can't read them anymore and you have to enter them again. Back up the uploads volume, or set your own key and store it somewhere safe. Nimbus refuses to start without a valid key.
 

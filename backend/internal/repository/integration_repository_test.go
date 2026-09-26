@@ -191,6 +191,23 @@ func TestIntegrationRepository_UpdateTestResult(t *testing.T) {
 	if !*got.LastTestOK || got.LastError != nil {
 		t.Errorf("expected success to clear last_error: %+v", got)
 	}
+
+	// Update writes the test result as given: kept when set, cleared when nil
+	if err := repo.Update(ctx, got, nil); err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+	kept, _ := repo.GetByID(ctx, integration.ID, "user-1")
+	if kept.LastTestOK == nil || kept.LastTestAt == nil {
+		t.Errorf("expected Update to keep the test result: %+v", kept)
+	}
+	kept.LastTestAt, kept.LastTestOK = nil, nil
+	if err := repo.Update(ctx, kept, nil); err != nil {
+		t.Fatalf("Update returned error: %v", err)
+	}
+	cleared, _ := repo.GetByID(ctx, integration.ID, "user-1")
+	if cleared.LastTestOK != nil || cleared.LastTestAt != nil {
+		t.Errorf("expected Update to clear the test result: %+v", cleared)
+	}
 }
 
 func TestIntegrationRepository_OwnershipIsEnforced(t *testing.T) {

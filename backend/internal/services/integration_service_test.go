@@ -3,6 +3,7 @@ package services
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,7 +83,9 @@ func (r *fakeIntegrationRepo) get(id, userID string) (models.Integration, error)
 }
 
 func (r *fakeIntegrationRepo) Create(_ context.Context, i *models.Integration, blob []byte, _ int) error {
-	i.ID = uuid.New().String()
+	if i.ID == "" {
+		i.ID = uuid.New().String()
+	}
 	i.HasCredentials = blob != nil
 	r.items[i.ID], r.blobs[i.ID] = *i, blob
 	return nil
@@ -175,7 +178,7 @@ func apiKeyRequest(baseURL string) *models.IntegrationRequest {
 
 func decryptStored(t *testing.T, svc *IntegrationService, repo *fakeIntegrationRepo, id string) models.IntegrationCredentials {
 	t.Helper()
-	creds, err := svc.decryptCredentials(repo.blobs[id])
+	creds, err := svc.decryptCredentials(repo.blobs[id], id)
 	require.NoError(t, err)
 	return creds
 }
@@ -313,6 +316,43 @@ func TestIntegrationService_UpdateReplacesAndClearsCredentials(t *testing.T) {
 	assert.Nil(t, repo.blobs[created.ID])
 }
 
+func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
+	svc, repo := newTestIntegrationService(t)
+	ctx := context.Background()
+	server := pingServer(t)
+	created, err := svc.Create(ctx, "user-1", apiKeyRequest(server.URL))
+	require.NoError(t, err)
+	_, err = svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+
+	renamed, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{Name: "Renamed"})
+	require.NoError(t, err)
+	assert.NotNil(t, renamed.LastTestOK, "a rename keeps the test result")
+
+	moved, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{BaseURL: "http://10.0.0.99"})
+	require.NoError(t, err)
+	assert.Nil(t, moved.LastTestOK, "a new URL invalidates the test result")
+	assert.Nil(t, moved.LastTestAt)
+	assert.Nil(t, repo.items[created.ID].LastTestOK)
+}
+
+func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) {
+	svc, repo := newTestIntegrationService(t)
+	ctx := context.Background()
+	victim, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	require.NoError(t, err)
+	attacker, err := svc.Create(ctx, "user-2", apiKeyRequest("http://attacker.example"))
+	require.NoError(t, err)
+
+	// Someone with database access copies the victim's blob to their own row
+	repo.blobs[attacker.ID] = repo.blobs[victim.ID]
+
+	result, err := svc.TestSaved(ctx, attacker.ID, "user-2")
+	require.NoError(t, err)
+	assert.False(t, result.OK)
+	assert.Contains(t, result.Error, "cannot be decrypted")
+}
+
 func TestIntegrationService_UpdateRules(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	ctx := context.Background()
@@ -420,4 +460,7 @@ func TestRedactSecrets(t *testing.T) {
 		assert.NotContains(t, msg, leaked)
 	}
 	assert.Contains(t, msg, "user admin", "usernames are not secret")
+
+	header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("admin:p@ss"))
+	assert.NotContains(t, redactSecrets(header, creds), "YWRtaW46cEBzcw==")
 }

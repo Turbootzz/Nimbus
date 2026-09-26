@@ -23,10 +23,12 @@ var blockedHosts = map[string]struct{}{
 	"169.254.169.254":          {}, // AWS / Azure / GCP / DO IMDS
 	"fd00:ec2::254":            {}, // AWS IMDS over IPv6
 	"100.100.100.200":          {}, // Alibaba Cloud metadata
+	"168.63.129.16":            {}, // Azure WireServer
 	"metadata.google.internal": {}, // GCP DNS alias for 169.254.169.254
 }
 
 // IsBlockedHost reports whether a hostname is on the cloud metadata deny list.
+// This is the single deny list for server-side fetches (see url_validator.go).
 func IsBlockedHost(host string) bool {
 	_, blocked := blockedHosts[strings.ToLower(host)]
 	return blocked
@@ -44,6 +46,7 @@ var blockedIPs = []net.IP{
 	net.ParseIP("169.254.169.254"), // AWS / Azure / GCP / DO IMDS
 	net.ParseIP("fd00:ec2::254"),   // AWS IMDS over IPv6
 	net.ParseIP("100.100.100.200"), // Alibaba Cloud metadata
+	net.ParseIP("168.63.129.16"),   // Azure WireServer
 }
 
 // IsBlockedIP reports whether an IP literal is on the cloud metadata deny list.

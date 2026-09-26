@@ -9,7 +9,6 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/nimbus/backend/internal/models"
-	"github.com/nimbus/backend/internal/utils"
 )
 
 // Default values for environment variables (Convention over Configuration)
@@ -82,11 +81,6 @@ func validateRequiredEnvVars() error {
 		errors = append(errors, "JWT_SECRET is required")
 	} else if len(jwtSecret) < 32 {
 		errors = append(errors, "JWT_SECRET must be at least 32 characters for security")
-	}
-
-	// Validate ENCRYPTION_KEY (encrypts integration credentials at rest)
-	if _, err := utils.ParseEncryptionKey(os.Getenv(utils.EncryptionKeyEnv)); err != nil {
-		errors = append(errors, err.Error())
 	}
 
 	// Validate database host

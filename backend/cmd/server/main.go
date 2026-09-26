@@ -28,6 +28,13 @@ func main() {
 	// Load environment variables
 	config.MustLoadEnv()
 
+	// Integration credentials are encrypted with ENCRYPTION_KEY. Only the
+	// server needs it, so it is checked here instead of in LoadEnv.
+	credentialCipher, err := utils.NewCipherFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to load environment: %v", err)
+	}
+
 	// Connect to database
 	database, err := db.Connect()
 	if err != nil {
@@ -118,11 +125,7 @@ func main() {
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	// Initialize integration service (credentials are encrypted with ENCRYPTION_KEY)
-	credentialCipher, err := utils.NewCipherFromEnv()
-	if err != nil {
-		log.Fatalf("Failed to set up credential encryption: %v", err)
-	}
+	// Initialize integration service
 	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher)
 
 	// Initialize handlers

@@ -108,7 +108,9 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 		})
 	}
 
-	ctx, cancel := context.WithTimeout(c.Context(), faviconFetchTimeout)
+	// UserContext, not c.Context(): net/http dial goroutines can outlive the
+	// handler, and fasthttp recycles its RequestCtx once the handler returns.
+	ctx, cancel := context.WithTimeout(c.UserContext(), faviconFetchTimeout)
 	defer cancel()
 
 	candidates := buildIconCandidates(ctx, name, pageURL)

@@ -20,11 +20,11 @@ func testCipher(t *testing.T, fill byte) *Cipher {
 func TestCipher_RoundTrip(t *testing.T) {
 	c := testCipher(t, 1)
 	for _, plaintext := range [][]byte{[]byte(`{"api_key":"s3cret"}`), {}} {
-		blob, err := c.Encrypt(plaintext)
+		blob, err := c.Encrypt(plaintext, []byte("row-1"))
 		if err != nil {
 			t.Fatalf("Encrypt: %v", err)
 		}
-		got, err := c.Decrypt(blob)
+		got, err := c.Decrypt(blob, []byte("row-1"))
 		if err != nil {
 			t.Fatalf("Decrypt: %v", err)
 		}
@@ -36,8 +36,8 @@ func TestCipher_RoundTrip(t *testing.T) {
 
 func TestCipher_VersionByteAndFreshNonce(t *testing.T) {
 	c := testCipher(t, 1)
-	a, _ := c.Encrypt([]byte("same"))
-	b, _ := c.Encrypt([]byte("same"))
+	a, _ := c.Encrypt([]byte("same"), nil)
+	b, _ := c.Encrypt([]byte("same"), nil)
 
 	if a[0] != 0x01 {
 		t.Errorf("expected version byte 0x01, got %#x", a[0])
@@ -52,12 +52,12 @@ func TestCipher_VersionByteAndFreshNonce(t *testing.T) {
 
 func TestCipher_DetectsTampering(t *testing.T) {
 	c := testCipher(t, 1)
-	blob, _ := c.Encrypt([]byte("secret"))
+	blob, _ := c.Encrypt([]byte("secret"), nil)
 
 	for i := range blob {
 		tampered := bytes.Clone(blob)
 		tampered[i] ^= 0xff
-		if _, err := c.Decrypt(tampered); !errors.Is(err, ErrDecrypt) {
+		if _, err := c.Decrypt(tampered, nil); !errors.Is(err, ErrDecrypt) {
 			t.Errorf("flipping byte %d: expected ErrDecrypt, got %v", i, err)
 		}
 	}
@@ -65,7 +65,7 @@ func TestCipher_DetectsTampering(t *testing.T) {
 
 func TestCipher_RejectsUnknownVersionAndShortBlobs(t *testing.T) {
 	c := testCipher(t, 1)
-	blob, _ := c.Encrypt([]byte("secret"))
+	blob, _ := c.Encrypt([]byte("secret"), nil)
 
 	v2 := bytes.Clone(blob)
 	v2[0] = 0x02
@@ -75,16 +75,28 @@ func TestCipher_RejectsUnknownVersionAndShortBlobs(t *testing.T) {
 		"version only":    {0x01},
 		"truncated":       blob[:len(blob)-1],
 	} {
-		if _, err := c.Decrypt(input); !errors.Is(err, ErrDecrypt) {
+		if _, err := c.Decrypt(input, nil); !errors.Is(err, ErrDecrypt) {
 			t.Errorf("%s: expected ErrDecrypt, got %v", name, err)
 		}
 	}
 }
 
 func TestCipher_WrongKeyFails(t *testing.T) {
-	blob, _ := testCipher(t, 1).Encrypt([]byte("secret"))
-	if _, err := testCipher(t, 2).Decrypt(blob); !errors.Is(err, ErrDecrypt) {
+	blob, _ := testCipher(t, 1).Encrypt([]byte("secret"), nil)
+	if _, err := testCipher(t, 2).Decrypt(blob, nil); !errors.Is(err, ErrDecrypt) {
 		t.Errorf("expected ErrDecrypt with wrong key, got %v", err)
+	}
+}
+
+func TestCipher_AADBindsBlobToContext(t *testing.T) {
+	c := testCipher(t, 1)
+	blob, _ := c.Encrypt([]byte("secret"), []byte("row-1"))
+
+	if _, err := c.Decrypt(blob, []byte("row-2")); !errors.Is(err, ErrDecrypt) {
+		t.Errorf("blob moved to another row: expected ErrDecrypt, got %v", err)
+	}
+	if got, err := c.Decrypt(blob, []byte("row-1")); err != nil || string(got) != "secret" {
+		t.Errorf("same row: expected secret, got %q (err %v)", got, err)
 	}
 }
 

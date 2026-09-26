@@ -107,7 +107,8 @@ func (h *IntegrationHandler) TestUnsavedIntegration(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	result, err := h.service.TestUnsaved(c.Context(), &req)
+	// UserContext: outgoing requests must not hold on to fasthttp's recycled RequestCtx
+	result, err := h.service.TestUnsaved(c.UserContext(), &req)
 	if err != nil {
 		return integrationError(c, err, "test integration")
 	}
@@ -120,7 +121,8 @@ func (h *IntegrationHandler) TestIntegration(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	result, err := h.service.TestSaved(c.Context(), c.Params("id"), userID)
+	// UserContext: outgoing requests must not hold on to fasthttp's recycled RequestCtx
+	result, err := h.service.TestSaved(c.UserContext(), c.Params("id"), userID)
 	if err != nil {
 		return integrationError(c, err, "test integration")
 	}

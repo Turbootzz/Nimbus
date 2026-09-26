@@ -1,7 +1,9 @@
 package services
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,6 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/integrations"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -73,13 +76,15 @@ func (s *IntegrationService) Create(ctx context.Context, userID string, req *mod
 	if err != nil {
 		return nil, err
 	}
-	blob, err := s.encryptCredentials(in.creds)
+
+	// The ID is set here because the credentials are bound to it
+	integration := in.integration
+	integration.ID = uuid.New().String()
+	integration.UserID = userID
+	blob, err := s.encryptCredentials(in.creds, integration.ID)
 	if err != nil {
 		return nil, err
 	}
-
-	integration := in.integration
-	integration.UserID = userID
 	if err := s.repo.Create(ctx, &integration, blob, maxIntegrationsPerUser); err != nil {
 		if errors.Is(err, repository.ErrIntegrationLimitReached) {
 			return nil, invalid("Maximum integration limit reached (%d)", maxIntegrationsPerUser)
@@ -90,7 +95,8 @@ func (s *IntegrationService) Create(ctx context.Context, userID string, req *mod
 }
 
 // Update applies the request on top of the stored integration. Omitted
-// credentials are kept as they are.
+// credentials are kept as they are. The last test result is cleared when the
+// connection changes, since it no longer applies.
 func (s *IntegrationService) Update(ctx context.Context, id, userID string, req *models.IntegrationRequest) (*models.Integration, error) {
 	current, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
@@ -105,13 +111,16 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, req 
 	if in.creds == nil {
 		blob, err = s.repo.GetCredentials(ctx, id, userID)
 	} else {
-		blob, err = s.encryptCredentials(in.creds)
+		blob, err = s.encryptCredentials(in.creds, current.ID)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	integration := in.integration
+	if in.creds != nil || connectionChanged(current, &integration) {
+		integration.LastTestAt, integration.LastTestOK, integration.LastError = nil, nil, nil
+	}
 	if err := s.repo.Update(ctx, &integration, blob); err != nil {
 		return nil, err
 	}
@@ -141,7 +150,7 @@ func (s *IntegrationService) TestSaved(ctx context.Context, id, userID string) (
 
 	var result models.IntegrationTestResult
 	impl, ok := integrations.Get(current.Kind)
-	creds, decryptErr := s.decryptCredentials(blob)
+	creds, decryptErr := s.decryptCredentials(blob, current.ID)
 	switch {
 	case !ok:
 		result.Error = fmt.Sprintf("Integration kind %q is not available", current.Kind)
@@ -251,6 +260,14 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 	return &integrationInput{impl: impl, integration: in, creds: creds}, nil
 }
 
+// connectionChanged reports whether an update touches how Nimbus connects
+func connectionChanged(before, after *models.Integration) bool {
+	return before.BaseURL != after.BaseURL ||
+		before.AuthType != after.AuthType ||
+		before.VerifyTLS != after.VerifyTLS ||
+		!bytes.Equal(before.Options, after.Options)
+}
+
 // normalizeBaseURL validates a base URL and strips the trailing slash.
 // Credentials, queries and fragments are rejected so no secret is ever
 // stored in plain text or echoed back in responses.
@@ -303,9 +320,9 @@ func resolveCredentials(authType string, given *models.IntegrationCredentials, c
 	return &creds, nil
 }
 
-// encryptCredentials returns the blob to store; nil when there is nothing
-// to store (auth type none).
-func (s *IntegrationService) encryptCredentials(creds *models.IntegrationCredentials) ([]byte, error) {
+// encryptCredentials returns the blob to store, bound to the integration ID;
+// nil when there is nothing to store (auth type none).
+func (s *IntegrationService) encryptCredentials(creds *models.IntegrationCredentials, integrationID string) ([]byte, error) {
 	if creds == nil || *creds == (models.IntegrationCredentials{}) {
 		return nil, nil
 	}
@@ -313,15 +330,15 @@ func (s *IntegrationService) encryptCredentials(creds *models.IntegrationCredent
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode credentials: %w", err)
 	}
-	return s.cipher.Encrypt(plaintext)
+	return s.cipher.Encrypt(plaintext, []byte(integrationID))
 }
 
-func (s *IntegrationService) decryptCredentials(blob []byte) (models.IntegrationCredentials, error) {
+func (s *IntegrationService) decryptCredentials(blob []byte, integrationID string) (models.IntegrationCredentials, error) {
 	var creds models.IntegrationCredentials
 	if blob == nil {
 		return creds, nil
 	}
-	plaintext, err := s.cipher.Decrypt(blob)
+	plaintext, err := s.cipher.Decrypt(blob, []byte(integrationID))
 	if err != nil {
 		return creds, err
 	}
@@ -372,7 +389,12 @@ func callTest(ctx context.Context, impl integrations.Integration, conn *integrat
 // redactSecrets removes credential values from a message. Kinds may put
 // secrets in URLs and net/http echoes the full URL in its errors.
 func redactSecrets(msg string, creds models.IntegrationCredentials) string {
-	for _, secret := range []string{creds.APIKey, creds.Password, creds.Token} {
+	secrets := []string{creds.APIKey, creds.Password, creds.Token}
+	if creds.Password != "" {
+		// Basic auth header value
+		secrets = append(secrets, base64.StdEncoding.EncodeToString([]byte(creds.Username+":"+creds.Password)))
+	}
+	for _, secret := range secrets {
 		if secret == "" {
 			continue
 		}

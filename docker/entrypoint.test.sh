@@ -46,7 +46,15 @@ run_encryption_key_logic() {
     mkdir -p "${SECRETS_DIR}"
     chmod 700 "${SECRETS_DIR}"
 
+    EXPLICIT_ENCRYPTION_KEY="${ENCRYPTION_KEY}"
     load_secrets
+    if [ -n "${EXPLICIT_ENCRYPTION_KEY}" ]; then
+        KEY_MISMATCH=false
+        if [ "${ENCRYPTION_KEY}" != "${EXPLICIT_ENCRYPTION_KEY}" ]; then
+            KEY_MISMATCH=true
+        fi
+        export ENCRYPTION_KEY="${EXPLICIT_ENCRYPTION_KEY}"
+    fi
 
     if [ -z "${ENCRYPTION_KEY}" ]; then
         export ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')
@@ -305,7 +313,25 @@ test_provided_encryption_key_not_overwritten() {
 }
 
 # =============================================================================
-# Test 13: Secrets loaded from file are exported to child processes
+# Test 13: Explicit ENCRYPTION_KEY wins over a generated one, with a warning
+# =============================================================================
+test_explicit_encryption_key_wins() {
+    rm -rf "${SECRETS_DIR}"
+    mkdir -p "${SECRETS_DIR}"
+    echo "ENCRYPTION_KEY=generated-earlier" > "${SECRETS_FILE}"
+    export ENCRYPTION_KEY="set-by-user"
+
+    run_encryption_key_logic
+
+    if [ "${ENCRYPTION_KEY}" = "set-by-user" ] && [ "${KEY_MISMATCH}" = "true" ]; then
+        pass "Explicit ENCRYPTION_KEY wins over a generated one and warns"
+    else
+        fail "Explicit ENCRYPTION_KEY should win (got ${ENCRYPTION_KEY}, mismatch ${KEY_MISMATCH})"
+    fi
+}
+
+# =============================================================================
+# Test 14: Secrets loaded from file are exported to child processes
 # =============================================================================
 test_loaded_secrets_are_exported() {
     rm -rf "${SECRETS_DIR}"
@@ -347,6 +373,7 @@ test_jwt_alphanumeric
 test_encryption_key_generated
 test_encryption_key_stable_across_restarts
 test_provided_encryption_key_not_overwritten
+test_explicit_encryption_key_wins
 test_loaded_secrets_are_exported
 
 echo "================================"
