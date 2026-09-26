@@ -282,6 +282,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # Floating tags (:X.Y, :X, :beta) only move forward: a v1.4.2 backport
+      # after v1.5.0 still gets :1.4.2 but leaves :1 on 1.5.0
+      - name: Check if tag is newest in its line
+        id: newest
+        if: env.PUBLISH == 'true' && github.ref_type == 'tag'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          TAGS=$(git ls-remote --tags --refs origin | sed 's|.*refs/tags/||')
+          v=${TAG#v}; major=${v%%.*}; minor=$(cut -d. -f2 <<< "$v")
+          is_newest() { [[ "$(grep -E "$1" <<< "$TAGS" | sort -V | tail -1)" == "$TAG" ]] && echo true || echo false; }
+          {
+            echo "minor=$(is_newest "^v$major\.$minor\.[0-9]+$")"
+            echo "major=$(is_newest "^v$major\.[0-9]+\.[0-9]+$")"
+            echo "beta=$(is_newest '^v[0-9]+\.[0-9]+\.[0-9]+-')"
+          } | tee -a "$GITHUB_OUTPUT"
+
       - name: Extract metadata for unified image
         id: meta
         if: env.PUBLISH == 'true'
@@ -296,9 +313,9 @@ jobs:
             type=raw,value=dev,enable=${{ github.ref == 'refs/heads/develop' }}
             type=sha,prefix={{branch}}-,enable=${{ github.ref_type == 'branch' }}
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=raw,value=beta,enable=${{ github.ref_type == 'tag' && contains(github.ref_name, '-') }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ steps.newest.outputs.minor == 'true' }}
+            type=semver,pattern={{major}},enable=${{ steps.newest.outputs.major == 'true' }}
+            type=raw,value=beta,enable=${{ steps.newest.outputs.beta == 'true' }}
 
       - name: Build and push unified image
         uses: docker/build-push-action@v7
