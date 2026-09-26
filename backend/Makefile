@@ -9,6 +9,7 @@ dev: encryption-key
 encryption-key:
 	@f=.env; [ -f $$f ] || f=../.env; \
 	if [ -z "$$ENCRYPTION_KEY" ] && [ -f $$f ] && ! grep -q '^ENCRYPTION_KEY=.' $$f; then \
+		chmod 600 $$f || exit 1; \
 		[ -z "$$(tail -c1 $$f)" ] || echo >> $$f; \
 		echo "ENCRYPTION_KEY=$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" >> $$f; \
 		echo "✓ Generated ENCRYPTION_KEY in $$f. Keep it: saved integration credentials need it."; \
