@@ -164,7 +164,7 @@ jobs:
       - name: Test postgres entrypoint script
         run: sh docker/postgres/entrypoint.test.sh
 
-  # nimbus.turboot.com prod image
+  # nimbus.turboot.com: unified image with the site URL baked in (SEO)
   docker-demo:
     name: Build Demo Image
     runs-on: ubuntu-latest
@@ -194,13 +194,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push production frontend
+      - name: Build and push demo image
         uses: docker/build-push-action@v7
         with:
-          context: ./frontend
-          file: ./frontend/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: true
-          tags: ghcr.io/turbootzz/nimbus-frontend-prod:latest
+          tags: ghcr.io/turbootzz/nimbus-demo:latest
           platforms: linux/amd64,linux/arm64
           cache-from: type=gha,scope=demo
           cache-to: type=gha,scope=demo,mode=max
