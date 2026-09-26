@@ -1,0 +1,61 @@
+# Nimbus dev/beta test stack - runs next to your production install
+#
+#   curl -O https://raw.githubusercontent.com/Turbootzz/Nimbus/develop/docker-compose.dev.yml
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then open http://localhost:3001
+#
+# Image tags:
+#   dev   every commit to the develop branch (may break at any time)
+#   beta  latest pre-release (e.g. 2.0.0-beta.1)
+#
+# Own containers and volumes (project "nimbus-dev"), so dev database migrations
+# never touch your production data. Going back to :latest on dev data is not supported.
+# All other options: see docker-compose.yml
+
+name: nimbus-dev
+
+services:
+  db:
+    image: turboot/nimbus-postgres:18
+    container_name: nimbus-dev-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nimbus
+      POSTGRES_USER: nimbus
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimbus -d nimbus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nimbus:
+    image: turboot/nimbus:dev
+    container_name: nimbus-dev
+    restart: unless-stopped
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
+      JWT_SECRET: ${JWT_SECRET:-}
+      DB_HOST: db
+      # FRONTEND_URL: http://localhost:3001
+    volumes:
+      - uploads_data:/app/backend/uploads
+    ports:
+      - "3001:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+  uploads_data:

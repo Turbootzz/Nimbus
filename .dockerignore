@@ -1,18 +1,18 @@
-# Development dependencies
-node_modules/
+# Development dependencies (**/ = any depth, plain patterns only match the root)
+**/node_modules/
 backend/vendor/
 
 # Build outputs
-.next/
-out/
-dist/
-build/
+**/.next/
+**/out/
+**/dist/
+**/build/
 backend/server
 backend/testdb
 
 # Environment files
-.env
-.env*.local
+**/.env
+**/.env*.local
 
 # IDE files
 .vscode/
@@ -47,7 +47,7 @@ docker-compose.*.yml
 **/*_test.go
 **/*.test.ts
 **/*.test.tsx
-coverage/
+**/coverage/
 
 # Temporary files
 tmp/

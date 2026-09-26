@@ -1,11 +1,12 @@
 # Nimbus Unified Docker Image
 # Combines frontend, backend, and nginx into a single container
-# Usage: docker build -t nimbus .
+# Usage: docker build -t nimbus .  (requires BuildKit, the default since Docker 23)
 
 # =============================================================================
 # Stage 1: Build Go backend
+# Builder stages run natively and cross-compile, so arm64 skips QEMU.
 # =============================================================================
-FROM golang:1.27-alpine AS backend-builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS backend-builder
 
 WORKDIR /build
 
@@ -16,12 +17,13 @@ RUN go mod download
 
 COPY backend/ .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -installsuffix cgo -o server ./cmd/server
 
 # =============================================================================
-# Stage 2: Build Next.js frontend
+# Stage 2: Build Next.js frontend (output is platform-independent JS)
 # =============================================================================
-FROM node:24-alpine AS frontend-builder
+FROM --platform=$BUILDPLATFORM node:24-alpine AS frontend-builder
 
 WORKDIR /build
 
