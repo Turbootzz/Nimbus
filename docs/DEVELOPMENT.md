@@ -333,7 +333,7 @@ This runs:
 | `vX.Y.Z` tag | Stable release | `X.Y.Z`, `X.Y`, `X` |
 | `vX.Y.Z-beta.N` tag | Pre-release for testers | `X.Y.Z-beta.N`, `beta` |
 
-Pull requests build the unified image (both platforms) without pushing it. The postgres, legacy (`nimbus-backend`, `nimbus-frontend`), demo and cloud images are only built from `main`.
+Pull requests build the unified image (both platforms) without pushing it. The postgres, demo and cloud images are only built from `main`. The separate `nimbus-backend` and `nimbus-frontend` images are no longer built.
 
 ### Workflow
 
@@ -346,7 +346,7 @@ Pull requests build the unified image (both platforms) without pushing it. The p
   ```bash
   gh release create v2.0.0-beta.1 --target develop --prerelease --generate-notes
   ```
-- **Stable**: open a PR from `develop` into `main` and merge it with **Create a merge commit** (a squash merge rewrites history, so the next `develop` → `main` PR conflicts). Then tag it:
+- **Stable**: open a PR from `develop` into `main` and merge it with **Create a merge commit** (a squash merge rewrites history, so the next PR from `develop` into `main` conflicts). Then tag it:
   ```bash
   gh release create v2.0.0 --target main --generate-notes
   ```

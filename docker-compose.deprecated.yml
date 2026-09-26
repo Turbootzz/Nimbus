@@ -1,13 +1,11 @@
-# Nimbus Self-Hosted Dashboard (Separate Containers)
+# Nimbus with separate containers (legacy, no longer updated)
 #
-# This is a LEGACY deployment option that remains supported for existing users.
-# Choose this if you need separate backend/frontend containers or have custom networking requirements.
-# For new deployments, the unified image (docker-compose.yml) is recommended.
+# The nimbus-backend and nimbus-frontend images stopped getting updates in
+# September 2026. They keep working, but new features and security fixes only
+# ship in the unified image (docker-compose.yml). Switching takes about
+# 5 minutes and keeps all your data: docs/MIGRATION.md
 #
-# We have no immediate plans to remove this option, but recommend migrating when convenient.
-# Migration guide: docs/MIGRATION.md
-#
-# Required environment variables for split-container deployment:
+# Required environment variables for this file:
 #   DB_PASSWORD=your-secure-password
 #   JWT_SECRET=your-32-character-minimum-secret-key
 #   NEXT_PUBLIC_API_URL=http://YOUR_SERVER_IP:8080  # Required! Use your server's IP, not "backend"
