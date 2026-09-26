@@ -353,7 +353,7 @@ Pull requests build the unified image (both platforms) without pushing it. The p
 
 ### Good to know
 
-- CI runs one workflow per branch or tag at a time. Pushes queue in order, so `latest` and `dev` always end on the newest commit. A queued run that gets superseded by a newer push is cancelled.
+- CI runs one workflow per branch at a time, and one for all release tags together. Pushes queue in order, so `latest`, `dev` and the shared version tags always end on the newest push. A queued run that gets superseded by a newer push is cancelled, so create releases one at a time (wait for the previous release build to finish).
 - Migrations are tracked by file name. Never rename a migration once it is on `develop`: dev databases would run it again.
 - Test a pre-release locally with `docker compose -f docker-compose.dev.yml up -d` (port 3001, separate volumes).
 

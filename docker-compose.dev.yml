@@ -5,9 +5,9 @@
 #
 # Then open http://localhost:3001
 #
-# Image tags:
-#   dev   every commit to the develop branch (may break at any time)
-#   beta  latest pre-release (e.g. 2.0.0-beta.1)
+# Image tag (NIMBUS_TAG):
+#   dev   every commit to the develop branch, may break at any time (default)
+#   beta  newest pre-release, e.g.: NIMBUS_TAG=beta docker compose -f docker-compose.dev.yml up -d
 #
 # Own containers and volumes (project "nimbus-dev"), so dev database migrations
 # never touch your production data. Going back to :latest on dev data is not supported.
@@ -34,7 +34,7 @@ services:
       retries: 5
 
   nimbus:
-    image: turboot/nimbus:dev
+    image: turboot/nimbus:${NIMBUS_TAG:-dev}
     container_name: nimbus-dev
     restart: unless-stopped
     environment:

@@ -7,10 +7,14 @@ on:
   pull_request:
     branches: [ main, develop ]
 
-# One run per ref at a time, so pushes publish images in commit order and an
-# older build can never overwrite a newer tag. Superseded PR runs are cancelled.
+permissions:
+  contents: read
+
+# One run per branch, and one for all release tags (they share :X.Y, :X and :beta),
+# so images publish in push order and an older build can't overwrite a newer tag.
+# Superseded PR runs are cancelled.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref_type == 'tag' && 'release' || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:

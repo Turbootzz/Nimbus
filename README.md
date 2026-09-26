@@ -142,7 +142,7 @@ Navigate to **http://localhost:3000** and create your first account!
 | `beta`, `2.0.0-beta.1` | Pre-releases for testers |
 | `dev` | Every commit on the `develop` branch; can break at any time |
 
-> **Trying `dev` or `beta`?** Use [`docker-compose.dev.yml`](docker-compose.dev.yml). It runs on port 3001 with its own database, so pre-release migrations never touch your production data. Going back to `latest` on a database that ran `dev` or `beta` is not supported.
+> **Trying `dev` or `beta`?** Use [`docker-compose.dev.yml`](docker-compose.dev.yml) (`dev` by default, `NIMBUS_TAG=beta` for the pre-release). It runs on port 3001 with its own database, so pre-release migrations never touch your production data. Going back to `latest` on a database that ran `dev` or `beta` is not supported.
 
 ---
 
