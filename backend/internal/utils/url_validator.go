@@ -108,19 +108,10 @@ func isPrivateOrReservedIP(ip net.IP) bool {
 	return false
 }
 
-// isCloudMetadataIP checks for cloud provider metadata endpoints
+// isCloudMetadataIP checks for cloud provider metadata endpoints, using the
+// same deny list as the safe HTTP client
 func isCloudMetadataIP(ip net.IP) bool {
-	// AWS/GCP/Azure metadata endpoint
-	if ip.String() == "169.254.169.254" {
-		return true
-	}
-
-	// Azure additional metadata endpoints
-	if ip.String() == "168.63.129.16" {
-		return true
-	}
-
-	return false
+	return IsBlockedIP(ip.String())
 }
 
 // isCGNATRange checks if IP is in carrier-grade NAT range (100.64.0.0/10)
@@ -174,6 +165,9 @@ func ValidateWebhookURL(urlStr string) error {
 	}
 
 	// Block cloud metadata endpoints (critical for SSRF protection)
+	if IsBlockedHost(hostname) {
+		return fmt.Errorf("cloud metadata endpoints are not allowed")
+	}
 	if ip := net.ParseIP(hostname); ip != nil {
 		if isCloudMetadataIP(ip) {
 			return fmt.Errorf("cloud metadata endpoints are not allowed")

@@ -11,6 +11,7 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
   - [Database Configuration](#database-configuration)
   - [Server Configuration](#server-configuration)
   - [Authentication](#authentication)
+  - [Encryption Key](#encryption-key)
   - [Health Checks](#health-checks)
   - [Metrics & Monitoring](#metrics--monitoring)
 - [OAuth Setup](#oauth-setup)
@@ -34,6 +35,7 @@ Nimbus uses **convention over configuration**. Most variables have sensible defa
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Authentication secret (persisted in uploads volume) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in uploads volume) |
 
 > **Security note:** The default database password is safe because PostgreSQL is only accessible within the Docker network (not exposed externally). For shared hosting environments, set a custom password.
 
@@ -43,6 +45,7 @@ Nimbus uses **convention over configuration**. Most variables have sensible defa
 cat > .env << EOF
 DB_PASSWORD=$(openssl rand -base64 24 | tr -dc 'a-zA-Z0-9' | head -c 24)
 JWT_SECRET=$(openssl rand -base64 32 | tr -dc 'a-zA-Z0-9' | head -c 32)
+ENCRYPTION_KEY=$(openssl rand -base64 32)
 EOF
 ```
 
@@ -100,6 +103,16 @@ CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
 | `JWT_SECRET` | *required* | Secret for signing JWT tokens (min 32 chars) |
 | `JWT_EXPIRY` | `24h` | Token expiration (e.g., `24h`, `7d`, `30d`) |
 | `BCRYPT_COST` | `10` | Password hashing cost (10-12 recommended) |
+
+### Encryption Key
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ENCRYPTION_KEY` | *auto-generated* (Docker and `make dev-backend`) | Base64 encoded 32-byte key that encrypts integration credentials (AES-256-GCM) |
+
+Generate one with `openssl rand -base64 32`. The unified image creates it on first start and saves it in `uploads/.secrets/generated.env`, next to `JWT_SECRET`. A key you set yourself always wins over the generated one. For local development, `make dev-backend` adds one to your `.env`.
+
+**Keep this key safe.** API keys and passwords of your integrations are stored encrypted with it. If the key is lost or changed, Nimbus can't read them anymore and you have to enter them again. Back up the uploads volume, or set your own key and store it somewhere safe. Nimbus refuses to start without a valid key.
 
 ### Health Checks
 
@@ -247,6 +260,7 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       COOKIE_SECURE: "true"  # Enable for HTTPS
     ports:
       - "3000:3000"
@@ -288,6 +302,7 @@ The separate `nimbus-backend` and `nimbus-frontend` images from `docker-compose.
 ```bash
 DB_PASSWORD=your-secure-password
 JWT_SECRET=your-32-character-minimum-secret-key
+ENCRYPTION_KEY=output-of-openssl-rand-base64-32
 ```
 
 ### Full `.env` (All Options)
@@ -296,6 +311,7 @@ JWT_SECRET=your-32-character-minimum-secret-key
 # Required
 DB_PASSWORD=your-secure-password
 JWT_SECRET=your-32-character-minimum-secret-key
+ENCRYPTION_KEY=output-of-openssl-rand-base64-32
 
 # Database (all have defaults)
 # DB_HOST=db

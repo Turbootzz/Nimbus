@@ -52,7 +52,8 @@ make setup
 # CREATE DATABASE nimbus;
 
 # 4. Configure environment
-# Edit .env with your PostgreSQL credentials
+# Edit .env with your PostgreSQL credentials and JWT_SECRET
+# (make dev-backend adds ENCRYPTION_KEY for you)
 
 # 5. Test database connection
 make testdb
@@ -190,7 +191,10 @@ DB_PORT=5432
 DB_NAME=nimbus
 DB_USER=postgres       # Your PostgreSQL user
 DB_PASSWORD=password   # Your PostgreSQL password
+JWT_SECRET=            # At least 32 characters
 ```
+
+`make dev-backend` adds an `ENCRYPTION_KEY` to your env file on first run, like the Docker image does. Keep it: saved integration credentials can't be read without it.
 
 ### Verify Connection
 

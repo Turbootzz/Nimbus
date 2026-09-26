@@ -20,12 +20,20 @@ import (
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/utils"
 	"github.com/nimbus/backend/internal/workers"
 )
 
 func main() {
 	// Load environment variables
 	config.MustLoadEnv()
+
+	// Integration credentials are encrypted with ENCRYPTION_KEY. Only the
+	// server needs it, so it is checked here instead of in LoadEnv.
+	credentialCipher, err := utils.NewCipherFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to load environment: %v", err)
+	}
 
 	// Connect to database
 	database, err := db.Connect()
@@ -51,6 +59,7 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(database)
 	settingsRepo := repository.NewSettingsRepository(database)
 	apiTokenRepo := repository.NewAPITokenRepository(database)
+	integrationRepo := repository.NewIntegrationRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -116,6 +125,9 @@ func main() {
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
+	// Initialize integration service
+	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
@@ -131,6 +143,7 @@ func main() {
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
+	integrationHandler := handlers.NewIntegrationHandler(integrationService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -252,6 +265,18 @@ func main() {
 	apiTokens.Post("/", apiTokenHandler.CreateToken)
 	apiTokens.Get("/", apiTokenHandler.ListTokens)
 	apiTokens.Delete("/:id<guid>", apiTokenHandler.DeleteToken)
+
+	// Integration routes (protected; session auth only so a leaked API token
+	// can't point an integration elsewhere and exfiltrate its credentials)
+	integrationRoutes := v1.Group("/integrations", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	integrationRoutes.Get("/kinds", integrationHandler.ListKinds)
+	integrationRoutes.Post("/test", integrationHandler.TestUnsavedIntegration)
+	integrationRoutes.Post("/", integrationHandler.CreateIntegration)
+	integrationRoutes.Get("/", integrationHandler.ListIntegrations)
+	integrationRoutes.Get("/:id<guid>", integrationHandler.GetIntegration)
+	integrationRoutes.Put("/:id<guid>", integrationHandler.UpdateIntegration)
+	integrationRoutes.Delete("/:id<guid>", integrationHandler.DeleteIntegration)
+	integrationRoutes.Post("/:id<guid>/test", integrationHandler.TestIntegration)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))

@@ -279,6 +279,8 @@ func TestIsCloudMetadataIP(t *testing.T) {
 	}{
 		{"AWS/GCP metadata", "169.254.169.254", true},
 		{"Azure metadata", "168.63.129.16", true},
+		{"Alibaba metadata", "100.100.100.200", true},
+		{"AWS IPv6 metadata", "fd00:ec2::254", true},
 		{"Similar but not metadata", "169.254.169.253", false},
 		{"Similar but not metadata 2", "168.63.129.15", false},
 		{"Random IP", "8.8.8.8", false},
