@@ -43,3 +43,25 @@ func TestUptimeKuma(t *testing.T) {
 
 	assert.ErrorIs(t, impl.Test(ctx, newTestConn(server.URL, models.IntegrationCredentials{APIKey: "x"})), errRejected)
 }
+
+func TestUptimeKumaNeedsItsMetrics(t *testing.T) {
+	impl := registered(t, "uptime_kuma")
+	body := ""
+	server := fakeApp(t, map[string]http.HandlerFunc{
+		"GET /metrics": func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, body) },
+	})
+	ctx := context.Background()
+	conn := newTestConn(server.URL, models.IntegrationCredentials{})
+
+	// A login page or another app answering 200 is not Uptime Kuma
+	for _, wrong := range []string{"", "<html>login</html>", "process_cpu_seconds_total 1\n"} {
+		body = wrong
+		assert.EqualError(t, impl.Test(ctx, conn), "/metrics returned an unexpected response", wrong)
+	}
+
+	// No monitors yet is fine
+	body = "# HELP monitor_status Monitor Status\n# TYPE monitor_status gauge\n"
+	payload, err := impl.Fetch(ctx, conn)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"up": 0, "down": 0, "up_percent": 0}, payload.KPIs)
+}

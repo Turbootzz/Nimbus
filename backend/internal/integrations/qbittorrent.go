@@ -98,13 +98,15 @@ func (qbittorrent) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 				return err
 			}
 			leech, seed = 0, 0
+			// Only active torrents count; paused, stopped and queued ones don't
 			return eachJSON(ctx, conn, "/api/v2/torrents/info", qbittorrentAuth(sid), func(t struct {
-				Progress float64 `json:"progress"`
+				State string `json:"state"`
 			}) {
-				if t.Progress < 1 {
-					leech++
-				} else {
+				switch t.State {
+				case "uploading", "stalledUP", "forcedUP":
 					seed++
+				case "downloading", "stalledDL", "forcedDL", "metaDL", "forcedMetaDL":
+					leech++
 				}
 			})
 		})

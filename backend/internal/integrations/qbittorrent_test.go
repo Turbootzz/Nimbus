@@ -45,7 +45,11 @@ func TestQbittorrent(t *testing.T) {
 			fmt.Fprint(w, `{"dl_info_speed":2500000,"up_info_speed":800}`)
 		}),
 		"GET /api/v2/torrents/info": authed(func(w http.ResponseWriter, r *http.Request) {
-			fmt.Fprint(w, `[{"progress":0.5},{"progress":1},{"progress":1},{"progress":0}]`)
+			fmt.Fprint(w, `[
+				{"state":"downloading"},{"state":"stalledDL"},{"state":"metaDL"},
+				{"state":"uploading"},{"state":"stalledUP"},
+				{"state":"pausedUP"},{"state":"stoppedDL"},{"state":"queuedDL"},{"state":"error"}
+			]`)
 		}),
 	})
 	ctx := context.Background()
@@ -54,7 +58,8 @@ func TestQbittorrent(t *testing.T) {
 	require.NoError(t, impl.Test(ctx, conn))
 	payload, err := impl.Fetch(ctx, conn)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{"leech": 2, "download": "2.5 MB/s", "seed": 2, "upload": "800 B/s"}, payload.KPIs)
+	// Paused, stopped, queued and errored torrents are not counted
+	assert.Equal(t, map[string]any{"leech": 3, "download": "2.5 MB/s", "seed": 2, "upload": "800 B/s"}, payload.KPIs)
 
 	validSID = "two" // session expired: 403, then one new login
 	_, err = impl.Fetch(ctx, conn)

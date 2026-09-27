@@ -3,6 +3,7 @@ package integrations
 import (
 	"bufio"
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 
@@ -41,15 +42,22 @@ func uptimeKumaAuth(conn *Conn) authFunc {
 }
 
 // uptimeKumaCounts reads monitor_status lines: 1 is up, 0 down, 2 pending
-// and 3 maintenance (not counted)
+// and 3 maintenance (not counted). A response without the monitor_status
+// metric is not Uptime Kuma, even with a 200.
 func uptimeKumaCounts(ctx context.Context, conn *Conn) (up, down int, err error) {
 	err = doRequest(ctx, conn, http.MethodGet, "/metrics", nil, uptimeKumaAuth(conn), func(resp *http.Response) error {
+		found := false
 		scanner := bufio.NewScanner(resp.Body)
 		for scanner.Scan() {
 			line := scanner.Text()
+			// The TYPE line is there even when no monitors exist yet
+			if strings.HasPrefix(line, "# TYPE monitor_status ") {
+				found = true
+			}
 			if !strings.HasPrefix(line, "monitor_status{") {
 				continue
 			}
+			found = true
 			switch line[strings.LastIndexByte(line, ' ')+1:] {
 			case "1":
 				up++
@@ -57,7 +65,13 @@ func uptimeKumaCounts(ctx context.Context, conn *Conn) (up, down int, err error)
 				down++
 			}
 		}
-		return scanner.Err()
+		if err := scanner.Err(); err != nil {
+			return err
+		}
+		if !found {
+			return errors.New("no monitor_status metric")
+		}
+		return nil
 	})
 	return up, down, err
 }

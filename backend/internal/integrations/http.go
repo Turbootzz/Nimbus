@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -36,7 +37,7 @@ func doRequest(ctx context.Context, conn *Conn, method, path string, body io.Rea
 
 	resp, err := conn.Client.Do(req)
 	if err != nil {
-		return err
+		return transportError(ctx, path, err)
 	}
 	defer resp.Body.Close()
 
@@ -51,13 +52,31 @@ func doRequest(ctx context.Context, conn *Conn, method, path string, body io.Rea
 	}
 	resp.Body = io.NopCloser(io.LimitReader(resp.Body, maxBodyBytes))
 	if err := read(resp); err != nil {
-		var netErr net.Error
-		if ctx.Err() != nil || (errors.As(err, &netErr) && netErr.Timeout()) {
+		if isTimeout(ctx, err) {
 			return fmt.Errorf("%s took too long to answer", pathOnly(path))
 		}
 		return fmt.Errorf("%s returned an unexpected response", pathOnly(path))
 	}
 	return nil
+}
+
+// transportError describes a failed request without the URL Go puts in its
+// errors, but keeps the cause: "connection refused" or a certificate error
+// tells the user what to fix
+func transportError(ctx context.Context, path string, err error) error {
+	if isTimeout(ctx, err) {
+		return fmt.Errorf("%s took too long to answer", pathOnly(path))
+	}
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		err = urlErr.Err
+	}
+	return fmt.Errorf("%s could not be reached: %w", pathOnly(path), err)
+}
+
+func isTimeout(ctx context.Context, err error) bool {
+	var netErr net.Error
+	return ctx.Err() != nil || (errors.As(err, &netErr) && netErr.Timeout())
 }
 
 // getJSON GETs path and decodes the JSON body into v

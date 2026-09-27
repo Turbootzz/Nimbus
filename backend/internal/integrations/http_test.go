@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -124,4 +125,37 @@ func TestDoRequestTimeoutWhileReading(t *testing.T) {
 
 	err := eachJSON(ctx, newTestConn(server.URL, models.IntegrationCredentials{}), "/slow", nil, func(map[string]int) {})
 	assert.EqualError(t, err, "/slow took too long to answer")
+}
+
+func TestDoRequestTransportErrors(t *testing.T) {
+	ctx := context.Background()
+	var v map[string]any
+
+	// Nothing listens: the cause stays, the URL goes
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	err := getJSON(ctx, newTestConn(closed.URL, models.IntegrationCredentials{}), "/api/status", nil, &v)
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), "/api/status could not be reached: "), err.Error())
+	assert.Contains(t, err.Error(), "connection refused")
+	assert.NotContains(t, err.Error(), closed.URL)
+
+	// A self-signed certificate says so, so the user knows to turn off TLS verification
+	tlsServer := httptest.NewTLSServer(http.NotFoundHandler())
+	t.Cleanup(tlsServer.Close)
+	err = getJSON(ctx, newTestConn(tlsServer.URL, models.IntegrationCredentials{}), "/api/status", nil, &v)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "certificate")
+	assert.NotContains(t, err.Error(), tlsServer.URL)
+
+	// No answer before the deadline
+	release := make(chan struct{})
+	slow := fakeApp(t, map[string]http.HandlerFunc{
+		"GET /api/status": func(w http.ResponseWriter, r *http.Request) { <-release },
+	})
+	defer close(release)
+	short, cancel := context.WithTimeout(ctx, 100*time.Millisecond)
+	defer cancel()
+	err = getJSON(short, newTestConn(slow.URL, models.IntegrationCredentials{}), "/api/status", nil, &v)
+	assert.EqualError(t, err, "/api/status took too long to answer")
 }

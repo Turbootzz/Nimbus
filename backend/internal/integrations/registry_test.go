@@ -50,6 +50,20 @@ func TestRegister_GetAndKinds(t *testing.T) {
 	assert.Contains(t, byKind, "zeta")
 }
 
+func TestKinds_SameNameSortsByKind(t *testing.T) {
+	meta := Meta{Name: "Same Name", AuthTypes: []string{models.IntegrationAuthNone}}
+	register(t, stubKind{kind: "same-b", meta: meta})
+	register(t, stubKind{kind: "same-a", meta: meta})
+
+	var order []string
+	for _, k := range Kinds() {
+		if k.Name == "Same Name" {
+			order = append(order, k.Kind)
+		}
+	}
+	assert.Equal(t, []string{"same-a", "same-b"}, order)
+}
+
 func TestKinds_EmptyIsNotNil(t *testing.T) {
 	assert.NotNil(t, Kinds(), "empty registry must encode as [] not null")
 }
