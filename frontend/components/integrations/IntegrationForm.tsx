@@ -41,7 +41,9 @@ function credentialsFor(
     case 'token':
       return creds.token ? { token: creds.token } : undefined
     case 'basic':
-      return creds.username ? { username: creds.username, password: creds.password } : undefined
+      return creds.username || creds.password
+        ? { username: creds.username, password: creds.password }
+        : undefined
     default:
       return undefined
   }
@@ -83,6 +85,16 @@ export default function IntegrationForm({
     setTestResult(null)
   }
 
+  // The saved username is never sent back, so basic auth is changed as a pair
+  const credentialsError = (): string | null => {
+    if (authType !== 'basic' || !(creds.username || creds.password)) return null
+    if (!creds.username) return 'Enter the username too'
+    if (hasSavedCredentials && !creds.password) {
+      return 'Enter the password too, or leave both empty to keep the saved ones'
+    }
+    return null
+  }
+
   const buildRequest = (): IntegrationRequest => ({
     ...(isEdit ? {} : { kind }),
     name: name.trim(),
@@ -97,6 +109,11 @@ export default function IntegrationForm({
   const handleTest = async () => {
     setError(null)
     setTestResult(null)
+    const problem = integration ? null : credentialsError()
+    if (problem) {
+      setError(problem)
+      return
+    }
     setIsTesting(true)
     try {
       const response = integration
@@ -115,6 +132,11 @@ export default function IntegrationForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    const problem = credentialsError()
+    if (problem) {
+      setError(problem)
+      return
+    }
     setIsSaving(true)
     try {
       const response = integration
@@ -252,7 +274,7 @@ export default function IntegrationForm({
                 <input
                   id="integration-api-key"
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   value={creds.api_key ?? ''}
                   onChange={(e) => setCreds({ ...creds, api_key: e.target.value })}
                   placeholder={savedPlaceholder}
@@ -269,7 +291,7 @@ export default function IntegrationForm({
                 <input
                   id="integration-token"
                   type="password"
-                  autoComplete="off"
+                  autoComplete="new-password"
                   value={creds.token ?? ''}
                   onChange={(e) => setCreds({ ...creds, token: e.target.value })}
                   placeholder={savedPlaceholder}
@@ -301,7 +323,7 @@ export default function IntegrationForm({
                   <input
                     id="integration-password"
                     type="password"
-                    autoComplete="off"
+                    autoComplete="new-password"
                     value={creds.password ?? ''}
                     onChange={(e) => setCreds({ ...creds, password: e.target.value })}
                     className={inputClass}

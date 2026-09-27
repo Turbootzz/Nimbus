@@ -107,4 +107,47 @@ describe('IntegrationForm', () => {
     expect(request.credentials).toBeUndefined()
     expect(request.kind).toBeUndefined()
   })
+
+  it('changes basic auth credentials only as a pair when editing', async () => {
+    const integration = makeIntegration({ kind: 'multi', auth_type: 'basic' })
+    vi.mocked(api.updateIntegration).mockResolvedValue({ data: integration })
+    render(
+      <IntegrationForm
+        kinds={kinds}
+        integration={integration}
+        onClose={() => {}}
+        onSaved={() => {}}
+      />
+    )
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'new-pass' } })
+    fireEvent.click(screen.getByText('Save Changes'))
+    expect(await screen.findByText('Enter the username too')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'admin' } })
+    fireEvent.click(screen.getByText('Save Changes'))
+    expect(await screen.findByText(/Enter the password too/)).toBeInTheDocument()
+    expect(api.updateIntegration).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'new-pass' } })
+    fireEvent.click(screen.getByText('Save Changes'))
+    await waitFor(() => expect(api.updateIntegration).toHaveBeenCalled())
+    expect(vi.mocked(api.updateIntegration).mock.calls[0][1].credentials).toEqual({
+      username: 'admin',
+      password: 'new-pass',
+    })
+  })
+
+  it('keeps saved logins out of the secret fields', () => {
+    render(
+      <IntegrationForm
+        kinds={kinds}
+        integration={makeIntegration()}
+        onClose={() => {}}
+        onSaved={() => {}}
+      />
+    )
+    expect(screen.getByLabelText('API key')).toHaveAttribute('autocomplete', 'new-password')
+  })
 })

@@ -69,13 +69,14 @@ export default function IntegrationsPage() {
 
   const handleDelete = async () => {
     if (!deleting) return
-    const response = await api.deleteIntegration(deleting.id)
+    const target = deleting
+    setDeleting(null) // close first, so a double click can't delete twice
+    const response = await api.deleteIntegration(target.id)
     if (response.error) {
       setActionError(response.error.message)
     } else {
-      setIntegrations((prev) => prev.filter((i) => i.id !== deleting.id))
+      setIntegrations((prev) => prev.filter((i) => i.id !== target.id))
     }
-    setDeleting(null)
   }
 
   if (isLoading) {
