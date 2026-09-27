@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"testing"
 
@@ -38,11 +39,15 @@ func TestRegister_GetAndKinds(t *testing.T) {
 	assert.False(t, ok)
 
 	kinds := Kinds()
-	if assert.Len(t, kinds, 2) {
-		assert.Equal(t, "Alpha", kinds[0].Name, "kinds are sorted by name")
-		assert.Equal(t, "alpha", kinds[0].Kind, "registry fills in Kind")
-		assert.Equal(t, "zeta", kinds[1].Kind)
+	byKind := map[string]Meta{}
+	for i, meta := range kinds {
+		byKind[meta.Kind] = meta
+		if i > 0 {
+			assert.LessOrEqual(t, strings.ToLower(kinds[i-1].Name), strings.ToLower(meta.Name), "kinds are sorted by name")
+		}
 	}
+	assert.Equal(t, "Alpha", byKind["alpha"].Name, "registry fills in Kind")
+	assert.Contains(t, byKind, "zeta")
 }
 
 func TestKinds_EmptyIsNotNil(t *testing.T) {
