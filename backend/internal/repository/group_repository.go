@@ -283,7 +283,7 @@ func (r *GroupRepository) Update(ctx context.Context, group *models.Group) error
 }
 
 // Delete deletes a group (cannot delete default group)
-// If deleteServices is true, also deletes all services in the group
+// If deleteServices is true, also deletes all services and widgets in the group
 func (r *GroupRepository) Delete(ctx context.Context, id, userID string, deleteServices bool) error {
 	// First check if it's the default group
 	group, err := r.GetByID(ctx, id)
@@ -306,12 +306,15 @@ func (r *GroupRepository) Delete(ctx context.Context, id, userID string, deleteS
 	}
 	defer tx.Rollback()
 
-	// If deleteServices is true, delete all services in this group
+	// If deleteServices is true, delete all services and widgets in this group
 	if deleteServices {
-		deleteServicesQuery := `DELETE FROM services WHERE group_id = $1 AND user_id = $2`
-		_, err = tx.ExecContext(ctx, deleteServicesQuery, id, userID)
-		if err != nil {
-			return err
+		for _, query := range []string{
+			`DELETE FROM services WHERE group_id = $1 AND user_id = $2`,
+			`DELETE FROM widgets WHERE group_id = $1 AND user_id = $2`,
+		} {
+			if _, err = tx.ExecContext(ctx, query, id, userID); err != nil {
+				return err
+			}
 		}
 	}
 
