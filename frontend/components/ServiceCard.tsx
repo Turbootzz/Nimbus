@@ -11,6 +11,7 @@ import {
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
 import EditOverlay from '@/components/EditOverlay'
+import KpiRow, { type ServiceKpis } from '@/components/KpiRow'
 
 interface ServiceCardProps {
   service: Service
@@ -24,6 +25,8 @@ interface ServiceCardProps {
   // Effective monitoring state (accounts for the group's monitoring flag too).
   // Defaults to service.monitoring_enabled when not provided.
   isMonitored?: boolean
+  // Numbers from the linked integration (standard and large cards)
+  kpis?: ServiceKpis
 }
 
 export default function ServiceCard({
@@ -36,6 +39,7 @@ export default function ServiceCard({
   enableCardResizing = true,
   cardScale = 'medium',
   isMonitored,
+  kpis,
 }: ServiceCardProps) {
   const monitored = isMonitored ?? service.monitoring_enabled
   // When card resizing is disabled, always use 2x1
@@ -68,6 +72,7 @@ export default function ServiceCard({
     showSizeBadge: enableCardResizing,
     cardScale,
     monitored,
+    kpis,
   }
 
   // When resizing is disabled, always use StandardCard (2x1)
@@ -101,6 +106,7 @@ interface CardVariantProps {
   showSizeBadge: boolean
   cardScale: CardScale
   monitored: boolean
+  kpis?: ServiceKpis
 }
 
 // Icon sizes based on cardScale - icons shrink with denser grids
@@ -206,6 +212,7 @@ function StandardCard({
   showSizeBadge,
   cardScale,
   monitored,
+  kpis,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].standard
@@ -245,6 +252,12 @@ function StandardCard({
       </h3>
       {service.description && (
         <p className={`text-text-secondary line-clamp-1 ${descSize}`}>{service.description}</p>
+      )}
+
+      {kpis && (
+        <div className="mt-2">
+          <KpiRow {...kpis} />
+        </div>
       )}
 
       {monitored && (
@@ -290,6 +303,7 @@ function LargeCard({
   showSizeBadge,
   cardScale,
   monitored,
+  kpis,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].large
@@ -345,6 +359,7 @@ function LargeCard({
 
       {/* Footer with URL and response time */}
       <div className={`${marginTop} space-y-2`}>
+        {kpis && <KpiRow {...kpis} />}
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
         {monitored &&
           service.status === 'online' &&

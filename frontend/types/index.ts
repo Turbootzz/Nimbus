@@ -48,6 +48,7 @@ export interface Service {
   position: number
   card_size: CardSize
   group_id?: string
+  integration_id?: string // linked app whose KPIs the tile shows
   monitoring_enabled: boolean
   created_at: string
   updated_at?: string
@@ -62,6 +63,7 @@ export interface ServiceCreateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  integration_id?: string
   monitoring_enabled?: boolean
 }
 
@@ -74,6 +76,7 @@ export interface ServiceUpdateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  integration_id?: string // '' unlinks, omitted keeps the link
   monitoring_enabled?: boolean
 }
 
@@ -84,6 +87,72 @@ export interface ServicePosition {
 
 export interface ServiceReorderRequest {
   services: ServicePosition[]
+}
+
+// Integration types (connections to apps like Sonarr)
+export type IntegrationAuthType = 'none' | 'api_key' | 'basic' | 'token'
+
+export interface Kpi {
+  key: string
+  label: string
+  unit?: string
+}
+
+// A kind of app Nimbus can connect to, from GET /integrations/kinds
+export interface IntegrationKindMeta {
+  kind: string
+  name: string
+  icon?: string // dashboard-icons slug
+  default_port?: number
+  auth_types: IntegrationAuthType[] // first one is the default
+  kpis?: Kpi[]
+}
+
+// Never contains credentials, only whether they are set
+export interface Integration {
+  id: string
+  kind: string
+  name: string
+  base_url: string
+  auth_type: IntegrationAuthType
+  has_credentials: boolean
+  verify_tls: boolean
+  options: Record<string, unknown>
+  refresh_seconds: number
+  last_test_at: string | null
+  last_test_ok: boolean | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IntegrationCredentials {
+  api_key?: string
+  username?: string
+  password?: string
+  token?: string
+}
+
+// On update, omitted fields (including credentials) keep their value
+export interface IntegrationRequest {
+  kind?: string
+  name?: string
+  base_url?: string
+  auth_type?: IntegrationAuthType
+  credentials?: IntegrationCredentials
+  verify_tls?: boolean
+  refresh_seconds?: number
+}
+
+export interface IntegrationTestResult {
+  ok: boolean
+  error?: string
+  latency_ms: number
+}
+
+// Payload of an integration snapshot
+export interface IntegrationPayload {
+  kpis?: Record<string, number | string>
 }
 
 // Widget types (dashboard tiles that are not links)

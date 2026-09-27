@@ -26,6 +26,7 @@ import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortab
 import { api } from '@/lib/api'
 import { mergeHealthData, mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
 import { snapshotKey, useDashboardStream } from '@/hooks/useDashboardStream'
+import { useIntegrations } from '@/hooks/useIntegrations'
 import type {
   Service,
   CardSize,
@@ -248,6 +249,16 @@ export default function DashboardPage() {
       )
     )
   }, [])
+
+  // KPI definitions per integration, for service tiles linked to one
+  const { integrations, kinds } = useIntegrations()
+  const integrationKpis = useMemo(
+    () =>
+      Object.fromEntries(
+        integrations.map((i) => [i.id, kinds.find((k) => k.kind === i.kind)?.kpis ?? []])
+      ),
+    [integrations, kinds]
+  )
 
   const { snapshots } = useDashboardStream({
     onServiceStatus: applyServiceStatus,
@@ -772,6 +783,7 @@ export default function DashboardPage() {
               onDeleteWidget={setDeletingWidget}
               onRefreshWidget={handleRefreshWidget}
               snapshots={snapshots}
+              integrationKpis={integrationKpis}
             />
           </SortableContext>
 
@@ -842,6 +854,7 @@ export default function DashboardPage() {
             groupMonitoringMap={groupMonitoringMap}
             widgetTypes={widgetTypeMap}
             snapshots={snapshots}
+            integrationKpis={integrationKpis}
           />
         </>
       )}

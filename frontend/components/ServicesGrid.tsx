@@ -1,6 +1,6 @@
 'use client'
 
-import type { CardSize, CardScale, Tile, ViewMode, Widget, WidgetTypeMeta } from '@/types'
+import type { CardSize, CardScale, Kpi, Tile, ViewMode, Widget, WidgetTypeMeta } from '@/types'
 import ServiceCard from '@/components/ServiceCard'
 import SortableTile from '@/components/SortableTile'
 import ServicesList from '@/components/ServicesList'
@@ -33,6 +33,8 @@ interface ServicesGridProps {
   onDeleteWidget?: (widget: Widget) => void
   onRefreshWidget?: (widget: Widget) => void
   snapshots?: SnapshotMap
+  // KPI definitions per integration ID, for services linked to one
+  integrationKpis?: Record<string, Kpi[]>
 }
 
 export default function ServicesGrid({
@@ -50,6 +52,7 @@ export default function ServicesGrid({
   onDeleteWidget,
   onRefreshWidget,
   snapshots,
+  integrationKpis,
 }: ServicesGridProps) {
   // List view shows services only; widgets need the grid
   if (viewMode === 'list') {
@@ -105,6 +108,12 @@ export default function ServicesGrid({
 
     const service = tile.service
     const monitored = isServiceEffectivelyMonitored(service, groupMonitoringMap)
+    const integrationId = service.integration_id
+    const kpiDefs = integrationId ? integrationKpis?.[integrationId] : undefined
+    const kpis =
+      integrationId && kpiDefs
+        ? { kpis: kpiDefs, snapshot: snapshots?.[snapshotKey('integration', integrationId)] }
+        : undefined
     // When card resizing is disabled, services always use 2x1
     const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
     return isEditMode && onSizeChange ? (
@@ -119,6 +128,7 @@ export default function ServicesGrid({
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             isMonitored={monitored}
+            kpis={kpis}
           />
         )}
       </SortableTile>
@@ -130,6 +140,7 @@ export default function ServicesGrid({
         enableCardResizing={enableCardResizing}
         cardScale={cardScale}
         isMonitored={monitored}
+        kpis={kpis}
       />
     )
   })

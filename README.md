@@ -60,6 +60,17 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 </tr>
 </table>
 
+### 🧩 Widgets & integrations (2.0, `dev` image)
+
+Add widgets next to your services with **Add Widget** on the dashboard: Clock, Note (Markdown), Bookmarks, Embed and Weather. Widget data is fetched by the server and pushed to the dashboard live.
+
+Integrations show live numbers from your apps on a service tile. Add one under **Settings, Integrations**, then pick it under **Live numbers** when you edit the service. Credentials are stored encrypted with `ENCRYPTION_KEY`.
+
+| App | Numbers on the tile | Sign in with |
+|---|---|---|
+| Sonarr | wanted, queued, series | API key |
+| Radarr | wanted, queued, movies | API key |
+
 ---
 
 ## 🚀 Quick Start
@@ -246,7 +257,7 @@ Run `make help` for all available commands.
 - [x] Uptime webhook notifications
 - [x] Optional landing page
 - [x] Zero-config Docker deployment
-- [ ] Widget/plugin system
+- [ ] Widgets and app integrations (in progress on `dev`)
 - [ ] PWA support
 
 ---

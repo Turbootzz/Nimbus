@@ -40,4 +40,27 @@ describe('ServicesGrid', () => {
     expect(screen.queryByText('Remember the milk')).not.toBeInTheDocument()
     expect(screen.getByText(/1 widget is only shown in grid view/)).toBeInTheDocument()
   })
+
+  it('shows the KPI row of a linked integration', () => {
+    const linked = mergeTiles([{ ...service, integration_id: 'i1' }], [])
+    render(
+      <ServicesGrid
+        {...props}
+        tiles={linked}
+        viewMode="grid"
+        integrationKpis={{ i1: [{ key: 'queued', label: 'Queued' }] }}
+        snapshots={{
+          'integration:i1': {
+            source_kind: 'integration',
+            source_id: 'i1',
+            payload: { kpis: { queued: 5 } },
+            fetched_at: '2026-09-27T12:00:00Z',
+            stale: false,
+          },
+        }}
+      />
+    )
+    expect(screen.getByText('Queued')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
 })
