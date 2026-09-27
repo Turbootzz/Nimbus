@@ -120,7 +120,11 @@ export default function WidgetModal({
           </button>
         </div>
 
-        {!definition ? (
+        {isEdit && !definition ? (
+          <p className="text-text-secondary p-4 text-sm">
+            This widget type ({widget.type}) can&apos;t be edited in this version of Nimbus.
+          </p>
+        ) : !definition ? (
           <div className="grid grid-cols-1 gap-2 overflow-y-auto p-4 sm:grid-cols-2">
             {addableTypes(types).map((meta) => {
               const typeDefinition = getWidgetDefinition(meta.type)

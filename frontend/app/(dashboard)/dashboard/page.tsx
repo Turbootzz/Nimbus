@@ -76,6 +76,8 @@ export default function DashboardPage() {
     useTheme()
   const [services, setServices] = useState<Service[]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
+  // Reordering saves every tile, so it waits until widgets are loaded
+  const [widgetsLoaded, setWidgetsLoaded] = useState(false)
   const [widgetTypes, setWidgetTypes] = useState<WidgetTypeMeta[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
@@ -277,6 +279,9 @@ export default function DashboardPage() {
       }
       if (widgetsResponse.data) {
         setWidgets(widgetsResponse.data)
+        setWidgetsLoaded(true)
+      } else {
+        console.error('Failed to fetch widgets:', widgetsResponse.error?.message)
       }
       if (widgetTypesResponse.data) {
         setWidgetTypes(widgetTypesResponse.data)
@@ -365,7 +370,7 @@ export default function DashboardPage() {
     }
 
     // Normal reorder within the visible tiles; hidden tiles keep their slots
-    if (activeId === overId) return
+    if (activeId === overId || !widgetsLoaded) return
     const reordered = reorderTiles(tiles, sortableTiles, activeId, overId)
     if (!reordered) return
 
@@ -694,6 +699,13 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {!widgetsLoaded && (
+        <p className="text-error mb-4 text-sm">
+          Widgets could not be loaded. Reload the page to see them; until then the order cannot be
+          changed.
+        </p>
+      )}
 
       {/* Header with group tabs and action buttons */}
       {isEditMode ? (

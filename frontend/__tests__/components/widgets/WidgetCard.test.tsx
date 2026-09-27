@@ -79,4 +79,18 @@ describe('WidgetCard', () => {
     expect(onSizeChange).not.toHaveBeenCalled()
     expect(screen.queryByText('2x1')).not.toBeInTheDocument()
   })
+
+  it('hides edit for a type this version does not know', () => {
+    render(
+      <WidgetCard
+        widget={makeWidget({ type: 'future' })}
+        openInNewTab={false}
+        isEditMode
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />
+    )
+    expect(screen.queryByLabelText('Edit widget')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Delete widget')).toBeInTheDocument()
+  })
 })

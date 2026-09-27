@@ -25,8 +25,10 @@ import { mergeTiles, reorderTiles, splitTiles, tileKey, toTilePositions } from '
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [groups, setGroups] = useState<Group[]>([])
-  // Widgets are not shown here, but share positions with services
+  // Widgets are not shown here, but share positions with services, so the
+  // order can only be saved once they are loaded
   const [widgets, setWidgets] = useState<Widget[]>([])
+  const [widgetsLoaded, setWidgetsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -83,8 +85,9 @@ export default function ServicesPage() {
 
       if (widgetsSettled.status === 'fulfilled' && widgetsSettled.value.data) {
         setWidgets(widgetsSettled.value.data)
-      } else if (widgetsSettled.status === 'rejected') {
-        console.error('Failed to fetch widgets:', widgetsSettled.reason)
+        setWidgetsLoaded(true)
+      } else {
+        console.error('Failed to fetch widgets:', widgetsSettled)
       }
     } catch (error) {
       console.error('Failed to fetch services:', error)
@@ -128,6 +131,11 @@ export default function ServicesPage() {
     setActiveId(null)
 
     if (!over || active.id === over.id) {
+      return
+    }
+
+    if (!widgetsLoaded) {
+      setError('Widgets could not be loaded, so the new order cannot be saved. Reload the page.')
       return
     }
 

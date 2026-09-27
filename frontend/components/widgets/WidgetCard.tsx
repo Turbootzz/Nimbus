@@ -57,7 +57,7 @@ export default function WidgetCard({
 
   const actions = (
     <>
-      {onEdit && (
+      {onEdit && definition && (
         <button
           type="button"
           onClick={(e) => {

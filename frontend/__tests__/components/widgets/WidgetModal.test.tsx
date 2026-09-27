@@ -82,4 +82,17 @@ describe('WidgetModal', () => {
       config: { content: 'before' },
     })
   })
+
+  it('does not offer other types when editing an unknown one', () => {
+    render(
+      <WidgetModal
+        types={backendStaticTypes}
+        widget={makeWidget({ type: 'future' })}
+        onClose={() => {}}
+        onSaved={() => {}}
+      />
+    )
+    expect(screen.getByText(/can't be edited/)).toBeInTheDocument()
+    expect(screen.queryByText('Clock')).not.toBeInTheDocument()
+  })
 })
