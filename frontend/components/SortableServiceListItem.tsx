@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Service } from '@/types'
 import ServiceListItem from '@/components/ServiceListItem'
+import { tileKey } from '@/lib/tiles'
 
 interface SortableServiceListItemProps {
   service: Service
@@ -17,7 +18,7 @@ export default function SortableServiceListItem({
   isMonitored,
 }: SortableServiceListItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: service.id,
+    id: tileKey({ kind: 'service', id: service.id }),
   })
 
   // List items are uniform size, so CSS transforms work well for smooth animations

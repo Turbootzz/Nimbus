@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"errors"
+	"log"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/nimbus/backend/internal/services"
 )
 
 // RequireUserID extracts the user ID from context. If not found, it returns
@@ -30,4 +34,20 @@ func RequireUUIDParam(c *fiber.Ctx, key string) (string, error) {
 		return "", fiber.NewError(fiber.StatusNotFound, "Not found")
 	}
 	return v, nil
+}
+
+// serviceError maps errors from the services layer to responses without
+// leaking internals. notFound maps repository sentinel errors to 404 messages.
+func serviceError(c *fiber.Ctx, err error, action string, notFound map[error]string) error {
+	var vErr *services.ValidationError
+	if errors.As(err, &vErr) {
+		return BadRequest(c, vErr.Message)
+	}
+	for sentinel, message := range notFound {
+		if errors.Is(err, sentinel) {
+			return NotFound(c, message)
+		}
+	}
+	log.Printf("Failed to %s: %v", action, err)
+	return InternalError(c, "Failed to "+action)
 }

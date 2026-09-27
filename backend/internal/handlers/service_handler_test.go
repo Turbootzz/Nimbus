@@ -218,6 +218,17 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 			expectError:    true,
 		},
 		{
+			name:   "Position above the tile limit",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			requestBody: models.ServiceReorderRequest{
+				Services: []models.ServicePosition{
+					{ID: "11111111-1111-1111-1111-111111111111", Position: 2147483647},
+				},
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
 			name:   "Empty services array",
 			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
 			requestBody: models.ServiceReorderRequest{
