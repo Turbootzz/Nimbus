@@ -2,6 +2,7 @@ import type { ComponentType } from 'react'
 import {
   BookmarkIcon,
   ClockIcon,
+  CloudIcon,
   DocumentTextIcon,
   GlobeAltIcon,
 } from '@heroicons/react/24/outline'
@@ -11,22 +12,29 @@ import type {
   ClockWidgetConfig,
   EmbedWidgetConfig,
   NoteWidgetConfig,
+  Snapshot,
+  WeatherWidgetConfig,
   Widget,
 } from '@/types'
 import ClockWidget from '@/components/widgets/renderers/ClockWidget'
 import NoteWidget from '@/components/widgets/renderers/NoteWidget'
 import BookmarksWidget from '@/components/widgets/renderers/BookmarksWidget'
 import EmbedWidget from '@/components/widgets/renderers/EmbedWidget'
+import WeatherWidget from '@/components/widgets/renderers/WeatherWidget'
 import ClockForm from '@/components/widgets/forms/ClockForm'
 import NoteForm from '@/components/widgets/forms/NoteForm'
 import BookmarksForm from '@/components/widgets/forms/BookmarksForm'
 import EmbedForm from '@/components/widgets/forms/EmbedForm'
+import WeatherForm from '@/components/widgets/forms/WeatherForm'
 
 export interface WidgetRendererProps<C> {
   widget: Widget
   config: C
   cardSize: CardSize
   openInNewTab: boolean
+  // Latest data of a polled widget; WidgetCard handles loading and errors
+  // before there is a payload
+  snapshot?: Snapshot
 }
 
 export interface WidgetFormProps<C> {
@@ -42,6 +50,8 @@ export interface WidgetDefinition<C = Record<string, unknown>> {
   label: string
   description: string
   icon: ComponentType<{ className?: string }>
+  // The backend polls it; the renderer needs a snapshot
+  polled?: boolean
   defaultConfig: C
   Renderer: ComponentType<WidgetRendererProps<C>>
   ConfigForm: ComponentType<WidgetFormProps<C>>
@@ -79,6 +89,16 @@ const definitions: WidgetDefinition[] = [
     defaultConfig: { items: [] },
     Renderer: BookmarksWidget,
     ConfigForm: BookmarksForm,
+  }),
+  defineWidget<WeatherWidgetConfig>({
+    type: 'weather',
+    label: 'Weather',
+    description: 'Current weather and a short forecast',
+    icon: CloudIcon,
+    polled: true,
+    defaultConfig: { location: '', units: 'metric' },
+    Renderer: WeatherWidget,
+    ConfigForm: WeatherForm,
   }),
   defineWidget<EmbedWidgetConfig>({
     type: 'iframe',
