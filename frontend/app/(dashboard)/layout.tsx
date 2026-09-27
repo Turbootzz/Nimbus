@@ -62,10 +62,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setIsDesktopCollapsed={setSidebarCollapsed}
       />
 
-      {/* Main content */}
+      {/* Main content; its padding must match the sidebar widths (w-16, w-52) */}
       <div
         data-main-content
-        className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-56'}`}
+        className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-52'}`}
       >
         {/* Header */}
         <Header onMenuClick={() => setIsSidebarOpen(true)} title={pageTitle} />
