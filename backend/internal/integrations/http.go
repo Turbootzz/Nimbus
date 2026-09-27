@@ -6,7 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
+	"net"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -48,6 +51,10 @@ func doRequest(ctx context.Context, conn *Conn, method, path string, body io.Rea
 	}
 	resp.Body = io.NopCloser(io.LimitReader(resp.Body, maxBodyBytes))
 	if err := read(resp); err != nil {
+		var netErr net.Error
+		if ctx.Err() != nil || (errors.As(err, &netErr) && netErr.Timeout()) {
+			return fmt.Errorf("%s took too long to answer", pathOnly(path))
+		}
 		return fmt.Errorf("%s returned an unexpected response", pathOnly(path))
 	}
 	return nil
@@ -120,17 +127,21 @@ func percent(part, total float64) int {
 	return int(part/total*100 + 0.5)
 }
 
-// formatRate turns bytes per second into a short text like "1.5 MB/s"
+// formatRate turns bytes per second into a short text like "1.5 MB/s".
+// The unit is picked after rounding, so 999,950 B/s is "1.0 MB/s".
 func formatRate(bytesPerSecond int64) string {
 	units := []string{"B/s", "KB/s", "MB/s", "GB/s"}
 	value := float64(bytesPerSecond)
-	unit := 0
-	for value >= 1000 && unit < len(units)-1 {
+	for unit := 0; ; unit++ {
+		decimals := 1
+		if unit == 0 || value >= 100 {
+			decimals = 0
+		}
+		scale := math.Pow10(decimals)
+		rounded := math.Round(value*scale) / scale
+		if rounded < 1000 || unit == len(units)-1 {
+			return strconv.FormatFloat(rounded, 'f', decimals, 64) + " " + units[unit]
+		}
 		value /= 1000
-		unit++
 	}
-	if unit == 0 || value >= 100 {
-		return fmt.Sprintf("%.0f %s", value, units[unit])
-	}
-	return fmt.Sprintf("%.1f %s", value, units[unit])
 }

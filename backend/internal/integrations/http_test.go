@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -101,6 +102,26 @@ func TestFormatRateAndPercent(t *testing.T) {
 	assert.Equal(t, "12.3 MB/s", formatRate(12_345_678))
 	assert.Equal(t, "250 MB/s", formatRate(250_000_000))
 	assert.Equal(t, "3.0 GB/s", formatRate(3_000_000_000))
+	assert.Equal(t, "1.0 MB/s", formatRate(999_950), "rounds up into the next unit")
+	assert.Equal(t, "1.0 GB/s", formatRate(999_999_999))
+	assert.Equal(t, "2000 GB/s", formatRate(2_000_000_000_000), "no unit above GB/s")
 	assert.Equal(t, 0, percent(5, 0))
 	assert.Equal(t, 33, percent(1, 3))
+}
+
+func TestDoRequestTimeoutWhileReading(t *testing.T) {
+	release := make(chan struct{})
+	server := fakeApp(t, map[string]http.HandlerFunc{
+		"GET /slow": func(w http.ResponseWriter, r *http.Request) {
+			_, _ = w.Write([]byte(`[{"a":1},`))
+			w.(http.Flusher).Flush()
+			<-release // never finishes the list in time
+		},
+	})
+	defer close(release)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := eachJSON(ctx, newTestConn(server.URL, models.IntegrationCredentials{}), "/slow", nil, func(map[string]int) {})
+	assert.EqualError(t, err, "/slow took too long to answer")
 }
