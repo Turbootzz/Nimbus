@@ -154,4 +154,35 @@ describe('useDashboardStream', () => {
     act(() => vi.advanceTimersByTime(60000))
     expect(FakeEventSource.instances).toHaveLength(1)
   })
+
+  it('keeps a newer streamed snapshot over an older loaded one', async () => {
+    let resolveLoad: (value: { data: Snapshot[] }) => void = () => {}
+    vi.mocked(api.getDashboardData).mockReturnValue(new Promise((r) => (resolveLoad = r)))
+    const { result } = setup()
+
+    FakeEventSource.latest().emit('snapshot', {
+      ...snapshot('w1', { t: 'live' }),
+      fetched_at: '2026-09-27T12:05:00Z',
+    })
+    await act(async () =>
+      resolveLoad({ data: [snapshot('w1', { t: 'old' }), snapshot('w2', { t: 2 })] })
+    )
+
+    expect(result.current.snapshots['widget:w1'].payload).toEqual({ t: 'live' })
+    expect(result.current.snapshots['widget:w2'].payload).toEqual({ t: 2 })
+  })
+
+  it('retries loading data after a failure', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getDashboardData)
+      .mockResolvedValueOnce({ error: { message: 'down' } })
+      .mockResolvedValue({ data: [snapshot('w1', { t: 1 })] })
+    const { result } = setup()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000)
+    })
+    expect(api.getDashboardData).toHaveBeenCalledTimes(2)
+    expect(result.current.snapshots['widget:w1'].payload).toEqual({ t: 1 })
+  })
 })

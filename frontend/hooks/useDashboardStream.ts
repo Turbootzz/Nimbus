@@ -12,6 +12,7 @@ const FALLBACK_POLL_MS = 30000
 // EventSource hides status codes, so after this many failures in a row we
 // ask /auth/me; the API client sends a logged out user to the login page
 const AUTH_CHECK_AFTER_ERRORS = 3
+const LOAD_RETRY_MS = 5000
 
 export type SnapshotMap = Record<string, Snapshot>
 
@@ -19,8 +20,18 @@ export function snapshotKey(kind: Snapshot['source_kind'], id: string): string {
   return `${kind}:${id}`
 }
 
-function toMap(snapshots: Snapshot[]): SnapshotMap {
-  return Object.fromEntries(snapshots.map((s) => [snapshotKey(s.source_kind, s.source_id), s]))
+// Adds loaded snapshots, keeping any newer one that arrived over the stream
+// while the request was running
+function mergeNewer(current: SnapshotMap, loaded: Snapshot[]): SnapshotMap {
+  const merged = { ...current }
+  for (const snap of loaded) {
+    const key = snapshotKey(snap.source_kind, snap.source_id)
+    const known = merged[key]
+    if (!known || Date.parse(snap.fetched_at) >= Date.parse(known.fetched_at)) {
+      merged[key] = snap
+    }
+  }
+  return merged
 }
 
 interface DashboardStreamOptions {
@@ -48,18 +59,28 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
   useEffect(() => {
     let source: EventSource | null = null
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    let loadTimer: ReturnType<typeof setTimeout> | undefined
     let pollTimer: ReturnType<typeof setInterval> | undefined
     let retryDelay = MIN_RETRY_MS
     let failures = 0
     let closed = false
 
+    // Retries on failure, or polled widgets would wait for their next fetch
     const loadData = async () => {
+      clearTimeout(loadTimer)
       try {
         const response = await api.getDashboardData()
-        if (response.data && !closed) setSnapshots(toMap(response.data))
+        if (closed) return
+        if (response.data) {
+          const loaded = response.data
+          setSnapshots((current) => mergeNewer(current, loaded))
+          return
+        }
+        console.error('Failed to load dashboard data:', response.error?.message)
       } catch (error) {
         console.error('Failed to load dashboard data:', error)
       }
+      if (!closed) loadTimer = setTimeout(loadData, LOAD_RETRY_MS)
     }
 
     const resync = () => {
@@ -113,6 +134,7 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
       closed = true
       source?.close()
       clearTimeout(retryTimer)
+      clearTimeout(loadTimer)
       stopPolling()
     }
   }, [])
