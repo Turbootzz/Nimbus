@@ -22,6 +22,9 @@ type arrKind struct {
 	port        int
 	libraryPath string // e.g. /api/v3/series
 	library     KPI
+	// wantedFromLibrary counts wanted items in the library list instead of
+	// calling /wanted/missing, which not every Radarr version has
+	wantedFromLibrary bool
 }
 
 func (a arrKind) Kind() string { return a.kind }
@@ -50,21 +53,22 @@ func (a arrKind) Test(ctx context.Context, conn *Conn) error {
 }
 
 func (a arrKind) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
-	wanted, err := arrTotal(ctx, conn, "/api/v3/wanted/missing?pageSize=1")
-	if err != nil {
-		return nil, err
-	}
 	queued, err := arrTotal(ctx, conn, "/api/v3/queue?pageSize=1")
 	if err != nil {
 		return nil, err
 	}
-	var library int
+	var library, wanted int
 	err = arrGet(ctx, conn, a.libraryPath, func(body io.Reader) error {
-		library, err = countJSONArray(body)
+		library, wanted, err = countLibrary(body)
 		return err
 	})
 	if err != nil {
 		return nil, err
+	}
+	if !a.wantedFromLibrary {
+		if wanted, err = arrTotal(ctx, conn, "/api/v3/wanted/missing?pageSize=1"); err != nil {
+			return nil, err
+		}
 	}
 	return &Payload{KPIs: map[string]any{"wanted": wanted, "queued": queued, a.library.Key: library}}, nil
 }
@@ -108,19 +112,27 @@ func arrGet(ctx context.Context, conn *Conn, path string, read func(io.Reader) e
 	return nil
 }
 
-// countJSONArray counts the elements of a JSON array without keeping them
-func countJSONArray(r io.Reader) (int, error) {
+// countLibrary counts the items of a library list, and those that are
+// wanted: monitored, not downloaded and released. It reads the list item by
+// item, so a big library is never held in memory.
+func countLibrary(r io.Reader) (total, wanted int, err error) {
 	dec := json.NewDecoder(r)
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('[') {
-		return 0, errors.New("expected a JSON array")
+		return 0, 0, errors.New("expected a JSON array")
 	}
-	n := 0
 	for dec.More() {
-		var skip json.RawMessage
-		if err := dec.Decode(&skip); err != nil {
-			return 0, err
+		var item struct {
+			Monitored   bool `json:"monitored"`
+			HasFile     bool `json:"hasFile"`
+			IsAvailable bool `json:"isAvailable"`
 		}
-		n++
+		if err := dec.Decode(&item); err != nil {
+			return 0, 0, err
+		}
+		total++
+		if item.Monitored && !item.HasFile && item.IsAvailable {
+			wanted++
+		}
 	}
-	return n, nil
+	return total, wanted, nil
 }

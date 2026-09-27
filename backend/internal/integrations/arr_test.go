@@ -30,12 +30,22 @@ func fakeArr(t *testing.T, libraryPath string) *httptest.Server {
 		case "/sub/api/v3/system/status":
 			fmt.Fprint(w, `{"version":"4.0.0"}`)
 		case "/sub/api/v3/wanted/missing":
+			if libraryPath == "/api/v3/movie" {
+				w.WriteHeader(http.StatusNotFound) // like Radarr 3 and 4
+				return
+			}
 			assert.Equal(t, "1", r.URL.Query().Get("pageSize"))
 			fmt.Fprint(w, `{"page":1,"pageSize":1,"totalRecords":12,"records":[{}]}`)
 		case "/sub/api/v3/queue":
 			fmt.Fprint(w, `{"totalRecords":2,"records":[{}]}`)
 		case "/sub" + libraryPath:
-			fmt.Fprint(w, `[{"id":1,"title":"a"},{"id":2,"title":"b","seasons":[{"x":[1,2]}]},{"id":3}]`)
+			// One wanted item: monitored, no file, released
+			fmt.Fprint(w, `[
+				{"id":1,"monitored":true,"hasFile":false,"isAvailable":true},
+				{"id":2,"monitored":true,"hasFile":true,"isAvailable":true,"seasons":[{"x":[1,2]}]},
+				{"id":3,"monitored":false,"hasFile":false,"isAvailable":true},
+				{"id":4,"monitored":true,"hasFile":false,"isAvailable":false}
+			]`)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -57,10 +67,10 @@ func arrConn(baseURL, key string) *Conn {
 func TestArrKinds(t *testing.T) {
 	cases := []struct {
 		kind, libraryPath, libraryKey string
-		port                          int
+		port, wanted                  int
 	}{
-		{"sonarr", "/api/v3/series", "series", 8989},
-		{"radarr", "/api/v3/movie", "movies", 7878},
+		{"sonarr", "/api/v3/series", "series", 8989, 12}, // from /wanted/missing
+		{"radarr", "/api/v3/movie", "movies", 7878, 1},   // counted in the movie list
 	}
 	for _, tc := range cases {
 		t.Run(tc.kind, func(t *testing.T) {
@@ -83,7 +93,7 @@ func TestArrKinds(t *testing.T) {
 			require.NoError(t, impl.Test(ctx, conn))
 			payload, err := impl.Fetch(ctx, conn)
 			require.NoError(t, err)
-			assert.Equal(t, map[string]any{"wanted": 12, "queued": 2, tc.libraryKey: 3}, payload.KPIs)
+			assert.Equal(t, map[string]any{"wanted": tc.wanted, "queued": 2, tc.libraryKey: 4}, payload.KPIs)
 
 			wrongKey := arrConn(server.URL+"/sub", "nope")
 			assert.EqualError(t, impl.Test(ctx, wrongKey), "the API key was rejected")
@@ -119,17 +129,19 @@ func TestArrErrors(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestCountJSONArray(t *testing.T) {
-	n, err := countJSONArray(strings.NewReader(`[]`))
+func TestCountLibrary(t *testing.T) {
+	total, wanted, err := countLibrary(strings.NewReader(`[]`))
 	require.NoError(t, err)
-	assert.Equal(t, 0, n)
+	assert.Equal(t, 0, total)
+	assert.Equal(t, 0, wanted)
 
-	n, err = countJSONArray(strings.NewReader(` [1, {"a":[2,3]}, "x", null]`))
+	total, wanted, err = countLibrary(strings.NewReader(` [{"monitored":true,"isAvailable":true,"extra":[1,{"a":2}]}, {}, {"hasFile":true}]`))
 	require.NoError(t, err)
-	assert.Equal(t, 4, n)
+	assert.Equal(t, 3, total)
+	assert.Equal(t, 1, wanted)
 
-	for _, bad := range []string{`{}`, `"x"`, ``, `[1,`} {
-		_, err := countJSONArray(strings.NewReader(bad))
+	for _, bad := range []string{`{}`, `"x"`, ``, `[{},`, `[1]`} {
+		_, _, err := countLibrary(strings.NewReader(bad))
 		assert.Error(t, err, bad)
 	}
 }

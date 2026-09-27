@@ -571,6 +571,11 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 		}
 	}
 
+	// The integration may no longer be shown anywhere
+	if existingService.IntegrationID != nil {
+		h.kickPoller()
+	}
+
 	return c.JSON(fiber.Map{
 		"message": "Service deleted successfully",
 	})

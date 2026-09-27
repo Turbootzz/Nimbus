@@ -63,6 +63,7 @@ func setupServiceIntegrationApp(db *sql.DB, poller *recordingPoller) *fiber.App 
 	})
 	app.Post("/services", handler.CreateService)
 	app.Put("/services/:id", handler.UpdateService)
+	app.Delete("/services/:id", handler.DeleteService)
 	return app
 }
 
@@ -114,6 +115,10 @@ func TestServiceHandler_IntegrationLink(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, status)
 	require.NotNil(t, updated.IntegrationID)
 	assert.Equal(t, 3, poller.kicks)
+
+	status, _, body = doServiceRequest(t, app, http.MethodDelete, path, "")
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.Equal(t, 4, poller.kicks, "deleting a linked service kicks too")
 }
 
 func TestServiceHandler_IntegrationLinkValidation(t *testing.T) {
