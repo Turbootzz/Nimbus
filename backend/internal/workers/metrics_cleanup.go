@@ -14,8 +14,14 @@ import (
 	"github.com/nimbus/backend/internal/services"
 )
 
+// SnapshotPruner deletes stored snapshots of deleted widgets and integrations
+type SnapshotPruner interface {
+	PruneSnapshots(ctx context.Context) (int64, error)
+}
+
 // MetricsCleanupWorker handles periodic cleanup of old status logs, webhook logs, and expired tokens
 type MetricsCleanupWorker struct {
+	snapshotPruner    SnapshotPruner
 	metricsService    *services.MetricsService
 	webhookRepo       *repository.WebhookRepository
 	passwordResetRepo *repository.PasswordResetRepository
@@ -47,6 +53,11 @@ func NewMetricsCleanupWorker(metricsService *services.MetricsService, webhookRep
 		cleanupInterval:   cleanupInterval,
 		stopChan:          make(chan struct{}),
 	}
+}
+
+// SetSnapshotPruner adds widget snapshot pruning to the daily cleanup
+func (w *MetricsCleanupWorker) SetSnapshotPruner(p SnapshotPruner) {
+	w.snapshotPruner = p
 }
 
 // Start begins the periodic cleanup process
@@ -130,6 +141,15 @@ func (w *MetricsCleanupWorker) runCleanup() {
 			log.Printf("Error during password reset token cleanup: %v", tokenErr)
 		} else if tokensDeleted > 0 {
 			log.Printf("Password reset token cleanup: deleted %d expired tokens", tokensDeleted)
+		}
+	}
+
+	// Clean up snapshots of deleted widgets and integrations
+	if w.snapshotPruner != nil {
+		if pruned, err := w.snapshotPruner.PruneSnapshots(ctx); err != nil {
+			log.Printf("Error during widget snapshot cleanup: %v", err)
+		} else if pruned > 0 {
+			log.Printf("Widget snapshot cleanup: deleted %d orphaned snapshots", pruned)
 		}
 	}
 

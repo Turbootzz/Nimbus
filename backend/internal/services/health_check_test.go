@@ -744,3 +744,48 @@ func TestHealthCheckService_CheckService_SingleCheckOnline(t *testing.T) {
 		t.Errorf("Expected 'online', got '%s'", mockRepo.lastStatus)
 	}
 }
+
+// statusRecorder collects published health check results
+type statusRecorder struct {
+	events []ServiceStatusEvent
+	users  []string
+}
+
+func (r *statusRecorder) PublishServiceStatus(userID, serviceID, status string, responseTime *int) {
+	r.users = append(r.users, userID)
+	r.events = append(r.events, ServiceStatusEvent{ID: serviceID, Status: status, ResponseTime: responseTime})
+}
+
+func TestHealthCheckService_CheckService_PublishesResult(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer testServer.Close()
+
+	recorder := &statusRecorder{}
+	healthService := &HealthCheckService{
+		serviceRepo: &MockServiceRepository{},
+		httpClient:  &http.Client{Timeout: 5 * time.Second},
+	}
+	healthService.SetStatusPublisher(recorder)
+
+	service := &models.Service{ID: "s1", UserID: "u1", URL: testServer.URL, MonitoringEnabled: true}
+	if err := healthService.CheckService(context.Background(), service); err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(recorder.events) != 1 || recorder.users[0] != "u1" || recorder.events[0].Status != models.StatusOnline {
+		t.Fatalf("Expected one online event for u1, got %+v for %v", recorder.events, recorder.users)
+	}
+	if recorder.events[0].ResponseTime == nil {
+		t.Error("Expected a response time")
+	}
+
+	// Unmonitored services are not checked, so nothing is published
+	service.MonitoringEnabled = false
+	if err := healthService.CheckService(context.Background(), service); err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(recorder.events) != 1 {
+		t.Errorf("Expected no event for an unmonitored service, got %d", len(recorder.events))
+	}
+}

@@ -23,6 +23,9 @@ const (
 	maxReorderTiles             = 1000
 )
 
+// ErrRefreshTooSoon means the widget was fetched moments ago
+var ErrRefreshTooSoon = errors.New("refreshed too recently")
+
 // GroupGetter is the part of GroupRepository the widget service needs
 type GroupGetter interface {
 	GetByID(ctx context.Context, id string) (*models.Group, error)
@@ -33,10 +36,16 @@ type WidgetService struct {
 	repo         repository.WidgetRepositoryInterface
 	groups       GroupGetter
 	integrations repository.IntegrationRepositoryInterface
+	poller       Poller
 }
 
 func NewWidgetService(repo repository.WidgetRepositoryInterface, groups GroupGetter, integrations repository.IntegrationRepositoryInterface) *WidgetService {
 	return &WidgetService{repo: repo, groups: groups, integrations: integrations}
+}
+
+// SetPoller lets the service tell the widget poller about changes
+func (s *WidgetService) SetPoller(p Poller) {
+	s.poller = p
 }
 
 // Types lists the registered widget types
@@ -53,7 +62,30 @@ func (s *WidgetService) Get(ctx context.Context, id, userID string) (*models.Wid
 }
 
 func (s *WidgetService) Delete(ctx context.Context, id, userID string) error {
-	return s.repo.Delete(ctx, id, userID)
+	if err := s.repo.Delete(ctx, id, userID); err != nil {
+		return err
+	}
+	kick(s.poller)
+	return nil
+}
+
+// Refresh asks the poller to fetch a widget's data now
+func (s *WidgetService) Refresh(ctx context.Context, id, userID string) error {
+	widget, err := s.repo.GetByID(ctx, id, userID)
+	if err != nil {
+		return err
+	}
+	widgetType, ok := widgets.Get(widget.Type)
+	if _, fetches := widgetType.(widgets.Fetcher); !ok || !fetches {
+		return invalid("This widget has no data to refresh")
+	}
+	if !widget.Enabled {
+		return invalid("This widget is disabled")
+	}
+	if s.poller != nil && !s.poller.Refresh(models.SnapshotKey(models.SnapshotSourceWidget, widget.ID)) {
+		return ErrRefreshTooSoon
+	}
+	return nil
 }
 
 // Create validates the request and adds the widget at the end of the grid
@@ -68,6 +100,7 @@ func (s *WidgetService) Create(ctx context.Context, userID string, req *models.W
 		}
 		return nil, err
 	}
+	kick(s.poller)
 	return widget, nil
 }
 
@@ -84,6 +117,7 @@ func (s *WidgetService) Update(ctx context.Context, id, userID string, req *mode
 	if err := s.repo.Update(ctx, widget); err != nil {
 		return nil, err
 	}
+	kick(s.poller)
 	return widget, nil
 }
 

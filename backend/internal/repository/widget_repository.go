@@ -260,6 +260,30 @@ func (r *WidgetRepository) ListByUserID(ctx context.Context, userID string) ([]m
 	return widgets, nil
 }
 
+// ListEnabled returns the enabled widgets of all users, for the poller
+func (r *WidgetRepository) ListEnabled(ctx context.Context) ([]models.Widget, error) {
+	query := `SELECT ` + widgetColumns + ` FROM widgets WHERE enabled = TRUE`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list enabled widgets: %w", err)
+	}
+	defer rows.Close()
+
+	widgets := []models.Widget{}
+	for rows.Next() {
+		widget, err := scanWidget(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan widget: %w", err)
+		}
+		widgets = append(widgets, *widget)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate widgets: %w", err)
+	}
+	return widgets, nil
+}
+
 // Update saves all editable fields. Type and position are never changed here.
 func (r *WidgetRepository) Update(ctx context.Context, widget *models.Widget) error {
 	query := `

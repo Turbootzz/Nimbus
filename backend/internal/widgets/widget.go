@@ -5,15 +5,19 @@ package widgets
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 
+	"github.com/nimbus/backend/internal/integrations"
 	"github.com/nimbus/backend/internal/models"
 )
 
 // Categories group types in the add-widget picker
 const (
 	CategoryGeneral = "general"
+	CategoryInfo    = "info"
 )
 
 // WidgetType is implemented once per widget type
@@ -25,6 +29,23 @@ type WidgetType interface {
 	// Validate checks a config and returns it normalised: defaults filled
 	// in, unknown fields dropped. Error messages are shown to the user.
 	Validate(config json.RawMessage) (json.RawMessage, error)
+}
+
+// Fetcher is implemented by types whose data the backend polls. Types
+// without it are static and render in the browser only.
+type Fetcher interface {
+	// Fetch returns the widget's current data; it is sent to the browser
+	// as JSON. Errors are shown to the user.
+	Fetch(ctx context.Context, req *FetchRequest) (any, error)
+}
+
+// FetchRequest is everything a Fetch needs
+type FetchRequest struct {
+	Config json.RawMessage // normalised by Validate
+	// Client is SSRF-safe; always use it
+	Client *http.Client
+	// Integration is the linked app, nil when the widget has none
+	Integration *integrations.Conn
 }
 
 // Meta describes a widget type. Type is filled in by the registry.
