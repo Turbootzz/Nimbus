@@ -25,24 +25,9 @@ export default function EmbedForm({
           disabled={disabled}
         />
         <p className="text-text-muted mt-1 text-xs">
-          Some sites refuse to be embedded. Your browser loads the page, not the Nimbus server.
+          Some sites refuse to be embedded. Your browser loads the page, not the Nimbus server. The
+          page fills the tile; change the tile size in edit mode.
         </p>
-      </div>
-      <div>
-        <label htmlFor="embed-height" className={labelClass}>
-          Height (pixels)
-        </label>
-        <input
-          id="embed-height"
-          type="number"
-          min={100}
-          max={1200}
-          step={10}
-          value={config.height}
-          onChange={(e) => onChange({ ...config, height: Number(e.target.value) })}
-          className={inputClass}
-          disabled={disabled}
-        />
       </div>
     </div>
   )

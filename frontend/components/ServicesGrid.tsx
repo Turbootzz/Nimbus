@@ -12,10 +12,15 @@ import { snapshotKey, type SnapshotMap } from '@/hooks/useDashboardStream'
 // Grid classes for different card scales
 // Mobile always uses large layout (grid-cols-2) to avoid clutter
 // Scale-specific columns apply from sm breakpoint and up
+// The minimum row height is about a 2x1 service card's own height, so a row of
+// only widgets matches a row of services. Widget content never grows a row.
 const gridClasses: Record<CardScale, string> = {
-  small: 'grid-cols-2 gap-4 sm:grid-cols-6 sm:gap-2 xl:grid-cols-8 2xl:grid-cols-10',
-  medium: 'grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-3 xl:grid-cols-6 2xl:grid-cols-8',
-  large: 'grid-cols-2 gap-4 sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8',
+  small:
+    'grid-cols-2 gap-4 auto-rows-[minmax(9rem,auto)] sm:grid-cols-6 sm:gap-2 xl:grid-cols-8 2xl:grid-cols-10',
+  medium:
+    'grid-cols-2 gap-4 auto-rows-[minmax(10.5rem,auto)] sm:grid-cols-4 sm:gap-3 xl:grid-cols-6 2xl:grid-cols-8',
+  large:
+    'grid-cols-2 gap-4 auto-rows-[minmax(13rem,auto)] sm:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8',
 }
 
 interface ServicesGridProps {

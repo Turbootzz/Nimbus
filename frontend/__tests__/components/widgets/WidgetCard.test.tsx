@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import WidgetCard from '@/components/widgets/WidgetCard'
+import type { CardSize } from '@/types'
 import { backendStaticTypes, makeSnapshot, makeWidget } from './fixtures'
 
 const clockMeta = backendStaticTypes.find((t) => t.type === 'clock')!
@@ -50,6 +51,34 @@ describe('WidgetCard', () => {
     )
     fireEvent.click(container.firstChild as HTMLElement)
     expect(onSizeChange).toHaveBeenCalledWith(clock, '2x1')
+  })
+
+  it('cycles notes through the tall size and keeps embeds tall', () => {
+    const meta = (type: string) => backendStaticTypes.find((t) => t.type === type)!
+    const next = (type: string, card_size: CardSize) => {
+      const onSizeChange = vi.fn()
+      const widget = makeWidget({ type, card_size, config: { url: 'https://a.test' } })
+      const { container, unmount } = render(
+        <WidgetCard
+          widget={widget}
+          meta={meta(type)}
+          openInNewTab={false}
+          isEditMode
+          onSizeChange={onSizeChange}
+        />
+      )
+      fireEvent.click(container.firstChild as HTMLElement)
+      unmount()
+      return onSizeChange.mock.calls[0][1]
+    }
+    expect(next('markdown', '1x1')).toBe('2x1')
+    expect(next('markdown', '2x1')).toBe('1x2')
+    expect(next('markdown', '1x2')).toBe('2x2')
+    expect(next('markdown', '2x2')).toBe('1x1')
+    expect(next('iframe', '2x2')).toBe('1x2')
+    expect(next('iframe', '1x2')).toBe('2x2')
+    // An old 1x1 embed moves to an allowed size
+    expect(next('iframe', '1x1')).toBe('1x2')
   })
 
   it('does not resize when resizing is off or only one size fits', () => {

@@ -69,6 +69,21 @@ describe('WeatherForm', () => {
     })
   })
 
+  it('shows the chosen place', () => {
+    const { rerender } = render(
+      <WeatherForm config={{ location: '', units: 'metric' }} onChange={() => {}} />
+    )
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+
+    rerender(
+      <WeatherForm
+        config={{ location: 'Utrecht', units: 'metric', latitude: 52.0908, longitude: 5.1222 }}
+        onChange={() => {}}
+      />
+    )
+    expect(screen.getByRole('status')).toHaveTextContent('Utrecht52.09, 5.12')
+  })
+
   it('shows search errors and accepts coordinates by hand', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
     const onChange = vi.fn()

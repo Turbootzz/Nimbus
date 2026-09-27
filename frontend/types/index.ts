@@ -31,7 +31,8 @@ export interface AuthResponse {
 
 // Service types
 export type IconType = 'emoji' | 'image_upload' | 'image_url'
-export type CardSize = '1x1' | '2x1' | '2x2'
+// 1x2 (narrow and tall) is for widgets only
+export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
 export type CardScale = 'small' | 'medium' | 'large'
 export type ViewMode = 'grid' | 'list'
 
@@ -223,9 +224,9 @@ export interface BookmarksWidgetConfig {
   items: Bookmark[]
 }
 
+// The embed fills its card; there is no height setting
 export interface EmbedWidgetConfig {
   url: string
-  height: number // pixels
 }
 
 export interface WeatherWidgetConfig {

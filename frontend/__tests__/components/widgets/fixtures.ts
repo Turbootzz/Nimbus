@@ -23,7 +23,7 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     name: 'Bookmarks',
     category: 'general',
     default_size: '2x2',
-    allowed_sizes: ['1x1', '2x1', '2x2'],
+    allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
     static: true,
   },
   {
@@ -39,7 +39,7 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     name: 'Embed',
     category: 'general',
     default_size: '2x2',
-    allowed_sizes: ['1x1', '2x1', '2x2'],
+    allowed_sizes: ['1x2', '2x2'],
     static: true,
   },
   {
@@ -47,7 +47,7 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     name: 'Note',
     category: 'general',
     default_size: '2x2',
-    allowed_sizes: ['1x1', '2x1', '2x2'],
+    allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
     static: true,
   },
   {

@@ -5,19 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/utils"
 )
 
-const (
-	defaultIframeHeight = 300
-	minIframeHeight     = 100
-	maxIframeHeight     = 1200
-)
-
+// The embed fills its card, so there is no height setting
 type iframeConfig struct {
 	URL string `json:"url"`
-	// Height in pixels
-	Height int `json:"height"`
 }
 
 type iframe struct{}
@@ -28,10 +22,11 @@ func (iframe) Type() string { return "iframe" }
 
 func (iframe) Meta() Meta {
 	return Meta{
-		Name:         "Embed",
-		Category:     CategoryGeneral,
-		DefaultSize:  "2x2",
-		AllowedSizes: allSizes,
+		Name:        "Embed",
+		Category:    CategoryGeneral,
+		DefaultSize: "2x2",
+		// A page needs height; one row is too short to use
+		AllowedSizes: []string{models.CardSize1x2, models.CardSize2x2},
 		Static:       true,
 	}
 }
@@ -49,11 +44,5 @@ func (iframe) Validate(config json.RawMessage) (json.RawMessage, error) {
 		return nil, fmt.Errorf("invalid URL: %s", err.Error())
 	}
 
-	if cfg.Height == 0 {
-		cfg.Height = defaultIframeHeight
-	}
-	if cfg.Height < minIframeHeight || cfg.Height > maxIframeHeight {
-		return nil, fmt.Errorf("height must be between %d and %d pixels", minIframeHeight, maxIframeHeight)
-	}
 	return encodeConfig(cfg)
 }

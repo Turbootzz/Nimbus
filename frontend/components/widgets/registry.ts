@@ -105,7 +105,7 @@ const definitions: WidgetDefinition[] = [
     label: 'Embed',
     description: 'Show a web page inside a tile',
     icon: GlobeAltIcon,
-    defaultConfig: { url: '', height: 300 },
+    defaultConfig: { url: '' },
     Renderer: EmbedWidget,
     ConfigForm: EmbedForm,
   }),

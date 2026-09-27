@@ -12,8 +12,7 @@ export default function EmbedWidget({ widget, config }: WidgetRendererProps<Embe
     <iframe
       src={config.url}
       title={widget.title || 'Embedded page'}
-      className="w-full rounded border-0"
-      style={{ height: config.height }}
+      className="h-full w-full rounded border-0"
       sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
       referrerPolicy="no-referrer"
       loading="lazy"
