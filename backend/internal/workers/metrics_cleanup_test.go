@@ -24,6 +24,7 @@ func setupCleanupTestDB(t *testing.T) *sql.DB {
 	_, err = db.Exec(`
 		CREATE TABLE services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,

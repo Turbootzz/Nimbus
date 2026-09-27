@@ -279,18 +279,27 @@ func TestIntegrationRepository_ListInUse(t *testing.T) {
 	db := setupIntegrationTestDB(t)
 	repo := NewIntegrationRepository(db)
 	ctx := context.Background()
-	_, err := db.Exec(`CREATE TABLE widgets (id TEXT PRIMARY KEY, integration_id TEXT, enabled INTEGER NOT NULL DEFAULT 1)`)
+	_, err := db.Exec(`
+		CREATE TABLE widgets (id TEXT PRIMARY KEY, integration_id TEXT, enabled INTEGER NOT NULL DEFAULT 1);
+		CREATE TABLE services (id TEXT PRIMARY KEY, integration_id TEXT);
+	`)
 	require.NoError(t, err)
 
 	used := createTestIntegration(t, repo, "user-1", "Used", nil)
+	usedByService := createTestIntegration(t, repo, "user-1", "Service", nil)
 	usedByDisabled := createTestIntegration(t, repo, "user-2", "Disabled widget", nil)
 	createTestIntegration(t, repo, "user-1", "Unused", nil)
 	_, err = db.Exec(`INSERT INTO widgets (id, integration_id, enabled) VALUES ('w1', ?, 1), ('w2', ?, 1), ('w3', ?, 0), ('w4', NULL, 1)`,
 		used.ID, used.ID, usedByDisabled.ID)
 	require.NoError(t, err)
+	_, err = db.Exec(`INSERT INTO services (id, integration_id) VALUES ('s1', ?), ('s2', NULL)`, usedByService.ID)
+	require.NoError(t, err)
 
 	list, err := repo.ListInUse(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 1)
-	assert.Equal(t, used.ID, list[0].ID)
+	var ids []string
+	for _, i := range list {
+		ids = append(ids, i.ID)
+	}
+	assert.ElementsMatch(t, []string{used.ID, usedByService.ID}, ids)
 }

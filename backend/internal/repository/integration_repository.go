@@ -194,11 +194,13 @@ func (r *IntegrationRepository) ListByUserID(ctx context.Context, userID string)
 	return integrations, nil
 }
 
-// ListInUse returns the integrations of all users that an enabled widget
-// uses, for the poller. Integrations nothing shows are not polled.
+// ListInUse returns the integrations of all users that a service or an
+// enabled widget uses, for the poller. Integrations nothing shows are not
+// polled.
 func (r *IntegrationRepository) ListInUse(ctx context.Context) ([]models.Integration, error) {
 	query := `SELECT ` + integrationColumns + ` FROM integrations
-		WHERE id IN (SELECT integration_id FROM widgets WHERE integration_id IS NOT NULL AND enabled = TRUE)`
+		WHERE id IN (SELECT integration_id FROM services WHERE integration_id IS NOT NULL)
+		   OR id IN (SELECT integration_id FROM widgets WHERE integration_id IS NOT NULL AND enabled = TRUE)`
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {

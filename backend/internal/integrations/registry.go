@@ -3,6 +3,7 @@ package integrations
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/nimbus/backend/internal/models"
 )
@@ -46,6 +47,12 @@ func Kinds() []Meta {
 		meta.Kind = kind
 		metas = append(metas, meta)
 	}
-	sort.Slice(metas, func(a, b int) bool { return metas[a].Name < metas[b].Name })
+	sort.Slice(metas, func(a, b int) bool {
+		nameA, nameB := strings.ToLower(metas[a].Name), strings.ToLower(metas[b].Name)
+		if nameA == nameB {
+			return metas[a].Kind < metas[b].Kind
+		}
+		return nameA < nameB
+	})
 	return metas
 }

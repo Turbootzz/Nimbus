@@ -22,14 +22,65 @@ type ServiceHandler struct {
 	serviceRepo        *repository.ServiceRepository
 	groupRepo          *repository.GroupRepository
 	healthCheckService *services.HealthCheckService
+	integrationRepo    repository.IntegrationRepositoryInterface
+	poller             services.Poller
 }
 
-func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService) *ServiceHandler {
+func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService, integrationRepo repository.IntegrationRepositoryInterface) *ServiceHandler {
 	return &ServiceHandler{
 		serviceRepo:        serviceRepo,
 		groupRepo:          groupRepo,
 		healthCheckService: healthCheckService,
+		integrationRepo:    integrationRepo,
 	}
+}
+
+// SetPoller lets the handler tell the widget poller when a service's
+// integration link changes, so its KPIs are fetched at once
+func (h *ServiceHandler) SetPoller(p services.Poller) {
+	h.poller = p
+}
+
+func (h *ServiceHandler) kickPoller() {
+	if h.poller != nil {
+		h.poller.Kick()
+	}
+}
+
+// resolveIntegration returns the integration to link (nil for "") after
+// checking it belongs to the user. Returns false if the response was sent.
+func (h *ServiceHandler) resolveIntegration(c *fiber.Ctx, integrationID, userID string) (*string, bool) {
+	integrationID = strings.TrimSpace(integrationID)
+	if integrationID == "" {
+		return nil, true
+	}
+	if h.integrationRepo == nil {
+		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Integration validation unavailable"})
+		return nil, false
+	}
+	parsed, err := uuid.Parse(integrationID)
+	if err != nil {
+		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid integration_id: must be a UUID"})
+		return nil, false
+	}
+	integrationID = parsed.String() // lowercase, as Postgres returns it
+	if _, err := h.integrationRepo.GetByID(c.Context(), integrationID, userID); err != nil {
+		if errors.Is(err, repository.ErrIntegrationNotFound) {
+			c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid integration_id: integration not found"})
+		} else {
+			c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to validate integration"})
+		}
+		return nil, false
+	}
+	return &integrationID, true
+}
+
+// sameID reports whether two optional IDs are equal
+func sameID(a, b *string) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 // validateGroupOwnership checks that a group exists and belongs to the user.
@@ -174,6 +225,14 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		}
 	}
 
+	var integrationID *string
+	if req.IntegrationID != nil {
+		var ok bool
+		if integrationID, ok = h.resolveIntegration(c, *req.IntegrationID, userID); !ok {
+			return nil // Response already sent
+		}
+	}
+
 	// Create service
 	service := &models.Service{
 		UserID:            userID,
@@ -186,6 +245,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		Status:            models.StatusUnknown, // Initial status
 		CardSize:          cardSize,
 		GroupID:           req.GroupID,
+		IntegrationID:     integrationID,
 		MonitoringEnabled: monitoringEnabled,
 		CreatedAt:         time.Now(),
 		UpdatedAt:         time.Now(),
@@ -195,6 +255,10 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create service",
 		})
+	}
+
+	if integrationID != nil {
+		h.kickPoller()
 	}
 
 	// Return created service
@@ -405,6 +469,17 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// IntegrationID: nil (field omitted) preserves existing; empty string unlinks
+	integrationChanged := false
+	if req.IntegrationID != nil {
+		integrationID, ok := h.resolveIntegration(c, *req.IntegrationID, userID)
+		if !ok {
+			return nil // Response already sent
+		}
+		integrationChanged = !sameID(existingService.IntegrationID, integrationID)
+		existingService.IntegrationID = integrationID
+	}
+
 	// Update service
 	existingService.Name = req.Name
 	existingService.URL = req.URL
@@ -431,6 +506,9 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update service",
 		})
+	}
+	if integrationChanged {
+		h.kickPoller()
 	}
 
 	return c.JSON(existingService.ToResponse())
@@ -491,6 +569,11 @@ func (h *ServiceHandler) DeleteService(c *fiber.Ctx) error {
 			filePath := filepath.Join(UploadDir, safeFilename)
 			os.Remove(filePath) // Ignore error, file may already be deleted
 		}
+	}
+
+	// The integration may no longer be shown anywhere
+	if existingService.IntegrationID != nil {
+		h.kickPoller()
 	}
 
 	return c.JSON(fiber.Map{
