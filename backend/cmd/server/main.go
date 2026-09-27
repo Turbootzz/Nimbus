@@ -213,6 +213,9 @@ func main() {
 	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
+	// Sets service positions exactly as given. Services share their position
+	// space with widgets, so callers must not reuse a widget's position; the
+	// dashboard uses PUT /dashboard/reorder instead.
 	services.Put("/reorder", serviceHandler.ReorderServices)     // Must be before /:id routes
 	services.Get("/favicon", serviceHandler.FetchServiceFavicon) // Must be before /:id routes
 	// <guid> constraint rejects non-UUID :id at the router level (404)
