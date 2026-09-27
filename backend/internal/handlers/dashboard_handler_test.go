@@ -167,14 +167,23 @@ func TestDashboardHandler_StreamLimitPerUser(t *testing.T) {
 	assert.Equal(t, fiber.StatusTooManyRequests, resp.StatusCode)
 }
 
-// recordingPoller remembers what the widget service asked for
+// recordingPoller remembers what the widget service asked for and accepts
+// one refresh per key
 type recordingPoller struct {
 	kicks     int
 	refreshed []string
 }
 
-func (p *recordingPoller) Kick()              { p.kicks++ }
-func (p *recordingPoller) Refresh(key string) { p.refreshed = append(p.refreshed, key) }
+func (p *recordingPoller) Kick() { p.kicks++ }
+func (p *recordingPoller) Refresh(key string) bool {
+	for _, k := range p.refreshed {
+		if k == key {
+			return false
+		}
+	}
+	p.refreshed = append(p.refreshed, key)
+	return true
+}
 
 func TestWidgetHandler_RefreshAndKicks(t *testing.T) {
 	db := setupWidgetTestDB(t)
@@ -201,8 +210,11 @@ func TestWidgetHandler_RefreshAndKicks(t *testing.T) {
 	status, _ := doWidgetRequest(t, app, http.MethodPost, "/widgets/"+weather.ID+"/refresh", "")
 	assert.Equal(t, fiber.StatusAccepted, status)
 	assert.Equal(t, []string{"widget:" + weather.ID}, poller.refreshed)
+	status, body := doWidgetRequest(t, app, http.MethodPost, "/widgets/"+weather.ID+"/refresh", "")
+	assert.Equal(t, fiber.StatusTooManyRequests, status)
+	assert.Contains(t, body, "moments ago")
 
-	status, body := doWidgetRequest(t, app, http.MethodPost, "/widgets/"+clock.ID+"/refresh", "")
+	status, body = doWidgetRequest(t, app, http.MethodPost, "/widgets/"+clock.ID+"/refresh", "")
 	assert.Equal(t, fiber.StatusBadRequest, status)
 	assert.Contains(t, body, "no data to refresh")
 

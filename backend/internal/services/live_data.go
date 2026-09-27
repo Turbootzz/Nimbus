@@ -2,6 +2,8 @@ package services
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -21,8 +23,9 @@ const maxFetchTimeout = 15 * time.Second
 type Poller interface {
 	// Kick reloads the list of sources soon
 	Kick()
-	// Refresh fetches one source (by snapshot key) as soon as possible
-	Refresh(key string)
+	// Refresh fetches one source (by snapshot key) as soon as possible; it
+	// returns false when the source was fetched too recently
+	Refresh(key string) bool
 }
 
 func kick(p Poller) {
@@ -128,7 +131,7 @@ func (s *LiveDataService) integrationSource(integration *models.Integration) Liv
 		ID:       integration.ID,
 		UserID:   integration.UserID,
 		Interval: time.Duration(integration.RefreshSeconds) * time.Second,
-		Version:  version(integration.UpdatedAt),
+		Version:  integrationVersion(integration),
 		Fetch: func(ctx context.Context) (any, error) {
 			return s.integrationService.Fetch(ctx, integration)
 		},
@@ -136,16 +139,17 @@ func (s *LiveDataService) integrationSource(integration *models.Integration) Liv
 }
 
 func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, fetcher widgets.Fetcher, integration *models.Integration) LiveSource {
-	v := version(widget.UpdatedAt)
+	// Only what changes the fetched data counts; a move or resize doesn't
+	parts := []string{widget.Type, string(widget.Config), strconv.Itoa(widget.RefreshSeconds)}
 	if integration != nil {
-		v += "/" + version(integration.UpdatedAt)
+		parts = append(parts, integrationVersion(integration))
 	}
 	return LiveSource{
 		Kind:     models.SnapshotSourceWidget,
 		ID:       widget.ID,
 		UserID:   widget.UserID,
 		Interval: time.Duration(widget.RefreshSeconds) * time.Second,
-		Version:  v,
+		Version:  fingerprint(parts...),
 		Fetch: func(ctx context.Context) (any, error) {
 			req := &widgets.FetchRequest{Config: widget.Config, Client: utils.NewSafeClient(true, maxFetchTimeout)}
 			defer req.Client.CloseIdleConnections()
@@ -176,8 +180,20 @@ func callWidgetFetch(ctx context.Context, typ string, fetcher widgets.Fetcher, r
 	return fetcher.Fetch(ctx, req)
 }
 
-func version(t time.Time) string {
-	return strconv.FormatInt(t.UnixNano(), 10)
+// integrationVersion changes when the integration is edited (test results
+// don't touch updated_at)
+func integrationVersion(integration *models.Integration) string {
+	return integration.ID + "@" + strconv.FormatInt(integration.UpdatedAt.UnixNano(), 10)
+}
+
+// fingerprint is a short hash of the parts
+func fingerprint(parts ...string) string {
+	h := sha256.New()
+	for _, part := range parts {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil)[:12])
 }
 
 // Record keeps the result of a fetch and pushes it to the user's open

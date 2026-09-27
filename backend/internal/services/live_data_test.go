@@ -309,3 +309,27 @@ func TestIntegrationService_FetchRecoversFromPanics(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "crashed")
 }
+
+func TestLiveData_VersionIgnoresLayoutChanges(t *testing.T) {
+	f := newLiveFixture(t)
+	widget := models.Widget{ID: "w", UserID: "u1", Type: "svc-counter", Config: json.RawMessage(`{"a":1}`), RefreshSeconds: 60}
+	versionOf := func(w models.Widget) string {
+		f.widgets.enabled = []models.Widget{w}
+		sources, err := f.live.Sources(context.Background())
+		require.NoError(t, err)
+		return sources[0].Version
+	}
+	base := versionOf(widget)
+
+	moved := widget
+	moved.Position, moved.Title, moved.CardSize = 9, "Renamed", "2x2"
+	moved.UpdatedAt = time.Now()
+	assert.Equal(t, base, versionOf(moved), "reorder, rename and resize don't refetch")
+
+	edited := widget
+	edited.Config = json.RawMessage(`{"a":2}`)
+	assert.NotEqual(t, base, versionOf(edited))
+	slower := widget
+	slower.RefreshSeconds = 120
+	assert.NotEqual(t, base, versionOf(slower))
+}

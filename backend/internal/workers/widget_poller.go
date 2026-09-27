@@ -14,6 +14,8 @@ const (
 	pollerReloadInterval = 60 * time.Second
 	pollerMaxConcurrent  = 8
 	pollerMaxFetchTime   = 15 * time.Second
+	// A manual refresh is ignored this soon after the last fetch started
+	pollerRefreshCooldown = 30 * time.Second
 	// After this many failures in a row a source is polled 5x less often
 	pollerBackoffAfter  = 3
 	pollerBackoffFactor = 5
@@ -31,9 +33,13 @@ type pollEntry struct {
 	nextRun  time.Time
 	failures int
 	running  bool
+	lastRun  time.Time
 	// rerun asks for another fetch right after the running one, because
 	// the source was edited or refreshed meanwhile
 	rerun bool
+	// removed marks a source that is gone while its fetch still runs; the
+	// entry stays until then, so the source never has two fetches at once
+	removed bool
 }
 
 // runNow makes the entry due at once, or right after its running fetch
@@ -99,14 +105,21 @@ func (p *WidgetPoller) Kick() {
 	}
 }
 
-// Refresh fetches one source as soon as possible
-func (p *WidgetPoller) Refresh(key string) {
+// Refresh fetches one source as soon as possible. It returns false when
+// the source was fetched too recently, so a refresh loop can't flood an app.
+func (p *WidgetPoller) Refresh(key string) bool {
 	p.mu.Lock()
-	if entry, ok := p.entries[key]; ok {
+	entry, ok := p.entries[key]
+	if ok && !entry.lastRun.IsZero() && p.now().Sub(entry.lastRun) < pollerRefreshCooldown {
+		p.mu.Unlock()
+		return false
+	}
+	if ok {
 		entry.runNow()
 	}
 	p.mu.Unlock()
 	p.Kick()
+	return true
 }
 
 func (p *WidgetPoller) run() {
@@ -154,14 +167,22 @@ func (p *WidgetPoller) reload() {
 			p.entries[key] = &pollEntry{src: src}
 			continue
 		}
+		if entry.removed {
+			entry.removed = false
+			entry.runNow()
+		}
 		if entry.src.Version != src.Version {
 			entry.runNow()
 			entry.failures = 0
 		}
 		entry.src = src
 	}
-	for key := range p.entries {
-		if !keys[key] {
+	for key, entry := range p.entries {
+		switch {
+		case keys[key]:
+		case entry.running:
+			entry.removed = true
+		default:
 			delete(p.entries, key)
 		}
 	}
@@ -176,17 +197,21 @@ func (p *WidgetPoller) runDue() {
 	defer p.mu.Unlock()
 	now := p.now()
 	for key, entry := range p.entries {
-		if entry.running || entry.nextRun.After(now) {
+		if entry.running || entry.removed || entry.nextRun.After(now) {
 			continue
 		}
 		entry.running = true
+		entry.lastRun = now
 		p.wg.Add(1)
-		go p.fetch(key, entry.src)
+		go p.fetch(key, entry)
 	}
 }
 
-func (p *WidgetPoller) fetch(key string, src services.LiveSource) {
+func (p *WidgetPoller) fetch(key string, entry *pollEntry) {
 	defer p.wg.Done()
+	p.mu.Lock()
+	src := entry.src
+	p.mu.Unlock()
 
 	select {
 	case p.sem <- struct{}{}:
@@ -203,11 +228,12 @@ func (p *WidgetPoller) fetch(key string, src services.LiveSource) {
 	}
 
 	p.mu.Lock()
-	entry, ok := p.entries[key]
-	p.mu.Unlock()
-	if !ok {
-		return // removed while fetching
+	if entry.removed {
+		delete(p.entries, key) // removed while fetching; drop the result
+		p.mu.Unlock()
+		return
 	}
+	p.mu.Unlock()
 	p.provider.Record(src, payload, err)
 
 	p.mu.Lock()

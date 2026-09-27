@@ -23,6 +23,9 @@ const (
 	maxReorderTiles             = 1000
 )
 
+// ErrRefreshTooSoon means the widget was fetched moments ago
+var ErrRefreshTooSoon = errors.New("refreshed too recently")
+
 // GroupGetter is the part of GroupRepository the widget service needs
 type GroupGetter interface {
 	GetByID(ctx context.Context, id string) (*models.Group, error)
@@ -79,8 +82,8 @@ func (s *WidgetService) Refresh(ctx context.Context, id, userID string) error {
 	if !widget.Enabled {
 		return invalid("This widget is disabled")
 	}
-	if s.poller != nil {
-		s.poller.Refresh(models.SnapshotKey(models.SnapshotSourceWidget, widget.ID))
+	if s.poller != nil && !s.poller.Refresh(models.SnapshotKey(models.SnapshotSourceWidget, widget.ID)) {
+		return ErrRefreshTooSoon
 	}
 	return nil
 }

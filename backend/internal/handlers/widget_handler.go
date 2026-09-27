@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -104,6 +106,9 @@ func (h *WidgetHandler) RefreshWidget(c *fiber.Ctx) error {
 		return err
 	}
 	if err := h.service.Refresh(c.Context(), c.Params("id"), userID); err != nil {
+		if errors.Is(err, services.ErrRefreshTooSoon) {
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "This widget was refreshed moments ago"})
+		}
 		return serviceError(c, err, "refresh widget", widgetNotFound)
 	}
 	return c.SendStatus(fiber.StatusAccepted)

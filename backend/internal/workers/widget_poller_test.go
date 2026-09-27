@@ -208,14 +208,20 @@ func TestPoller_RefreshRunsNowAndAfterARunningFetch(t *testing.T) {
 		}
 		return "ok", nil
 	})
-	p, provider, _ := newTestPoller(t, src)
+	p, provider, clock := newTestPoller(t, src)
 	p.cycle(true)
 
-	p.Refresh("widget:w")
+	assert.False(t, p.Refresh("widget:w"), "just fetched: refresh is ignored")
+	p.runDue()
+	assert.Equal(t, int32(1), calls.Load())
+
+	clock.Advance(pollerRefreshCooldown)
+	assert.True(t, p.Refresh("widget:w"))
 	p.runDue() // starts the hanging second fetch
 	require.Eventually(t, func() bool { return calls.Load() == 2 }, time.Second, time.Millisecond)
 
-	p.Refresh("widget:w") // while running: remembered for later
+	clock.Advance(pollerRefreshCooldown)
+	assert.True(t, p.Refresh("widget:w")) // while running: remembered for later
 	p.runDue()
 	assert.Equal(t, int32(2), calls.Load(), "no second fetch of the same source at once")
 
@@ -223,7 +229,56 @@ func TestPoller_RefreshRunsNowAndAfterARunningFetch(t *testing.T) {
 	p.wg.Wait()
 	p.cycle(false)
 	assert.Equal(t, 3, provider.count("widget:w"), "the refresh ran after the running fetch")
-	p.Refresh("widget:missing") // unknown keys are ignored
+	assert.True(t, p.Refresh("widget:missing"), "unknown keys just kick a reload")
+}
+
+func TestPoller_SourceRemovedAndReaddedWhileFetching(t *testing.T) {
+	release := make(chan struct{})
+	var running, maxRunning atomic.Int32
+	src := source("w", time.Minute, func(context.Context) (any, error) {
+		n := running.Add(1)
+		defer running.Add(-1)
+		for {
+			old := maxRunning.Load()
+			if n <= old || maxRunning.CompareAndSwap(old, n) {
+				break
+			}
+		}
+		<-release
+		return "ok", nil
+	})
+	p, provider, _ := newTestPoller(t, src)
+	p.reload()
+	p.runDue()
+	require.Eventually(t, func() bool { return running.Load() == 1 }, time.Second, time.Millisecond)
+
+	provider.setSources() // disabled
+	p.reload()
+	provider.setSources(src) // enabled again
+	p.reload()
+	p.runDue()
+	assert.Equal(t, int32(1), running.Load(), "never two fetches of one source")
+
+	close(release)
+	p.wg.Wait()
+	p.cycle(false)
+	assert.Equal(t, int32(1), maxRunning.Load())
+	assert.Equal(t, 2, provider.count("widget:w"), "fetched again once the first finished")
+
+	// Removed for good while fetching: the result is dropped
+	block := make(chan struct{})
+	gone := source("gone", time.Minute, func(context.Context) (any, error) { <-block; return "late", nil })
+	provider.setSources(gone)
+	p.reload()
+	p.runDue()
+	provider.setSources()
+	p.reload()
+	close(block)
+	p.wg.Wait()
+	assert.Equal(t, 0, provider.count("widget:gone"))
+	p.mu.Lock()
+	assert.Empty(t, p.entries)
+	p.mu.Unlock()
 }
 
 func TestPoller_SlowSourceDoesNotDelayOthers(t *testing.T) {
