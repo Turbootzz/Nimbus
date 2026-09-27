@@ -125,17 +125,17 @@ describe('BookmarksWidget', () => {
 describe('EmbedWidget', () => {
   it('renders a sandboxed iframe', () => {
     const { container } = render(
-      <EmbedWidget {...base} config={{ url: 'https://grafana.test/d/1', height: 400 }} />
+      <EmbedWidget {...base} config={{ url: 'https://grafana.test/d/1' }} />
     )
     const iframe = container.querySelector('iframe')
     expect(iframe).toHaveAttribute('src', 'https://grafana.test/d/1')
     expect(iframe?.getAttribute('sandbox')).toContain('allow-scripts')
     expect(iframe?.getAttribute('sandbox')).not.toContain('allow-top-navigation')
-    expect(iframe).toHaveStyle({ height: '400px' })
+    expect(iframe).toHaveClass('h-full', 'w-full')
   })
 
   it('shows a placeholder without a URL', () => {
-    render(<EmbedWidget {...base} config={{ url: '', height: 300 }} />)
+    render(<EmbedWidget {...base} config={{ url: '' }} />)
     expect(screen.getByText('No URL set')).toBeInTheDocument()
   })
 })

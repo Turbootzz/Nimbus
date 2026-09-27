@@ -87,12 +87,13 @@ func TestBookmarks(t *testing.T) {
 
 func TestIframe(t *testing.T) {
 	runConfigCases(t, "iframe", []configCase{
-		{"default height", `{"url":"http://grafana.lan:3000/d/abc"}`, `{"url":"http://grafana.lan:3000/d/abc","height":300}`, ""},
-		{"custom height", `{"url":"https://a.test","height":600}`, `{"url":"https://a.test","height":600}`, ""},
+		{"url", `{"url":" http://grafana.lan:3000/d/abc "}`, `{"url":"http://grafana.lan:3000/d/abc"}`, ""},
+		{"old height is dropped", `{"url":"https://a.test","height":600}`, `{"url":"https://a.test"}`, ""},
 		{"missing url", `{}`, "", "invalid URL"},
 		{"javascript url", `{"url":"javascript:alert(1)"}`, "", "invalid URL"},
 		{"data url", `{"url":"data:text/html,<script>alert(1)</script>"}`, "", "invalid URL"},
-		{"too low", `{"url":"https://a.test","height":50}`, "", "height must be between"},
-		{"too high", `{"url":"https://a.test","height":5000}`, "", "height must be between"},
 	})
+
+	w, _ := Get("iframe")
+	assert.Equal(t, []string{"1x2", "2x2"}, w.Meta().AllowedSizes, "an embed needs two rows")
 }

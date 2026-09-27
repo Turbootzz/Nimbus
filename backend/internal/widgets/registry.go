@@ -32,7 +32,7 @@ func Register(w WidgetType) {
 		panic(fmt.Sprintf("widgets: type %q must be static or implement Fetcher, not both or neither", typ))
 	}
 	for _, size := range meta.AllowedSizes {
-		if !models.IsValidCardSize(size) {
+		if !models.IsValidWidgetCardSize(size) {
 			panic(fmt.Sprintf("widgets: type %q has unknown size %q", typ, size))
 		}
 	}

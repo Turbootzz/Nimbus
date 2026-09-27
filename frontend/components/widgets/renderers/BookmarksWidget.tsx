@@ -3,7 +3,6 @@
 import Image from 'next/image'
 import type { Bookmark, BookmarksWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
-import { widgetMaxHeight } from '@/lib/card-utils'
 
 function BookmarkIcon({ bookmark }: { bookmark: Bookmark }) {
   if (bookmark.icon.startsWith('http://') || bookmark.icon.startsWith('https://')) {
@@ -30,14 +29,13 @@ function BookmarkIcon({ bookmark }: { bookmark: Bookmark }) {
 
 export default function BookmarksWidget({
   config,
-  cardSize,
   openInNewTab,
 }: WidgetRendererProps<BookmarksWidgetConfig>) {
   if (config.items.length === 0) {
     return <p className="text-text-muted text-sm">No bookmarks yet</p>
   }
   return (
-    <ul className={`-mx-2 space-y-0.5 overflow-auto ${widgetMaxHeight[cardSize]}`}>
+    <ul className="-mx-2 space-y-0.5">
       {config.items.map((bookmark, index) => (
         <li key={`${index}-${bookmark.url}`}>
           <a

@@ -64,8 +64,14 @@ type Meta struct {
 	MinRefreshSeconds int `json:"min_refresh_seconds,omitempty"`
 }
 
-// allSizes is the AllowedSizes of types that fit any card
-var allSizes = []string{models.CardSize1x1, models.CardSize2x1, models.CardSize2x2}
+// Common AllowedSizes. Content always fits its card (it scrolls inside), so
+// these only rule out sizes that make no sense for a type.
+var (
+	// serviceSizes are the three sizes services have too
+	serviceSizes = []string{models.CardSize1x1, models.CardSize2x1, models.CardSize2x2}
+	// allSizes adds the narrow and tall 1x2, for lists and text
+	allSizes = []string{models.CardSize1x1, models.CardSize2x1, models.CardSize1x2, models.CardSize2x2}
+)
 
 var errNotObject = errors.New("config must be a JSON object")
 

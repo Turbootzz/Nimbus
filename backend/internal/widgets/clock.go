@@ -33,7 +33,7 @@ func (clock) Meta() Meta {
 		Name:         "Clock",
 		Category:     CategoryGeneral,
 		DefaultSize:  "2x1",
-		AllowedSizes: allSizes,
+		AllowedSizes: serviceSizes,
 		Static:       true,
 	}
 }

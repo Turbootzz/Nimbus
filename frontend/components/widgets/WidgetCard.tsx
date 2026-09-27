@@ -147,28 +147,32 @@ export default function WidgetCard({
             {widget.title}
           </h3>
         )}
-        <div className="min-h-0 flex-1">
-          {definition && polled && !hasPayload ? (
-            snapshot?.error ? (
-              <p className="text-error text-sm">Could not load: {snapshot.error}</p>
+        {/* The content fills the tile but never sizes it: the grid row decides the
+            height, and long content scrolls inside */}
+        <div className="relative min-h-0 flex-1">
+          <div className="absolute inset-0 overflow-auto">
+            {definition && polled && !hasPayload ? (
+              snapshot?.error ? (
+                <p className="text-error text-sm">Could not load: {snapshot.error}</p>
+              ) : (
+                <div className="bg-background h-full min-h-12 animate-pulse rounded" role="status">
+                  <span className="sr-only">Loading</span>
+                </div>
+              )
+            ) : definition ? (
+              <definition.Renderer
+                widget={widget}
+                config={widgetConfig(definition, widget)}
+                cardSize={widget.card_size}
+                openInNewTab={openInNewTab}
+                snapshot={snapshot}
+              />
             ) : (
-              <div className="bg-background h-full min-h-12 animate-pulse rounded" role="status">
-                <span className="sr-only">Loading</span>
-              </div>
-            )
-          ) : definition ? (
-            <definition.Renderer
-              widget={widget}
-              config={widgetConfig(definition, widget)}
-              cardSize={widget.card_size}
-              openInNewTab={openInNewTab}
-              snapshot={snapshot}
-            />
-          ) : (
-            <p className="text-text-muted text-sm">
-              This widget type ({widget.type}) is not supported by this version of Nimbus.
-            </p>
-          )}
+              <p className="text-text-muted text-sm">
+                This widget type ({widget.type}) is not supported by this version of Nimbus.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

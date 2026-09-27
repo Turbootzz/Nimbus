@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline'
 import type { WeatherWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
@@ -45,8 +45,22 @@ export default function WeatherForm({
   const setCoordinate = (field: 'latitude' | 'longitude', value: string) =>
     onChange({ ...config, [field]: value === '' ? undefined : Number(value) })
 
+  const hasPlace = config.latitude !== undefined && config.longitude !== undefined
+
   return (
     <div className="space-y-4">
+      {hasPlace && (
+        <p
+          role="status"
+          className="bg-primary/10 text-primary inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-sm"
+        >
+          <MapPinIcon className="h-4 w-4 shrink-0" />
+          <span className="truncate">{config.location || 'Chosen place'}</span>
+          <span className="text-text-muted shrink-0 text-xs">
+            {config.latitude!.toFixed(2)}, {config.longitude!.toFixed(2)}
+          </span>
+        </p>
+      )}
       <div>
         <label htmlFor="weather-search" className={labelClass}>
           Find a place

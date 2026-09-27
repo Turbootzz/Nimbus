@@ -83,7 +83,7 @@ func (weather) Meta() Meta {
 		Name:              "Weather",
 		Category:          CategoryInfo,
 		DefaultSize:       "2x1",
-		AllowedSizes:      allSizes,
+		AllowedSizes:      serviceSizes,
 		MinRefreshSeconds: weatherMinRefreshSeconds,
 	}
 }

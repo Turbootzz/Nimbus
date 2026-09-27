@@ -3,7 +3,6 @@
 import Markdown, { type Components } from 'react-markdown'
 import type { NoteWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
-import { widgetMaxHeight } from '@/lib/card-utils'
 
 // react-markdown never renders raw HTML and drops unsafe link protocols
 // like javascript:, so user notes can't inject scripts.
@@ -32,14 +31,13 @@ function markdownComponents(openInNewTab: boolean): Components {
 
 export default function NoteWidget({
   config,
-  cardSize,
   openInNewTab,
 }: WidgetRendererProps<NoteWidgetConfig>) {
   if (!config.content.trim()) {
     return <p className="text-text-muted text-sm">Empty note</p>
   }
   return (
-    <div className={`text-text-primary overflow-auto text-sm ${widgetMaxHeight[cardSize]}`}>
+    <div className="text-text-primary text-sm">
       <Markdown components={markdownComponents(openInNewTab)}>{config.content}</Markdown>
     </div>
   )

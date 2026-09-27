@@ -244,6 +244,8 @@ func TestWidgetHandler_CreateValidation(t *testing.T) {
 		"required field missing":  {`{"type":"iframe"}`, "Invalid config: invalid URL"},
 		"title too long":          {`{"type":"clock","title":"` + strings.Repeat("a", 101) + `"}`, "Title must be 100"},
 		"unknown card size":       {`{"type":"clock","card_size":"3x3"}`, "not available for Clock"},
+		"clock is not tall":       {`{"type":"clock","card_size":"1x2"}`, "not available for Clock"},
+		"embed one row high":      {`{"type":"iframe","card_size":"1x1","config":{"url":"https://a.test"}}`, "not available for Embed"},
 		"size not allowed":        {`{"type":"handler-queue","card_size":"2x2","integration_id":"` + ownerIntegration + `"}`, "not available for Queue"},
 		"refresh below minimum":   {`{"type":"clock","refresh_seconds":5}`, "between 10 and"},
 		"refresh below type min":  {`{"type":"handler-queue","refresh_seconds":30,"integration_id":"` + ownerIntegration + `"}`, "between 60 and"},
@@ -352,4 +354,15 @@ func TestWidgetHandler_ReorderTiles(t *testing.T) {
 	status, body = doWidgetRequest(t, app, http.MethodGet, "/widgets/"+widget.ID, "")
 	require.Equal(t, fiber.StatusOK, status)
 	assert.Contains(t, body, `"position":0`, "failed reorders change nothing")
+}
+
+func TestWidgetHandler_TallSize(t *testing.T) {
+	app := setupWidgetTestApp(setupWidgetTestDB(t), widgetOwnerID)
+
+	note := createWidget(t, app, `{"type":"markdown","card_size":"1x2","config":{"content":"a"}}`)
+	assert.Equal(t, "1x2", note.CardSize)
+	embed := createWidget(t, app, `{"type":"iframe","config":{"url":"https://a.test"}}`)
+	assert.Equal(t, "2x2", embed.CardSize, "embeds default to 2x2")
+	status, body := doWidgetRequest(t, app, http.MethodPut, "/widgets/"+embed.ID, `{"card_size":"1x2"}`)
+	assert.Equal(t, fiber.StatusOK, status, body)
 }

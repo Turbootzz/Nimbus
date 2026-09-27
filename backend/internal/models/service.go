@@ -21,6 +21,7 @@ const (
 	CardSize1x1 = "1x1" // Compact square
 	CardSize2x1 = "2x1" // Standard rectangle (default)
 	CardSize2x2 = "2x2" // Large square
+	CardSize1x2 = "1x2" // Narrow and tall, for widgets only
 )
 
 const (
@@ -30,6 +31,11 @@ const (
 const (
 	DefaultIcon = "🔗"
 )
+
+// IsValidWidgetCardSize checks a widget size: the service sizes plus 1x2
+func IsValidWidgetCardSize(size string) bool {
+	return size == CardSize1x2 || IsValidCardSize(size)
+}
 
 // IsValidCardSize checks if the given size is a valid card size
 func IsValidCardSize(size string) bool {
