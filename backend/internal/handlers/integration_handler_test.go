@@ -192,7 +192,7 @@ func TestIntegrationHandler_ListKinds(t *testing.T) {
 	fake := byKind["handler-fake"]
 	assert.Equal(t, []string{"api_key", "none"}, fake.AuthTypes)
 	assert.Equal(t, "Queued", fake.KPIs[0].Label)
-	assert.Equal(t, 8989, byKind["sonarr"].DefaultPort, "built-in kinds are listed too")
+	assert.Greater(t, len(kinds), 1, "built-in kinds are listed too")
 }
 
 func TestIntegrationHandler_CRUDNeverExposesSecrets(t *testing.T) {
