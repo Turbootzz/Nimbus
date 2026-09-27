@@ -16,6 +16,7 @@ Add integrations under **Settings, Integrations**, then pick one under **Live nu
 | qBittorrent | downloading, download speed, seeding, upload speed | username and password, or none | |
 | Radarr | wanted, queued, movies | API key | Settings, General. |
 | Sonarr | wanted, queued, series | API key | Settings, General. |
+| Uptime Kuma | monitors up, down, up % | API key, or none | Reads `/metrics`. Create the key under Settings, API Keys. Pending and maintenance monitors are not counted. |
 
 The URL is the address the Nimbus server uses to reach the app, including a sub path if the app runs behind a reverse proxy (for example `https://proxy.lan/sonarr`).
 
