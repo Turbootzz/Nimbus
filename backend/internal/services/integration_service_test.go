@@ -58,6 +58,9 @@ type panicKind struct{ fakeKind }
 
 func (panicKind) Kind() string                                   { return "svc-panic" }
 func (panicKind) Test(context.Context, *integrations.Conn) error { panic("boom") }
+func (panicKind) Fetch(context.Context, *integrations.Conn) (*integrations.Payload, error) {
+	panic("boom")
+}
 
 func init() {
 	integrations.Register(fakeKind{})
@@ -112,6 +115,15 @@ func (r *fakeIntegrationRepo) ListByUserID(_ context.Context, userID string) ([]
 		if i.UserID == userID {
 			list = append(list, i)
 		}
+	}
+	return list, nil
+}
+
+// ListInUse returns every integration; the fake has no widgets to check
+func (r *fakeIntegrationRepo) ListInUse(context.Context) ([]models.Integration, error) {
+	list := []models.Integration{}
+	for _, i := range r.items {
+		list = append(list, i)
 	}
 	return list, nil
 }

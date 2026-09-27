@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -34,6 +36,10 @@ type IntegrationService struct {
 	repo    repository.IntegrationRepositoryInterface
 	cipher  *utils.Cipher
 	timeout time.Duration
+	poller  Poller
+	// states keeps each integration's session data (e.g. a login sid)
+	// between polls, keyed by integration ID
+	states sync.Map
 }
 
 func NewIntegrationService(repo repository.IntegrationRepositoryInterface, cipher *utils.Cipher) *IntegrationService {
@@ -53,8 +59,18 @@ func (s *IntegrationService) Get(ctx context.Context, id, userID string) (*model
 	return s.repo.GetByID(ctx, id, userID)
 }
 
+// SetPoller lets the service tell the widget poller about changes
+func (s *IntegrationService) SetPoller(p Poller) {
+	s.poller = p
+}
+
 func (s *IntegrationService) Delete(ctx context.Context, id, userID string) error {
-	return s.repo.Delete(ctx, id, userID)
+	if err := s.repo.Delete(ctx, id, userID); err != nil {
+		return err
+	}
+	s.states.Delete(id)
+	kick(s.poller)
+	return nil
 }
 
 // Create validates the request, encrypts the credentials and stores it
@@ -105,13 +121,55 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, req 
 	}
 
 	integration := in.integration
-	if in.creds != nil || connectionChanged(current, &integration) {
+	reconnect := in.creds != nil || connectionChanged(current, &integration)
+	if reconnect {
 		integration.LastTestAt, integration.LastTestOK, integration.LastError = nil, nil, nil
 	}
 	if err := s.repo.Update(ctx, &integration, blob); err != nil {
 		return nil, err
 	}
+	if reconnect {
+		// A session from the old connection may not fit the new one
+		s.states.Delete(integration.ID)
+	}
+	kick(s.poller)
 	return &integration, nil
+}
+
+// Conn connects to a stored integration for polling. It keeps the
+// integration's session state between calls.
+func (s *IntegrationService) Conn(ctx context.Context, integration *models.Integration) (*integrations.Conn, error) {
+	blob, err := s.repo.GetCredentials(ctx, integration.ID, integration.UserID)
+	if err != nil {
+		return nil, err
+	}
+	creds, err := s.decryptCredentials(blob, integration.ID)
+	if err != nil {
+		log.Printf("integration %s: %v", integration.ID, err)
+		return nil, errors.New("stored credentials cannot be decrypted (was ENCRYPTION_KEY changed?)")
+	}
+	state, _ := s.states.LoadOrStore(integration.ID, &integrations.State{})
+	client := utils.NewSafeClient(integration.VerifyTLS, s.timeout)
+	return newConn(integration, creds, client, state.(*integrations.State)), nil
+}
+
+// Fetch polls a stored integration for its KPIs. Errors are redacted.
+func (s *IntegrationService) Fetch(ctx context.Context, integration *models.Integration) (*integrations.Payload, error) {
+	impl, ok := integrations.Get(integration.Kind)
+	if !ok {
+		return nil, fmt.Errorf("integration kind %q is not available", integration.Kind)
+	}
+	conn, err := s.Conn(ctx, integration)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Client.CloseIdleConnections()
+
+	payload, err := callFetch(ctx, impl, conn)
+	if err != nil {
+		return nil, errors.New(redactSecrets(err.Error(), conn.Creds))
+	}
+	return payload, nil
 }
 
 // TestUnsaved tests a connection from a request body without storing anything
@@ -344,14 +402,7 @@ func (s *IntegrationService) runTest(ctx context.Context, impl integrations.Inte
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	conn := &integrations.Conn{
-		BaseURL:   integration.BaseURL,
-		Creds:     creds,
-		VerifyTLS: integration.VerifyTLS,
-		Options:   integration.Options,
-		Client:    client,
-		State:     &integrations.State{},
-	}
+	conn := newConn(integration, creds, client, &integrations.State{})
 
 	start := time.Now()
 	err := callTest(ctx, impl, conn)
@@ -362,15 +413,33 @@ func (s *IntegrationService) runTest(ctx context.Context, impl integrations.Inte
 	return result
 }
 
-// callTest turns a panic in a kind into an error so one buggy kind can't
-// crash the server.
+func newConn(integration *models.Integration, creds models.IntegrationCredentials, client *http.Client, state *integrations.State) *integrations.Conn {
+	return &integrations.Conn{
+		BaseURL:   integration.BaseURL,
+		Creds:     creds,
+		VerifyTLS: integration.VerifyTLS,
+		Options:   integration.Options,
+		Client:    client,
+		State:     state,
+	}
+}
+
+// recoverCrash turns a panic in a kind or widget into an error, so one
+// buggy implementation can't crash the server
+func recoverCrash(name string, err *error) {
+	if r := recover(); r != nil {
+		*err = fmt.Errorf("%s crashed: %v", name, r)
+	}
+}
+
 func callTest(ctx context.Context, impl integrations.Integration, conn *integrations.Conn) (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("integration %s crashed: %v", impl.Kind(), r)
-		}
-	}()
+	defer recoverCrash("integration "+impl.Kind(), &err)
 	return impl.Test(ctx, conn)
+}
+
+func callFetch(ctx context.Context, impl integrations.Integration, conn *integrations.Conn) (payload *integrations.Payload, err error) {
+	defer recoverCrash("integration "+impl.Kind(), &err)
+	return impl.Fetch(ctx, conn)
 }
 
 // redactSecrets removes credential values from a message. Kinds may put

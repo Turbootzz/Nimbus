@@ -97,6 +97,18 @@ func (h *WidgetHandler) DeleteWidget(c *fiber.Ctx) error {
 	return c.SendStatus(fiber.StatusNoContent)
 }
 
+// RefreshWidget fetches a widget's data now instead of on its next turn
+func (h *WidgetHandler) RefreshWidget(c *fiber.Ctx) error {
+	userID, err := RequireUserID(c)
+	if err != nil {
+		return err
+	}
+	if err := h.service.Refresh(c.Context(), c.Params("id"), userID); err != nil {
+		return serviceError(c, err, "refresh widget", widgetNotFound)
+	}
+	return c.SendStatus(fiber.StatusAccepted)
+}
+
 // ReorderTiles saves the order of services and widgets on the dashboard
 func (h *WidgetHandler) ReorderTiles(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)

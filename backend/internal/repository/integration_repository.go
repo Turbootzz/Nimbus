@@ -194,6 +194,32 @@ func (r *IntegrationRepository) ListByUserID(ctx context.Context, userID string)
 	return integrations, nil
 }
 
+// ListInUse returns the integrations of all users that an enabled widget
+// uses, for the poller. Integrations nothing shows are not polled.
+func (r *IntegrationRepository) ListInUse(ctx context.Context) ([]models.Integration, error) {
+	query := `SELECT ` + integrationColumns + ` FROM integrations
+		WHERE id IN (SELECT integration_id FROM widgets WHERE integration_id IS NOT NULL AND enabled = TRUE)`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list integrations in use: %w", err)
+	}
+	defer rows.Close()
+
+	integrations := []models.Integration{}
+	for rows.Next() {
+		integration, err := scanIntegration(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan integration: %w", err)
+		}
+		integrations = append(integrations, *integration)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate integrations: %w", err)
+	}
+	return integrations, nil
+}
+
 // Update saves all editable fields, including the credentials blob (nil
 // clears it) and the last test result. Kind is never changed.
 func (r *IntegrationRepository) Update(ctx context.Context, integration *models.Integration, credentialsEnc []byte) error {

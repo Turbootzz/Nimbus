@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/mail"
@@ -61,6 +62,7 @@ func main() {
 	apiTokenRepo := repository.NewAPITokenRepository(database)
 	integrationRepo := repository.NewIntegrationRepository(database)
 	widgetRepo := repository.NewWidgetRepository(database)
+	snapshotRepo := repository.NewSnapshotRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -132,6 +134,17 @@ func main() {
 	// Initialize widget service
 	widgetService := services.NewWidgetService(widgetRepo, groupRepo, integrationRepo)
 
+	// Live widget data: the poller fetches, the hub pushes to open dashboards
+	sseHub := services.NewSSEHub()
+	liveDataService := services.NewLiveDataService(widgetRepo, integrationRepo, integrationService, snapshotRepo, sseHub)
+	if err := liveDataService.Warm(context.Background()); err != nil {
+		log.Printf("WARNING: Failed to load widget snapshots: %v", err)
+	}
+	widgetPoller := workers.NewWidgetPoller(liveDataService)
+	widgetService.SetPoller(widgetPoller)
+	integrationService.SetPoller(widgetPoller)
+	healthCheckService.SetStatusPublisher(liveDataService)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
@@ -149,6 +162,7 @@ func main() {
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
 	integrationHandler := handlers.NewIntegrationHandler(integrationService)
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
+	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -294,10 +308,13 @@ func main() {
 	widgetRoutes.Get("/:id<guid>", widgetHandler.GetWidget)
 	widgetRoutes.Put("/:id<guid>", widgetHandler.UpdateWidget)
 	widgetRoutes.Delete("/:id<guid>", widgetHandler.DeleteWidget)
+	widgetRoutes.Post("/:id<guid>/refresh", widgetHandler.RefreshWidget)
 
 	// Dashboard routes (all protected); services and widgets share one order
 	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
+	dashboard.Get("/data", dashboardHandler.Data)
+	dashboard.Get("/stream", dashboardHandler.Stream)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
@@ -331,7 +348,11 @@ func main() {
 
 	// Start metrics cleanup worker (also cleans up webhook logs)
 	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService, webhookRepo, passwordResetRepo)
+	metricsCleanup.SetSnapshotPruner(liveDataService)
 	metricsCleanup.Start()
+
+	// Start widget poller
+	widgetPoller.Start()
 
 	// Start DNS cache cleanup worker
 	dnsCleanup := workers.NewDNSCleanupWorker()
@@ -383,7 +404,10 @@ func main() {
 	<-sigChan
 	log.Println("\nReceived shutdown signal, shutting down gracefully...")
 
-	// Stop workers
+	// Stop workers; close the dashboard streams first, or they keep
+	// connections open and Shutdown waits for them
+	sseHub.Close()
+	widgetPoller.Stop()
 	healthMonitor.Stop()
 	metricsCleanup.Stop()
 	dnsCleanup.Stop()

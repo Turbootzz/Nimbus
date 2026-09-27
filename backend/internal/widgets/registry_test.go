@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -26,8 +27,13 @@ func register(t *testing.T, w WidgetType) {
 }
 
 func validMeta(name string) Meta {
-	return Meta{Name: name, Category: CategoryGeneral, DefaultSize: "2x1", AllowedSizes: allSizes}
+	return Meta{Name: name, Category: CategoryGeneral, DefaultSize: "2x1", AllowedSizes: allSizes, Static: true}
 }
+
+// fetchingStub polls, so it must not be static
+type fetchingStub struct{ stubType }
+
+func (fetchingStub) Fetch(context.Context, *FetchRequest) (any, error) { return nil, nil }
 
 func TestRegister_GetAndTypes(t *testing.T) {
 	register(t, stubType{typ: "zz-stub", meta: validMeta("ZZ Stub")})
@@ -73,7 +79,13 @@ func TestRegister_PanicsOnProgrammerErrors(t *testing.T) {
 		"no category":     stubType{typ: "nocat", meta: noCategory},
 		"default size":    stubType{typ: "baddefault", meta: badDefault},
 		"unknown size":    stubType{typ: "badsize", meta: badSize},
-		"no sizes at all": stubType{typ: "nosizes", meta: Meta{Name: "N", Category: CategoryGeneral}},
+		"no sizes at all": stubType{typ: "nosizes", meta: Meta{Name: "N", Category: CategoryGeneral, Static: true}},
+		"static fetcher":  fetchingStub{stubType{typ: "staticfetch", meta: validMeta("Static fetch")}},
+		"not static, no fetcher": func() WidgetType {
+			m := validMeta("Neither")
+			m.Static = false
+			return stubType{typ: "neither", meta: m}
+		}(),
 	}
 	for name, w := range cases {
 		assert.Panics(t, func() { Register(w) }, name)
