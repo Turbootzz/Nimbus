@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/nimbus/backend/internal/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -271,4 +273,24 @@ func TestIntegrationRepository_LimitReached(t *testing.T) {
 	if len(list) != 2 {
 		t.Errorf("rejected create must roll back, found %d rows", len(list))
 	}
+}
+
+func TestIntegrationRepository_ListInUse(t *testing.T) {
+	db := setupIntegrationTestDB(t)
+	repo := NewIntegrationRepository(db)
+	ctx := context.Background()
+	_, err := db.Exec(`CREATE TABLE widgets (id TEXT PRIMARY KEY, integration_id TEXT, enabled INTEGER NOT NULL DEFAULT 1)`)
+	require.NoError(t, err)
+
+	used := createTestIntegration(t, repo, "user-1", "Used", nil)
+	usedByDisabled := createTestIntegration(t, repo, "user-2", "Disabled widget", nil)
+	createTestIntegration(t, repo, "user-1", "Unused", nil)
+	_, err = db.Exec(`INSERT INTO widgets (id, integration_id, enabled) VALUES ('w1', ?, 1), ('w2', ?, 1), ('w3', ?, 0), ('w4', NULL, 1)`,
+		used.ID, used.ID, usedByDisabled.ID)
+	require.NoError(t, err)
+
+	list, err := repo.ListInUse(ctx)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	assert.Equal(t, used.ID, list[0].ID)
 }

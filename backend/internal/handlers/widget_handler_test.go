@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -45,6 +46,9 @@ func (handlerQueueWidget) Meta() widgets.Meta {
 	}
 }
 func (handlerQueueWidget) Validate(c json.RawMessage) (json.RawMessage, error) { return c, nil }
+func (handlerQueueWidget) Fetch(context.Context, *widgets.FetchRequest) (any, error) {
+	return map[string]int{"queued": 3}, nil
+}
 
 func init() {
 	widgets.Register(handlerQueueWidget{})

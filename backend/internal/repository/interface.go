@@ -29,6 +29,7 @@ type IntegrationRepositoryInterface interface {
 	GetByID(ctx context.Context, id, userID string) (*models.Integration, error)
 	GetCredentials(ctx context.Context, id, userID string) ([]byte, error)
 	ListByUserID(ctx context.Context, userID string) ([]models.Integration, error)
+	ListInUse(ctx context.Context) ([]models.Integration, error)
 	Update(ctx context.Context, integration *models.Integration, credentialsEnc []byte) error
 	UpdateTestResult(ctx context.Context, id, userID string, ok bool, lastError *string) error
 	Delete(ctx context.Context, id, userID string) error
@@ -42,6 +43,7 @@ type WidgetRepositoryInterface interface {
 	Create(ctx context.Context, widget *models.Widget, maxPerUser int) error
 	GetByID(ctx context.Context, id, userID string) (*models.Widget, error)
 	ListByUserID(ctx context.Context, userID string) ([]models.Widget, error)
+	ListEnabled(ctx context.Context) ([]models.Widget, error)
 	Update(ctx context.Context, widget *models.Widget) error
 	Delete(ctx context.Context, id, userID string) error
 	ReorderTiles(ctx context.Context, userID string, tiles []models.TilePosition) error
@@ -49,3 +51,13 @@ type WidgetRepositoryInterface interface {
 
 // Ensure WidgetRepository implements the interface
 var _ WidgetRepositoryInterface = (*WidgetRepository)(nil)
+
+// SnapshotRepositoryInterface defines the interface for snapshot repository operations
+type SnapshotRepositoryInterface interface {
+	Upsert(ctx context.Context, snap *models.Snapshot) error
+	ListAll(ctx context.Context) ([]models.Snapshot, error)
+	PruneOrphans(ctx context.Context) (int64, error)
+}
+
+// Ensure SnapshotRepository implements the interface
+var _ SnapshotRepositoryInterface = (*SnapshotRepository)(nil)
