@@ -1,7 +1,12 @@
 'use client'
 
-import { PencilIcon, TrashIcon } from '@heroicons/react/24/outline'
-import type { CardScale, CardSize, Widget, WidgetTypeMeta } from '@/types'
+import {
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+  PencilIcon,
+  TrashIcon,
+} from '@heroicons/react/24/outline'
+import type { CardScale, CardSize, Snapshot, Widget, WidgetTypeMeta } from '@/types'
 import { getNextAllowedSize, sizeToGridSpan } from '@/lib/card-utils'
 import EditOverlay from '@/components/EditOverlay'
 import { getWidgetDefinition, widgetConfig } from '@/components/widgets/registry'
@@ -10,6 +15,8 @@ interface WidgetCardProps {
   widget: Widget
   // From GET /widgets/types; limits the sizes a click cycles through
   meta?: WidgetTypeMeta
+  // Latest data, for widgets the backend polls
+  snapshot?: Snapshot
   openInNewTab: boolean
   cardScale?: CardScale
   enableCardResizing?: boolean
@@ -19,6 +26,7 @@ interface WidgetCardProps {
   onSizeChange?: (widget: Widget, size: CardSize) => void
   onEdit?: (widget: Widget) => void
   onDelete?: (widget: Widget) => void
+  onRefresh?: (widget: Widget) => void
 }
 
 const actionClass =
@@ -27,6 +35,7 @@ const actionClass =
 export default function WidgetCard({
   widget,
   meta,
+  snapshot,
   openInNewTab,
   cardScale = 'medium',
   enableCardResizing = true,
@@ -36,6 +45,7 @@ export default function WidgetCard({
   onSizeChange,
   onEdit,
   onDelete,
+  onRefresh,
 }: WidgetCardProps) {
   const definition = getWidgetDefinition(widget.type)
   const allowedSizes = meta?.allowed_sizes ?? [widget.card_size]
@@ -55,8 +65,31 @@ export default function WidgetCard({
     }
   }
 
+  const polled = definition?.polled ?? false
+  const hasPayload = snapshot?.payload != null
+  // Old data is shown with a warning; without data the error replaces it
+  const warning =
+    polled && hasPayload && (snapshot?.error || snapshot?.stale)
+      ? snapshot?.error
+        ? `Last update failed: ${snapshot.error}`
+        : 'This data may be out of date'
+      : null
+
   const actions = (
     <>
+      {onRefresh && polled && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            onRefresh(widget)
+          }}
+          className={actionClass}
+          aria-label="Refresh widget"
+        >
+          <ArrowPathIcon className="h-4 w-4" />
+        </button>
+      )}
       {onEdit && definition && (
         <button
           type="button"
@@ -91,6 +124,11 @@ export default function WidgetCard({
       onClick={handleClick}
       className={`${gridSpan} bg-card border-card-border relative flex h-full flex-col rounded-lg border ${padding} transition-all ${editClasses} ${dragClasses}`}
     >
+      {warning && !isEditMode && (
+        <span className="text-warning absolute top-2 right-2" title={warning}>
+          <ExclamationTriangleIcon className="h-4 w-4" aria-label={warning} />
+        </span>
+      )}
       {isEditMode && (
         <EditOverlay
           dragHandleProps={dragHandleProps}
@@ -110,12 +148,21 @@ export default function WidgetCard({
           </h3>
         )}
         <div className="min-h-0 flex-1">
-          {definition ? (
+          {definition && polled && !hasPayload ? (
+            snapshot?.error ? (
+              <p className="text-error text-sm">Could not load: {snapshot.error}</p>
+            ) : (
+              <div className="bg-background h-full min-h-12 animate-pulse rounded" role="status">
+                <span className="sr-only">Loading</span>
+              </div>
+            )
+          ) : definition ? (
             <definition.Renderer
               widget={widget}
               config={widgetConfig(definition, widget)}
               cardSize={widget.card_size}
               openInNewTab={openInNewTab}
+              snapshot={snapshot}
             />
           ) : (
             <p className="text-text-muted text-sm">

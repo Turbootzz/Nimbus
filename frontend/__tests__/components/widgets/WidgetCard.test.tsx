@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import WidgetCard from '@/components/widgets/WidgetCard'
-import { backendStaticTypes, makeWidget } from './fixtures'
+import { backendStaticTypes, makeSnapshot, makeWidget } from './fixtures'
 
 const clockMeta = backendStaticTypes.find((t) => t.type === 'clock')!
 const note = makeWidget({ title: 'Todo', config: { content: 'Buy milk' } })
@@ -92,5 +92,71 @@ describe('WidgetCard', () => {
     )
     expect(screen.queryByLabelText('Edit widget')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Delete widget')).toBeInTheDocument()
+  })
+
+  describe('polled widgets', () => {
+    const weather = makeWidget({ type: 'weather', title: 'Weather', config: { location: 'Home' } })
+
+    it('shows a loading block until the first data arrives', () => {
+      render(<WidgetCard widget={weather} openInNewTab={false} />)
+      expect(screen.getByRole('status')).toHaveTextContent('Loading')
+    })
+
+    it('shows the error when there is no data yet', () => {
+      render(
+        <WidgetCard
+          widget={weather}
+          snapshot={makeSnapshot({
+            payload: null,
+            error: 'weather service: unexpected status 429',
+          })}
+          openInNewTab={false}
+        />
+      )
+      expect(screen.getByText(/Could not load: weather service/)).toBeInTheDocument()
+    })
+
+    it('keeps old data with a warning when an update failed', () => {
+      render(
+        <WidgetCard
+          widget={weather}
+          snapshot={makeSnapshot({ error: 'timeout', stale: true })}
+          openInNewTab={false}
+        />
+      )
+      expect(screen.getByText('17°')).toBeInTheDocument()
+      expect(screen.getByLabelText('Last update failed: timeout')).toBeInTheDocument()
+    })
+
+    it('marks data loaded at startup as possibly out of date', () => {
+      render(
+        <WidgetCard
+          widget={weather}
+          snapshot={makeSnapshot({ stale: true })}
+          openInNewTab={false}
+        />
+      )
+      expect(screen.getByLabelText('This data may be out of date')).toBeInTheDocument()
+    })
+
+    it('offers refresh in edit mode', () => {
+      const onRefresh = vi.fn()
+      render(
+        <WidgetCard
+          widget={weather}
+          snapshot={makeSnapshot()}
+          openInNewTab={false}
+          isEditMode
+          onRefresh={onRefresh}
+        />
+      )
+      fireEvent.click(screen.getByLabelText('Refresh widget'))
+      expect(onRefresh).toHaveBeenCalledWith(weather)
+    })
+
+    it('has no refresh for static widgets', () => {
+      render(<WidgetCard widget={note} openInNewTab={false} isEditMode onRefresh={vi.fn()} />)
+      expect(screen.queryByLabelText('Refresh widget')).not.toBeInTheDocument()
+    })
   })
 })
