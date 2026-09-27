@@ -19,3 +19,19 @@ export function getNextSize(current: CardSize): CardSize {
 
 // Default card size when not specified
 export const DEFAULT_CARD_SIZE: CardSize = '2x1'
+
+// Next size in the cycle that the tile allows (widget types may limit sizes)
+export function getNextAllowedSize(current: CardSize, allowed: CardSize[]): CardSize {
+  for (let step = 1; step <= sizeOrder.length; step++) {
+    const size = sizeOrder[(sizeOrder.indexOf(current) + step) % sizeOrder.length]
+    if (allowed.includes(size)) return size
+  }
+  return current
+}
+
+// Max height of scrolling widget content, so a long note can't stretch its row
+export const widgetMaxHeight: Record<CardSize, string> = {
+  '1x1': 'max-h-24',
+  '2x1': 'max-h-32',
+  '2x2': 'max-h-80',
+}

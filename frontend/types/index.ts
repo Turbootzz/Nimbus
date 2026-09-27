@@ -86,6 +86,94 @@ export interface ServiceReorderRequest {
   services: ServicePosition[]
 }
 
+// Widget types (dashboard tiles that are not links)
+export interface Widget {
+  id: string
+  type: string
+  title: string
+  group_id: string | null
+  integration_id: string | null
+  config: Record<string, unknown>
+  card_size: CardSize
+  position: number
+  refresh_seconds: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Metadata of a widget type, from GET /widgets/types
+export interface WidgetTypeMeta {
+  type: string
+  name: string
+  category: string
+  default_size: CardSize
+  allowed_sizes: CardSize[]
+  static: boolean
+  integration_kinds?: string[]
+  min_refresh_seconds?: number
+}
+
+export interface WidgetCreateRequest {
+  type: string
+  title?: string
+  group_id?: string
+  config?: Record<string, unknown>
+  card_size?: CardSize
+}
+
+// Omitted fields keep their value; '' clears group_id
+export interface WidgetUpdateRequest {
+  title?: string
+  group_id?: string
+  config?: Record<string, unknown>
+  card_size?: CardSize
+  refresh_seconds?: number
+  enabled?: boolean
+}
+
+// Configs of the static widget types (validated by the backend)
+export interface ClockWidgetConfig {
+  timezone: string // IANA name; empty uses the browser's zone
+  hour12: boolean
+  show_seconds: boolean
+  date_format: 'none' | 'short' | 'long'
+}
+
+export interface NoteWidgetConfig {
+  content: string // markdown
+}
+
+export interface Bookmark {
+  name: string
+  url: string
+  icon: string // emoji or image URL
+}
+
+export interface BookmarksWidgetConfig {
+  items: Bookmark[]
+}
+
+export interface EmbedWidgetConfig {
+  url: string
+  height: number // pixels
+}
+
+// Services and widgets share one grid and one position space
+export type Tile =
+  | { kind: 'service'; id: string; position: number; service: Service }
+  | { kind: 'widget'; id: string; position: number; widget: Widget }
+
+export interface TilePosition {
+  id: string
+  kind: Tile['kind']
+  position: number
+}
+
+export interface TileReorderRequest {
+  tiles: TilePosition[]
+}
+
 // Group types
 export interface Group {
   id: string

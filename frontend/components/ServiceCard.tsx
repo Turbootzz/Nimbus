@@ -1,7 +1,6 @@
 'use client'
 
 import { ClockIcon } from '@heroicons/react/24/outline'
-import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
   getStatusColor,
@@ -11,6 +10,7 @@ import {
 } from '@/lib/status-utils'
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import EditOverlay from '@/components/EditOverlay'
 
 interface ServiceCardProps {
   service: Service
@@ -126,40 +126,6 @@ const scaleText: Record<CardScale, { title: string; description: string }> = {
   small: { title: 'text-sm', description: 'text-xs' },
   medium: { title: 'text-base', description: 'text-sm' },
   large: { title: 'text-lg', description: 'text-sm' },
-}
-
-// Reusable edit mode overlay with drag handle and size badge
-interface EditOverlayProps {
-  dragHandleProps?: Record<string, unknown>
-  cardSize: CardSize
-  showSizeBadge: boolean
-  compact?: boolean
-}
-
-function EditOverlay({
-  dragHandleProps,
-  cardSize,
-  showSizeBadge,
-  compact = false,
-}: EditOverlayProps) {
-  const position = compact ? 'top-1 right-1 left-1' : 'top-2 right-2 left-2'
-  const iconSize = compact ? 'h-4 w-4' : 'h-5 w-5'
-
-  return (
-    <div className={`absolute ${position} z-10 flex items-center justify-between`}>
-      <div
-        {...dragHandleProps}
-        className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-      >
-        <Bars3Icon className={`text-text-muted ${iconSize}`} />
-      </div>
-      {showSizeBadge && (
-        <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-      )}
-    </div>
-  )
 }
 
 // 1x1 - Compact: large icon centered, name below, status indicator dot

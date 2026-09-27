@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { PlusIcon, PencilIcon, CheckIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilIcon, CheckIcon, Squares2X2Icon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import GroupTabs from '@/components/GroupTabs'
 
@@ -18,6 +18,7 @@ interface DashboardHeaderProps {
   activeId: string | null
   isDraggingTab: boolean
   addServiceHref: string
+  onAddWidget: () => void
 }
 
 export default function DashboardHeader({
@@ -33,6 +34,7 @@ export default function DashboardHeader({
   activeId,
   isDraggingTab,
   addServiceHref,
+  onAddWidget,
 }: DashboardHeaderProps) {
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -70,6 +72,13 @@ export default function DashboardHeader({
             <span className="hidden sm:inline">Edit</span>
           </button>
         )}
+        <button
+          onClick={onAddWidget}
+          className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
+        >
+          <Squares2X2Icon className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Add Widget</span>
+        </button>
         <Link
           href={addServiceHref}
           className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
