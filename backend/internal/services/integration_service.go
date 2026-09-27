@@ -25,21 +25,8 @@ const (
 	maxIntegrationsPerUser     = 50
 	integrationTestTimeout     = 10 * time.Second
 	defaultRefreshSeconds      = 60
-	minRefreshSeconds          = 10
-	maxRefreshSeconds          = 86400
 	maxIntegrationOptionsBytes = 16 * 1024
 )
-
-// ValidationError marks bad user input. Its message is safe to show.
-type ValidationError struct {
-	Message string
-}
-
-func (e *ValidationError) Error() string { return e.Message }
-
-func invalid(format string, args ...any) error {
-	return &ValidationError{Message: fmt.Sprintf(format, args...)}
-}
 
 // IntegrationService handles integration CRUD, credential encryption and
 // connection tests. Decrypted credentials never leave this service.

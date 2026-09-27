@@ -36,3 +36,16 @@ type IntegrationRepositoryInterface interface {
 
 // Ensure IntegrationRepository implements the interface
 var _ IntegrationRepositoryInterface = (*IntegrationRepository)(nil)
+
+// WidgetRepositoryInterface defines the interface for widget repository operations
+type WidgetRepositoryInterface interface {
+	Create(ctx context.Context, widget *models.Widget, maxPerUser int) error
+	GetByID(ctx context.Context, id, userID string) (*models.Widget, error)
+	ListByUserID(ctx context.Context, userID string) ([]models.Widget, error)
+	Update(ctx context.Context, widget *models.Widget) error
+	Delete(ctx context.Context, id, userID string) error
+	ReorderTiles(ctx context.Context, userID string, tiles []models.TilePosition) error
+}
+
+// Ensure WidgetRepository implements the interface
+var _ WidgetRepositoryInterface = (*WidgetRepository)(nil)
