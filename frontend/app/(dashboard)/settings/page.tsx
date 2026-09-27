@@ -65,6 +65,21 @@ export default function SettingsPage() {
       ),
     },
     {
+      title: 'Integrations',
+      description: 'Connect apps like Sonarr and Radarr to show live numbers',
+      href: '/settings/integrations',
+      icon: (
+        <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+          />
+        </svg>
+      ),
+    },
+    {
       title: 'API Tokens',
       description: 'Create tokens for programmatic API access',
       href: '/settings/api-tokens',

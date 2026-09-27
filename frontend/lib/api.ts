@@ -43,6 +43,10 @@ import type {
   WidgetUpdateRequest,
   TileReorderRequest,
   Snapshot,
+  Integration,
+  IntegrationKindMeta,
+  IntegrationRequest,
+  IntegrationTestResult,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -453,6 +457,49 @@ class ApiClient {
     return this.request<void>(`/widgets/${id}`, {
       method: 'DELETE',
     })
+  }
+
+  // ============================================
+  // Integrations
+  // ============================================
+
+  async getIntegrationKinds(): Promise<ApiResponse<IntegrationKindMeta[]>> {
+    return this.request<IntegrationKindMeta[]>('/integrations/kinds')
+  }
+
+  async getIntegrations(): Promise<ApiResponse<Integration[]>> {
+    return this.request<Integration[]>('/integrations')
+  }
+
+  async createIntegration(data: IntegrationRequest): Promise<ApiResponse<Integration>> {
+    return this.request<Integration>('/integrations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateIntegration(id: string, data: IntegrationRequest): Promise<ApiResponse<Integration>> {
+    return this.request<Integration>(`/integrations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteIntegration(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/integrations/${id}`, { method: 'DELETE' })
+  }
+
+  // Tests a connection from the form without saving it
+  async testIntegration(data: IntegrationRequest): Promise<ApiResponse<IntegrationTestResult>> {
+    return this.request<IntegrationTestResult>('/integrations/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Tests a saved integration and records the result
+  async testSavedIntegration(id: string): Promise<ApiResponse<IntegrationTestResult>> {
+    return this.request<IntegrationTestResult>(`/integrations/${id}/test`, { method: 'POST' })
   }
 
   // Fetches a widget's data now; 429 when it was fetched moments ago
