@@ -31,26 +31,13 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 	}
 	defer tx.Rollback()
 
-	// Get the max position for this user with row lock (PostgreSQL) or exclusive table lock (SQLite)
-	// This prevents race conditions when multiple services are created simultaneously
-	var maxPos sql.NullInt64
-	posQuery := `
-		SELECT position
-		FROM services
-		WHERE user_id = $1
-		ORDER BY position DESC
-		LIMIT 1
-		FOR UPDATE
-	`
-	err = tx.QueryRowContext(ctx, posQuery, service.UserID).Scan(&maxPos)
-	if err != nil && err != sql.ErrNoRows {
+	// Append after the last service or widget. The user row lock keeps
+	// concurrent creates from getting the same position.
+	if err := lockUser(ctx, tx, service.UserID); err != nil {
 		return err
 	}
-
-	if maxPos.Valid {
-		service.Position = int(maxPos.Int64) + 1
-	} else {
-		service.Position = 0
+	if service.Position, err = nextTilePosition(ctx, tx, service.UserID); err != nil {
+		return err
 	}
 
 	query := `

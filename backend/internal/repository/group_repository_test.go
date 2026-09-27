@@ -915,3 +915,44 @@ func TestGroupRepository_Update_MonitoringEnabled(t *testing.T) {
 		t.Errorf("Update() MonitoringEnabled = %v, want %v", updated.MonitoringEnabled, true)
 	}
 }
+
+func TestGroupRepository_DeleteWithServicesAlsoDeletesWidgets(t *testing.T) {
+	db := setupGroupTestDB(t)
+	defer db.Close()
+	repo := NewGroupRepository(db)
+	ctx := context.Background()
+
+	_, err := db.Exec(`
+		CREATE TABLE services (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_id TEXT);
+		CREATE TABLE widgets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, group_id TEXT);
+		INSERT INTO services VALUES ('s-in', 'user-1', 'group-1'), ('s-out', 'user-1', NULL);
+		INSERT INTO widgets VALUES ('w-in', 'user-1', 'group-1'), ('w-out', 'user-1', NULL);
+	`)
+	if err != nil {
+		t.Fatalf("Failed to create tiles: %v", err)
+	}
+	createGroupDirectly(t, db, &models.Group{ID: "group-1", UserID: "user-1", Name: "Media", CreatedAt: time.Now(), UpdatedAt: time.Now()})
+
+	if err := repo.Delete(ctx, "group-1", "user-1", true); err != nil {
+		t.Fatalf("Delete() error = %v", err)
+	}
+
+	for table, want := range map[string]string{"services": "s-out", "widgets": "w-out"} {
+		var ids []string
+		rows, err := db.Query(`SELECT id FROM ` + table)
+		if err != nil {
+			t.Fatalf("Failed to query %s: %v", table, err)
+		}
+		for rows.Next() {
+			var id string
+			if err := rows.Scan(&id); err != nil {
+				t.Fatalf("Failed to scan: %v", err)
+			}
+			ids = append(ids, id)
+		}
+		rows.Close()
+		if len(ids) != 1 || ids[0] != want {
+			t.Errorf("%s left = %v, want only %s", table, ids, want)
+		}
+	}
+}

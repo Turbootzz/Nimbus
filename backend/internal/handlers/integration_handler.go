@@ -1,9 +1,6 @@
 package handlers
 
 import (
-	"errors"
-	"log"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -129,16 +126,9 @@ func (h *IntegrationHandler) TestIntegration(c *fiber.Ctx) error {
 	return c.JSON(result)
 }
 
+var integrationNotFound = map[error]string{repository.ErrIntegrationNotFound: "Integration not found"}
+
 // integrationError maps service errors to responses without leaking internals
 func integrationError(c *fiber.Ctx, err error, action string) error {
-	var vErr *services.ValidationError
-	switch {
-	case errors.As(err, &vErr):
-		return BadRequest(c, vErr.Message)
-	case errors.Is(err, repository.ErrIntegrationNotFound):
-		return NotFound(c, "Integration not found")
-	default:
-		log.Printf("Failed to %s: %v", action, err)
-		return InternalError(c, "Failed to "+action)
-	}
+	return serviceError(c, err, action, integrationNotFound)
 }

@@ -60,6 +60,7 @@ func main() {
 	settingsRepo := repository.NewSettingsRepository(database)
 	apiTokenRepo := repository.NewAPITokenRepository(database)
 	integrationRepo := repository.NewIntegrationRepository(database)
+	widgetRepo := repository.NewWidgetRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -128,6 +129,9 @@ func main() {
 	// Initialize integration service
 	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher)
 
+	// Initialize widget service
+	widgetService := services.NewWidgetService(widgetRepo, groupRepo, integrationRepo)
+
 	// Initialize handlers
 	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
@@ -144,6 +148,7 @@ func main() {
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
 	integrationHandler := handlers.NewIntegrationHandler(integrationService)
+	widgetHandler := handlers.NewWidgetHandler(widgetService)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
@@ -277,6 +282,19 @@ func main() {
 	integrationRoutes.Put("/:id<guid>", integrationHandler.UpdateIntegration)
 	integrationRoutes.Delete("/:id<guid>", integrationHandler.DeleteIntegration)
 	integrationRoutes.Post("/:id<guid>/test", integrationHandler.TestIntegration)
+
+	// Widget routes (all protected)
+	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	widgetRoutes.Get("/types", widgetHandler.ListTypes) // Must be before /:id routes
+	widgetRoutes.Post("/", widgetHandler.CreateWidget)
+	widgetRoutes.Get("/", widgetHandler.ListWidgets)
+	widgetRoutes.Get("/:id<guid>", widgetHandler.GetWidget)
+	widgetRoutes.Put("/:id<guid>", widgetHandler.UpdateWidget)
+	widgetRoutes.Delete("/:id<guid>", widgetHandler.DeleteWidget)
+
+	// Dashboard routes (all protected); services and widgets share one order
+	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
