@@ -39,7 +39,9 @@ export default function WeatherWidget({
       )}
 
       {days.length > 0 && (
-        <ul className="grid grid-cols-3 gap-1 text-center text-xs sm:grid-cols-4">
+        <ul
+          className={`grid gap-1 text-center text-xs ${days.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}
+        >
           {days.map((day) => {
             const condition = describeWeather(day.weather_code)
             return (
