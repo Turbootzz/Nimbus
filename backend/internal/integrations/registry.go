@@ -48,7 +48,11 @@ func Kinds() []Meta {
 		metas = append(metas, meta)
 	}
 	sort.Slice(metas, func(a, b int) bool {
-		return strings.ToLower(metas[a].Name) < strings.ToLower(metas[b].Name)
+		nameA, nameB := strings.ToLower(metas[a].Name), strings.ToLower(metas[b].Name)
+		if nameA == nameB {
+			return metas[a].Kind < metas[b].Kind
+		}
+		return nameA < nameB
 	})
 	return metas
 }
