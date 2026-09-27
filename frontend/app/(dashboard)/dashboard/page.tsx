@@ -445,9 +445,9 @@ export default function DashboardPage() {
       services.map((s) => (s.id === tile.id ? { ...s, group_id: newGroupId || undefined } : s))
     )
 
-    // Persist to backend
+    // Persist to backend; the API client returns errors instead of throwing
     try {
-      await api.updateService(tile.id, {
+      const response = await api.updateService(tile.id, {
         name: draggedService.name,
         url: draggedService.url,
         description: draggedService.description || '',
@@ -456,6 +456,7 @@ export default function DashboardPage() {
         icon_image_path: draggedService.icon_image_path || '',
         group_id: newGroupId,
       })
+      if (response.error) throw new Error(response.error.message)
     } catch (error) {
       console.error('Failed to move service to group:', error)
       setServices(previousServices)
@@ -483,7 +484,7 @@ export default function DashboardPage() {
       }
 
       const freshService = response.data
-      await api.updateService(id, {
+      const updated = await api.updateService(id, {
         name: freshService.name,
         url: freshService.url,
         description: freshService.description || '',
@@ -493,6 +494,7 @@ export default function DashboardPage() {
         group_id: freshService.group_id ?? '',
         card_size: newSize,
       })
+      if (updated.error) throw new Error(updated.error.message)
     } catch (error) {
       console.error('Failed to update card size:', error)
       setServices(previousServices)
@@ -916,7 +918,7 @@ export default function DashboardPage() {
             <p className="text-text-secondary mb-4">
               Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;?
               {!deleteGroupServices &&
-                ' Services in this group will be moved to the default group.'}
+                ' Services and widgets in this group will be moved to the default group.'}
             </p>
 
             {/* Checkbox to delete services */}
@@ -928,14 +930,14 @@ export default function DashboardPage() {
                 className="text-error focus:ring-error mt-0.5 h-4 w-4 rounded border-gray-300"
               />
               <span className="text-text-secondary text-sm">
-                Permanently delete all services in this group
+                Permanently delete all services and widgets in this group
               </span>
             </label>
 
             {deleteGroupServices && (
               <p className="text-error mb-4 text-sm">
-                Warning: This will permanently delete all services in this group. This action cannot
-                be undone.
+                Warning: This will permanently delete all services and widgets in this group. This
+                action cannot be undone.
               </p>
             )}
 
