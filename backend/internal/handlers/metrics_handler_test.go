@@ -49,6 +49,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,

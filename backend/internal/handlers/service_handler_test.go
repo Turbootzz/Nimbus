@@ -38,6 +38,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 		);
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
@@ -111,7 +112,7 @@ func TestServiceHandler_ReorderServices(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	// Create test services
 	services := []*models.Service{
@@ -300,7 +301,7 @@ func TestServiceHandler_ReorderServices_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	app := fiber.New()
 
@@ -332,7 +333,7 @@ func TestServiceHandler_ReorderServices_InvalidJSON(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	app := fiber.New()
 
@@ -359,7 +360,7 @@ func TestServiceHandler_CreateService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	tests := []struct {
 		name           string
@@ -427,7 +428,7 @@ func TestServiceHandler_GetServices(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	// Create test services for user-1
 	createServiceDirectly(t, db, &models.Service{
@@ -474,7 +475,7 @@ func TestServiceHandler_DeleteService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	createServiceDirectly(t, db, &models.Service{
 		ID:        "11111111-1111-1111-1111-111111111111",
@@ -533,7 +534,7 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	// Create test service
 	createServiceDirectly(t, db, &models.Service{
@@ -689,7 +690,7 @@ func TestServiceHandler_UpdateService_PreservesGroupID(t *testing.T) {
 
 	serviceRepo := repository.NewServiceRepository(db)
 	groupRepo := repository.NewGroupRepository(db)
-	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil, nil)
 
 	userID := "cccccccc-cccc-cccc-cccc-ccccccccccc1"
 	groupID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
@@ -803,7 +804,7 @@ func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
 	defer db.Close()
 
 	serviceRepo := repository.NewServiceRepository(db)
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	app := fiber.New()
 	app.Put("/services/:id", handler.UpdateService)
@@ -834,7 +835,7 @@ func TestServiceHandler_CreateService_GroupValidation(t *testing.T) {
 
 	serviceRepo := repository.NewServiceRepository(db)
 	groupRepo := repository.NewGroupRepository(db)
-	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil, nil)
 
 	// Create a group for user-1
 	createGroupDirectly(t, db, &models.Group{
@@ -919,7 +920,7 @@ func TestServiceHandler_UpdateService_GroupValidation(t *testing.T) {
 
 	serviceRepo := repository.NewServiceRepository(db)
 	groupRepo := repository.NewGroupRepository(db)
-	handler := NewServiceHandler(serviceRepo, groupRepo, nil)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil, nil)
 
 	// Create groups
 	createGroupDirectly(t, db, &models.Group{
@@ -1022,7 +1023,7 @@ func TestServiceHandler_CreateService_NilGroupRepo(t *testing.T) {
 
 	serviceRepo := repository.NewServiceRepository(db)
 	// Create handler with nil groupRepo to test defensive nil guard
-	handler := NewServiceHandler(serviceRepo, nil, nil)
+	handler := NewServiceHandler(serviceRepo, nil, nil, nil)
 
 	app := fiber.New()
 	app.Post("/services", func(c *fiber.Ctx) error {
