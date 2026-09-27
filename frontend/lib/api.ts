@@ -37,6 +37,11 @@ import type {
   ChangePasswordRequest,
   SMTPStatusResponse,
   UpdateSMTPSettingsRequest,
+  Widget,
+  WidgetTypeMeta,
+  WidgetCreateRequest,
+  WidgetUpdateRequest,
+  TileReorderRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -412,6 +417,46 @@ class ApiClient {
 
   async reorderGroups(data: GroupReorderRequest): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>('/groups/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Widgets and dashboard order
+  // ============================================
+
+  async getWidgetTypes(): Promise<ApiResponse<WidgetTypeMeta[]>> {
+    return this.request<WidgetTypeMeta[]>('/widgets/types')
+  }
+
+  async getWidgets(): Promise<ApiResponse<Widget[]>> {
+    return this.request<Widget[]>('/widgets')
+  }
+
+  async createWidget(data: WidgetCreateRequest): Promise<ApiResponse<Widget>> {
+    return this.request<Widget>('/widgets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateWidget(id: string, data: WidgetUpdateRequest): Promise<ApiResponse<Widget>> {
+    return this.request<Widget>(`/widgets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteWidget(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/widgets/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Saves the order of services and widgets together
+  async reorderTiles(data: TileReorderRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/dashboard/reorder', {
       method: 'PUT',
       body: JSON.stringify(data),
     })

@@ -9,6 +9,10 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'happy-dom',
+    // Tests must not load real pages into iframes (embed widget)
+    environmentOptions: {
+      happyDOM: { settings: { disableIframePageLoading: true } },
+    },
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['**/*.{test,spec}.{ts,tsx}'],
