@@ -71,6 +71,7 @@ func setupWidgetTestDB(t *testing.T) *sql.DB {
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
 			position INTEGER DEFAULT 0,
+			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 			updated_at TIMESTAMP
 		);
 		CREATE TABLE widgets (

@@ -25,6 +25,7 @@ const widgetTestSchema = `
 		id TEXT PRIMARY KEY,
 		user_id TEXT NOT NULL,
 		position INTEGER DEFAULT 0,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP
 	);
 
@@ -234,4 +235,20 @@ func TestWidgetRepository_ReorderTiles(t *testing.T) {
 
 	err = repo.ReorderTiles(ctx, "user-1", []models.TilePosition{{ID: w.ID, Kind: "group", Position: 3}})
 	assert.Error(t, err)
+}
+
+func TestWidgetRepository_CreateCompactsHugePositions(t *testing.T) {
+	db := setupWidgetTestDB(t)
+	repo := NewWidgetRepository(db)
+	ctx := context.Background()
+
+	// Older reorders accepted any position
+	_, err := db.Exec(`INSERT INTO services (id, user_id, position) VALUES ('s1', 'user-1', 5), ('s2', 'user-1', 2147483647)`)
+	require.NoError(t, err)
+
+	w := newTestWidget("user-1", "clock")
+	require.NoError(t, repo.Create(ctx, w, 10))
+	assert.Equal(t, 2, w.Position, "tiles are renumbered, then the widget goes last")
+	assert.Equal(t, 0, servicePosition(t, db, "s1"))
+	assert.Equal(t, 1, servicePosition(t, db, "s2"))
 }

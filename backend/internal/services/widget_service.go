@@ -21,8 +21,6 @@ const (
 	maxWidgetTitleRunes         = 100
 	maxWidgetConfigBytes        = 64 * 1024
 	maxReorderTiles             = 1000
-	// Far below the 32-bit INTEGER limit, so MAX(position)+1 always fits
-	maxTilePosition = 1_000_000
 )
 
 // GroupGetter is the part of GroupRepository the widget service needs
@@ -106,8 +104,8 @@ func (s *WidgetService) ReorderTiles(ctx context.Context, userID string, req *mo
 		if _, err := uuid.Parse(tile.ID); err != nil {
 			return invalid("Tile ID must be a UUID")
 		}
-		if tile.Position < 0 || tile.Position > maxTilePosition {
-			return invalid("Position must be between 0 and %d", maxTilePosition)
+		if tile.Position < 0 || tile.Position > repository.MaxTilePosition {
+			return invalid("Position must be between 0 and %d", repository.MaxTilePosition)
 		}
 		key := models.TilePosition{ID: strings.ToLower(tile.ID), Kind: tile.Kind}
 		if seen[key] {

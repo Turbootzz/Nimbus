@@ -596,9 +596,9 @@ func (h *ServiceHandler) ReorderServices(c *fiber.Ctx) error {
 				"error": "Service ID must be a UUID",
 			})
 		}
-		if sp.Position < 0 {
+		if sp.Position < 0 || sp.Position > repository.MaxTilePosition {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Position must be non-negative",
+				"error": fmt.Sprintf("Position must be between 0 and %d", repository.MaxTilePosition),
 			})
 		}
 		positions[sp.ID] = sp.Position

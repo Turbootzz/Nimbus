@@ -11,6 +11,10 @@ import (
 	"github.com/nimbus/backend/internal/models"
 )
 
+// MaxTilePosition is the highest position a reorder may set. It is far below
+// the 32-bit INTEGER limit, so MAX(position)+1 always fits.
+const MaxTilePosition = 1_000_000
+
 // Sentinel errors for widget repository
 var (
 	ErrWidgetNotFound     = errors.New("widget not found")
@@ -75,6 +79,19 @@ func lockUser(ctx context.Context, tx *sql.Tx, userID string) error {
 // widget. Services and widgets share one position space. Call it after
 // lockUser, in the same transaction.
 func nextTilePosition(ctx context.Context, tx *sql.Tx, userID string) (int, error) {
+	maxPos, err := maxTilePosition(ctx, tx, userID)
+	if err != nil {
+		return 0, err
+	}
+	if maxPos < MaxTilePosition {
+		return maxPos + 1, nil
+	}
+	// Older reorders accepted any position; renumber so the next one fits
+	return compactTiles(ctx, tx, userID)
+}
+
+// maxTilePosition returns the user's highest tile position, or -1 without tiles
+func maxTilePosition(ctx context.Context, tx *sql.Tx, userID string) (int, error) {
 	query := `
 		SELECT MAX(position) FROM (
 			SELECT position FROM services WHERE user_id = $1
@@ -84,12 +101,67 @@ func nextTilePosition(ctx context.Context, tx *sql.Tx, userID string) (int, erro
 	`
 	var maxPos sql.NullInt64
 	if err := tx.QueryRowContext(ctx, query, userID).Scan(&maxPos); err != nil {
-		return 0, fmt.Errorf("failed to get next tile position: %w", err)
+		return 0, fmt.Errorf("failed to get max tile position: %w", err)
 	}
 	if !maxPos.Valid {
-		return 0, nil
+		return -1, nil
 	}
-	return int(maxPos.Int64) + 1, nil
+	return int(maxPos.Int64), nil
+}
+
+// compactTiles renumbers the user's tiles 0..n-1 in their current order and
+// returns n, the next free position
+func compactTiles(ctx context.Context, tx *sql.Tx, userID string) (int, error) {
+	query := `
+		SELECT kind, id FROM (
+			SELECT 'service' AS kind, id, position, created_at FROM services WHERE user_id = $1
+			UNION ALL
+			SELECT 'widget' AS kind, id, position, created_at FROM widgets WHERE user_id = $1
+		) AS tiles
+		ORDER BY position, kind, created_at
+	`
+	rows, err := tx.QueryContext(ctx, query, userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to list tiles: %w", err)
+	}
+	var tiles []models.TilePosition
+	for rows.Next() {
+		var tile models.TilePosition
+		if err := rows.Scan(&tile.Kind, &tile.ID); err != nil {
+			rows.Close()
+			return 0, fmt.Errorf("failed to scan tile: %w", err)
+		}
+		tile.Position = len(tiles)
+		tiles = append(tiles, tile)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, fmt.Errorf("failed to iterate tiles: %w", err)
+	}
+
+	if err := setTilePositions(ctx, tx, userID, tiles); err != nil {
+		return 0, err
+	}
+	return len(tiles), nil
+}
+
+// setTilePositions updates positions within tx, failing with ErrTileNotFound
+// when a tile does not exist or belongs to another user
+func setTilePositions(ctx context.Context, tx *sql.Tx, userID string, tiles []models.TilePosition) error {
+	for _, tile := range tiles {
+		query, ok := tileReorderQueries[tile.Kind]
+		if !ok {
+			return fmt.Errorf("unknown tile kind %q", tile.Kind)
+		}
+		result, err := tx.ExecContext(ctx, query, tile.Position, tile.ID, userID)
+		if err != nil {
+			return fmt.Errorf("failed to update tile position: %w", err)
+		}
+		if err := requireAffected(result, ErrTileNotFound); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Create stores a new widget at the end of the user's grid if the user is
@@ -240,19 +312,8 @@ func (r *WidgetRepository) ReorderTiles(ctx context.Context, userID string, tile
 	if err := lockUser(ctx, tx, userID); err != nil {
 		return err
 	}
-
-	for _, tile := range tiles {
-		query, ok := tileReorderQueries[tile.Kind]
-		if !ok {
-			return fmt.Errorf("unknown tile kind %q", tile.Kind)
-		}
-		result, err := tx.ExecContext(ctx, query, tile.Position, tile.ID, userID)
-		if err != nil {
-			return fmt.Errorf("failed to update tile position: %w", err)
-		}
-		if err := requireAffected(result, ErrTileNotFound); err != nil {
-			return err
-		}
+	if err := setTilePositions(ctx, tx, userID, tiles); err != nil {
+		return err
 	}
 
 	if err := tx.Commit(); err != nil {
