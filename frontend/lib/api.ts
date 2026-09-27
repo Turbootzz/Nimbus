@@ -42,6 +42,7 @@ import type {
   WidgetCreateRequest,
   WidgetUpdateRequest,
   TileReorderRequest,
+  Snapshot,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -452,6 +453,16 @@ class ApiClient {
     return this.request<void>(`/widgets/${id}`, {
       method: 'DELETE',
     })
+  }
+
+  // Fetches a widget's data now; 429 when it was fetched moments ago
+  async refreshWidget(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/widgets/${id}/refresh`, { method: 'POST' })
+  }
+
+  // Latest data of all polled widgets, before the stream takes over
+  async getDashboardData(): Promise<ApiResponse<Snapshot[]>> {
+    return this.request<Snapshot[]>('/dashboard/data')
   }
 
   // Saves the order of services and widgets together

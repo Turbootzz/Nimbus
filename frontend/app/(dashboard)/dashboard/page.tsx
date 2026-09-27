@@ -24,8 +24,17 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import { mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
-import type { Service, CardSize, Group, Tile, Widget, WidgetTypeMeta } from '@/types'
+import { mergeHealthData, mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
+import { snapshotKey, useDashboardStream } from '@/hooks/useDashboardStream'
+import type {
+  Service,
+  CardSize,
+  Group,
+  ServiceStatusEvent,
+  Tile,
+  Widget,
+  WidgetTypeMeta,
+} from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceListItem from '@/components/ServiceListItem'
@@ -214,28 +223,36 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  // Poll health status every 30 seconds for live updates
-  useEffect(() => {
-    const pollHealth = async () => {
-      // Skip if we just did a full fetch (within last 5 seconds)
-      if (shouldSkipPoll(lastPollTime.current)) return
-
-      try {
-        const response = await api.getServices()
-        if (response.data) {
-          // Only update status and response_time to avoid disrupting UI state
-          setServices((prev) => mergeServicesHealth(prev, response.data!))
-        }
-      } catch (error) {
-        console.error('Failed to poll health:', error)
+  // Live updates: health checks and widget data arrive over SSE; while the
+  // stream is down the hook falls back to polling every 30 seconds
+  const resyncServices = useCallback(async () => {
+    // Skip if we just did a full fetch (within last 5 seconds)
+    if (shouldSkipPoll(lastPollTime.current)) return
+    try {
+      const response = await api.getServices()
+      if (response.data) {
+        // Only update status and response_time to avoid disrupting UI state
+        setServices((prev) => mergeServicesHealth(prev, response.data!))
       }
+    } catch (error) {
+      console.error('Failed to poll health:', error)
     }
-
-    // Poll every 30 seconds
-    const interval = setInterval(pollHealth, 30000)
-
-    return () => clearInterval(interval)
   }, [])
+
+  const applyServiceStatus = useCallback((event: ServiceStatusEvent) => {
+    setServices((prev) =>
+      prev.map((s) =>
+        s.id === event.id
+          ? mergeHealthData(s, { status: event.status, response_time: event.response_time })
+          : s
+      )
+    )
+  }, [])
+
+  const { snapshots } = useDashboardStream({
+    onServiceStatus: applyServiceStatus,
+    onResync: resyncServices,
+  })
 
   // Auto-select default group when groups load
   useEffect(() => {
@@ -544,6 +561,11 @@ export default function DashboardPage() {
     }
   }
 
+  const handleRefreshWidget = useCallback(async (widget: Widget) => {
+    const response = await api.refreshWidget(widget.id)
+    if (response.error) console.error('Failed to refresh widget:', response.error.message)
+  }, [])
+
   const handleConfirmDeleteWidget = async () => {
     if (!deletingWidget) return
     try {
@@ -746,6 +768,8 @@ export default function DashboardPage() {
               onWidgetSizeChange={handleWidgetSizeChange}
               onEditWidget={handleEditWidget}
               onDeleteWidget={setDeletingWidget}
+              onRefreshWidget={handleRefreshWidget}
+              snapshots={snapshots}
             />
           </SortableContext>
 
@@ -753,6 +777,7 @@ export default function DashboardPage() {
             {activeTile?.kind === 'widget' && (
               <WidgetCard
                 widget={activeTile.widget}
+                snapshot={snapshots[snapshotKey('widget', activeTile.widget.id)]}
                 openInNewTab={openInNewTab}
                 cardScale={cardScale}
                 isEditMode
@@ -814,6 +839,7 @@ export default function DashboardPage() {
             viewMode={viewMode}
             groupMonitoringMap={groupMonitoringMap}
             widgetTypes={widgetTypeMap}
+            snapshots={snapshots}
           />
         </>
       )}

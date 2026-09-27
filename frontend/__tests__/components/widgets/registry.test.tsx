@@ -6,7 +6,7 @@ import { addableTypes } from '@/components/widgets/WidgetModal'
 import { backendStaticTypes, makeWidget } from './fixtures'
 
 describe('widget registry', () => {
-  it('has a definition for every static backend type', () => {
+  it('has a definition for every backend type without an integration', () => {
     for (const meta of backendStaticTypes) {
       expect(getWidgetDefinition(meta.type), meta.type).toBeDefined()
     }
@@ -49,7 +49,7 @@ describe('widget registry', () => {
       { ...backendStaticTypes[0], type: 'clock', integration_kinds: ['sonarr'] },
     ]
     const addable = addableTypes(types).map((t) => t.type)
-    expect(addable).toEqual(['bookmarks', 'clock', 'iframe', 'markdown'])
+    expect(addable).toEqual(['bookmarks', 'clock', 'iframe', 'markdown', 'weather'])
   })
 
   it('renders an unknown type message instead of crashing', async () => {

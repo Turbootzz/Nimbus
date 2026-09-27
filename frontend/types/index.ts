@@ -159,6 +159,50 @@ export interface EmbedWidgetConfig {
   height: number // pixels
 }
 
+export interface WeatherWidgetConfig {
+  latitude?: number
+  longitude?: number
+  location: string // name shown on the tile
+  units: 'metric' | 'imperial'
+}
+
+export interface WeatherDay {
+  date: string // YYYY-MM-DD
+  weather_code: number
+  max: number
+  min: number
+}
+
+// Payload of a weather snapshot; weather codes are WMO codes
+export interface WeatherPayload {
+  temperature: number
+  feels_like: number
+  weather_code: number
+  wind_speed: number
+  is_day: boolean
+  temperature_unit: string
+  wind_unit: string
+  daily: WeatherDay[]
+}
+
+// Latest data of a polled widget or integration (GET /dashboard/data and
+// the snapshot event of /dashboard/stream)
+export interface Snapshot {
+  source_kind: 'widget' | 'integration'
+  source_id: string
+  payload: unknown // last good result, null before the first success
+  error?: string // latest fetch failed
+  fetched_at: string
+  stale: boolean // payload is older than it should be
+}
+
+// service_status event of /dashboard/stream, sent after each health check
+export interface ServiceStatusEvent {
+  id: string
+  status: Service['status']
+  response_time?: number
+}
+
 // Services and widgets share one grid and one position space
 export type Tile =
   | { kind: 'service'; id: string; position: number; service: Service }

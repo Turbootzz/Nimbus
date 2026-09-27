@@ -7,6 +7,7 @@ import ServicesList from '@/components/ServicesList'
 import WidgetCard from '@/components/widgets/WidgetCard'
 import { isServiceEffectivelyMonitored, type GroupMonitoringMap } from '@/lib/monitoring'
 import { tileKey } from '@/lib/tiles'
+import { snapshotKey, type SnapshotMap } from '@/hooks/useDashboardStream'
 
 // Grid classes for different card scales
 // Mobile always uses large layout (grid-cols-2) to avoid clutter
@@ -30,6 +31,8 @@ interface ServicesGridProps {
   onWidgetSizeChange?: (widget: Widget, size: CardSize) => void
   onEditWidget?: (widget: Widget) => void
   onDeleteWidget?: (widget: Widget) => void
+  onRefreshWidget?: (widget: Widget) => void
+  snapshots?: SnapshotMap
 }
 
 export default function ServicesGrid({
@@ -45,6 +48,8 @@ export default function ServicesGrid({
   onWidgetSizeChange,
   onEditWidget,
   onDeleteWidget,
+  onRefreshWidget,
+  snapshots,
 }: ServicesGridProps) {
   // List view shows services only; widgets need the grid
   if (viewMode === 'list') {
@@ -74,6 +79,7 @@ export default function ServicesGrid({
       const widgetProps = {
         widget: tile.widget,
         meta: widgetTypes?.[tile.widget.type],
+        snapshot: snapshots?.[snapshotKey('widget', tile.widget.id)],
         openInNewTab,
         cardScale,
         enableCardResizing,
@@ -88,6 +94,7 @@ export default function ServicesGrid({
               onSizeChange={onWidgetSizeChange}
               onEdit={onEditWidget}
               onDelete={onDeleteWidget}
+              onRefresh={onRefreshWidget}
             />
           )}
         </SortableTile>
