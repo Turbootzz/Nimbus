@@ -99,25 +99,30 @@ export default function WidgetCard({
           actions={actions}
         />
       )}
-      {widget.title && (
-        <h3 className="text-text-muted mb-2 truncate text-xs font-semibold tracking-wide uppercase">
-          {widget.title}
-        </h3>
-      )}
-      {/* Content can't be clicked in edit mode, so iframes don't swallow drags */}
-      <div className={`min-h-0 flex-1 ${isEditMode ? 'pointer-events-none mt-6' : ''}`}>
-        {definition ? (
-          <definition.Renderer
-            widget={widget}
-            config={widgetConfig(definition, widget)}
-            cardSize={widget.card_size}
-            openInNewTab={openInNewTab}
-          />
-        ) : (
-          <p className="text-text-muted text-sm">
-            This widget type ({widget.type}) is not supported by this version of Nimbus.
-          </p>
+      {/* Edit mode leaves room for the overlay, and the content can't be
+          clicked, so iframes don't swallow drags */}
+      <div
+        className={`flex min-h-0 flex-1 flex-col ${isEditMode ? 'pointer-events-none mt-7' : ''}`}
+      >
+        {widget.title && (
+          <h3 className="text-text-muted mb-2 truncate text-xs font-semibold tracking-wide uppercase">
+            {widget.title}
+          </h3>
         )}
+        <div className="min-h-0 flex-1">
+          {definition ? (
+            <definition.Renderer
+              widget={widget}
+              config={widgetConfig(definition, widget)}
+              cardSize={widget.card_size}
+              openInNewTab={openInNewTab}
+            />
+          ) : (
+            <p className="text-text-muted text-sm">
+              This widget type ({widget.type}) is not supported by this version of Nimbus.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   )
