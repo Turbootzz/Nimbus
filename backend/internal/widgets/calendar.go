@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -23,6 +24,8 @@ const (
 	defaultCalendarDays       = 14
 	maxCalendarDays           = 60
 	calendarMinRefreshSeconds = 300
+	// Calendars with years of history are bigger than other feeds
+	maxICalBytes = 8 << 20
 )
 
 type calendarConfig struct {
@@ -101,7 +104,10 @@ func (calendar) Validate(config json.RawMessage) (json.RawMessage, error) {
 	if len(urls) > maxCalendarFeeds {
 		return nil, fmt.Errorf("at most %d calendar feeds are allowed", maxCalendarFeeds)
 	}
-	for _, u := range urls {
+	for i, u := range urls {
+		if strings.HasSuffix(u, "/"+redactedHeaderValue) {
+			return nil, fmt.Errorf("enter calendar URL %d again", i+1)
+		}
 		if err := utils.ValidateWebhookURL(u); err != nil {
 			return nil, fmt.Errorf("invalid calendar URL %q: %s", u, err.Error())
 		}
@@ -129,6 +135,71 @@ func (calendar) IntegrationIDs(config json.RawMessage) []string {
 	return cfg.Integrations
 }
 
+func (calendar) SetIntegrationIDs(config json.RawMessage, ids []string) (json.RawMessage, error) {
+	cfg, err := decodeConfig[calendarConfig](config)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Integrations = ids
+	return encodeConfig(cfg)
+}
+
+// maskFeedURL keeps the host of a feed URL and hides the rest: secret
+// calendar addresses carry their key in the path or query
+func maskFeedURL(feedURL string) string {
+	u, err := url.Parse(feedURL)
+	if err != nil || u.Host == "" {
+		return redactedHeaderValue
+	}
+	return u.Scheme + "://" + u.Host + "/" + redactedHeaderValue
+}
+
+// Redact masks the feed URLs, which are often secret addresses
+func (calendar) Redact(config json.RawMessage) json.RawMessage {
+	cfg, err := decodeConfig[calendarConfig](config)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	for i, feedURL := range cfg.ICalURLs {
+		cfg.ICalURLs[i] = maskFeedURL(feedURL)
+	}
+	out, err := encodeConfig(cfg)
+	if err != nil {
+		return json.RawMessage(`{}`)
+	}
+	return out
+}
+
+// Unredact puts back each masked URL that was sent unchanged: the first
+// stored URL with the same mask that isn't taken yet
+func (calendar) Unredact(config, stored json.RawMessage) json.RawMessage {
+	cfg, err := decodeConfig[calendarConfig](config)
+	if err != nil {
+		return config
+	}
+	old, err := decodeConfig[calendarConfig](stored)
+	if err != nil {
+		return config
+	}
+	taken := make([]bool, len(old.ICalURLs))
+	for i, feedURL := range cfg.ICalURLs {
+		if !strings.HasSuffix(feedURL, redactedHeaderValue) {
+			continue
+		}
+		for j, oldURL := range old.ICalURLs {
+			if !taken[j] && maskFeedURL(oldURL) == strings.TrimSpace(feedURL) {
+				cfg.ICalURLs[i], taken[j] = oldURL, true
+				break
+			}
+		}
+	}
+	out, err := encodeConfig(cfg)
+	if err != nil {
+		return config
+	}
+	return out
+}
+
 // calendarNow is a variable so tests can fix the date
 var calendarNow = time.Now
 
@@ -139,9 +210,10 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	}
 
 	// From the 1st of this month (the grid) to the end of it, or further
-	// when the agenda reaches beyond
+	// when the agenda reaches beyond. In UTC dates, like all-day events, so
+	// those on the 1st stay in whatever zone the server is in.
 	now := calendarNow()
-	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 	to := from.AddDate(0, 1, 0)
 	if agendaEnd := now.AddDate(0, 0, cfg.Days+1); agendaEnd.After(to) {
 		to = agendaEnd
@@ -157,13 +229,17 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	for i, linked := range req.Linked {
 		results[i].source = calendarSource{Name: linked.Name, Kind: linked.Kind}
 		wg.Go(func() {
+			defer recoverInto(&results[i].err)
 			results[i].events, results[i].err = integrations.ArrCalendar(ctx, linked.Conn, linked.Kind, from, to)
 		})
 	}
 	for j, feedURL := range cfg.ICalURLs {
 		i := len(req.Linked) + j
 		results[i].source = calendarSource{Name: hostOf(feedURL), Kind: "ical"}
-		wg.Go(func() { results[i].events, results[i].err = fetchICal(ctx, req.Client, feedURL) })
+		wg.Go(func() {
+			defer recoverInto(&results[i].err)
+			results[i].events, results[i].err = fetchICal(ctx, req.Client, feedURL)
+		})
 	}
 	wg.Wait()
 
@@ -196,7 +272,7 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 
 // fetchICal loads one iCalendar feed
 func fetchICal(ctx context.Context, client *http.Client, feedURL string) ([]integrations.CalendarEvent, error) {
-	body, err := getBody(ctx, client, feedURL, http.Header{"Accept": {"text/calendar, */*;q=0.8"}})
+	body, err := getBodyLimit(ctx, client, feedURL, http.Header{"Accept": {"text/calendar, */*;q=0.8"}}, maxICalBytes)
 	if err != nil {
 		return nil, err
 	}

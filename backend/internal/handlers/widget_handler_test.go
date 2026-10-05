@@ -445,11 +445,34 @@ func TestWidgetHandler_CalendarIntegrations(t *testing.T) {
 	status, body := create("abababab-abab-abab-abab-ababababab04")
 	assert.Equal(t, fiber.StatusCreated, status, body)
 
-	status, body = create(otherIntegration) // another user's
+	// Another user's id is dropped, which leaves nothing to show
+	status, body = create(otherIntegration)
 	assert.Equal(t, fiber.StatusBadRequest, status)
-	assert.Contains(t, body, "Integration not found")
+	assert.Contains(t, body, "pick an integration or add a calendar URL")
 
 	status, body = create(ownerWrongKindInt) // not Sonarr or Radarr
 	assert.Equal(t, fiber.StatusBadRequest, status)
 	assert.Contains(t, body, "can't use a other-kind integration")
+}
+
+func TestWidgetHandler_CalendarKeepsWorkingAfterIntegrationDeleted(t *testing.T) {
+	db := setupWidgetTestDB(t)
+	_, err := db.Exec(`INSERT INTO integrations (id, user_id, kind, name, base_url) VALUES
+		('abababab-abab-abab-abab-ababababab05', ?, 'radarr', 'Radarr', 'http://radarr.lan')`, widgetOwnerID)
+	require.NoError(t, err)
+	app := setupWidgetTestApp(db, widgetOwnerID)
+	config := `{"integrations":["abababab-abab-abab-abab-ababababab05"],"ical_urls":["http://10.0.0.2/cal.ics"]}`
+	created := createWidget(t, app, `{"type":"calendar","config":`+config+`}`)
+
+	_, err = db.Exec(`DELETE FROM integrations WHERE id = 'abababab-abab-abab-abab-ababababab05'`)
+	require.NoError(t, err)
+
+	// The form sends the old config back; the deleted id is dropped
+	status, body := doWidgetRequest(t, app, http.MethodPut, "/widgets/"+created.ID, `{"title":"Agenda","config":`+config+`}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.Contains(t, body, `"integrations":[]`)
+	assert.Contains(t, body, `"ical_urls":["http://10.0.0.2/********"]`, "secret feed addresses are masked")
+	var stored string
+	require.NoError(t, db.QueryRow(`SELECT config FROM widgets WHERE id = ?`, created.ID).Scan(&stored))
+	assert.Contains(t, stored, "http://10.0.0.2/cal.ics")
 }

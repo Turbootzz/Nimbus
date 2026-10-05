@@ -44,12 +44,22 @@ export default function CalendarWidget({
 
   if (!calendar) return null // WidgetCard shows loading and errors
 
-  // The month grid needs room; smaller tiles only get the agenda
+  // The month grid needs room; smaller tiles only get the agenda (and drop
+  // a day picked while the tile was bigger)
   const withGrid = cardSize === '2x2'
-  const agenda = calendar.events.filter((event) => {
-    const day = eventDay(event)
-    return selected ? day === selected : day >= today && day <= lastDay
-  })
+  const picked = withGrid ? selected : null
+  const agenda = calendar.events
+    .filter((event) => {
+      const day = eventDay(event)
+      return picked ? day === picked : day >= today && day <= lastDay
+    })
+    // By the day in this browser, all-day first, then by time
+    .sort(
+      (a, b) =>
+        eventDay(a).localeCompare(eventDay(b)) ||
+        Number(b.all_day) - Number(a.all_day) ||
+        a.start.localeCompare(b.start)
+    )
   const failed = calendar.failed ?? []
 
   return (
@@ -111,7 +121,7 @@ export default function CalendarWidget({
 
       {agenda.length === 0 ? (
         <p className="text-text-muted text-sm">
-          {selected ? 'Nothing on this day' : 'Nothing coming up'}
+          {picked ? 'Nothing on this day' : 'Nothing coming up'}
         </p>
       ) : (
         <ul className="space-y-1">

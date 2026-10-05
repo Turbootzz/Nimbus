@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/nimbus/backend/internal/integrations"
@@ -53,6 +54,17 @@ type SecretConfig interface {
 // FetchRequest.Linked.
 type ConfigIntegrations interface {
 	IntegrationIDs(config json.RawMessage) []string
+	// SetIntegrationIDs returns the config with another list, e.g. without
+	// integrations that were deleted
+	SetIntegrationIDs(config json.RawMessage, ids []string) (json.RawMessage, error)
+}
+
+// recoverInto turns a panic into *err. Goroutines a Fetch starts need it:
+// the recover around Fetch can't see them, and a panic would stop the server.
+func recoverInto(err *error) {
+	if r := recover(); r != nil {
+		*err = fmt.Errorf("crashed: %v", r)
+	}
 }
 
 // LinkedIntegration is one integration a config lists, connected

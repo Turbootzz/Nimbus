@@ -90,6 +90,16 @@ describe('CalendarWidget', () => {
     expect(screen.queryByText('Bin day')).not.toBeInTheDocument()
   })
 
+  it('forgets a picked day when the tile gets too small for the grid', () => {
+    const { rerender } = render(
+      <CalendarWidget {...base} cardSize="2x2" snapshot={makeSnapshot({ payload })} />
+    )
+    fireEvent.click(screen.getAllByRole('button').find((b) => b.textContent === '30')!)
+    rerender(<CalendarWidget {...base} cardSize="2x1" snapshot={makeSnapshot({ payload })} />)
+    expect(screen.getByText('Bin day')).toBeInTheDocument()
+    expect(screen.queryByText('Far away')).not.toBeInTheDocument()
+  })
+
   it('shows only the agenda on a smaller tile, and failed sources', () => {
     render(
       <CalendarWidget
@@ -107,6 +117,26 @@ describe('CalendarWidget', () => {
 })
 
 describe('CalendarForm', () => {
+  it('offers the kinds the backend says the type reads', () => {
+    render(
+      <CalendarForm
+        config={{ ...config, integrations: [] }}
+        onChange={() => {}}
+        meta={{
+          type: 'calendar',
+          name: 'Calendar',
+          category: 'info',
+          default_size: '2x2',
+          allowed_sizes: ['2x2'],
+          static: false,
+          config_integration_kinds: ['pihole'],
+        }}
+      />
+    )
+    expect(screen.getByRole('checkbox', { name: 'Pi-hole' })).toBeInTheDocument()
+    expect(screen.queryByRole('checkbox', { name: 'Sonarr' })).not.toBeInTheDocument()
+  })
+
   it('offers only Sonarr and Radarr, and adds feeds', () => {
     const onChange = vi.fn()
     render(<CalendarForm config={{ ...config, integrations: [] }} onChange={onChange} />)

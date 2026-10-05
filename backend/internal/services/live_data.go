@@ -121,7 +121,12 @@ func (s *LiveDataService) Sources(ctx context.Context) ([]LiveSource, error) {
 		if widget.IntegrationID != nil {
 			integration = byID[*widget.IntegrationID]
 		}
-		sources = append(sources, s.widgetSource(widget, widgetType.Meta(), fetcher, integration))
+		src := s.widgetSource(widget, widgetType.Meta(), fetcher, integration)
+		if lister, ok := fetcher.(widgets.ConfigIntegrations); ok {
+			// Editing a listed integration refetches the widget too
+			src.Version = fingerprint(src.Version, s.listedVersions(ctx, widget.UserID, lister.IntegrationIDs(widget.Config)))
+		}
+		sources = append(sources, src)
 	}
 	return sources, nil
 }
@@ -163,15 +168,27 @@ func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, 
 						conn.Client.CloseIdleConnections()
 					}
 				}()
+				// The error, and messages in the payload (sources that failed),
+				// may quote any of the integrations
+				redact := func(text string) string {
+					for _, conn := range conns {
+						text = redactSecrets(text, conn.Creds)
+					}
+					return text
+				}
 				payload, err := callWidgetFetch(ctx, widget.Type, fetcher, req)
 				if err != nil {
-					msg := err.Error()
-					for _, conn := range conns {
-						msg = redactSecrets(msg, conn.Creds)
-					}
-					return nil, errors.New(msg)
+					return nil, errors.New(redact(err.Error()))
 				}
-				return payload, nil
+				raw, err := json.Marshal(payload)
+				if err != nil {
+					return nil, errors.New("the data could not be encoded")
+				}
+				var data any
+				if err := json.Unmarshal(raw, &data); err != nil {
+					return nil, errors.New("the data could not be encoded")
+				}
+				return redactStrings(data, redact), nil
 			}
 
 			if len(meta.IntegrationKinds) > 0 {
@@ -195,6 +212,38 @@ func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, 
 	}
 }
 
+// redactStrings applies redact to every string in decoded JSON (keys stay as
+// they are, so a short secret can't break the structure)
+func redactStrings(v any, redact func(string) string) any {
+	switch v := v.(type) {
+	case string:
+		return redact(v)
+	case []any:
+		for i := range v {
+			v[i] = redactStrings(v[i], redact)
+		}
+	case map[string]any:
+		for k := range v {
+			v[k] = redactStrings(v[k], redact)
+		}
+	}
+	return v
+}
+
+// listedVersions fingerprints the integrations a widget config lists
+func (s *LiveDataService) listedVersions(ctx context.Context, userID string, ids []string) string {
+	parts := make([]string, 0, len(ids))
+	for _, id := range ids {
+		integration, err := s.integrationRepo.GetByID(ctx, id, userID)
+		if err != nil {
+			parts = append(parts, "missing:"+id)
+			continue
+		}
+		parts = append(parts, integrationVersion(integration))
+	}
+	return fingerprint(parts...)
+}
+
 // linkIntegrations connects the integrations a widget config lists. One
 // that is gone or can't connect goes to req.Unlinked, so the widget can show
 // the rest.
@@ -202,8 +251,13 @@ func (s *LiveDataService) linkIntegrations(ctx context.Context, req *widgets.Fet
 	var conns []*integrations.Conn
 	for _, id := range ids {
 		integration, err := s.integrationRepo.GetByID(ctx, id, userID)
-		if err != nil {
+		if errors.Is(err, repository.ErrIntegrationNotFound) {
 			req.Unlinked = append(req.Unlinked, "an integration that was removed")
+			continue
+		}
+		if err != nil {
+			log.Printf("Failed to load integration %s for a widget: %v", id, err)
+			req.Unlinked = append(req.Unlinked, "an integration that could not be loaded")
 			continue
 		}
 		conn, err := s.integrationService.Conn(ctx, integration)

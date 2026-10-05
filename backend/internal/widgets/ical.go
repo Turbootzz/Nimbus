@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 )
@@ -19,7 +20,10 @@ type icalEvent struct {
 // recurring events (RRULE) only show on their first date; expanding them
 // needs a real recurrence engine.
 func parseICal(data []byte) ([]icalEvent, error) {
-	lines := unfoldICal(data)
+	lines, err := unfoldICal(data)
+	if err != nil {
+		return nil, err
+	}
 	if len(lines) == 0 || !strings.EqualFold(lines[0], "BEGIN:VCALENDAR") {
 		return nil, errors.New("not an iCalendar feed")
 	}
@@ -56,7 +60,7 @@ func parseICal(data []byte) ([]icalEvent, error) {
 
 // unfoldICal splits into lines and joins folded ones (a line that starts
 // with a space or tab continues the previous one)
-func unfoldICal(data []byte) []string {
+func unfoldICal(data []byte) ([]string, error) {
 	var lines []string
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 0, 64*1024), maxFetchBodyBytes)
@@ -70,20 +74,94 @@ func unfoldICal(data []byte) []string {
 			lines = append(lines, line)
 		}
 	}
-	return lines
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("could not read the calendar: %w", err)
+	}
+	return lines, nil
 }
 
 // splitICalLine splits "DTSTART;TZID=Europe/Amsterdam:20261007T090000"
 // into its name, parameters and value
 func splitICalLine(line string) (name string, params map[string]string, value string) {
-	head, value, _ := strings.Cut(line, ":")
-	parts := strings.Split(head, ";")
+	// The value starts at the first colon outside quotes: Outlook quotes
+	// TZIDs like "(UTC+01:00) Amsterdam, Berlin"
+	head, quoted := line, false
+	for i, r := range line {
+		if r == '"' {
+			quoted = !quoted
+		} else if r == ':' && !quoted {
+			head, value = line[:i], line[i+1:]
+			break
+		}
+	}
 	params = map[string]string{}
+	parts := splitOutsideQuotes(head, ';')
 	for _, p := range parts[1:] {
 		k, v, _ := strings.Cut(p, "=")
 		params[strings.ToUpper(k)] = strings.Trim(v, `"`)
 	}
 	return strings.ToUpper(parts[0]), params, value
+}
+
+func splitOutsideQuotes(s string, sep rune) []string {
+	var parts []string
+	start, quoted := 0, false
+	for i, r := range s {
+		if r == '"' {
+			quoted = !quoted
+		} else if r == sep && !quoted {
+			parts = append(parts, s[start:i])
+			start = i + 1
+		}
+	}
+	return append(parts, s[start:])
+}
+
+// windowsZones maps the zone names Outlook and Exchange write to IANA ones.
+// ponytail: the common ones only; add more as feeds need them.
+var windowsZones = map[string]string{
+	"UTC":                            "UTC",
+	"GMT Standard Time":              "Europe/London",
+	"W. Europe Standard Time":        "Europe/Berlin",
+	"Romance Standard Time":          "Europe/Paris",
+	"Central Europe Standard Time":   "Europe/Budapest",
+	"Central European Standard Time": "Europe/Warsaw",
+	"E. Europe Standard Time":        "Europe/Chisinau",
+	"FLE Standard Time":              "Europe/Kiev",
+	"GTB Standard Time":              "Europe/Bucharest",
+	"Russian Standard Time":          "Europe/Moscow",
+	"Eastern Standard Time":          "America/New_York",
+	"Central Standard Time":          "America/Chicago",
+	"Mountain Standard Time":         "America/Denver",
+	"Pacific Standard Time":          "America/Los_Angeles",
+	"India Standard Time":            "Asia/Kolkata",
+	"China Standard Time":            "Asia/Shanghai",
+	"Tokyo Standard Time":            "Asia/Tokyo",
+	"AUS Eastern Standard Time":      "Australia/Sydney",
+}
+
+// icalLocation resolves a TZID: an IANA name, a Windows name, or an
+// Outlook display name like "(UTC+01:00) Amsterdam" (a fixed offset, so
+// without daylight saving). Unknown zones are the server's.
+func icalLocation(tzid string) *time.Location {
+	if l, err := time.LoadLocation(tzid); err == nil && tzid != "" {
+		return l
+	}
+	if iana, ok := windowsZones[tzid]; ok {
+		if l, err := time.LoadLocation(iana); err == nil {
+			return l
+		}
+	}
+	var sign rune
+	var hours, minutes int
+	if _, err := fmt.Sscanf(tzid, "(UTC%c%d:%d)", &sign, &hours, &minutes); err == nil {
+		offset := hours*3600 + minutes*60
+		if sign == '-' {
+			offset = -offset
+		}
+		return time.FixedZone(tzid, offset)
+	}
+	return time.Local
 }
 
 // parseICalTime reads a DATE or DATE-TIME: UTC with a Z, in its TZID, or
@@ -101,9 +179,7 @@ func parseICalTime(value string, params map[string]string) (time.Time, bool) {
 	}
 	loc := time.Local
 	if tzid := params["TZID"]; tzid != "" {
-		if l, err := time.LoadLocation(tzid); err == nil {
-			loc = l
-		}
+		loc = icalLocation(tzid)
 	}
 	t, err := time.ParseInLocation("20060102T150405", value, loc)
 	if err != nil {

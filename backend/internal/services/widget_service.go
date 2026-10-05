@@ -265,10 +265,8 @@ func (s *WidgetService) apply(ctx context.Context, userID string, isAdmin bool, 
 	w.Config = config
 
 	if lister, ok := widgetType.(widgets.ConfigIntegrations); ok && hasConfig(req.Config) {
-		for _, id := range lister.IntegrationIDs(config) {
-			if err := s.checkConfigIntegration(ctx, userID, meta, id); err != nil {
-				return nil, err
-			}
+		if w.Config, err = s.checkConfigIntegrations(ctx, userID, meta, widgetType, lister, config); err != nil {
+			return nil, err
 		}
 	}
 
@@ -322,23 +320,51 @@ func (s *WidgetService) resolveGroup(ctx context.Context, userID, groupID string
 	return &group.ID, nil
 }
 
-// checkConfigIntegration checks an integration a config lists: the user's,
-// and of a kind the type reads
-func (s *WidgetService) checkConfigIntegration(ctx context.Context, userID string, meta widgets.Meta, id string) error {
+// checkConfigIntegrations checks the integrations a config lists: of a kind
+// the type reads. One the user doesn't have (deleted since, or never theirs)
+// is dropped, so a deleted integration never blocks editing the widget.
+func (s *WidgetService) checkConfigIntegrations(ctx context.Context, userID string, meta widgets.Meta, widgetType widgets.WidgetType, lister widgets.ConfigIntegrations, config json.RawMessage) (json.RawMessage, error) {
+	ids := lister.IntegrationIDs(config)
+	kept := make([]string, 0, len(ids))
+	for _, id := range ids {
+		integration, err := s.ownedIntegration(ctx, userID, id)
+		if err != nil {
+			return nil, err
+		}
+		if integration == nil {
+			continue
+		}
+		if !slices.Contains(meta.ConfigIntegrationKinds, integration.Kind) {
+			return nil, invalid("%s widgets can't use a %s integration", meta.Name, integration.Kind)
+		}
+		kept = append(kept, id)
+	}
+	if len(kept) == len(ids) {
+		return config, nil
+	}
+	// Without them the config may not be valid anymore (nothing left to show)
+	config, err := lister.SetIntegrationIDs(config, kept)
+	if err != nil {
+		return nil, err
+	}
+	normalised, err := widgetType.Validate(config)
+	if err != nil {
+		return nil, invalid("Invalid config: %s", err.Error())
+	}
+	return normalised, nil
+}
+
+// ownedIntegration returns the user's integration, or nil when they have
+// none with that id
+func (s *WidgetService) ownedIntegration(ctx context.Context, userID, id string) (*models.Integration, error) {
 	if _, err := uuid.Parse(id); err != nil {
-		return invalid("Integration not found")
+		return nil, nil
 	}
 	integration, err := s.integrations.GetByID(ctx, id, userID)
 	if errors.Is(err, repository.ErrIntegrationNotFound) {
-		return invalid("Integration not found")
+		return nil, nil
 	}
-	if err != nil {
-		return err
-	}
-	if !slices.Contains(meta.ConfigIntegrationKinds, integration.Kind) {
-		return invalid("%s widgets can't use a %s integration", meta.Name, integration.Kind)
-	}
-	return nil
+	return integration, err
 }
 
 // checkIntegration enforces the type's integration rules and ownership
@@ -352,15 +378,12 @@ func (s *WidgetService) checkIntegration(ctx context.Context, userID string, met
 	if integrationID == nil {
 		return invalid("%s widgets need an integration", meta.Name)
 	}
-	if _, err := uuid.Parse(*integrationID); err != nil {
-		return invalid("Integration not found")
-	}
-	integration, err := s.integrations.GetByID(ctx, *integrationID, userID)
-	if errors.Is(err, repository.ErrIntegrationNotFound) {
-		return invalid("Integration not found")
-	}
+	integration, err := s.ownedIntegration(ctx, userID, *integrationID)
 	if err != nil {
 		return err
+	}
+	if integration == nil {
+		return invalid("Integration not found")
 	}
 	if !slices.Contains(meta.IntegrationKinds, integration.Kind) {
 		return invalid("%s widgets can't use a %s integration", meta.Name, integration.Kind)

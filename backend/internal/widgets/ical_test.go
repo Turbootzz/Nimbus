@@ -57,3 +57,15 @@ func TestParseICalRejects(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, events, 2)
 }
+
+func TestParseICalOutlookZones(t *testing.T) {
+	feed := "BEGIN:VCALENDAR\r\n" +
+		"BEGIN:VEVENT\r\nSUMMARY:Quoted\r\nDTSTART;TZID=\"(UTC+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna\":20261007T090000\r\nEND:VEVENT\r\n" +
+		"BEGIN:VEVENT\r\nSUMMARY:Windows\r\nDTSTART;TZID=W. Europe Standard Time:20261007T090000\r\nEND:VEVENT\r\n" +
+		"END:VCALENDAR\r\n"
+	events, err := parseICal([]byte(feed))
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+	assert.Equal(t, time.Date(2026, 10, 7, 8, 0, 0, 0, time.UTC), events[0].Start.UTC(), "fixed +01:00 from the display name")
+	assert.Equal(t, time.Date(2026, 10, 7, 7, 0, 0, 0, time.UTC), events[1].Start.UTC(), "Europe/Berlin is +02:00 in October")
+}

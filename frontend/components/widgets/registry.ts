@@ -25,6 +25,7 @@ import type {
   SystemStatsWidgetConfig,
   WeatherWidgetConfig,
   Widget,
+  WidgetTypeMeta,
 } from '@/types'
 import ClockWidget from '@/components/widgets/renderers/ClockWidget'
 import NoteWidget from '@/components/widgets/renderers/NoteWidget'
@@ -61,6 +62,8 @@ export interface WidgetFormProps<C> {
   config: C
   onChange: (config: C) => void
   disabled?: boolean
+  // The type's metadata from the backend (e.g. which integrations it reads)
+  meta?: WidgetTypeMeta
 }
 
 // Frontend half of a widget type. Sizes, category and integration needs

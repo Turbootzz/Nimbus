@@ -347,12 +347,20 @@ func (multiWidget) IntegrationIDs(c json.RawMessage) []string {
 	_ = json.Unmarshal(c, &cfg)
 	return cfg.IDs
 }
+func (multiWidget) SetIntegrationIDs(c json.RawMessage, ids []string) (json.RawMessage, error) {
+	return json.Marshal(map[string]any{"IDs": ids})
+}
 func (multiWidget) Fetch(_ context.Context, req *widgets.FetchRequest) (any, error) {
 	names := []string{}
 	for _, l := range req.Linked {
 		names = append(names, l.Name+"@"+l.Conn.BaseURL)
 	}
-	return map[string]any{"linked": names, "unlinked": req.Unlinked}, nil
+	// A careless widget quoting a key in a message
+	leak := ""
+	if len(req.Linked) > 0 {
+		leak = "failed with key " + req.Linked[0].Conn.Creds.APIKey
+	}
+	return map[string]any{"linked": names, "unlinked": req.Unlinked, "leak": leak}, nil
 }
 
 func init() { widgets.Register(multiWidget{}) }
@@ -373,7 +381,17 @@ func TestLiveData_ConfigIntegrationsAreConnected(t *testing.T) {
 	payload, err := sourceByKey(t, sources, "widget:w-multi").Fetch(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{
-		"linked":   []string{mine.Name + "@http://nas.lan"},
-		"unlinked": []string{"an integration that was removed"},
-	}, payload, "only the owner's own integration is connected")
+		"linked":   []any{mine.Name + "@http://nas.lan"},
+		"unlinked": []any{"an integration that was removed"},
+		"leak":     "failed with key [redacted]",
+	}, payload, "only the owner's own integration is connected, and keys are redacted")
+
+	// Editing a listed integration changes the widget's version
+	before := sourceByKey(t, sources, "widget:w-multi").Version
+	edited := f.integrations.items[mine.ID]
+	edited.UpdatedAt = edited.UpdatedAt.Add(time.Minute) // as the repository does on update
+	f.integrations.items[mine.ID] = edited
+	sources, err = f.live.Sources(ctx)
+	require.NoError(t, err)
+	assert.NotEqual(t, before, sourceByKey(t, sources, "widget:w-multi").Version)
 }

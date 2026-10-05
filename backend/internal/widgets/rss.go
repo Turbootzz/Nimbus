@@ -105,7 +105,10 @@ func (rss) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	errs := make([]error, len(cfg.Feeds))
 	var wg sync.WaitGroup
 	for i, feed := range cfg.Feeds {
-		wg.Go(func() { items[i], errs[i] = fetchFeed(ctx, req.Client, feed) })
+		wg.Go(func() {
+			defer recoverInto(&errs[i])
+			items[i], errs[i] = fetchFeed(ctx, req.Client, feed)
+		})
 	}
 	wg.Wait()
 

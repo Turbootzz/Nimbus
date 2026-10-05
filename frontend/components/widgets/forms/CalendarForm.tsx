@@ -16,15 +16,16 @@ import { useIntegrations } from '@/hooks/useIntegrations'
 // Match the limits in the backend
 const MAX_INTEGRATIONS = 4
 const MAX_FEEDS = 5
-const CALENDAR_KINDS = ['sonarr', 'radarr']
 
 export default function CalendarForm({
   config,
   onChange,
   disabled,
+  meta,
 }: WidgetFormProps<CalendarWidgetConfig>) {
   const { integrations, isLoading, error } = useIntegrations()
-  const usable = integrations.filter((i) => CALENDAR_KINDS.includes(i.kind))
+  const kinds = meta?.config_integration_kinds ?? ['sonarr', 'radarr']
+  const usable = integrations.filter((i) => kinds.includes(i.kind))
   const setFeeds = (ical_urls: string[]) => onChange({ ...config, ical_urls })
 
   const toggleIntegration = (id: string, on: boolean) =>
@@ -117,8 +118,9 @@ export default function CalendarForm({
           </button>
         )}
         <p className="text-text-muted mt-1 text-xs">
-          The secret iCal address of a Google, Outlook or Nextcloud calendar works. Repeating events
-          only show on their first date.
+          The secret iCal address of a Google, Outlook or Nextcloud calendar works; once saved it
+          shows as ******** and is kept as long as you leave it. Repeating events only show on their
+          first date.
         </p>
       </div>
 

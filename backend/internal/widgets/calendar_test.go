@@ -86,3 +86,46 @@ func TestCalendarFetchAllFailed(t *testing.T) {
 	})
 	assert.EqualError(t, err, "an integration that was removed")
 }
+
+func TestCalendarMasksFeedURLs(t *testing.T) {
+	w, _ := Get("calendar")
+	secret := w.(SecretConfig)
+	stored := json.RawMessage(`{"integrations":[],"ical_urls":["https://calendar.google.com/calendar/ical/x/private-abc/basic.ics","https://calendar.google.com/calendar/ical/y/private-def/basic.ics"],"days":14,"verify_tls":true}`)
+
+	shown := secret.Redact(stored)
+	assert.NotContains(t, string(shown), "private-abc")
+	assert.Contains(t, string(shown), `"https://calendar.google.com/********"`)
+
+	// Sent back unchanged, in another order: each mask gets a stored URL once
+	back := secret.Unredact(json.RawMessage(`{"ical_urls":["https://calendar.google.com/********","https://calendar.google.com/********","https://new.test/cal.ics"]}`), stored)
+	assert.Contains(t, string(back), "private-abc")
+	assert.Contains(t, string(back), "private-def")
+	assert.Contains(t, string(back), "https://new.test/cal.ics")
+
+	// A mask that matches nothing has to be entered again
+	_, err := w.Validate(json.RawMessage(`{"ical_urls":["https://other.test/********"]}`))
+	assert.ErrorContains(t, err, "enter calendar URL 1 again")
+}
+
+func TestCalendarWindowUsesUTCDates(t *testing.T) {
+	old := calendarNow
+	// Late on the 1st in New York is already the 2nd in UTC
+	newYork, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+	calendarNow = func() time.Time { return time.Date(2026, 10, 1, 22, 0, 0, 0, newYork) }
+	t.Cleanup(func() { calendarNow = old })
+
+	feeds := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:First\nDTSTART;VALUE=DATE:20261001\nEND:VEVENT\nEND:VCALENDAR\n")
+	}))
+	t.Cleanup(feeds.Close)
+	w, _ := Get("calendar")
+	got, err := w.(Fetcher).Fetch(context.Background(), &FetchRequest{
+		Config: json.RawMessage(`{"ical_urls":["` + feeds.URL + `"],"days":14}`),
+		Client: http.DefaultClient,
+	})
+	require.NoError(t, err)
+	payload := got.(calendarPayload)
+	assert.Equal(t, "2026-10-01", payload.From)
+	require.Len(t, payload.Events, 1, "an all-day event on the 1st is kept")
+}
