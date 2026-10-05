@@ -141,8 +141,9 @@ var windowsZones = map[string]string{
 }
 
 // icalLocation resolves a TZID: an IANA name, a Windows name, or an
-// Outlook display name like "(UTC+01:00) Amsterdam" (a fixed offset, so
-// without daylight saving). Unknown zones are the server's.
+// Outlook display name like "(UTC+01:00) Amsterdam, Berlin" (its first city
+// that is a zone, else the fixed offset without daylight saving). Unknown
+// zones are the server's.
 func icalLocation(tzid string) *time.Location {
 	if l, err := time.LoadLocation(tzid); err == nil && tzid != "" {
 		return l
@@ -150,6 +151,16 @@ func icalLocation(tzid string) *time.Location {
 	if iana, ok := windowsZones[tzid]; ok {
 		if l, err := time.LoadLocation(iana); err == nil {
 			return l
+		}
+	}
+	if _, cities, ok := strings.Cut(tzid, ") "); ok && strings.HasPrefix(tzid, "(UTC") {
+		for _, city := range strings.Split(cities, ",") {
+			name := strings.ReplaceAll(strings.TrimSpace(city), " ", "_")
+			for _, region := range []string{"Europe", "America", "Asia", "Australia", "Africa", "Pacific"} {
+				if l, err := time.LoadLocation(region + "/" + name); err == nil {
+					return l
+				}
+			}
 		}
 	}
 	var sign rune
