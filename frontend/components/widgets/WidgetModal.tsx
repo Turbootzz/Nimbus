@@ -79,6 +79,8 @@ export default function WidgetModal({
     if (!nextDefinition) return
     setType(next)
     setConfig(nextDefinition.defaultConfig)
+    // An integration picked for another type may be of the wrong kind
+    setIntegrationId('')
     setError(null)
   }
 

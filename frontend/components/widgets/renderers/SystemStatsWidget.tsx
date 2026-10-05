@@ -18,6 +18,11 @@ export function formatUptime(seconds: number): string {
   return `${minutes}m`
 }
 
+// 0-100, and 0 for anything that isn't a number
+function clamp(percent: number): number {
+  return Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : 0
+}
+
 // Fill color by how full the bar is
 function barColor(percent: number): string {
   if (percent >= 90) return 'bg-error'
@@ -37,15 +42,19 @@ export default function SystemStatsWidget({
   const small = cardSize === '1x1'
   const wide = cardSize === '2x1'
   const bars = [
-    { label: 'CPU', percent: stats.cpu_percent, detail: `${Math.round(stats.cpu_percent)}%` },
+    {
+      label: 'CPU',
+      percent: clamp(stats.cpu_percent),
+      detail: `${Math.round(stats.cpu_percent)}%`,
+    },
     {
       label: 'RAM',
-      percent: stats.memory_percent,
+      percent: clamp(stats.memory_percent),
       detail: `${gigabytes(stats.memory_used)} / ${gigabytes(stats.memory_total)}`,
     },
     {
       label: 'Disk',
-      percent: stats.disk_percent,
+      percent: clamp(stats.disk_percent),
       detail: `${gigabytes(stats.disk_used)} / ${gigabytes(stats.disk_total)}`,
     },
   ]
@@ -79,7 +88,7 @@ export default function SystemStatsWidget({
               >
                 <div
                   className={`h-full rounded-full ${barColor(bar.percent)}`}
-                  style={{ width: `${Math.min(bar.percent, 100)}%` }}
+                  style={{ width: `${bar.percent}%` }}
                 />
               </div>
               {wide && <p className="mt-1 truncate">{detail}</p>}

@@ -53,8 +53,8 @@ describe('SystemStatsWidget', () => {
 describe('DockerContainersWidget', () => {
   const payload: DockerContainersPayload = {
     containers: [
-      { name: 'web', image: 'nginx', state: 'running', status: 'Up 2 days' },
-      { name: '', image: 'busybox', state: 'exited', status: 'Exited (0) 1 hour ago' },
+      { id: 'a1', name: 'web', image: 'nginx', state: 'running', status: 'Up 2 days' },
+      { id: 'b2', name: '', image: 'busybox', state: 'exited', status: 'Exited (0) 1 hour ago' },
     ],
     running: 1,
     total: 3,

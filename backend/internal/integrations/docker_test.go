@@ -62,10 +62,10 @@ func TestDockerOverHTTP(t *testing.T) {
 	containers, err := DockerContainers(ctx, conn)
 	require.NoError(t, err)
 	assert.Equal(t, []DockerContainer{
-		{Name: "db", Image: "postgres:18", State: "running", Status: "Up 3 days (healthy)"},
-		{Name: "Web", Image: "nginx:1.27", State: "running", Status: "Up 3 days"},
-		{Name: "", Image: "busybox", State: "paused", Status: "Up 1 hour (Paused)"},
-		{Name: "backup", Image: "restic", State: "exited", Status: "Exited (0) 2 hours ago"},
+		{ID: "3", Name: "db", Image: "postgres:18", State: "running", Status: "Up 3 days (healthy)"},
+		{ID: "1", Name: "Web", Image: "nginx:1.27", State: "running", Status: "Up 3 days"},
+		{ID: "4", Name: "", Image: "busybox", State: "paused", Status: "Up 1 hour (Paused)"},
+		{ID: "2", Name: "backup", Image: "restic", State: "exited", Status: "Exited (0) 2 hours ago"},
 	}, containers, "running first, then by name, ignoring case")
 }
 

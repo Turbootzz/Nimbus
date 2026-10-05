@@ -324,6 +324,7 @@ export interface DockerContainersWidgetConfig {
 }
 
 export interface DockerContainer {
+  id: string // short id
   name: string
   image: string
   state: string // running, exited, paused, ...

@@ -64,7 +64,7 @@ func (dockerContainers) Fetch(ctx context.Context, req *FetchRequest) (any, erro
 		if c.State == "running" {
 			payload.Running++
 		}
-		if !(cfg.HideStopped && c.Stopped()) {
+		if !cfg.HideStopped || !c.Stopped() {
 			payload.Containers = append(payload.Containers, c)
 		}
 	}

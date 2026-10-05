@@ -38,6 +38,7 @@ func (docker) Meta() Meta {
 
 // DockerContainer is one container, for the containers widget
 type DockerContainer struct {
+	ID     string `json:"id"` // short id, unique on the host
 	Name   string `json:"name"`
 	Image  string `json:"image"`
 	State  string `json:"state"`  // running, exited, paused, ...
@@ -53,6 +54,7 @@ func (c DockerContainer) Stopped() bool {
 // DockerContainers lists all containers: running ones first, then by name
 func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error) {
 	type apiContainer struct {
+		ID     string `json:"Id"`
 		Names  []string
 		Image  string
 		State  string
@@ -64,7 +66,7 @@ func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
 		}
-		containers = append(containers, DockerContainer{Name: name, Image: c.Image, State: c.State, Status: c.Status})
+		containers = append(containers, DockerContainer{ID: shortID(c.ID), Name: name, Image: c.Image, State: c.State, Status: c.Status})
 	})
 	if err != nil {
 		return nil, err
@@ -111,4 +113,9 @@ func (docker) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 		"stopped": stopped,
 		"total":   len(containers),
 	}}, nil
+}
+
+// shortID is the 12 character id the docker CLI shows
+func shortID(id string) string {
+	return id[:min(len(id), 12)]
 }

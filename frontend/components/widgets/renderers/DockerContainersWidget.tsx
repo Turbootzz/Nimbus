@@ -27,9 +27,9 @@ export default function DockerContainersWidget({
         <p className="text-text-muted text-sm">No containers</p>
       ) : (
         <ul>
-          {docker.containers.map((container, index) => (
+          {docker.containers.map((container) => (
             <li
-              key={`${index}-${container.name}`}
+              key={container.id}
               className="flex items-center gap-2 py-1 text-sm"
               title={`${container.image} · ${container.status}`}
             >

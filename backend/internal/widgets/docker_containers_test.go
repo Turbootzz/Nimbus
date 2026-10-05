@@ -16,7 +16,7 @@ func TestDockerContainersFetch(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/containers/json", r.URL.Path)
 		_, _ = w.Write([]byte(`[
-			{"Names":["/web"],"Image":"nginx","State":"running","Status":"Up 2 days"},
+			{"Id":"0123456789abcdef","Names":["/web"],"Image":"nginx","State":"running","Status":"Up 2 days"},
 			{"Names":["/old"],"Image":"redis","State":"exited","Status":"Exited (0) 1 day ago"},
 			{"Names":["/loop"],"Image":"app","State":"restarting","Status":"Restarting (1) 5 seconds ago"}
 		]`))
