@@ -62,7 +62,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 ### 🧩 Widgets & integrations (2.0, `dev` image)
 
-Add widgets next to your services with **Add Widget** on the dashboard: Clock, Note (Markdown), Bookmarks, Embed and Weather. Widget data is fetched by the server and pushed to the dashboard live.
+Add widgets next to your services with **Add Widget** on the dashboard: Clock, Note (Markdown), Bookmarks, Embed, Weather, RSS and Custom API. Widget data is fetched by the server and pushed to the dashboard live. See [docs/WIDGETS.md](docs/WIDGETS.md).
 
 Integrations show live numbers from your apps on a service tile. Add one under **Settings, Integrations**, then pick it under **Live numbers** when you edit the service. Credentials are stored encrypted with `ENCRYPTION_KEY`.
 
@@ -239,6 +239,8 @@ Run `make help` for all available commands.
 | [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, Prometheus |
 | [README.md](README.md) | Information about Nimbus |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
+| [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
+| [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
 
 ---
 

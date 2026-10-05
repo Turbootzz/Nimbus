@@ -3,7 +3,12 @@
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { Bookmark, BookmarksWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
-import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
+import {
+  addRowClass,
+  inputClass,
+  labelClass,
+  removeRowClass,
+} from '@/components/widgets/forms/fieldStyles'
 
 // Matches maxBookmarks in the backend
 const MAX_BOOKMARKS = 50
@@ -52,7 +57,7 @@ export default function BookmarksForm({
             <button
               type="button"
               onClick={() => setItems(config.items.filter((_, i) => i !== index))}
-              className="text-text-muted hover:text-error shrink-0 p-1 transition-colors"
+              className={removeRowClass}
               aria-label={`Remove bookmark ${index + 1}`}
               disabled={disabled}
             >
@@ -65,7 +70,7 @@ export default function BookmarksForm({
         <button
           type="button"
           onClick={() => setItems([...config.items, { name: '', url: '', icon: '' }])}
-          className="text-primary hover:text-primary-hover mt-2 inline-flex items-center text-sm font-medium"
+          className={addRowClass}
           disabled={disabled}
         >
           <PlusIcon className="mr-1 h-4 w-4" />

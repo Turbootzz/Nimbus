@@ -255,6 +255,41 @@ export interface WeatherPayload {
   daily: WeatherDay[]
 }
 
+export interface CustomApiHeader {
+  name: string
+  value: string // stored with the widget, not encrypted
+}
+
+export interface CustomApiField {
+  label: string
+  path: string // e.g. data.items[0].name or items.length
+  unit: string
+}
+
+// Its snapshot payload is an IntegrationPayload keyed by field index
+export interface CustomApiWidgetConfig {
+  url: string
+  headers: CustomApiHeader[]
+  fields: CustomApiField[]
+}
+
+export interface RssWidgetConfig {
+  feeds: string[]
+  limit: number // items shown, newest first
+}
+
+export interface RssItem {
+  title: string
+  link?: string // http(s) only
+  date?: string // RFC 3339
+  source: string // feed title
+}
+
+export interface RssPayload {
+  items: RssItem[]
+  failed?: string[] // feeds that could not be loaded while others could
+}
+
 // Latest data of a polled widget or integration (GET /dashboard/data and
 // the snapshot event of /dashboard/stream)
 export interface Snapshot {

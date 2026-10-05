@@ -3,15 +3,19 @@ import {
   BookmarkIcon,
   ClockIcon,
   CloudIcon,
+  CodeBracketIcon,
   DocumentTextIcon,
   GlobeAltIcon,
+  RssIcon,
 } from '@heroicons/react/24/outline'
 import type {
   BookmarksWidgetConfig,
   CardSize,
   ClockWidgetConfig,
+  CustomApiWidgetConfig,
   EmbedWidgetConfig,
   NoteWidgetConfig,
+  RssWidgetConfig,
   Snapshot,
   WeatherWidgetConfig,
   Widget,
@@ -21,11 +25,15 @@ import NoteWidget from '@/components/widgets/renderers/NoteWidget'
 import BookmarksWidget from '@/components/widgets/renderers/BookmarksWidget'
 import EmbedWidget from '@/components/widgets/renderers/EmbedWidget'
 import WeatherWidget from '@/components/widgets/renderers/WeatherWidget'
+import CustomApiWidget from '@/components/widgets/renderers/CustomApiWidget'
+import RssWidget from '@/components/widgets/renderers/RssWidget'
 import ClockForm from '@/components/widgets/forms/ClockForm'
 import NoteForm from '@/components/widgets/forms/NoteForm'
 import BookmarksForm from '@/components/widgets/forms/BookmarksForm'
 import EmbedForm from '@/components/widgets/forms/EmbedForm'
 import WeatherForm from '@/components/widgets/forms/WeatherForm'
+import CustomApiForm from '@/components/widgets/forms/CustomApiForm'
+import RssForm from '@/components/widgets/forms/RssForm'
 
 export interface WidgetRendererProps<C> {
   widget: Widget
@@ -99,6 +107,26 @@ const definitions: WidgetDefinition[] = [
     defaultConfig: { location: '', units: 'metric' },
     Renderer: WeatherWidget,
     ConfigForm: WeatherForm,
+  }),
+  defineWidget<RssWidgetConfig>({
+    type: 'rss',
+    label: 'RSS',
+    description: 'Latest items from up to three feeds',
+    icon: RssIcon,
+    polled: true,
+    defaultConfig: { feeds: [''], limit: 10 },
+    Renderer: RssWidget,
+    ConfigForm: RssForm,
+  }),
+  defineWidget<CustomApiWidgetConfig>({
+    type: 'custom_api',
+    label: 'Custom API',
+    description: 'Up to four values from any JSON API',
+    icon: CodeBracketIcon,
+    polled: true,
+    defaultConfig: { url: '', headers: [], fields: [{ label: '', path: '', unit: '' }] },
+    Renderer: CustomApiWidget,
+    ConfigForm: CustomApiForm,
   }),
   defineWidget<EmbedWidgetConfig>({
     type: 'iframe',

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"unicode/utf8"
 )
@@ -20,7 +18,6 @@ const (
 	weatherForecastDays  = 4
 	// Open-Meteo is free and keyless; a 10 minute minimum keeps us polite
 	weatherMinRefreshSeconds = 600
-	maxFetchBodyBytes        = 1 << 20
 )
 
 type weatherConfig struct {
@@ -152,32 +149,4 @@ func (weather) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		payload.Daily = append(payload.Daily, weatherDay{Date: d.Time[i], WeatherCode: d.WeatherCode[i], Max: d.Max[i], Min: d.Min[i]})
 	}
 	return payload, nil
-}
-
-// getJSON GETs url and decodes a JSON body of at most maxFetchBodyBytes
-func getJSON(ctx context.Context, client *http.Client, url string, v any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-	req.Header.Set("Accept", "application/json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBodyBytes+1))
-	if err != nil {
-		return err
-	}
-	if len(body) > maxFetchBodyBytes {
-		return errors.New("response is larger than 1 MB")
-	}
-	if err := json.Unmarshal(body, v); err != nil {
-		return errors.New("response is not valid JSON")
-	}
-	return nil
 }
