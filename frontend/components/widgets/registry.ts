@@ -4,6 +4,8 @@ import {
   ClockIcon,
   CloudIcon,
   CodeBracketIcon,
+  CpuChipIcon,
+  CubeIcon,
   DocumentTextIcon,
   GlobeAltIcon,
   RssIcon,
@@ -13,10 +15,12 @@ import type {
   CardSize,
   ClockWidgetConfig,
   CustomApiWidgetConfig,
+  DockerContainersWidgetConfig,
   EmbedWidgetConfig,
   NoteWidgetConfig,
   RssWidgetConfig,
   Snapshot,
+  SystemStatsWidgetConfig,
   WeatherWidgetConfig,
   Widget,
 } from '@/types'
@@ -27,6 +31,8 @@ import EmbedWidget from '@/components/widgets/renderers/EmbedWidget'
 import WeatherWidget from '@/components/widgets/renderers/WeatherWidget'
 import CustomApiWidget from '@/components/widgets/renderers/CustomApiWidget'
 import RssWidget from '@/components/widgets/renderers/RssWidget'
+import SystemStatsWidget from '@/components/widgets/renderers/SystemStatsWidget'
+import DockerContainersWidget from '@/components/widgets/renderers/DockerContainersWidget'
 import ClockForm from '@/components/widgets/forms/ClockForm'
 import NoteForm from '@/components/widgets/forms/NoteForm'
 import BookmarksForm from '@/components/widgets/forms/BookmarksForm'
@@ -34,6 +40,8 @@ import EmbedForm from '@/components/widgets/forms/EmbedForm'
 import WeatherForm from '@/components/widgets/forms/WeatherForm'
 import CustomApiForm from '@/components/widgets/forms/CustomApiForm'
 import RssForm from '@/components/widgets/forms/RssForm'
+import SystemStatsForm from '@/components/widgets/forms/SystemStatsForm'
+import DockerContainersForm from '@/components/widgets/forms/DockerContainersForm'
 
 export interface WidgetRendererProps<C> {
   widget: Widget
@@ -132,6 +140,26 @@ const definitions: WidgetDefinition[] = [
     },
     Renderer: CustomApiWidget,
     ConfigForm: CustomApiForm,
+  }),
+  defineWidget<SystemStatsWidgetConfig>({
+    type: 'system_stats',
+    label: 'System stats',
+    description: 'CPU, memory, disk and uptime of the Nimbus server',
+    icon: CpuChipIcon,
+    polled: true,
+    defaultConfig: { disk_path: '/' },
+    Renderer: SystemStatsWidget,
+    ConfigForm: SystemStatsForm,
+  }),
+  defineWidget<DockerContainersWidgetConfig>({
+    type: 'docker_containers',
+    label: 'Docker containers',
+    description: 'Containers of a Docker integration and their state',
+    icon: CubeIcon,
+    polled: true,
+    defaultConfig: { hide_stopped: false },
+    Renderer: DockerContainersWidget,
+    ConfigForm: DockerContainersForm,
   }),
   defineWidget<EmbedWidgetConfig>({
     type: 'iframe',

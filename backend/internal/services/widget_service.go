@@ -1,6 +1,7 @@
 package services
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -222,7 +223,7 @@ func (s *WidgetService) apply(ctx context.Context, userID string, isAdmin bool, 
 
 	minRefresh := max(minRefreshSeconds, meta.MinRefreshSeconds)
 	if current == nil {
-		w.RefreshSeconds = max(defaultWidgetRefreshSeconds, minRefresh)
+		w.RefreshSeconds = max(cmp.Or(meta.DefaultRefreshSeconds, defaultWidgetRefreshSeconds), minRefresh)
 	}
 	if req.RefreshSeconds != nil {
 		w.RefreshSeconds = *req.RefreshSeconds

@@ -3,9 +3,9 @@ import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import WidgetCard from '@/components/widgets/WidgetCard'
 import type { CardSize } from '@/types'
-import { backendStaticTypes, makeSnapshot, makeWidget } from './fixtures'
+import { backendTypes, makeSnapshot, makeWidget } from './fixtures'
 
-const clockMeta = backendStaticTypes.find((t) => t.type === 'clock')!
+const clockMeta = backendTypes.find((t) => t.type === 'clock')!
 const note = makeWidget({ title: 'Todo', config: { content: 'Buy milk' } })
 
 describe('WidgetCard', () => {
@@ -54,7 +54,7 @@ describe('WidgetCard', () => {
   })
 
   it('cycles notes through the tall size and keeps embeds tall', () => {
-    const meta = (type: string) => backendStaticTypes.find((t) => t.type === type)!
+    const meta = (type: string) => backendTypes.find((t) => t.type === type)!
     const next = (type: string, card_size: CardSize) => {
       const onSizeChange = vi.fn()
       const widget = makeWidget({ type, card_size, config: { url: 'https://a.test' } })

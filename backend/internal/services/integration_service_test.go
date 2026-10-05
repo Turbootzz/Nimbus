@@ -200,7 +200,7 @@ func TestIntegrationService_CreateEncryptsCredentials(t *testing.T) {
 
 	req := apiKeyRequest("http://192.168.1.10:8989/")
 	req.Credentials.Password = "not-for-api-key-auth"
-	integration, err := svc.Create(context.Background(), "user-1", req)
+	integration, err := svc.Create(context.Background(), "user-1", false, req)
 	require.NoError(t, err)
 
 	assert.True(t, integration.HasCredentials)
@@ -218,7 +218,7 @@ func TestIntegrationService_CreateEncryptsCredentials(t *testing.T) {
 func TestIntegrationService_AuthNoneStoresNoBlob(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 
-	integration, err := svc.Create(context.Background(), "user-1", &models.IntegrationRequest{
+	integration, err := svc.Create(context.Background(), "user-1", false, &models.IntegrationRequest{
 		Kind: "svc-fake", Name: "Open", BaseURL: "http://10.0.0.5", AuthType: models.IntegrationAuthNone,
 		Credentials: &models.IntegrationCredentials{APIKey: "ignored"},
 	})
@@ -232,7 +232,7 @@ func TestIntegrationService_DefaultAuthTypeIsFirstOfKind(t *testing.T) {
 	req := apiKeyRequest("http://10.0.0.5")
 	req.AuthType = ""
 
-	integration, err := svc.Create(context.Background(), "user-1", req)
+	integration, err := svc.Create(context.Background(), "user-1", false, req)
 	require.NoError(t, err)
 	assert.Equal(t, models.IntegrationAuthAPIKey, integration.AuthType)
 }
@@ -276,7 +276,7 @@ func TestIntegrationService_Validation(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			req := apiKeyRequest("http://nas.lan:8989")
 			tc.mutate(req)
-			_, err := svc.Create(context.Background(), "user-1", req)
+			_, err := svc.Create(context.Background(), "user-1", false, req)
 			var vErr *ValidationError
 			require.True(t, errors.As(err, &vErr), "expected ValidationError, got %v", err)
 			assert.Contains(t, vErr.Message, tc.want)
@@ -289,7 +289,7 @@ func TestIntegrationService_NullOptionsAreIgnored(t *testing.T) {
 	req := apiKeyRequest("http://nas.lan")
 	req.Options = json.RawMessage(`null`)
 
-	integration, err := svc.Create(context.Background(), "user-1", req)
+	integration, err := svc.Create(context.Background(), "user-1", false, req)
 	require.NoError(t, err)
 	assert.JSONEq(t, `{}`, string(integration.Options))
 }
@@ -297,11 +297,11 @@ func TestIntegrationService_NullOptionsAreIgnored(t *testing.T) {
 func TestIntegrationService_UpdateKeepsCredentialsWhenOmitted(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest("http://nas.lan"))
 	require.NoError(t, err)
 	blobBefore := repo.blobs[created.ID]
 
-	updated, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{Name: "Renamed"})
+	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})
 	require.NoError(t, err)
 
 	assert.Equal(t, "Renamed", updated.Name)
@@ -313,16 +313,16 @@ func TestIntegrationService_UpdateKeepsCredentialsWhenOmitted(t *testing.T) {
 func TestIntegrationService_UpdateReplacesAndClearsCredentials(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest("http://nas.lan"))
 	require.NoError(t, err)
 
-	_, err = svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{
+	_, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{
 		Credentials: &models.IntegrationCredentials{APIKey: "new-key"},
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "new-key", decryptStored(t, svc, repo, created.ID).APIKey)
 
-	updated, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{AuthType: models.IntegrationAuthNone})
+	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{AuthType: models.IntegrationAuthNone})
 	require.NoError(t, err)
 	assert.False(t, updated.HasCredentials)
 	assert.Nil(t, repo.blobs[created.ID])
@@ -332,16 +332,16 @@ func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
 	server := pingServer(t)
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest(server.URL))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest(server.URL))
 	require.NoError(t, err)
 	_, err = svc.TestSaved(ctx, created.ID, "user-1")
 	require.NoError(t, err)
 
-	renamed, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{Name: "Renamed"})
+	renamed, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})
 	require.NoError(t, err)
 	assert.NotNil(t, renamed.LastTestOK, "a rename keeps the test result")
 
-	moved, err := svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{BaseURL: "http://10.0.0.99"})
+	moved, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: "http://10.0.0.99"})
 	require.NoError(t, err)
 	assert.Nil(t, moved.LastTestOK, "a new URL invalidates the test result")
 	assert.Nil(t, moved.LastTestAt)
@@ -351,9 +351,9 @@ func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
 func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
-	victim, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	victim, err := svc.Create(ctx, "user-1", false, apiKeyRequest("http://nas.lan"))
 	require.NoError(t, err)
-	attacker, err := svc.Create(ctx, "user-2", apiKeyRequest("http://attacker.example"))
+	attacker, err := svc.Create(ctx, "user-2", false, apiKeyRequest("http://attacker.example"))
 	require.NoError(t, err)
 
 	// Someone with database access copies the victim's blob to their own row
@@ -368,18 +368,18 @@ func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) 
 func TestIntegrationService_UpdateRules(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	ctx := context.Background()
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest("http://nas.lan"))
 	require.NoError(t, err)
 
 	var vErr *ValidationError
 
-	_, err = svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{Kind: "svc-panic"})
+	_, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Kind: "svc-panic"})
 	assert.True(t, errors.As(err, &vErr), "kind change must be rejected, got %v", err)
 
-	_, err = svc.Update(ctx, created.ID, "user-1", &models.IntegrationRequest{AuthType: models.IntegrationAuthBasic})
+	_, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{AuthType: models.IntegrationAuthBasic})
 	assert.True(t, errors.As(err, &vErr), "auth type change needs new credentials, got %v", err)
 
-	_, err = svc.Update(ctx, created.ID, "user-2", &models.IntegrationRequest{Name: "Hijack"})
+	_, err = svc.Update(ctx, created.ID, "user-2", false, &models.IntegrationRequest{Name: "Hijack"})
 	assert.ErrorIs(t, err, repository.ErrIntegrationNotFound)
 }
 
@@ -387,14 +387,14 @@ func TestIntegrationService_TestUnsaved(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	server := pingServer(t)
 
-	result, err := svc.TestUnsaved(context.Background(), apiKeyRequest(server.URL))
+	result, err := svc.TestUnsaved(context.Background(), false, apiKeyRequest(server.URL))
 	require.NoError(t, err)
 	assert.True(t, result.OK, "expected success, got %q", result.Error)
 	assert.Empty(t, repo.items, "unsaved test must not store anything")
 
 	req := apiKeyRequest(server.URL)
 	req.Credentials.APIKey = "wrong"
-	result, err = svc.TestUnsaved(context.Background(), req)
+	result, err = svc.TestUnsaved(context.Background(), false, req)
 	require.NoError(t, err)
 	assert.False(t, result.OK)
 	assert.Contains(t, result.Error, "401")
@@ -406,7 +406,7 @@ func TestIntegrationService_TestErrorsAreRedacted(t *testing.T) {
 	deadURL := server.URL
 	server.Close() // connection refused: net/http echoes the full URL incl. the key
 
-	result, err := svc.TestUnsaved(context.Background(), apiKeyRequest(deadURL))
+	result, err := svc.TestUnsaved(context.Background(), false, apiKeyRequest(deadURL))
 	require.NoError(t, err)
 	assert.False(t, result.OK)
 	assert.Contains(t, result.Error, "[redacted]")
@@ -419,7 +419,7 @@ func TestIntegrationService_TestRecoversFromPanics(t *testing.T) {
 	req := apiKeyRequest("http://nas.lan")
 	req.Kind = "svc-panic"
 
-	result, err := svc.TestUnsaved(context.Background(), req)
+	result, err := svc.TestUnsaved(context.Background(), false, req)
 	require.NoError(t, err)
 	assert.False(t, result.OK)
 	assert.Contains(t, result.Error, "crashed")
@@ -429,7 +429,7 @@ func TestIntegrationService_TestSavedRecordsResult(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
 	server := pingServer(t)
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest(server.URL))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest(server.URL))
 	require.NoError(t, err)
 
 	result, err := svc.TestSaved(ctx, created.ID, "user-1")
@@ -449,7 +449,7 @@ func TestIntegrationService_TestSavedRecordsResult(t *testing.T) {
 func TestIntegrationService_TestSavedWithWrongKey(t *testing.T) {
 	svc, repo := newTestIntegrationService(t)
 	ctx := context.Background()
-	created, err := svc.Create(ctx, "user-1", apiKeyRequest("http://nas.lan"))
+	created, err := svc.Create(ctx, "user-1", false, apiKeyRequest("http://nas.lan"))
 	require.NoError(t, err)
 
 	// Simulate a lost ENCRYPTION_KEY: same data, different key
@@ -475,4 +475,60 @@ func TestRedactSecrets(t *testing.T) {
 
 	header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte("admin:p@ss"))
 	assert.NotContains(t, redactSecrets(header, creds), "YWRtaW46cEBzcw==")
+}
+
+func dockerRequest(baseURL string) *models.IntegrationRequest {
+	return &models.IntegrationRequest{Kind: "docker", Name: "Docker", BaseURL: baseURL, AuthType: models.IntegrationAuthNone}
+}
+
+func TestIntegrationService_AdminOnlyKind(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+
+	kinds := func(isAdmin bool) []string {
+		var out []string
+		for _, meta := range svc.Kinds(isAdmin) {
+			out = append(out, meta.Kind)
+		}
+		return out
+	}
+	assert.NotContains(t, kinds(false), "docker")
+	assert.Contains(t, kinds(true), "docker")
+
+	_, err := svc.Create(ctx, "user-1", false, dockerRequest("http://socket-proxy.lan:2375"))
+	assert.ErrorContains(t, err, "Only admins can set up Docker integrations")
+	_, err = svc.TestUnsaved(ctx, false, dockerRequest("http://socket-proxy.lan:2375"))
+	assert.ErrorContains(t, err, "Only admins")
+
+	created, err := svc.Create(ctx, "user-1", true, dockerRequest("http://socket-proxy.lan:2375"))
+	require.NoError(t, err)
+	_, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Mine now"})
+	assert.ErrorContains(t, err, "Only admins")
+}
+
+func TestIntegrationService_UnixSocket(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+
+	t.Setenv("DOCKER_SOCKET", "")
+	_, err := svc.Create(ctx, "user-1", true, dockerRequest("unix:///var/run/docker.sock"))
+	assert.ErrorContains(t, err, "Set DOCKER_SOCKET=/var/run/docker.sock")
+
+	t.Setenv("DOCKER_SOCKET", "/var/run/docker.sock")
+	_, err = svc.Create(ctx, "user-1", true, dockerRequest("unix:///etc/other.sock"))
+	assert.ErrorContains(t, err, "Only the socket in DOCKER_SOCKET can be used: unix:///var/run/docker.sock")
+	_, err = svc.Create(ctx, "user-1", true, &models.IntegrationRequest{Kind: "svc-fake", Name: "F", BaseURL: "unix:///var/run/docker.sock", AuthType: models.IntegrationAuthNone})
+	assert.ErrorContains(t, err, "can't use a unix socket")
+
+	created, err := svc.Create(ctx, "user-1", true, dockerRequest("unix:///var/run/docker.sock"))
+	require.NoError(t, err)
+	assert.Equal(t, "unix:///var/run/docker.sock", created.BaseURL)
+	conn, err := svc.Conn(ctx, created)
+	require.NoError(t, err)
+	assert.Equal(t, socketBaseURL, conn.BaseURL)
+
+	// Unset later: the stored socket is no longer used
+	t.Setenv("DOCKER_SOCKET", "")
+	_, err = svc.Conn(ctx, created)
+	assert.ErrorContains(t, err, "does not allow this socket")
 }

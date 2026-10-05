@@ -11,9 +11,12 @@ interface IntegrationSelectorProps {
   kinds: IntegrationKindMeta[]
   isLoading?: boolean
   disabled?: boolean
+  label?: string
+  description?: string
+  emptyOption?: string
 }
 
-// Links a service to an integration, whose KPIs then show on the tile
+// Links a service or widget to an integration, whose data then shows on the tile
 export default function IntegrationSelector({
   value,
   onChange,
@@ -21,6 +24,9 @@ export default function IntegrationSelector({
   kinds,
   isLoading = false,
   disabled = false,
+  label = 'Live numbers',
+  description = "Show numbers from an app, like Sonarr's queue, on this tile.",
+  emptyOption = 'None',
 }: IntegrationSelectorProps) {
   return (
     <div>
@@ -28,7 +34,7 @@ export default function IntegrationSelector({
         htmlFor="integration_id"
         className="text-text-secondary mb-2 block text-sm font-medium"
       >
-        Live numbers
+        {label}
       </label>
       <select
         id="integration_id"
@@ -39,7 +45,7 @@ export default function IntegrationSelector({
         style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
         disabled={disabled || isLoading}
       >
-        <option value="">{isLoading ? 'Loading integrations...' : 'None'}</option>
+        <option value="">{isLoading ? 'Loading integrations...' : emptyOption}</option>
         {integrations.map((integration) => (
           <option key={integration.id} value={integration.id}>
             {integration.name} ({kindName(kinds, integration.kind)})
@@ -47,7 +53,7 @@ export default function IntegrationSelector({
         ))}
       </select>
       <p className="text-text-muted mt-1 text-xs">
-        Show numbers from an app, like Sonarr&apos;s queue, on this tile.{' '}
+        {description}{' '}
         <Link href="/settings/integrations" className="text-primary underline">
           Manage integrations
         </Link>

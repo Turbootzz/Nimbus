@@ -3,11 +3,11 @@ import { describe, it, expect } from 'vitest'
 import '@testing-library/jest-dom'
 import { getWidgetDefinition, widgetConfig, widgetRegistry } from '@/components/widgets/registry'
 import { addableTypes } from '@/components/widgets/WidgetModal'
-import { backendStaticTypes, makeWidget } from './fixtures'
+import { backendTypes, makeWidget } from './fixtures'
 
 describe('widget registry', () => {
-  it('has a definition for every backend type without an integration', () => {
-    for (const meta of backendStaticTypes) {
+  it('has a definition for every backend type', () => {
+    for (const meta of backendTypes) {
       expect(getWidgetDefinition(meta.type), meta.type).toBeDefined()
     }
   })
@@ -42,20 +42,18 @@ describe('widget registry', () => {
     expect(config).toMatchObject({ hour12: true, date_format: 'short', timezone: '' })
   })
 
-  it('only offers types this version can add', () => {
-    const types = [
-      ...backendStaticTypes,
-      { ...backendStaticTypes[0], type: 'future', name: 'Future' },
-      { ...backendStaticTypes[0], type: 'clock', integration_kinds: ['sonarr'] },
-    ]
+  it('only offers types this version knows', () => {
+    const types = [...backendTypes, { ...backendTypes[0], type: 'future', name: 'Future' }]
     const addable = addableTypes(types).map((t) => t.type)
     expect(addable).toEqual([
       'bookmarks',
       'clock',
       'custom_api',
+      'docker_containers',
       'iframe',
       'markdown',
       'rss',
+      'system_stats',
       'weather',
     ])
   })
