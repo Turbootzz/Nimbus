@@ -119,6 +119,17 @@ func TestCustomAPIFetchHeaders(t *testing.T) {
 	assert.ErrorContains(t, err, "redirected to another host")
 	assert.Empty(t, gotKey)
 
+	// Nor goes from https to plain http on the same host
+	tlsServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "http://"+r.Host+"/plain", http.StatusFound)
+	}))
+	t.Cleanup(tlsServer.Close)
+	_, err = w.(Fetcher).Fetch(context.Background(), &FetchRequest{
+		Config: json.RawMessage(`{"url":"` + tlsServer.URL + `","headers":[{"name":"X-Api-Key","value":"k1"}],"fields":[{"label":"A","path":"a"}]}`),
+		Client: tlsServer.Client(),
+	})
+	assert.ErrorContains(t, err, "redirected from https to http")
+
 	// Without headers a redirect is fine, and a custom Accept replaces ours
 	require.NoError(t, fetch(redirect.URL, `[]`))
 	require.NoError(t, fetch(other.URL, `[{"name":"Accept","value":"application/vnd.app+json"}]`))

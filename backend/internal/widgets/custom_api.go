@@ -207,12 +207,15 @@ func (customAPI) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	client := req.Client
 	if len(cfg.Headers) > 0 {
 		// Go only drops its own auth headers on a redirect to another host;
-		// a key in a custom header would go along
+		// a key in a custom header would go along, or go out unencrypted
 		c := *req.Client
 		check := c.CheckRedirect
 		c.CheckRedirect = func(r *http.Request, via []*http.Request) error {
 			if r.URL.Host != via[0].URL.Host {
 				return errors.New("redirected to another host, which would get the headers")
+			}
+			if via[len(via)-1].URL.Scheme == "https" && r.URL.Scheme == "http" {
+				return errors.New("redirected from https to http, which would send the headers unencrypted")
 			}
 			if check != nil {
 				return check(r, via)
