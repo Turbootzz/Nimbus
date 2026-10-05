@@ -333,3 +333,47 @@ func TestLiveData_VersionIgnoresLayoutChanges(t *testing.T) {
 	slower.RefreshSeconds = 120
 	assert.NotEqual(t, base, versionOf(slower))
 }
+
+// multiWidget lists its integrations in the config, like the calendar
+type multiWidget struct{}
+
+func (multiWidget) Type() string { return "svc-multi" }
+func (multiWidget) Meta() widgets.Meta {
+	return widgets.Meta{Name: "Multi", Category: widgets.CategoryInfo, DefaultSize: "2x2", AllowedSizes: []string{"2x2"}, ConfigIntegrationKinds: []string{"svc-fake"}}
+}
+func (multiWidget) Validate(c json.RawMessage) (json.RawMessage, error) { return c, nil }
+func (multiWidget) IntegrationIDs(c json.RawMessage) []string {
+	var cfg struct{ IDs []string }
+	_ = json.Unmarshal(c, &cfg)
+	return cfg.IDs
+}
+func (multiWidget) Fetch(_ context.Context, req *widgets.FetchRequest) (any, error) {
+	names := []string{}
+	for _, l := range req.Linked {
+		names = append(names, l.Name+"@"+l.Conn.BaseURL)
+	}
+	return map[string]any{"linked": names, "unlinked": req.Unlinked}, nil
+}
+
+func init() { widgets.Register(multiWidget{}) }
+
+func TestLiveData_ConfigIntegrationsAreConnected(t *testing.T) {
+	f := newLiveFixture(t)
+	ctx := context.Background()
+	mine, err := f.service.Create(ctx, "u1", false, apiKeyRequest("http://nas.lan"))
+	require.NoError(t, err)
+	theirs, err := f.service.Create(ctx, "u2", false, apiKeyRequest("http://other.lan"))
+	require.NoError(t, err)
+	f.integrations.unused = map[string]bool{mine.ID: true, theirs.ID: true}
+	f.widgets.enabled = []models.Widget{{ID: "w-multi", UserID: "u1", Type: "svc-multi",
+		Config: json.RawMessage(`{"IDs":["` + mine.ID + `","` + theirs.ID + `"]}`), RefreshSeconds: 300}}
+
+	sources, err := f.live.Sources(ctx)
+	require.NoError(t, err)
+	payload, err := sourceByKey(t, sources, "widget:w-multi").Fetch(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"linked":   []string{mine.Name + "@http://nas.lan"},
+		"unlinked": []string{"an integration that was removed"},
+	}, payload, "only the owner's own integration is connected")
+}

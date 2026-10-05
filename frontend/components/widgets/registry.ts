@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react'
 import {
   BookmarkIcon,
+  CalendarDaysIcon,
   ClockIcon,
   CloudIcon,
   CodeBracketIcon,
@@ -12,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import type {
   BookmarksWidgetConfig,
+  CalendarWidgetConfig,
   CardSize,
   ClockWidgetConfig,
   CustomApiWidgetConfig,
@@ -33,6 +35,7 @@ import CustomApiWidget from '@/components/widgets/renderers/CustomApiWidget'
 import RssWidget from '@/components/widgets/renderers/RssWidget'
 import SystemStatsWidget from '@/components/widgets/renderers/SystemStatsWidget'
 import DockerContainersWidget from '@/components/widgets/renderers/DockerContainersWidget'
+import CalendarWidget from '@/components/widgets/renderers/CalendarWidget'
 import ClockForm from '@/components/widgets/forms/ClockForm'
 import NoteForm from '@/components/widgets/forms/NoteForm'
 import BookmarksForm from '@/components/widgets/forms/BookmarksForm'
@@ -42,6 +45,7 @@ import CustomApiForm from '@/components/widgets/forms/CustomApiForm'
 import RssForm from '@/components/widgets/forms/RssForm'
 import SystemStatsForm from '@/components/widgets/forms/SystemStatsForm'
 import DockerContainersForm from '@/components/widgets/forms/DockerContainersForm'
+import CalendarForm from '@/components/widgets/forms/CalendarForm'
 
 export interface WidgetRendererProps<C> {
   widget: Widget
@@ -160,6 +164,16 @@ const definitions: WidgetDefinition[] = [
     defaultConfig: { hide_stopped: false },
     Renderer: DockerContainersWidget,
     ConfigForm: DockerContainersForm,
+  }),
+  defineWidget<CalendarWidgetConfig>({
+    type: 'calendar',
+    label: 'Calendar',
+    description: 'Upcoming episodes, movies and iCal events',
+    icon: CalendarDaysIcon,
+    polled: true,
+    defaultConfig: { integrations: [], ical_urls: [], days: 14, verify_tls: true },
+    Renderer: CalendarWidget,
+    ConfigForm: CalendarForm,
   }),
   defineWidget<EmbedWidgetConfig>({
     type: 'iframe',

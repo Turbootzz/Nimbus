@@ -69,8 +69,10 @@ func init() {
 
 // fakeIntegrationRepo is an in-memory IntegrationRepositoryInterface
 type fakeIntegrationRepo struct {
-	items map[string]models.Integration
-	blobs map[string][]byte
+	// unused integrations are left out of ListInUse
+	unused map[string]bool
+	items  map[string]models.Integration
+	blobs  map[string][]byte
 }
 
 func newFakeIntegrationRepo() *fakeIntegrationRepo {
@@ -123,7 +125,9 @@ func (r *fakeIntegrationRepo) ListByUserID(_ context.Context, userID string) ([]
 func (r *fakeIntegrationRepo) ListInUse(context.Context) ([]models.Integration, error) {
 	list := []models.Integration{}
 	for _, i := range r.items {
-		list = append(list, i)
+		if !r.unused[i.ID] {
+			list = append(list, i)
+		}
 	}
 	return list, nil
 }

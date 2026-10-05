@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/nimbus/backend/internal/integrations"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/utils"
@@ -155,6 +156,24 @@ func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, 
 			req := &widgets.FetchRequest{Config: widget.Config, Client: client}
 			defer req.Client.CloseIdleConnections()
 
+			if lister, ok := fetcher.(widgets.ConfigIntegrations); ok {
+				conns := s.linkIntegrations(ctx, req, widget.UserID, lister.IntegrationIDs(widget.Config))
+				defer func() {
+					for _, conn := range conns {
+						conn.Client.CloseIdleConnections()
+					}
+				}()
+				payload, err := callWidgetFetch(ctx, widget.Type, fetcher, req)
+				if err != nil {
+					msg := err.Error()
+					for _, conn := range conns {
+						msg = redactSecrets(msg, conn.Creds)
+					}
+					return nil, errors.New(msg)
+				}
+				return payload, nil
+			}
+
 			if len(meta.IntegrationKinds) > 0 {
 				if integration == nil {
 					return nil, errors.New("this widget has no integration")
@@ -174,6 +193,28 @@ func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, 
 			return callWidgetFetch(ctx, widget.Type, fetcher, req)
 		},
 	}
+}
+
+// linkIntegrations connects the integrations a widget config lists. One
+// that is gone or can't connect goes to req.Unlinked, so the widget can show
+// the rest.
+func (s *LiveDataService) linkIntegrations(ctx context.Context, req *widgets.FetchRequest, userID string, ids []string) []*integrations.Conn {
+	var conns []*integrations.Conn
+	for _, id := range ids {
+		integration, err := s.integrationRepo.GetByID(ctx, id, userID)
+		if err != nil {
+			req.Unlinked = append(req.Unlinked, "an integration that was removed")
+			continue
+		}
+		conn, err := s.integrationService.Conn(ctx, integration)
+		if err != nil {
+			req.Unlinked = append(req.Unlinked, integration.Name+": "+err.Error())
+			continue
+		}
+		conns = append(conns, conn)
+		req.Linked = append(req.Linked, widgets.LinkedIntegration{ID: id, Kind: integration.Kind, Name: integration.Name, Conn: conn})
+	}
+	return conns
 }
 
 func callWidgetFetch(ctx context.Context, typ string, fetcher widgets.Fetcher, req *widgets.FetchRequest) (payload any, err error) {

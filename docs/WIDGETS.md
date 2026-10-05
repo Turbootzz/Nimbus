@@ -14,6 +14,7 @@ Static widgets (clock, note, bookmarks, embed) render in your browser. The other
 | Embed | A web page in an iframe | 1x2, 2x2 | browser |
 | Weather | Current weather and a forecast from [Open-Meteo](https://open-meteo.com) (no key needed) | 1x1, 2x1, 2x2 | server, at most every 10 minutes |
 | RSS | The latest items from up to three feeds | all | server, at most every 5 minutes |
+| Calendar | Upcoming episodes (Sonarr), movie releases (Radarr) and iCal events | 2x1, 1x2, 2x2 | server, at most every 5 minutes |
 | Custom API | Up to four values from any JSON API (admins only) | 1x1, 2x1, 2x2 | server |
 | System stats | CPU, memory and disk use and uptime of the Nimbus server (admins only) | all | server, every 30 seconds by default |
 | Docker containers | The containers of a [Docker integration](INTEGRATIONS.md) and their state (admins only) | all | server, every minute by default |
@@ -21,6 +22,12 @@ Static widgets (clock, note, bookmarks, embed) render in your browser. The other
 ## RSS
 
 Paste the feed URL of up to three feeds. RSS 2.0, RSS 1.0, Atom and JSON Feed work. Items from all feeds are merged, newest first, and items without a date go last. If one feed fails, the others still show, with a note on the tile.
+
+## Calendar
+
+Pick up to four Sonarr and Radarr integrations, and add up to five iCal feeds (the secret iCal address of a Google, Outlook or Nextcloud calendar works). At 2x2 the tile shows this month with a colored dot per source on each day, and the agenda below it; click a day to see only that day. Smaller tiles show the agenda only. The agenda covers the next 14 days by default (up to 60).
+
+Repeating iCal events (`RRULE`) only show on their first date for now. Events with a time zone (`TZID`) or in UTC are shown in your browser's time; all-day events keep their date. If one source fails, the others still show, with a note on the tile.
 
 ## Custom API
 
@@ -55,3 +62,5 @@ RSS feeds and custom API URLs are fetched by the Nimbus server, so they can poin
 ## Adding a widget type
 
 Each type is one Go file in `backend/internal/widgets/` that registers itself in `init()`, plus a renderer and a config form in `frontend/components/widgets/` registered in `registry.ts`. Types that fetch data implement `Fetcher` and must use `req.Client`, the SSRF-safe client.
+
+A type that reads one integration sets `Meta.IntegrationKinds` and gets it in `req.Integration`; the add-widget form shows a picker. A type that lists several in its config (like the calendar) sets `Meta.ConfigIntegrationKinds` and implements `ConfigIntegrations`: the server checks they are the user's and of those kinds, and `Fetch` gets them connected in `req.Linked`.

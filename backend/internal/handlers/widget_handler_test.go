@@ -431,3 +431,25 @@ func TestWidgetHandler_SecretsAreMasked(t *testing.T) {
 	assert.Contains(t, storedConfig(created.ID), "k1")
 	assert.Contains(t, storedConfig(created.ID), `"label":"B"`)
 }
+
+func TestWidgetHandler_CalendarIntegrations(t *testing.T) {
+	db := setupWidgetTestDB(t)
+	_, err := db.Exec(`INSERT INTO integrations (id, user_id, kind, name, base_url) VALUES
+		('abababab-abab-abab-abab-ababababab04', ?, 'sonarr', 'Sonarr', 'http://sonarr.lan')`, widgetOwnerID)
+	require.NoError(t, err)
+	app := setupWidgetTestApp(db, widgetOwnerID)
+	create := func(id string) (int, string) {
+		return doWidgetRequest(t, app, http.MethodPost, "/widgets", `{"type":"calendar","config":{"integrations":["`+id+`"]}}`)
+	}
+
+	status, body := create("abababab-abab-abab-abab-ababababab04")
+	assert.Equal(t, fiber.StatusCreated, status, body)
+
+	status, body = create(otherIntegration) // another user's
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Contains(t, body, "Integration not found")
+
+	status, body = create(ownerWrongKindInt) // not Sonarr or Radarr
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Contains(t, body, "can't use a other-kind integration")
+}

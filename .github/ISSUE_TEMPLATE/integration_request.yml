@@ -1,0 +1,36 @@
+name: Integration request
+description: Ask for live numbers from an app on its service tile
+title: "integration: "
+labels: ["integration"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each integration is one Go file plus a test. [docs/INTEGRATIONS.md](https://github.com/Turbootzz/Nimbus/blob/develop/docs/INTEGRATIONS.md) explains how to add one, and #196 lists the apps people want. If you'd like to build it yourself, say so below.
+  - type: input
+    id: app
+    attributes:
+      label: App
+      description: Name and link of the app
+      placeholder: Prowlarr (https://prowlarr.com)
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Numbers to show
+      description: Two to four values that would be useful on the tile
+      placeholder: grabs today, indexers failing
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: API
+      description: How to sign in and which endpoints give these numbers, if you know
+  - type: checkboxes
+    id: build
+    attributes:
+      label: Building it
+      options:
+        - label: I'd like to open a pull request for this myself

@@ -264,6 +264,14 @@ func (s *WidgetService) apply(ctx context.Context, userID string, isAdmin bool, 
 	}
 	w.Config = config
 
+	if lister, ok := widgetType.(widgets.ConfigIntegrations); ok && hasConfig(req.Config) {
+		for _, id := range lister.IntegrationIDs(config) {
+			if err := s.checkConfigIntegration(ctx, userID, meta, id); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return &w, nil
 }
 
@@ -312,6 +320,25 @@ func (s *WidgetService) resolveGroup(ctx context.Context, userID, groupID string
 		return nil, err
 	}
 	return &group.ID, nil
+}
+
+// checkConfigIntegration checks an integration a config lists: the user's,
+// and of a kind the type reads
+func (s *WidgetService) checkConfigIntegration(ctx context.Context, userID string, meta widgets.Meta, id string) error {
+	if _, err := uuid.Parse(id); err != nil {
+		return invalid("Integration not found")
+	}
+	integration, err := s.integrations.GetByID(ctx, id, userID)
+	if errors.Is(err, repository.ErrIntegrationNotFound) {
+		return invalid("Integration not found")
+	}
+	if err != nil {
+		return err
+	}
+	if !slices.Contains(meta.ConfigIntegrationKinds, integration.Kind) {
+		return invalid("%s widgets can't use a %s integration", meta.Name, integration.Kind)
+	}
+	return nil
 }
 
 // checkIntegration enforces the type's integration rules and ownership
