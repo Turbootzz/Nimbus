@@ -3,6 +3,7 @@
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { RssWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
+import { Toggle } from '@/components/ui/Toggle'
 import {
   addRowClass,
   inputClass,
@@ -80,6 +81,15 @@ export default function RssForm({ config, onChange, disabled }: WidgetFormProps<
           disabled={disabled}
         />
       </div>
+
+      <Toggle
+        id="rss-verify-tls"
+        enabled={config.verify_tls}
+        onChange={(verify_tls) => onChange({ ...config, verify_tls })}
+        label="Verify TLS certificate"
+        description="Turn off for feeds on your LAN with a self-signed certificate"
+        disabled={disabled}
+      />
     </div>
   )
 }

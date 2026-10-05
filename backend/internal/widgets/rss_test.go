@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,9 +15,9 @@ import (
 
 func TestRSSValidate(t *testing.T) {
 	runConfigCases(t, "rss", []configCase{
-		{"defaults", `{"feeds":[" http://10.0.0.2/feed ",""]}`, `{"feeds":["http://10.0.0.2/feed"],"limit":10}`, ""},
-		{"limit", `{"feeds":["http://10.0.0.2/a","http://10.0.0.2/b"],"limit":5}`,
-			`{"feeds":["http://10.0.0.2/a","http://10.0.0.2/b"],"limit":5}`, ""},
+		{"defaults", `{"feeds":[" http://10.0.0.2/feed ",""]}`, `{"feeds":["http://10.0.0.2/feed"],"limit":10,"verify_tls":true}`, ""},
+		{"limit, no TLS check", `{"feeds":["http://10.0.0.2/a","http://10.0.0.2/b"],"limit":5,"verify_tls":false}`,
+			`{"feeds":["http://10.0.0.2/a","http://10.0.0.2/b"],"limit":5,"verify_tls":false}`, ""},
 		{"no feeds", `{"feeds":[" "]}`, "", "add 1 to 3 feeds"},
 		{"too many feeds", `{"feeds":["http://a.test","http://b.test","http://c.test","http://d.test"]}`, "", "add 1 to 3 feeds"},
 		{"not http", `{"feeds":["javascript:alert(1)"]}`, "", "invalid feed URL"},
@@ -25,11 +27,16 @@ func TestRSSValidate(t *testing.T) {
 }
 
 const rss2Fixture = `<?xml version="1.0"?>
-<rss version="2.0"><channel>
+<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:atom="http://www.w3.org/2005/Atom"><channel>
 	<title>Homelab   News</title>
+	<itunes:title>Podcast name</itunes:title>
 	<image><title>logo</title></image>
-	<item><title>Older &amp; wiser</title><link>https://news.test/older</link><pubDate>Mon, 28 Sep 2026 08:00:00 +0000</pubDate></item>
-	<item><title>Relative</title><link>/posts/relative</link><pubDate>Tue, 29 Sep 2026 08:00:00 GMT</pubDate></item>
+	<item>
+		<title>Older &amp; wiser</title><itunes:title></itunes:title>
+		<link>https://news.test/older</link><atom:link href="https://news.test/feed" rel="self"/>
+		<pubDate>Mon, 28 Sep 2026 08:00:00 +0000</pubDate>
+	</item>
+	<item><title>Relative</title><link>/posts/relative</link><pubDate>Tue, 29 Sep 2026 04:00:00 EDT</pubDate></item>
 	<item><title>Sneaky</title><link>javascript:alert(1)</link></item>
 </channel></rss>`
 
@@ -50,7 +57,7 @@ const rdfFixture = `<?xml version="1.0"?>
 	<item><title>From RDF</title><link>https://rdf.test/1</link><dc:date>2026-09-27T12:00:00+02:00</dc:date></item>
 </rdf:RDF>`
 
-const jsonFeedFixture = `{
+const jsonFeedFixture = "\xef\xbb\xbf" + `{
 	"version": "https://jsonfeed.org/version/1.1",
 	"title": "Micro",
 	"items": [{"id": "1", "content_text": "A post without a title", "url": "https://micro.test/1", "date_published": "2026-10-01T09:00:00Z"}]
@@ -115,6 +122,34 @@ func TestRSSFetch(t *testing.T) {
 	got, err = fetchRSS(t, `{"feeds":["`+server.URL+`/rss"],"limit":1}`)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"Relative"}, titles(got.Items))
+
+	// Credentials in the feed URL stay out of the item links
+	withUser := strings.Replace(server.URL, "http://", "http://user:pass@", 1)
+	got, err = fetchRSS(t, `{"feeds":["`+withUser+`/rss"],"limit":1}`)
+	require.NoError(t, err)
+	assert.Equal(t, server.URL+"/posts/relative", got.Items[0].Link)
+}
+
+func TestParseFeedDate(t *testing.T) {
+	cases := map[string]string{
+		"Tue, 29 Sep 2026 08:00:00 +0000": "2026-09-29T08:00:00Z",
+		"Tue, 29 Sep 2026 08:00:00 GMT":   "2026-09-29T08:00:00Z",
+		"Tue, 29 Sep 2026 08:00:00 EST":   "2026-09-29T13:00:00Z",
+		"Tue, 29 Sep 2026 08:00:00 cest":  "2026-09-29T06:00:00Z",
+		"29 Sep 2026 08:00:00 GMT":        "2026-09-29T08:00:00Z",
+		"Tue, 29 Sep 2026 08:00 +0000":    "2026-09-29T08:00:00Z",
+		"Tue, 9 Sep 26 08:00:00 +0200":    "2026-09-09T06:00:00Z",
+		"2026-09-29T08:00:00.123+02:00":   "2026-09-29T06:00:00Z",
+	}
+	for in, want := range cases {
+		got, ok := parseFeedDate(in)
+		require.True(t, ok, in)
+		assert.Equal(t, want, got.UTC().Truncate(time.Second).Format(time.RFC3339), in)
+	}
+	for _, in := range []string{"", "yesterday", "Tue, 29 Sep 2026 08:00:00 XYZ"} {
+		_, ok := parseFeedDate(in)
+		assert.False(t, ok, in)
+	}
 }
 
 func TestRSSFetchFormats(t *testing.T) {

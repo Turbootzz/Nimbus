@@ -19,6 +19,12 @@ func RequireUserID(c *fiber.Ctx) (string, error) {
 	return userID, nil
 }
 
+// IsAdmin reports whether the request comes from an admin
+func IsAdmin(c *fiber.Ctx) bool {
+	role, _ := c.Locals("role").(string)
+	return role == "admin"
+}
+
 // RequireUUIDParam reads a route param and validates it parses as a UUID.
 // Returns a fiber.Error with 404 if invalid so non-UUID strings stay out of
 // SQL — Postgres would otherwise log "invalid input syntax for type uuid"

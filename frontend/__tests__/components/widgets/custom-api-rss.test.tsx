@@ -16,6 +16,7 @@ const apiConfig: CustomApiWidgetConfig = {
     { label: 'Disk', path: 'disk.used', unit: '%' },
     { label: 'Name', path: 'name', unit: '' },
   ],
+  verify_tls: true,
 }
 
 describe('CustomApiWidget', () => {
@@ -27,13 +28,15 @@ describe('CustomApiWidget', () => {
         {...base}
         config={apiConfig}
         cardSize="2x1"
-        snapshot={makeSnapshot({ payload: { kpis: { '0': 1234, '1': 42, '2': null } } })}
+        snapshot={makeSnapshot({
+          payload: { kpis: { Users: 1234, Disk: 42 }, missing: ['Name'] },
+        })}
       />
     )
     expect(screen.getByText('Users')).toBeInTheDocument()
     expect(screen.getByText((1234).toLocaleString())).toBeInTheDocument()
     expect(screen.getByText('42 %')).toBeInTheDocument()
-    expect(screen.getByText('-')).toBeInTheDocument() // null value
+    expect(screen.getByText('-')).toHaveAttribute('title', 'Nothing found at name')
     expect(container.querySelector('dl')).toHaveClass('grid-cols-3')
   })
 
@@ -43,7 +46,7 @@ describe('CustomApiWidget', () => {
         {...base}
         config={apiConfig}
         cardSize="1x1"
-        snapshot={makeSnapshot({ payload: { kpis: { '0': 1, '1': 2, '2': 'x' } } })}
+        snapshot={makeSnapshot({ payload: { kpis: { Users: 1, Disk: 2, Name: 'x' } } })}
       />
     )
     expect(container.querySelector('dl')).toHaveClass('grid-cols-2')
@@ -79,6 +82,9 @@ describe('CustomApiForm', () => {
 
     fireEvent.click(screen.getByText('Add header'))
     expect(onChange.mock.lastCall![0].headers).toEqual([{ name: '', value: '' }])
+
+    fireEvent.click(screen.getByRole('switch', { name: 'Verify TLS certificate' }))
+    expect(onChange.mock.lastCall![0].verify_tls).toBe(false)
   })
 
   it('stops at four values', () => {
@@ -103,7 +109,7 @@ const feed: RssPayload = {
 describe('RssWidget', () => {
   const base = {
     widget: makeWidget({ type: 'rss' }),
-    config: { feeds: [], limit: 10 },
+    config: { feeds: [], limit: 10, verify_tls: true },
     cardSize: '2x2' as const,
   }
 
@@ -144,20 +150,31 @@ describe('RssWidget', () => {
 describe('RssForm', () => {
   it('adds feeds up to three and sets the item count', () => {
     const onChange = vi.fn()
-    const { rerender } = render(<RssForm config={{ feeds: [''], limit: 10 }} onChange={onChange} />)
+    const { rerender } = render(
+      <RssForm config={{ feeds: [''], limit: 10, verify_tls: true }} onChange={onChange} />
+    )
     expect(screen.queryByLabelText('Remove feed 1')).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Feed 1 URL'), {
       target: { value: 'https://a.test/feed' },
     })
-    expect(onChange).toHaveBeenLastCalledWith({ feeds: ['https://a.test/feed'], limit: 10 })
+    expect(onChange).toHaveBeenLastCalledWith({
+      feeds: ['https://a.test/feed'],
+      limit: 10,
+      verify_tls: true,
+    })
 
     fireEvent.change(screen.getByLabelText('Number of items'), { target: { value: '5' } })
-    expect(onChange).toHaveBeenLastCalledWith({ feeds: [''], limit: 5 })
+    expect(onChange).toHaveBeenLastCalledWith({ feeds: [''], limit: 5, verify_tls: true })
 
-    rerender(<RssForm config={{ feeds: ['a', 'b', 'c'], limit: 10 }} onChange={onChange} />)
+    rerender(
+      <RssForm
+        config={{ feeds: ['a', 'b', 'c'], limit: 10, verify_tls: true }}
+        onChange={onChange}
+      />
+    )
     expect(screen.queryByText('Add feed')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Remove feed 2'))
-    expect(onChange).toHaveBeenLastCalledWith({ feeds: ['a', 'c'], limit: 10 })
+    expect(onChange).toHaveBeenLastCalledWith({ feeds: ['a', 'c'], limit: 10, verify_tls: true })
   })
 })

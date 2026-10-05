@@ -29,6 +29,7 @@ const (
 type rssConfig struct {
 	Feeds []string `json:"feeds"`
 	Limit int      `json:"limit"` // items shown, newest first
+	tlsOption
 }
 
 type rssItem struct {
@@ -67,20 +68,23 @@ func (rss) Validate(config json.RawMessage) (json.RawMessage, error) {
 		return nil, err
 	}
 
+	// Count first: checking a URL looks up its host
 	feeds := []string{}
 	for _, feed := range cfg.Feeds {
-		if feed = strings.TrimSpace(feed); feed == "" {
-			continue
+		if feed = strings.TrimSpace(feed); feed != "" {
+			feeds = append(feeds, feed)
 		}
-		if err := utils.ValidateWebhookURL(feed); err != nil {
-			return nil, fmt.Errorf("invalid feed URL %q: %s", feed, err.Error())
-		}
-		feeds = append(feeds, feed)
 	}
 	if len(feeds) == 0 || len(feeds) > maxRSSFeeds {
 		return nil, fmt.Errorf("add 1 to %d feeds", maxRSSFeeds)
 	}
+	for _, feed := range feeds {
+		if err := utils.ValidateWebhookURL(feed); err != nil {
+			return nil, fmt.Errorf("invalid feed URL %q: %s", feed, err.Error())
+		}
+	}
 	cfg.Feeds = feeds
+	cfg.tlsOption.normalise()
 
 	if cfg.Limit == 0 {
 		cfg.Limit = defaultRSSLimit
@@ -135,7 +139,7 @@ func fetchFeed(ctx context.Context, client *http.Client, feedURL string) ([]rssI
 	if err != nil {
 		return nil, err
 	}
-	if bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n\ufeff"), []byte("{")) {
+	if bytes.HasPrefix(bytes.TrimLeft(body, " \t\r\n"), []byte("{")) {
 		return parseJSONFeed(body, base)
 	}
 	return parseXMLFeed(body, base)
@@ -145,31 +149,72 @@ func fetchFeed(ctx context.Context, client *http.Client, feedURL string) ([]rssI
 type xmlFeed struct {
 	XMLName xml.Name
 	Channel struct {
-		Title string    `xml:"title"`
-		Items []xmlItem `xml:"item"`
+		Titles []xmlText  `xml:"title"`
+		Items  []xmlEntry `xml:"item"`
 	} `xml:"channel"`
 	// RSS 1.0 keeps the items next to the channel
-	Items []xmlItem `xml:"item"`
+	Items []xmlEntry `xml:"item"`
 	// Atom
-	Title   string      `xml:"title"`
-	Entries []atomEntry `xml:"entry"`
+	Titles  []xmlText  `xml:"title"`
+	Entries []xmlEntry `xml:"entry"`
 }
 
-type xmlItem struct {
-	Title   string `xml:"title"`
-	Link    string `xml:"link"`
-	PubDate string `xml:"pubDate"`
-	DCDate  string `xml:"http://purl.org/dc/elements/1.1/ date"`
+// xmlEntry is an RSS item or an Atom entry. The fields are lists because
+// extensions add elements with the same local name, like itunes:title and
+// atom:link, and Go matches those too.
+type xmlEntry struct {
+	Titles    []xmlText `xml:"title"`
+	Links     []xmlLink `xml:"link"`
+	PubDate   string    `xml:"pubDate"`
+	DCDate    string    `xml:"http://purl.org/dc/elements/1.1/ date"`
+	Published string    `xml:"published"`
+	Updated   string    `xml:"updated"`
 }
 
-type atomEntry struct {
-	Title string `xml:"title"`
-	Links []struct {
-		Href string `xml:"href,attr"`
-		Rel  string `xml:"rel,attr"`
-	} `xml:"link"`
-	Published string `xml:"published"`
-	Updated   string `xml:"updated"`
+type xmlText struct {
+	XMLName xml.Name
+	Text    string `xml:",chardata"`
+}
+
+// xmlLink is an RSS link (text) or an Atom link (href)
+type xmlLink struct {
+	XMLName xml.Name
+	Text    string `xml:",chardata"`
+	Href    string `xml:"href,attr"`
+	Rel     string `xml:"rel,attr"`
+}
+
+// Namespaces of the feed formats themselves; RSS 2.0 has none
+var feedNamespaces = map[string]bool{
+	"":                                 true,
+	"http://purl.org/rss/1.0/":         true,
+	"http://www.w3.org/2005/Atom":      true,
+	"http://backend.userland.com/rss2": true,
+}
+
+// title returns the first title of the feed format itself
+func title(titles []xmlText) string {
+	for _, t := range titles {
+		if feedNamespaces[t.XMLName.Space] {
+			return t.Text
+		}
+	}
+	return ""
+}
+
+// link returns an RSS text link, or else an Atom alternate link
+func (e xmlEntry) link() string {
+	for _, l := range e.Links {
+		if feedNamespaces[l.XMLName.Space] && strings.TrimSpace(l.Text) != "" {
+			return l.Text
+		}
+	}
+	for _, l := range e.Links {
+		if l.Href != "" && (l.Rel == "" || l.Rel == "alternate") {
+			return l.Href
+		}
+	}
+	return ""
 }
 
 func parseXMLFeed(body []byte, base *url.URL) ([]rssItem, error) {
@@ -184,27 +229,22 @@ func parseXMLFeed(body []byte, base *url.URL) ([]rssItem, error) {
 		return nil, errors.New("not an RSS, Atom or JSON feed")
 	}
 
-	var items []rssItem
+	var source string
+	var entries []xmlEntry
 	switch feed.XMLName.Local {
 	case "rss", "RDF":
-		source := feedSource(feed.Channel.Title, base)
-		for _, it := range append(feed.Channel.Items, feed.Items...) {
-			items = append(items, newRSSItem(it.Title, resolveLink(base, it.Link), firstNonEmpty(it.PubDate, it.DCDate), source))
-		}
+		source, entries = title(feed.Channel.Titles), append(feed.Channel.Items, feed.Items...)
 	case "feed":
-		source := feedSource(feed.Title, base)
-		for _, entry := range feed.Entries {
-			link := ""
-			for _, l := range entry.Links {
-				if l.Rel == "" || l.Rel == "alternate" {
-					link = l.Href
-					break
-				}
-			}
-			items = append(items, newRSSItem(entry.Title, resolveLink(base, link), firstNonEmpty(entry.Published, entry.Updated), source))
-		}
+		source, entries = title(feed.Titles), feed.Entries
 	default:
 		return nil, errors.New("not an RSS, Atom or JSON feed")
+	}
+
+	source = feedSource(source, base)
+	items := make([]rssItem, 0, len(entries))
+	for _, e := range entries {
+		date := firstNonEmpty(e.PubDate, e.DCDate, e.Published, e.Updated)
+		items = append(items, newRSSItem(title(e.Titles), resolveLink(base, e.link()), date, source))
 	}
 	return items, nil
 }
@@ -248,20 +288,31 @@ func newRSSItem(title, link, date, source string) rssItem {
 	return item
 }
 
-// feedDateLayouts are the date formats seen in feeds: RFC 822 variants for
-// RSS and RFC 3339 for Atom and JSON Feed
-var feedDateLayouts = []string{
-	time.RFC1123Z,
-	time.RFC1123,
-	"Mon, 2 Jan 2006 15:04:05 -0700",
-	"Mon, 2 Jan 2006 15:04:05 MST",
-	"2 Jan 2006 15:04:05 -0700",
-	time.RFC3339,
+// rfc822Zones are the named zones RFC 822 allows, plus the European ones
+// that feeds use. time.Parse would read an unknown name as UTC.
+var rfc822Zones = map[string]string{
+	"UT": "+0000", "UTC": "+0000", "GMT": "+0000", "Z": "+0000",
+	"EST": "-0500", "EDT": "-0400", "CST": "-0600", "CDT": "-0500",
+	"MST": "-0700", "MDT": "-0600", "PST": "-0800", "PDT": "-0700",
+	"CET": "+0100", "CEST": "+0200",
 }
 
+// parseFeedDate reads RFC 3339 (Atom, JSON Feed) and RFC 822 (RSS) dates.
+// RFC 822 dates may leave out the weekday and the seconds.
 func parseFeedDate(s string) (time.Time, bool) {
 	s = strings.TrimSpace(s)
-	for _, layout := range feedDateLayouts {
+	if t, err := time.Parse(time.RFC3339, s); err == nil {
+		return t, true
+	}
+	if _, rest, ok := strings.Cut(s, ", "); ok {
+		s = rest
+	}
+	if i := strings.LastIndexByte(s, ' '); i > 0 {
+		if offset, ok := rfc822Zones[strings.ToUpper(s[i+1:])]; ok {
+			s = s[:i+1] + offset
+		}
+	}
+	for _, layout := range []string{"2 Jan 2006 15:04:05 -0700", "2 Jan 2006 15:04 -0700", "2 Jan 06 15:04:05 -0700"} {
 		if t, err := time.Parse(layout, s); err == nil {
 			return t, true
 		}
@@ -280,6 +331,8 @@ func resolveLink(base *url.URL, link string) string {
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return ""
 	}
+	// A relative link would copy credentials in the feed URL
+	u.User = nil
 	return u.String()
 }
 

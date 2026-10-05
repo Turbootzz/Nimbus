@@ -24,7 +24,7 @@ func (h *WidgetHandler) ListTypes(c *fiber.Ctx) error {
 	if _, err := RequireUserID(c); err != nil {
 		return err
 	}
-	return c.JSON(h.service.Types())
+	return c.JSON(h.service.Types(IsAdmin(c)))
 }
 
 // ListWidgets returns the user's widgets in grid order
@@ -63,7 +63,7 @@ func (h *WidgetHandler) CreateWidget(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	widget, err := h.service.Create(c.Context(), userID, &req)
+	widget, err := h.service.Create(c.Context(), userID, IsAdmin(c), &req)
 	if err != nil {
 		return serviceError(c, err, "create widget", widgetNotFound)
 	}
@@ -80,7 +80,7 @@ func (h *WidgetHandler) UpdateWidget(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	widget, err := h.service.Update(c.Context(), c.Params("id"), userID, &req)
+	widget, err := h.service.Update(c.Context(), c.Params("id"), userID, IsAdmin(c), &req)
 	if err != nil {
 		return serviceError(c, err, "update widget", widgetNotFound)
 	}

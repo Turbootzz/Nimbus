@@ -182,6 +182,7 @@ export interface WidgetTypeMeta {
   static: boolean
   integration_kinds?: string[]
   min_refresh_seconds?: number
+  admin_only?: boolean // only listed for admins
 }
 
 export interface WidgetCreateRequest {
@@ -257,7 +258,7 @@ export interface WeatherPayload {
 
 export interface CustomApiHeader {
   name: string
-  value: string // stored with the widget, not encrypted
+  value: string // never returned: a saved value comes back as ********
 }
 
 export interface CustomApiField {
@@ -266,16 +267,23 @@ export interface CustomApiField {
   unit: string
 }
 
-// Its snapshot payload is an IntegrationPayload keyed by field index
 export interface CustomApiWidgetConfig {
   url: string
   headers: CustomApiHeader[]
   fields: CustomApiField[]
+  verify_tls: boolean
+}
+
+// Values keyed by field label
+export interface CustomApiPayload {
+  kpis: Record<string, number | string | boolean | null>
+  missing?: string[] // labels whose path found nothing
 }
 
 export interface RssWidgetConfig {
   feeds: string[]
   limit: number // items shown, newest first
+  verify_tls: boolean
 }
 
 export interface RssItem {

@@ -3,6 +3,7 @@
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import type { CustomApiField, CustomApiHeader, CustomApiWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
+import { Toggle } from '@/components/ui/Toggle'
 import {
   addRowClass,
   inputClass,
@@ -45,6 +46,15 @@ export default function CustomApiForm({
           The Nimbus server fetches this URL; it must return JSON.
         </p>
       </div>
+
+      <Toggle
+        id="custom-api-verify-tls"
+        enabled={config.verify_tls}
+        onChange={(verify_tls) => onChange({ ...config, verify_tls })}
+        label="Verify TLS certificate"
+        description="Turn off for apps with a self-signed certificate"
+        disabled={disabled}
+      />
 
       <div>
         <span className={labelClass}>Values</span>
@@ -153,8 +163,8 @@ export default function CustomApiForm({
           </button>
         )}
         <p className="text-text-muted mt-1 text-xs">
-          Header values are saved with the widget and are not encrypted. For apps Nimbus supports,
-          use an integration instead.
+          Saved values show as ******** and are kept as long as you leave them. They are stored with
+          the widget, not encrypted; for apps Nimbus supports, use an integration instead.
         </p>
       </div>
     </div>
