@@ -32,8 +32,10 @@ export default function SystemStatsWidget({
   const stats = snapshot?.payload as SystemStatsPayload | null | undefined
   if (!stats) return null // WidgetCard shows loading and errors
 
-  // A 1x1 tile only has room for the percentages
+  // A 1x1 tile only has room for the percentages; a 2x1 tile is one row
+  // high, so its bars go side by side with the numbers below them
   const small = cardSize === '1x1'
+  const wide = cardSize === '2x1'
   const bars = [
     { label: 'CPU', percent: stats.cpu_percent, detail: `${Math.round(stats.cpu_percent)}%` },
     {
@@ -50,31 +52,41 @@ export default function SystemStatsWidget({
 
   return (
     <div className={`flex h-full flex-col justify-center ${small ? 'gap-1.5' : 'gap-2'}`}>
-      {bars.map((bar) => (
-        <div key={bar.label}>
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-text-muted text-[10px] font-semibold tracking-wide uppercase">
-              {bar.label}
-            </span>
+      <div
+        className={wide ? 'grid grid-cols-3 gap-3' : `flex flex-col ${small ? 'gap-1.5' : 'gap-2'}`}
+      >
+        {bars.map((bar) => {
+          const detail = (
             <span className="text-text-secondary truncate text-xs tabular-nums">
               {small ? `${Math.round(bar.percent)}%` : bar.detail}
             </span>
-          </div>
-          <div
-            className="bg-background mt-1 h-1.5 overflow-hidden rounded-full"
-            role="meter"
-            aria-label={bar.label}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(bar.percent)}
-          >
-            <div
-              className={`h-full rounded-full ${barColor(bar.percent)}`}
-              style={{ width: `${Math.min(bar.percent, 100)}%` }}
-            />
-          </div>
-        </div>
-      ))}
+          )
+          return (
+            <div key={bar.label} className="min-w-0">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="text-text-muted text-[10px] font-semibold tracking-wide uppercase">
+                  {bar.label}
+                </span>
+                {!wide && detail}
+              </div>
+              <div
+                className="bg-background mt-1 h-1.5 overflow-hidden rounded-full"
+                role="meter"
+                aria-label={bar.label}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(bar.percent)}
+              >
+                <div
+                  className={`h-full rounded-full ${barColor(bar.percent)}`}
+                  style={{ width: `${Math.min(bar.percent, 100)}%` }}
+                />
+              </div>
+              {wide && <p className="mt-1 truncate">{detail}</p>}
+            </div>
+          )
+        })}
+      </div>
       {!small && <p className="text-text-muted text-xs">Up {formatUptime(stats.uptime_seconds)}</p>}
     </div>
   )

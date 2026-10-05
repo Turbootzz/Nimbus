@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -15,6 +17,34 @@ import (
 )
 
 const maxDiskPathRunes = 200
+
+// cpuSample is one CPU reading shared by all system stats widgets. A
+// reading covers the time since the previous one, so two fetches right
+// after each other would give the second one a few milliseconds (and 0%).
+var cpuSample struct {
+	sync.Mutex
+	at      time.Time
+	percent float64
+}
+
+// cpuPercent returns CPU use since the previous reading, reusing a reading
+// younger than five seconds. It never waits for a sample.
+func cpuPercent(ctx context.Context) (float64, error) {
+	cpuSample.Lock()
+	defer cpuSample.Unlock()
+	if time.Since(cpuSample.at) < 5*time.Second {
+		return cpuSample.percent, nil
+	}
+	percent, err := cpu.PercentWithContext(ctx, 0, false)
+	if err != nil {
+		return 0, fmt.Errorf("could not read CPU use: %w", err)
+	}
+	if len(percent) == 0 {
+		return 0, errors.New("could not read CPU use")
+	}
+	cpuSample.at, cpuSample.percent = time.Now(), percent[0]
+	return percent[0], nil
+}
 
 type systemStatsConfig struct {
 	// DiskPath is the mount whose usage is shown
@@ -73,13 +103,9 @@ func (systemStats) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		return nil, errors.New("widget has no disk path")
 	}
 
-	// CPU use since the previous call, so a fetch never waits for a sample
-	cpuPercent, err := cpu.PercentWithContext(ctx, 0, false)
+	cpuUse, err := cpuPercent(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("could not read CPU use: %w", err)
-	}
-	if len(cpuPercent) == 0 {
-		return nil, errors.New("could not read CPU use")
+		return nil, err
 	}
 	memory, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {
@@ -95,7 +121,7 @@ func (systemStats) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	}
 
 	return systemStatsPayload{
-		CPUPercent:    oneDecimal(cpuPercent[0]),
+		CPUPercent:    oneDecimal(cpuUse),
 		MemoryPercent: oneDecimal(memory.UsedPercent),
 		MemoryUsed:    memory.Used,
 		MemoryTotal:   memory.Total,

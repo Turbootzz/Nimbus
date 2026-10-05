@@ -29,6 +29,11 @@ func TestSystemStatsFetch(t *testing.T) {
 	assert.Positive(t, stats.DiskTotal)
 	assert.Positive(t, stats.UptimeSeconds)
 
+	// A second widget right after gets the same reading, not ~0%
+	again, err := w.(Fetcher).Fetch(context.Background(), &FetchRequest{Config: json.RawMessage(`{"disk_path":"/"}`)})
+	require.NoError(t, err)
+	assert.Equal(t, stats.CPUPercent, again.(systemStatsPayload).CPUPercent)
+
 	_, err = w.(Fetcher).Fetch(context.Background(), &FetchRequest{Config: json.RawMessage(`{"disk_path":"/does/not/exist"}`)})
 	assert.EqualError(t, err, "could not read disk use of /does/not/exist")
 }
