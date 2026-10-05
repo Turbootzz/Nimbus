@@ -10,7 +10,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -30,15 +29,9 @@ const (
 	defaultRefreshSeconds      = 60
 	maxIntegrationOptionsBytes = 16 * 1024
 	unixScheme                 = "unix://"
-	// socketBaseURL is what requests over a unix socket are sent to
+	// socketBaseURL is what requests over the Docker socket are sent to
 	socketBaseURL = "http://docker"
 )
-
-// allowedSocket is the unix socket the server lets integrations use;
-// empty means none
-func allowedSocket() string {
-	return strings.TrimSpace(os.Getenv("DOCKER_SOCKET"))
-}
 
 // IntegrationService handles integration CRUD, credential encryption and
 // connection tests. Decrypted credentials never leave this service.
@@ -47,13 +40,17 @@ type IntegrationService struct {
 	cipher  *utils.Cipher
 	timeout time.Duration
 	poller  Poller
+	// dockerSocket is the socket DOCKER_SOCKET allows; empty means none
+	dockerSocket string
 	// states keeps each integration's session data (e.g. a login sid)
 	// between polls, keyed by integration ID
 	states sync.Map
 }
 
-func NewIntegrationService(repo repository.IntegrationRepositoryInterface, cipher *utils.Cipher) *IntegrationService {
-	return &IntegrationService{repo: repo, cipher: cipher, timeout: integrationTestTimeout}
+// NewIntegrationService builds the service. dockerSocket is the unix socket
+// kinds like Docker may use (DOCKER_SOCKET); empty allows none.
+func NewIntegrationService(repo repository.IntegrationRepositoryInterface, cipher *utils.Cipher, dockerSocket string) *IntegrationService {
+	return &IntegrationService{repo: repo, cipher: cipher, timeout: integrationTestTimeout, dockerSocket: dockerSocket}
 }
 
 // Kinds lists the integration kinds the user can set up
@@ -270,7 +267,7 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 	}
 
 	if rawURL := strings.TrimSpace(req.BaseURL); rawURL != "" {
-		baseURL, err := normalizeBaseURL(rawURL, meta)
+		baseURL, err := normalizeBaseURL(rawURL, meta, s.dockerSocket)
 		if err != nil {
 			return nil, err
 		}
@@ -332,12 +329,11 @@ func connectionChanged(before, after *models.Integration) bool {
 // normalizeBaseURL validates a base URL and strips the trailing slash.
 // Credentials, queries and fragments are rejected so no secret is ever
 // stored in plain text or echoed back in responses. Kinds that support it
-// may use the unix socket the server allows.
-func normalizeBaseURL(rawURL string, meta integrations.Meta) (string, error) {
+// may use the Docker socket the server allows.
+func normalizeBaseURL(rawURL string, meta integrations.Meta, allowed string) (string, error) {
 	if path, isSocket := strings.CutPrefix(rawURL, unixScheme); isSocket {
-		allowed := allowedSocket()
 		switch {
-		case !meta.UnixSocket:
+		case !meta.DockerSocket:
 			return "", invalid("%s can't use a unix socket", meta.Name)
 		case allowed == "":
 			return "", invalid("Set DOCKER_SOCKET=%s on the Nimbus server to use this socket", path)
@@ -444,14 +440,17 @@ func (s *IntegrationService) runTest(ctx context.Context, impl integrations.Inte
 	return result
 }
 
-// newConn connects over the SSRF-safe client, or over the unix socket the
-// server allows. A socket that DOCKER_SOCKET no longer names is refused.
+// newConn connects over the SSRF-safe client, or over the Docker socket
+// the server allows. A socket that DOCKER_SOCKET no longer names is refused.
 func (s *IntegrationService) newConn(integration *models.Integration, creds models.IntegrationCredentials, state *integrations.State) (*integrations.Conn, error) {
 	baseURL := integration.BaseURL
 	var client *http.Client
 	if path, isSocket := strings.CutPrefix(baseURL, unixScheme); isSocket {
-		if path != allowedSocket() {
-			return nil, errors.New("the Nimbus server does not allow this socket; set DOCKER_SOCKET")
+		switch {
+		case s.dockerSocket == "":
+			return nil, errors.New("the Nimbus server allows no socket; set DOCKER_SOCKET")
+		case path != s.dockerSocket:
+			return nil, fmt.Errorf("DOCKER_SOCKET now names another socket; change the URL to %s%s", unixScheme, s.dockerSocket)
 		}
 		baseURL, client = socketBaseURL, utils.NewUnixSocketClient(path, s.timeout)
 	} else {

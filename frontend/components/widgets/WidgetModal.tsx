@@ -33,8 +33,11 @@ interface IntegrationFieldProps {
 
 // Picks one of the user's integrations of the kinds a widget type uses
 function IntegrationField({ wanted, value, onChange, disabled }: IntegrationFieldProps) {
-  const { integrations, kinds, isLoading } = useIntegrations()
+  const { integrations, kinds, isLoading, error } = useIntegrations()
   const names = wanted.map((kind) => kindName(kinds, kind)).join(' or ')
+  if (error) {
+    return <p className="text-error text-sm">Could not load your integrations: {error}</p>
+  }
   return (
     <IntegrationSelector
       value={value}

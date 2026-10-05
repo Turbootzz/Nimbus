@@ -161,7 +161,7 @@ func newTestIntegrationService(t *testing.T) (*IntegrationService, *fakeIntegrat
 	cipher, err := utils.NewCipher(bytes.Repeat([]byte{9}, 32))
 	require.NoError(t, err)
 	repo := newFakeIntegrationRepo()
-	return NewIntegrationService(repo, cipher), repo
+	return NewIntegrationService(repo, cipher, ""), repo
 }
 
 // pingServer accepts /ping only with the right API key
@@ -506,15 +506,14 @@ func TestIntegrationService_AdminOnlyKind(t *testing.T) {
 	assert.ErrorContains(t, err, "Only admins")
 }
 
-func TestIntegrationService_UnixSocket(t *testing.T) {
+func TestIntegrationService_DockerSocket(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	ctx := context.Background()
 
-	t.Setenv("DOCKER_SOCKET", "")
 	_, err := svc.Create(ctx, "user-1", true, dockerRequest("unix:///var/run/docker.sock"))
 	assert.ErrorContains(t, err, "Set DOCKER_SOCKET=/var/run/docker.sock")
 
-	t.Setenv("DOCKER_SOCKET", "/var/run/docker.sock")
+	svc.dockerSocket = "/var/run/docker.sock"
 	_, err = svc.Create(ctx, "user-1", true, dockerRequest("unix:///etc/other.sock"))
 	assert.ErrorContains(t, err, "Only the socket in DOCKER_SOCKET can be used: unix:///var/run/docker.sock")
 	_, err = svc.Create(ctx, "user-1", true, &models.IntegrationRequest{Kind: "svc-fake", Name: "F", BaseURL: "unix:///var/run/docker.sock", AuthType: models.IntegrationAuthNone})
@@ -527,8 +526,11 @@ func TestIntegrationService_UnixSocket(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, socketBaseURL, conn.BaseURL)
 
-	// Unset later: the stored socket is no longer used
-	t.Setenv("DOCKER_SOCKET", "")
+	// Changed or unset later: the stored socket is no longer used
+	svc.dockerSocket = "/run/docker.sock"
 	_, err = svc.Conn(ctx, created)
-	assert.ErrorContains(t, err, "does not allow this socket")
+	assert.ErrorContains(t, err, "change the URL to unix:///run/docker.sock")
+	svc.dockerSocket = ""
+	_, err = svc.Conn(ctx, created)
+	assert.ErrorContains(t, err, "allows no socket")
 }

@@ -9,7 +9,7 @@ Add integrations under **Settings, Integrations**, then pick one under **Live nu
 | App | Numbers on the tile | Sign in with | Notes |
 |---|---|---|---|
 | AdGuard Home | queries, blocked, blocked %, latency | username and password | |
-| Docker | running, stopped, total containers | none | Admins only. The URL is `unix:///var/run/docker.sock` (needs `DOCKER_SOCKET`, see [CONFIGURATION.md](CONFIGURATION.md#docker-and-host-stats)) or a socket proxy like `http://docker-socket-proxy:2375`. Also feeds the Docker containers widget. |
+| Docker | running, stopped, total containers | none | Admins only. The URL is `unix:///var/run/docker.sock` (needs `DOCKER_SOCKET`, see [CONFIGURATION.md](CONFIGURATION.md#docker-socket)) or a socket proxy like `http://docker-socket-proxy:2375`. Also feeds the Docker containers widget. |
 | Home Assistant | people home, lights on, switches on | long-lived access token | Create the token on your Home Assistant profile page. |
 | Jellyfin | movies, series, episodes, streams | API key | Dashboard, API Keys. |
 | Pi-hole | queries, blocked, blocked %, blocklist size | app password, or none | Pi-hole v6 only. v5 used a different API. |

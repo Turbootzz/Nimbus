@@ -38,9 +38,9 @@ type Meta struct {
 	// AdminOnly kinds can only be set up by admins, e.g. because they
 	// expose the host
 	AdminOnly bool `json:"admin_only,omitempty"`
-	// UnixSocket kinds also take unix:///path as the URL, for the socket
-	// the server allows in DOCKER_SOCKET
-	UnixSocket bool `json:"unix_socket,omitempty"`
+	// DockerSocket kinds also take unix:///path as the URL, for the
+	// socket the server allows in DOCKER_SOCKET
+	DockerSocket bool `json:"docker_socket,omitempty"`
 }
 
 // KPI describes one value a kind can show on a service tile.

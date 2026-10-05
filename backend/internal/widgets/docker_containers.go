@@ -33,6 +33,8 @@ func (dockerContainers) Meta() Meta {
 		AllowedSizes:          allSizes,
 		IntegrationKinds:      []string{"docker"},
 		DefaultRefreshSeconds: 60,
+		// The Docker integration it needs is admin only
+		AdminOnly: true,
 	}
 }
 
@@ -61,10 +63,10 @@ func (dockerContainers) Fetch(ctx context.Context, req *FetchRequest) (any, erro
 	for _, c := range containers {
 		if c.State == "running" {
 			payload.Running++
-		} else if cfg.HideStopped {
-			continue
 		}
-		payload.Containers = append(payload.Containers, c)
+		if !(cfg.HideStopped && c.Stopped()) {
+			payload.Containers = append(payload.Containers, c)
+		}
 	}
 	return payload, nil
 }

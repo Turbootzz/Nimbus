@@ -51,6 +51,7 @@ export const backendTypes: WidgetTypeMeta[] = [
     static: false,
     integration_kinds: ['docker'],
     default_refresh_seconds: 60,
+    admin_only: true,
   },
   {
     type: 'iframe',
@@ -85,6 +86,7 @@ export const backendTypes: WidgetTypeMeta[] = [
     allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
     static: false,
     default_refresh_seconds: 30,
+    admin_only: true,
   },
   {
     type: 'weather',

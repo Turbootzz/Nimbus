@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"path/filepath"
-	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
@@ -33,9 +32,9 @@ type systemStatsPayload struct {
 	UptimeSeconds uint64  `json:"uptime_seconds"`
 }
 
-// systemStats shows the machine Nimbus runs on. Inside a container that is
-// the container's view unless the host's /proc is mounted and HOST_PROC
-// points at it (gopsutil reads HOST_PROC, HOST_SYS and HOST_ROOT).
+// systemStats shows the machine Nimbus runs on. Docker doesn't isolate CPU,
+// memory and uptime in /proc, so in a container those are the host's; the
+// disk is whatever the path is on. Admin only: it reads any path given.
 type systemStats struct{}
 
 func init() { Register(systemStats{}) }
@@ -49,6 +48,7 @@ func (systemStats) Meta() Meta {
 		DefaultSize:           "2x1",
 		AllowedSizes:          allSizes,
 		DefaultRefreshSeconds: 30,
+		AdminOnly:             true,
 	}
 }
 
@@ -73,10 +73,13 @@ func (systemStats) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		return nil, errors.New("widget has no disk path")
 	}
 
-	// CPU use is measured over one second
-	cpuPercent, err := cpu.PercentWithContext(ctx, time.Second, false)
-	if err != nil || len(cpuPercent) == 0 {
-		return nil, fmt.Errorf("could not read CPU use: %v", err)
+	// CPU use since the previous call, so a fetch never waits for a sample
+	cpuPercent, err := cpu.PercentWithContext(ctx, 0, false)
+	if err != nil {
+		return nil, fmt.Errorf("could not read CPU use: %w", err)
+	}
+	if len(cpuPercent) == 0 {
+		return nil, errors.New("could not read CPU use")
 	}
 	memory, err := mem.VirtualMemoryWithContext(ctx)
 	if err != nil {

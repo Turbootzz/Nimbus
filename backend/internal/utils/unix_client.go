@@ -33,6 +33,10 @@ type readOnlyTransport struct {
 
 func (t readOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+		// A RoundTripper must close the body, also when it refuses
+		if req.Body != nil {
+			_ = req.Body.Close()
+		}
 		return nil, fmt.Errorf("%s requests are not allowed on the socket", req.Method)
 	}
 	return t.next.RoundTrip(req)

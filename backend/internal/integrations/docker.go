@@ -30,9 +30,9 @@ func (docker) Meta() Meta {
 			{Key: "stopped", Label: "Stopped"},
 			{Key: "total", Label: "Total"},
 		},
-		URLHint:    "unix:///var/run/docker.sock",
-		AdminOnly:  true,
-		UnixSocket: true,
+		URLHint:      "unix:///var/run/docker.sock",
+		AdminOnly:    true,
+		DockerSocket: true,
 	}
 }
 
@@ -42,6 +42,12 @@ type DockerContainer struct {
 	Image  string `json:"image"`
 	State  string `json:"state"`  // running, exited, paused, ...
 	Status string `json:"status"` // e.g. "Up 3 days"
+}
+
+// Stopped reports whether the container is not running and not about to:
+// paused and restarting containers are neither running nor stopped
+func (c DockerContainer) Stopped() bool {
+	return c.State == "exited" || c.State == "created" || c.State == "dead"
 }
 
 // DockerContainers lists all containers: running ones first, then by name
@@ -70,7 +76,7 @@ func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error
 		return 1
 	}
 	slices.SortFunc(containers, func(a, b DockerContainer) int {
-		return cmp.Or(cmp.Compare(notRunning(a), notRunning(b)), strings.Compare(a.Name, b.Name))
+		return cmp.Or(cmp.Compare(notRunning(a), notRunning(b)), strings.Compare(strings.ToLower(a.Name), strings.ToLower(b.Name)))
 	})
 	return containers, nil
 }
@@ -91,15 +97,18 @@ func (docker) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	running := 0
+	running, stopped := 0, 0
 	for _, c := range containers {
-		if c.State == "running" {
+		switch {
+		case c.State == "running":
 			running++
+		case c.Stopped():
+			stopped++
 		}
 	}
 	return &Payload{KPIs: map[string]any{
 		"running": running,
-		"stopped": len(containers) - running,
+		"stopped": stopped,
 		"total":   len(containers),
 	}}, nil
 }

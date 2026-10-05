@@ -109,7 +109,7 @@ export interface IntegrationKindMeta {
   kpis?: Kpi[]
   url_hint?: string // example URL for the form
   admin_only?: boolean // only listed for admins
-  unix_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
+  docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
 }
 
 // Never contains credentials, only whether they are set

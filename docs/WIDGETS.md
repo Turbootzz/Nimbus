@@ -15,8 +15,8 @@ Static widgets (clock, note, bookmarks, embed) render in your browser. The other
 | Weather | Current weather and a forecast from [Open-Meteo](https://open-meteo.com) (no key needed) | 1x1, 2x1, 2x2 | server, at most every 10 minutes |
 | RSS | The latest items from up to three feeds | all | server, at most every 5 minutes |
 | Custom API | Up to four values from any JSON API (admins only) | 1x1, 2x1, 2x2 | server |
-| System stats | CPU, memory and disk use and uptime of the Nimbus server | all | server, every 30 seconds by default |
-| Docker containers | The containers of a [Docker integration](INTEGRATIONS.md) and their state | all | server, every minute by default |
+| System stats | CPU, memory and disk use and uptime of the Nimbus server (admins only) | all | server, every 30 seconds by default |
+| Docker containers | The containers of a [Docker integration](INTEGRATIONS.md) and their state (admins only) | all | server, every minute by default |
 
 ## RSS
 
@@ -42,11 +42,11 @@ Headers are optional, for example `X-Api-Key` for apps that want a key, or `Acce
 
 ## System stats
 
-Shows the machine Nimbus runs on. Pick the disk by giving a path on it (`/` by default). Inside Docker, CPU, memory and uptime are the container's view. To see the host, mount its `/proc` read-only and set `HOST_PROC` (see [CONFIGURATION.md](CONFIGURATION.md#docker-and-host-stats)); for a host disk, mount it into the container and give that path.
+Shows the machine Nimbus runs on. Pick the disk by giving a path on it (`/` by default). Docker doesn't isolate CPU, memory and uptime, so inside a container those are the host's numbers; for a host disk, mount it into the container and give that path. CPU use is measured between two refreshes. Only admins can add it, since it reads any path on the server.
 
 ## Docker containers
 
-Lists the containers of a Docker integration: running ones first, then by name, with their status on wide tiles. Turn on **Hide stopped containers** to list only running ones; the count above the list still includes the rest.
+Lists the containers of a Docker integration: running ones first, then by name, with their status on wide tiles. Turn on **Hide stopped containers** to leave out exited and created ones; paused and restarting containers stay, and the count above the list still includes all of them.
 
 ## URLs the server fetches
 

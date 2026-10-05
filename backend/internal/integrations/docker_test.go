@@ -18,7 +18,7 @@ import (
 )
 
 const dockerContainersFixture = `[
-	{"Id":"1","Names":["/web"],"Image":"nginx:1.27","State":"running","Status":"Up 3 days"},
+	{"Id":"1","Names":["/Web"],"Image":"nginx:1.27","State":"running","Status":"Up 3 days"},
 	{"Id":"2","Names":["/backup"],"Image":"restic","State":"exited","Status":"Exited (0) 2 hours ago"},
 	{"Id":"3","Names":["/db"],"Image":"postgres:18","State":"running","Status":"Up 3 days (healthy)"},
 	{"Id":"4","Names":[],"Image":"busybox","State":"paused","Status":"Up 1 hour (Paused)"}
@@ -56,16 +56,17 @@ func TestDockerOverHTTP(t *testing.T) {
 	require.NoError(t, impl.Test(ctx, conn))
 	payload, err := impl.Fetch(ctx, conn)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{"running": 2, "stopped": 2, "total": 4}, payload.KPIs)
+	// Paused is neither running nor stopped
+	assert.Equal(t, map[string]any{"running": 2, "stopped": 1, "total": 4}, payload.KPIs)
 
 	containers, err := DockerContainers(ctx, conn)
 	require.NoError(t, err)
 	assert.Equal(t, []DockerContainer{
 		{Name: "db", Image: "postgres:18", State: "running", Status: "Up 3 days (healthy)"},
-		{Name: "web", Image: "nginx:1.27", State: "running", Status: "Up 3 days"},
+		{Name: "Web", Image: "nginx:1.27", State: "running", Status: "Up 3 days"},
 		{Name: "", Image: "busybox", State: "paused", Status: "Up 1 hour (Paused)"},
 		{Name: "backup", Image: "restic", State: "exited", Status: "Exited (0) 2 hours ago"},
-	}, containers, "running first, then by name")
+	}, containers, "running first, then by name, ignoring case")
 }
 
 func TestDockerOverUnixSocket(t *testing.T) {

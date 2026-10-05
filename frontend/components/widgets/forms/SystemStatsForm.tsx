@@ -24,8 +24,8 @@ export default function SystemStatsForm({
         disabled={disabled}
       />
       <p className="text-text-muted mt-1 text-xs">
-        A path on the Nimbus server; the tile shows the use of the disk it is on. In Docker, the
-        numbers are the container&apos;s unless the host&apos;s /proc is mounted (see the docs).
+        A path on the Nimbus server; the tile shows the use of the disk it is on. In Docker, mount a
+        host disk into the container to see it.
       </p>
     </div>
   )
