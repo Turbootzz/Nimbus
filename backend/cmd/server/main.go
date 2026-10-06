@@ -150,11 +150,13 @@ func main() {
 	healthCheckService.SetStatusPublisher(liveDataService)
 
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
+	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo, preferencesRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService, integrationRepo)
 	serviceHandler.SetPoller(widgetPoller)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
+	// Wallpapers of users deleted by an admin, or left by a crash
+	go handlers.PruneWallpapers(context.Background(), preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
 	uploadHandler := handlers.NewUploadHandler(userRepo)
@@ -171,7 +173,8 @@ func main() {
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
-		AppName: "Nimbus API",
+		AppName:   "Nimbus API",
+		BodyLimit: handlers.MaxRequestBodySize,
 	})
 
 	// Middleware
@@ -268,6 +271,7 @@ func main() {
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
 	v1.Get("/uploads/service-icons/:filename", staticHandler.ServeServiceIcon)
 	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
+	v1.Get("/uploads/wallpapers/:filename", staticHandler.ServeWallpaper)
 
 	// Upload routes (protected)
 	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
@@ -276,6 +280,7 @@ func main() {
 	// User avatar route (protected)
 	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	users.Put("/avatar", uploadHandler.UploadAvatar)
+	users.Put("/wallpaper", preferencesHandler.UploadWallpaper)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))

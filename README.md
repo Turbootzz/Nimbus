@@ -46,7 +46,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 <td width="50%">
 
 **🎨 Personalization**
-- Custom backgrounds per user
+- Custom wallpapers per user (upload or URL) with blur, dim and glass cards
 - Light/dark mode toggle
 - Accent color themes
 - Drag & drop service tiles

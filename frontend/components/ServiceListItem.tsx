@@ -34,7 +34,7 @@ export default function ServiceListItem({
 
   // Compact styling for list view
   const baseClasses =
-    'bg-card border-card-border flex items-center gap-2 sm:gap-3 rounded-lg border p-2 sm:p-3 transition-all'
+    'glass-card border-card-border flex items-center gap-2 sm:gap-3 rounded-lg border p-2 sm:p-3 transition-all'
   const hoverClasses = isEditMode ? '' : 'hover:border-primary hover:shadow-md'
   const editClasses = isEditMode ? 'border-dashed border-2 cursor-pointer' : ''
   const dragClasses = isDragging ? 'ring-2 ring-primary' : ''

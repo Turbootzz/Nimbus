@@ -450,6 +450,10 @@ export interface UserPreferences {
   enable_service_grouping: boolean
   card_scale: CardScale
   view_mode: ViewMode
+  wallpaper_blur: number // px, 0-20
+  wallpaper_dim: number // %, 0-80
+  card_opacity: number // %, 0-100
+  card_blur: number // px, 0-40
   updated_at?: string
 }
 
@@ -462,6 +466,10 @@ export interface PreferencesUpdateRequest {
   enable_service_grouping?: boolean
   card_scale?: CardScale
   view_mode?: ViewMode
+  wallpaper_blur?: number
+  wallpaper_dim?: number
+  card_opacity?: number
+  card_blur?: number
 }
 
 // API response types

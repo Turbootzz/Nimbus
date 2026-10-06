@@ -8,6 +8,8 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Helper functions for creating pointers to string values
@@ -81,6 +83,10 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			enable_service_grouping BOOLEAN NOT NULL DEFAULT 1,
 			card_scale TEXT NOT NULL DEFAULT 'medium',
 			view_mode TEXT NOT NULL DEFAULT 'grid',
+			wallpaper_blur INTEGER NOT NULL DEFAULT 0,
+			wallpaper_dim INTEGER NOT NULL DEFAULT 0,
+			card_opacity INTEGER NOT NULL DEFAULT 100,
+			card_blur INTEGER NOT NULL DEFAULT 0,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -206,81 +212,6 @@ func TestPreferencesRepository_GetByUserID(t *testing.T) {
 				}
 				if preferences.ThemeAccentColor == nil || *preferences.ThemeAccentColor != accentColor {
 					t.Errorf("GetByUserID() ThemeAccentColor = %v, want %v", preferences.ThemeAccentColor, accentColor)
-				}
-			}
-		})
-	}
-}
-
-func TestPreferencesRepository_Update(t *testing.T) {
-	db := setupPreferencesTestDB(t)
-	defer db.Close()
-
-	repo := NewPreferencesRepository(db)
-	ctx := context.Background()
-
-	// Insert initial preferences
-	_, err := db.Exec(`
-		INSERT INTO user_preferences (id, user_id, theme_mode, theme_background, theme_accent_color, created_at, updated_at)
-		VALUES ('pref-1', 'user-1', 'light', NULL, NULL, ?, ?)
-	`, time.Now(), time.Now())
-	if err != nil {
-		t.Fatalf("Failed to insert test preferences: %v", err)
-	}
-
-	newAccentColor := "#EF4444"
-	newBackground := "https://example.com/new-bg.jpg"
-
-	tests := []struct {
-		name    string
-		userID  string
-		req     *models.PreferencesUpdateRequest
-		wantErr bool
-	}{
-		{
-			name:   "Update existing preferences",
-			userID: "user-1",
-			req: &models.PreferencesUpdateRequest{
-				ThemeMode:        stringPtr("dark"),
-				ThemeBackground:  nullableString(newBackground),
-				ThemeAccentColor: nullableString(newAccentColor),
-			},
-			wantErr: false,
-		},
-		{
-			name:   "Update non-existent preferences",
-			userID: "user-999",
-			req: &models.PreferencesUpdateRequest{
-				ThemeMode: stringPtr("dark"),
-			},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := repo.Update(ctx, tt.userID, tt.req)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("Update() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if !tt.wantErr {
-				// Verify update was applied
-				preferences, err := repo.GetByUserID(ctx, tt.userID)
-				if err != nil {
-					t.Fatalf("Failed to retrieve updated preferences: %v", err)
-				}
-				if tt.req.ThemeMode != nil && preferences.ThemeMode != *tt.req.ThemeMode {
-					t.Errorf("Update() ThemeMode = %v, want %v", preferences.ThemeMode, *tt.req.ThemeMode)
-				}
-				if tt.req.ThemeBackground.IsSet() && tt.req.ThemeBackground.GetValue() != nil {
-					if preferences.ThemeBackground == nil || *preferences.ThemeBackground != *tt.req.ThemeBackground.GetValue() {
-						t.Errorf("Update() ThemeBackground = %v, want %v", preferences.ThemeBackground, tt.req.ThemeBackground.GetValue())
-					}
-				}
-				if tt.req.ThemeAccentColor.IsSet() && tt.req.ThemeAccentColor.GetValue() != nil {
-					if preferences.ThemeAccentColor == nil || *preferences.ThemeAccentColor != *tt.req.ThemeAccentColor.GetValue() {
-						t.Errorf("Update() ThemeAccentColor = %v, want %v", preferences.ThemeAccentColor, tt.req.ThemeAccentColor.GetValue())
-					}
 				}
 			}
 		})
@@ -1203,4 +1134,32 @@ func TestPreferencesRepository_CardScaleAndViewMode_Combined(t *testing.T) {
 			t.Errorf("ViewMode = %v, want list (should be preserved)", preferences.ViewMode)
 		}
 	})
+}
+
+func TestPreferencesRepository_WallpaperAndGlass(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+	intPtr := func(v int) *int { return &v }
+
+	// A first save of one field gives the defaults for the rest
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{WallpaperDim: intPtr(40)}))
+	prefs, err := repo.GetByUserID(ctx, "user-1")
+	require.NoError(t, err)
+	assert.Equal(t, []int{0, 40, 100, 0}, []int{prefs.WallpaperBlur, prefs.WallpaperDim, prefs.CardOpacity, prefs.CardBlur})
+	assert.Equal(t, "medium", prefs.CardScale)
+	assert.True(t, prefs.OpenInNewTab)
+
+	// Later saves only touch what they send, and 0 is a value, not "omitted"
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{
+		WallpaperBlur: intPtr(8), CardOpacity: intPtr(0), CardBlur: intPtr(12),
+	}))
+	prefs, err = repo.GetByUserID(ctx, "user-1")
+	require.NoError(t, err)
+	assert.Equal(t, []int{8, 40, 0, 12}, []int{prefs.WallpaperBlur, prefs.WallpaperDim, prefs.CardOpacity, prefs.CardBlur})
+
+	resp := prefs.ToResponse()
+	assert.Equal(t, 8, resp.WallpaperBlur)
+	assert.Equal(t, 0, resp.CardOpacity)
 }

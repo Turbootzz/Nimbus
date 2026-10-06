@@ -694,7 +694,7 @@ export default function DashboardPage() {
     <div>
       {/* Stats cards */}
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <div className="flex items-center">
             <ServerIcon className="text-primary h-8 w-8" />
             <div className="ml-4">
@@ -704,7 +704,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <div className="flex items-center">
             <CheckCircleIcon className="text-success h-8 w-8" />
             <div className="ml-4">
@@ -714,7 +714,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <div className="flex items-center">
             <ExclamationCircleIcon className="text-error h-8 w-8" />
             <div className="ml-4">
@@ -724,7 +724,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <div className="flex items-center">
             <ClockIcon className="text-info h-8 w-8" />
             <div className="ml-4">
@@ -861,7 +861,7 @@ export default function DashboardPage() {
 
       {/* Empty state for groups with no tiles */}
       {enableServiceGrouping && filteredTiles.length === 0 && !isLoading && (
-        <div className="bg-card border-card-border rounded-lg border p-12 text-center">
+        <div className="glass-card border-card-border rounded-lg border p-12 text-center">
           <ServerIcon className="text-text-muted mx-auto mb-4 h-12 w-12" />
           <h3 className="text-text-primary mb-2 text-lg font-medium">Nothing in this group yet</h3>
           <p className="text-text-secondary mb-4">

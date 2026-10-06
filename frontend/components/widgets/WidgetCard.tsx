@@ -122,7 +122,7 @@ export default function WidgetCard({
   return (
     <div
       onClick={handleClick}
-      className={`${gridSpan} bg-card border-card-border relative flex h-full flex-col rounded-lg border ${padding} transition-all ${editClasses} ${dragClasses}`}
+      className={`${gridSpan} glass-card border-card-border relative flex h-full flex-col rounded-lg border ${padding} transition-all ${editClasses} ${dragClasses}`}
     >
       {warning && !isEditMode && (
         <span className="text-warning absolute top-2 right-2" title={warning}>
