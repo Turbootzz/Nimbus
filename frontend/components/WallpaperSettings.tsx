@@ -59,7 +59,7 @@ export default function WallpaperSettings() {
   const previewStyle = glassVariables(glass, imageUrl) as React.CSSProperties
 
   return (
-    <div className="bg-card border-card-border rounded-lg border p-6">
+    <div className="glass-card border-card-border rounded-lg border p-6">
       <h2 className="text-text-primary mb-2 text-xl font-semibold">Wallpaper</h2>
       <p className="text-text-secondary mb-4 text-sm">
         Upload an image (up to 8 MB) or use an image URL. Blur, dim and see-through cards make it

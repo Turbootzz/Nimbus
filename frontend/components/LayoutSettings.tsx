@@ -54,7 +54,7 @@ export default function LayoutSettings() {
   }
 
   return (
-    <div className="bg-card border-card-border rounded-lg border p-6">
+    <div className="glass-card border-card-border rounded-lg border p-6">
       <h2 className="text-text-primary mb-2 text-xl font-semibold">Dashboard Layout</h2>
       <p className="text-text-secondary mb-4 text-sm">
         Canvas only changes the dashboard; other pages keep the sidebar.

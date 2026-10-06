@@ -95,7 +95,7 @@ export default function MetricsPage() {
 
       {/* Overview Stats */}
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="border-card-border bg-card rounded-lg border p-4">
+        <div className="border-card-border glass-card rounded-lg border p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">Total Services</p>
@@ -105,7 +105,7 @@ export default function MetricsPage() {
           </div>
         </div>
 
-        <div className="border-card-border bg-card rounded-lg border p-4">
+        <div className="border-card-border glass-card rounded-lg border p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">Online</p>
@@ -115,7 +115,7 @@ export default function MetricsPage() {
           </div>
         </div>
 
-        <div className="border-card-border bg-card rounded-lg border p-4">
+        <div className="border-card-border glass-card rounded-lg border p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">Offline</p>
@@ -125,7 +125,7 @@ export default function MetricsPage() {
           </div>
         </div>
 
-        <div className="border-card-border bg-card rounded-lg border p-4">
+        <div className="border-card-border glass-card rounded-lg border p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-text-secondary text-sm">Avg Response</p>
@@ -155,7 +155,7 @@ export default function MetricsPage() {
       )}
 
       {/* Services List */}
-      <div className="border-card-border bg-card rounded-lg border p-4 sm:p-6">
+      <div className="border-card-border glass-card rounded-lg border p-4 sm:p-6">
         <h2 className="text-text-primary mb-4 text-lg font-semibold">All Services</h2>
 
         {services.length === 0 ? (

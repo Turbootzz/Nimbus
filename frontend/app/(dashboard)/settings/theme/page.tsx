@@ -49,7 +49,7 @@ export default function ThemePage() {
         {/* Column 1: Appearance settings */}
         <div className="space-y-6">
           {/* Theme Mode */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Theme Mode</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose between light and dark theme</p>
 
@@ -113,7 +113,7 @@ export default function ThemePage() {
           </div>
 
           {/* Accent Color */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Accent Color</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose your preferred accent color</p>
 
@@ -174,7 +174,7 @@ export default function ThemePage() {
         {/* Column 2: Behavior & Layout settings */}
         <div className="space-y-6">
           {/* Link Behavior */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Link Behavior</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose how service links should open</p>
 
@@ -187,7 +187,7 @@ export default function ThemePage() {
           </div>
 
           {/* Card Resizing */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Resizing</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Control whether service cards can have different sizes
@@ -202,7 +202,7 @@ export default function ThemePage() {
           </div>
 
           {/* Service Grouping */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Service Grouping</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Organize your services into groups with a tabbed interface
@@ -217,7 +217,7 @@ export default function ThemePage() {
           </div>
 
           {/* Card Display */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Display</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Customize how service cards are displayed

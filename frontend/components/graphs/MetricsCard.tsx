@@ -26,7 +26,7 @@ export default function MetricsCard({
   }
 
   return (
-    <div className={`border-card-border bg-card rounded-lg border p-4 ${className}`}>
+    <div className={`border-card-border glass-card rounded-lg border p-4 ${className}`}>
       <p className="text-text-secondary mb-1 text-sm">{label}</p>
       <p
         className={`text-xl font-bold break-words sm:text-2xl ${getTrendColor() || 'text-text-primary'}`}

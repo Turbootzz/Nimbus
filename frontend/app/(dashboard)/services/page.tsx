@@ -227,7 +227,7 @@ export default function ServicesPage() {
 
       {/* Services grid */}
       {services.length === 0 ? (
-        <div className="bg-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
+        <div className="glass-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
           <div className="text-text-muted mb-4 text-6xl">🔗</div>
           <h3 className="text-text-primary mb-2 text-xl font-semibold">No services yet</h3>
           <p className="text-text-secondary mb-6 max-w-md">
