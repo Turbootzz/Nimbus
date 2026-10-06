@@ -36,7 +36,7 @@ func TestCalendarFetch(t *testing.T) {
 	t.Cleanup(func() { calendarNow = old })
 
 	sonarr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "start=2026-10-01&end=2026-11-01&includeSeries=true", r.URL.RawQuery)
+		assert.Equal(t, "start=2026-09-29&end=2026-11-01&includeSeries=true", r.URL.RawQuery)
 		fmt.Fprint(w, `[{"seasonNumber":1,"episodeNumber":3,"airDateUtc":"2026-10-07T01:00:00Z","series":{"title":"Andor"}}]`)
 	}))
 	t.Cleanup(sonarr.Close)
@@ -116,7 +116,11 @@ func TestCalendarWindowUsesUTCDates(t *testing.T) {
 	t.Cleanup(func() { calendarNow = old })
 
 	feeds := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:First\nDTSTART;VALUE=DATE:20261001\nEND:VEVENT\nEND:VCALENDAR\n")
+		fmt.Fprint(w, "BEGIN:VCALENDAR\n"+
+			"BEGIN:VEVENT\nSUMMARY:First\nDTSTART;VALUE=DATE:20261001\nEND:VEVENT\n"+
+			"BEGIN:VEVENT\nSUMMARY:Two days before\nDTSTART;VALUE=DATE:20260929\nEND:VEVENT\n"+
+			"BEGIN:VEVENT\nSUMMARY:Three days before\nDTSTART;VALUE=DATE:20260928\nEND:VEVENT\n"+
+			"END:VCALENDAR\n")
 	}))
 	t.Cleanup(feeds.Close)
 	w, _ := Get("calendar")
@@ -127,5 +131,7 @@ func TestCalendarWindowUsesUTCDates(t *testing.T) {
 	require.NoError(t, err)
 	payload := got.(calendarPayload)
 	assert.Equal(t, "2026-10-01", payload.From)
-	require.Len(t, payload.Events, 1, "an all-day event on the 1st is kept")
+	require.Len(t, payload.Events, 2, "the 1st is kept, and two days before for browsers still in September")
+	assert.Equal(t, "Two days before", payload.Events[0].Title)
+	assert.Equal(t, "First", payload.Events[1].Title)
 }

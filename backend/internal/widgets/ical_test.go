@@ -71,3 +71,14 @@ func TestParseICalOutlookZones(t *testing.T) {
 	assert.Equal(t, time.Date(2026, 10, 7, 7, 0, 0, 0, time.UTC), events[1].Start.UTC(), "Europe/Berlin is +02:00 in October")
 	assert.Equal(t, time.Date(2026, 10, 7, 3, 30, 0, 0, time.UTC), events[2].Start.UTC())
 }
+
+func TestUnfoldICalLongProperty(t *testing.T) {
+	// An inline attachment folded over 30,000 lines, like Outlook exports
+	chunk := strings.Repeat("A", 74)
+	data := "BEGIN:VEVENT\r\nATTACH:" + strings.Repeat(chunk+"\r\n ", 30000) + "end\r\nEND:VEVENT\r\n"
+
+	lines, err := unfoldICal([]byte(data))
+	require.NoError(t, err)
+	require.Len(t, lines, 3)
+	assert.Equal(t, "ATTACH:"+strings.Repeat(chunk, 30000)+"end", lines[1])
+}

@@ -211,9 +211,12 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 
 	// From the 1st of this month (the grid) to the end of it, or further
 	// when the agenda reaches beyond. In UTC dates, like all-day events, so
-	// those on the 1st stay in whatever zone the server is in.
+	// those on the 1st stay in whatever zone the server is in. Events start
+	// two days earlier: a browser up to 26 hours behind the server can still
+	// be in the month before, and its agenda starts today.
 	now := calendarNow()
 	from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	eventsFrom := from.AddDate(0, 0, -2)
 	to := from.AddDate(0, 1, 0)
 	if agendaEnd := now.AddDate(0, 0, cfg.Days+1); agendaEnd.After(to) {
 		to = agendaEnd
@@ -230,7 +233,7 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		results[i].source = calendarSource{Name: linked.Name, Kind: linked.Kind}
 		wg.Go(func() {
 			defer recoverInto(&results[i].err)
-			results[i].events, results[i].err = integrations.ArrCalendar(ctx, linked.Conn, linked.Kind, from, to)
+			results[i].events, results[i].err = integrations.ArrCalendar(ctx, linked.Conn, linked.Kind, eventsFrom, to)
 		})
 	}
 	for j, feedURL := range cfg.ICalURLs {
@@ -251,7 +254,7 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		}
 		payload.Sources = append(payload.Sources, r.source)
 		for _, e := range r.events {
-			if e.Start.Before(from) || !e.Start.Before(to) {
+			if e.Start.Before(eventsFrom) || !e.Start.Before(to) {
 				continue
 			}
 			event := calendarEvent{Title: shortText(e.Title), AllDay: e.AllDay, Source: len(payload.Sources) - 1, at: e.Start}

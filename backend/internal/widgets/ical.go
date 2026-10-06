@@ -62,18 +62,30 @@ func parseICal(data []byte) ([]icalEvent, error) {
 // with a space or tab continues the previous one)
 func unfoldICal(data []byte) ([]string, error) {
 	var lines []string
+	// A builder, so a long folded property (an inline ATTACH) isn't copied
+	// again for every continuation line
+	var current strings.Builder
+	flush := func() {
+		if current.Len() > 0 {
+			lines = append(lines, current.String())
+			current.Reset()
+		}
+	}
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	scanner.Buffer(make([]byte, 0, 64*1024), maxFetchBodyBytes)
 	for scanner.Scan() {
 		line := strings.TrimRight(scanner.Text(), "\r")
-		if (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) && len(lines) > 0 {
-			lines[len(lines)-1] += line[1:]
+		if (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) && current.Len() > 0 {
+			current.WriteString(line[1:])
 			continue
 		}
-		if line != "" {
-			lines = append(lines, line)
+		if line == "" {
+			continue
 		}
+		flush()
+		current.WriteString(line)
 	}
+	flush()
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("could not read the calendar: %w", err)
 	}
