@@ -121,7 +121,7 @@ export default function IntegrationsPage() {
       )}
 
       {integrations.length === 0 ? (
-        <div className="bg-card border-card-border rounded-lg border p-8 text-center">
+        <div className="glass-card border-card-border rounded-lg border p-8 text-center">
           <p className="text-text-primary mb-1 font-medium">No integrations yet</p>
           <p className="text-text-secondary text-sm">
             {kinds.length > 0
@@ -130,7 +130,7 @@ export default function IntegrationsPage() {
           </p>
         </div>
       ) : (
-        <ul className="bg-card border-card-border divide-card-border divide-y rounded-lg border">
+        <ul className="glass-card border-card-border divide-card-border divide-y rounded-lg border">
           {integrations.map((integration) => (
             <li
               key={integration.id}

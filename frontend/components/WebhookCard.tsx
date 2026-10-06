@@ -42,7 +42,7 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
   }
 
   return (
-    <div className="bg-card border-card-border rounded-lg border p-4">
+    <div className="glass-card border-card-border rounded-lg border p-4">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex items-center gap-2">

@@ -47,7 +47,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 **🎨 Personalization**
 - Custom wallpapers per user (upload or URL) with blur, dim and glass cards
-- Canvas layout (opt-in): the dashboard fills the page under a top bar, no sidebar
+- Canvas layout: the dashboard fills the page under a top bar, no sidebar. The default for new users; switch in Theme settings
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
 - Search: press `/` or Ctrl+K to find and open a service
 - Light/dark mode toggle

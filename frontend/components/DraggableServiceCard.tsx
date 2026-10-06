@@ -38,7 +38,7 @@ export function DraggableServiceCard({ service, isDragging = false }: DraggableS
     <div
       ref={setNodeRef}
       style={style}
-      className="bg-card border-card-border hover:border-primary group relative rounded-lg border transition-all hover:shadow-lg"
+      className="glass-card border-card-border hover:border-primary group relative rounded-lg border transition-all hover:shadow-lg"
     >
       {/* Action buttons */}
       <div className="absolute top-2 right-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">

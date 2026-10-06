@@ -203,7 +203,7 @@ function NewServiceContent() {
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-card border-card-border rounded-lg border p-6">
+      <form onSubmit={handleSubmit} className="glass-card border-card-border rounded-lg border p-6">
         <div className="space-y-6">
           {/* Service Name */}
           <div>

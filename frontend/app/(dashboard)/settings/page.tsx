@@ -130,7 +130,7 @@ export default function SettingsPage() {
           <Link
             key={section.href}
             href={section.href}
-            className="bg-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
+            className="glass-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="flex items-start gap-4">
               <div className="text-primary shrink-0">{section.icon}</div>
@@ -158,7 +158,7 @@ export default function SettingsPage() {
         {currentUser?.role === 'admin' && (
           <Link
             href={adminSection.href}
-            className="bg-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
+            className="glass-card border-card-border hover:border-primary/50 block h-full rounded-lg border p-6 transition-all hover:shadow-lg"
           >
             <div className="flex items-start gap-4">
               <div className="text-primary shrink-0">{adminSection.icon}</div>

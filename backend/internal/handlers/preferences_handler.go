@@ -90,7 +90,7 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			CardScale:             "medium",
 			ViewMode:              "grid",
 			CardOpacity:           100,
-			LayoutMode:            "classic",
+			LayoutMode:            "canvas",
 			StatusStrip:           models.StatusStrip{Chips: []models.StatusChip{}},
 			UpdatedAt:             time.Time{}, // Zero value for time
 		})

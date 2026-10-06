@@ -113,7 +113,7 @@ export default function NotificationsPage() {
 
       <div className="space-y-4">
         {webhooks.length === 0 ? (
-          <div className="bg-card border-card-border rounded-lg border p-8 text-center">
+          <div className="glass-card border-card-border rounded-lg border p-8 text-center">
             <svg
               className="text-text-muted mx-auto mb-4 h-12 w-12"
               fill="none"

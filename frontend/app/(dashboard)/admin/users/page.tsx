@@ -81,7 +81,7 @@ function UserCard({
   const isLoading = actionLoading === user.id
 
   return (
-    <div className="bg-card border-card-border rounded-lg border p-4">
+    <div className="glass-card border-card-border rounded-lg border p-4">
       <div className="mb-3 flex items-start justify-between">
         <div className="min-w-0 flex-1">
           <h3 className="text-text-primary truncate text-base font-semibold">{user.name}</h3>
@@ -358,15 +358,15 @@ export default function AdminUsersPage() {
       {/* Statistics Cards */}
       {stats && (
         <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="bg-card border-card-border rounded-lg border p-4">
+          <div className="glass-card border-card-border rounded-lg border p-4">
             <div className="text-text-secondary text-sm">Total Users</div>
             <div className="text-text-primary mt-1 text-3xl font-bold">{stats.total}</div>
           </div>
-          <div className="bg-card border-card-border rounded-lg border p-4">
+          <div className="glass-card border-card-border rounded-lg border p-4">
             <div className="text-text-secondary text-sm">Administrators</div>
             <div className="text-primary mt-1 text-3xl font-bold">{stats.admins}</div>
           </div>
-          <div className="bg-card border-card-border rounded-lg border p-4">
+          <div className="glass-card border-card-border rounded-lg border p-4">
             <div className="text-text-secondary text-sm">Regular Users</div>
             <div className="text-info mt-1 text-3xl font-bold">{stats.users}</div>
           </div>
@@ -374,7 +374,7 @@ export default function AdminUsersPage() {
       )}
 
       {/* Search and Filter Bar */}
-      <div className="bg-card border-card-border mb-4 rounded-lg border p-4">
+      <div className="glass-card border-card-border mb-4 rounded-lg border p-4">
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           {/* Search Input */}
           <div className="relative flex-1">
@@ -414,13 +414,13 @@ export default function AdminUsersPage() {
 
       {/* Users List - Responsive table/cards */}
       {users.length === 0 ? (
-        <div className="bg-card border-card-border text-text-secondary rounded-lg border p-6 text-center">
+        <div className="glass-card border-card-border text-text-secondary rounded-lg border p-6 text-center">
           {searchTerm || roleFilter ? 'No users match your search criteria' : 'No users found'}
         </div>
       ) : (
         <>
           {/* Desktop Table */}
-          <div className="bg-card border-card-border hidden overflow-hidden rounded-lg border md:block">
+          <div className="glass-card border-card-border hidden overflow-hidden rounded-lg border md:block">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-background border-card-border border-b">

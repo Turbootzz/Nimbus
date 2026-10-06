@@ -43,7 +43,7 @@ export default function StatusStripSettings() {
   )
 
   return (
-    <div className="bg-card border-card-border rounded-lg border p-6">
+    <div className="glass-card border-card-border rounded-lg border p-6">
       <h2 className="text-text-primary mb-2 text-xl font-semibold">Status Strip</h2>
       <p className="text-text-secondary mb-4 text-sm">
         A row of key numbers at the top of the dashboard, with whether all services are up.

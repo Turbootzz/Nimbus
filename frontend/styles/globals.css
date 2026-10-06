@@ -123,7 +123,8 @@ body::before {
   filter: blur(var(--wallpaper-blur, 0px));
 }
 
-/* Dashboard cards: see-through and blurred when the user turns that on.
+/* Page cards: see-through and blurred when the user turns that on. Modals
+   keep bg-card so they stay readable.
    At the defaults (100%, no blur) this is plain bg-card. */
 @utility glass-card {
   background-color: color-mix(in srgb, var(--color-card) var(--card-opacity, 100%), transparent);
