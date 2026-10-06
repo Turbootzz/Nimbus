@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import CanvasTopBar from '@/components/layout/CanvasTopBar'
+import CommandPalette from '@/components/CommandPalette'
 import {
   subscribeSidebar,
   getSidebarSnapshot,
@@ -102,6 +103,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <CommandPalette />
     </div>
   )
 }
