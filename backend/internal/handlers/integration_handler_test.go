@@ -111,7 +111,7 @@ func setupIntegrationTestApp(t *testing.T, db *sql.DB, userID string) *fiber.App
 	t.Helper()
 	cipher, err := utils.NewCipher(bytes.Repeat([]byte{5}, 32))
 	require.NoError(t, err)
-	handler := NewIntegrationHandler(services.NewIntegrationService(repository.NewIntegrationRepository(db), cipher))
+	handler := NewIntegrationHandler(services.NewIntegrationService(repository.NewIntegrationRepository(db), cipher, ""))
 
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {

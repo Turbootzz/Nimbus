@@ -107,6 +107,9 @@ export interface IntegrationKindMeta {
   default_port?: number
   auth_types: IntegrationAuthType[] // first one is the default
   kpis?: Kpi[]
+  url_hint?: string // example URL for the form
+  admin_only?: boolean // only listed for admins
+  docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
 }
 
 // Never contains credentials, only whether they are set
@@ -182,6 +185,7 @@ export interface WidgetTypeMeta {
   static: boolean
   integration_kinds?: string[]
   min_refresh_seconds?: number
+  default_refresh_seconds?: number
   admin_only?: boolean // only listed for admins
 }
 
@@ -189,6 +193,7 @@ export interface WidgetCreateRequest {
   type: string
   title?: string
   group_id?: string
+  integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
 }
@@ -197,6 +202,7 @@ export interface WidgetCreateRequest {
 export interface WidgetUpdateRequest {
   title?: string
   group_id?: string
+  integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
   refresh_seconds?: number
@@ -296,6 +302,39 @@ export interface RssItem {
 export interface RssPayload {
   items: RssItem[]
   failed?: string[] // feeds that could not be loaded while others could
+}
+
+export interface SystemStatsWidgetConfig {
+  disk_path: string
+}
+
+export interface SystemStatsPayload {
+  cpu_percent: number
+  memory_percent: number
+  memory_used: number // bytes
+  memory_total: number
+  disk_percent: number
+  disk_used: number
+  disk_total: number
+  uptime_seconds: number
+}
+
+export interface DockerContainersWidgetConfig {
+  hide_stopped: boolean
+}
+
+export interface DockerContainer {
+  id: string // short id
+  name: string
+  image: string
+  state: string // running, exited, paused, ...
+  status: string // e.g. "Up 3 days"
+}
+
+export interface DockerContainersPayload {
+  containers: DockerContainer[]
+  running: number
+  total: number // includes hidden stopped containers
 }
 
 // Latest data of a polled widget or integration (GET /dashboard/data and

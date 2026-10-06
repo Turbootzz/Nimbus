@@ -16,8 +16,8 @@ export const makeWidget = (overrides: Partial<Widget> = {}): Widget => ({
   ...overrides,
 })
 
-// Mirrors the static types the backend registers in internal/widgets
-export const backendStaticTypes: WidgetTypeMeta[] = [
+// Mirrors the types the backend registers in internal/widgets
+export const backendTypes: WidgetTypeMeta[] = [
   {
     type: 'bookmarks',
     name: 'Bookmarks',
@@ -43,6 +43,17 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     static: false,
   },
   {
+    type: 'docker_containers',
+    name: 'Docker containers',
+    category: 'info',
+    default_size: '2x2',
+    allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
+    static: false,
+    integration_kinds: ['docker'],
+    default_refresh_seconds: 60,
+    admin_only: true,
+  },
+  {
     type: 'iframe',
     name: 'Embed',
     category: 'general',
@@ -66,6 +77,16 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
     static: false,
     min_refresh_seconds: 300,
+  },
+  {
+    type: 'system_stats',
+    name: 'System stats',
+    category: 'info',
+    default_size: '2x1',
+    allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
+    static: false,
+    default_refresh_seconds: 30,
+    admin_only: true,
   },
   {
     type: 'weather',

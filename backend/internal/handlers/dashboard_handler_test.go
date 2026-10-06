@@ -45,7 +45,7 @@ func newDashboardFixture(t *testing.T) *dashboardFixture {
 	live := services.NewLiveDataService(
 		repository.NewWidgetRepository(db),
 		integrationRepo,
-		services.NewIntegrationService(integrationRepo, cipher),
+		services.NewIntegrationService(integrationRepo, cipher, ""),
 		repository.NewSnapshotRepository(db),
 		hub,
 	)

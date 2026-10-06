@@ -28,6 +28,9 @@ const (
 	integrationTestTimeout     = 10 * time.Second
 	defaultRefreshSeconds      = 60
 	maxIntegrationOptionsBytes = 16 * 1024
+	unixScheme                 = "unix://"
+	// socketBaseURL is what requests over the Docker socket are sent to
+	socketBaseURL = "http://docker"
 )
 
 // IntegrationService handles integration CRUD, credential encryption and
@@ -37,18 +40,26 @@ type IntegrationService struct {
 	cipher  *utils.Cipher
 	timeout time.Duration
 	poller  Poller
+	// dockerSocket is the socket DOCKER_SOCKET allows; empty means none
+	dockerSocket string
 	// states keeps each integration's session data (e.g. a login sid)
 	// between polls, keyed by integration ID
 	states sync.Map
 }
 
-func NewIntegrationService(repo repository.IntegrationRepositoryInterface, cipher *utils.Cipher) *IntegrationService {
-	return &IntegrationService{repo: repo, cipher: cipher, timeout: integrationTestTimeout}
+// NewIntegrationService builds the service. dockerSocket is the unix socket
+// kinds like Docker may use (DOCKER_SOCKET); empty allows none.
+func NewIntegrationService(repo repository.IntegrationRepositoryInterface, cipher *utils.Cipher, dockerSocket string) *IntegrationService {
+	return &IntegrationService{repo: repo, cipher: cipher, timeout: integrationTestTimeout, dockerSocket: dockerSocket}
 }
 
-// Kinds lists the registered integration kinds
-func (s *IntegrationService) Kinds() []integrations.Meta {
-	return integrations.Kinds()
+// Kinds lists the integration kinds the user can set up
+func (s *IntegrationService) Kinds(isAdmin bool) []integrations.Meta {
+	kinds := integrations.Kinds()
+	if !isAdmin {
+		kinds = slices.DeleteFunc(kinds, func(m integrations.Meta) bool { return m.AdminOnly })
+	}
+	return kinds
 }
 
 func (s *IntegrationService) List(ctx context.Context, userID string) ([]models.Integration, error) {
@@ -74,8 +85,8 @@ func (s *IntegrationService) Delete(ctx context.Context, id, userID string) erro
 }
 
 // Create validates the request, encrypts the credentials and stores it
-func (s *IntegrationService) Create(ctx context.Context, userID string, req *models.IntegrationRequest) (*models.Integration, error) {
-	in, err := s.buildInput(req, nil)
+func (s *IntegrationService) Create(ctx context.Context, userID string, isAdmin bool, req *models.IntegrationRequest) (*models.Integration, error) {
+	in, err := s.buildInput(req, nil, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -100,12 +111,12 @@ func (s *IntegrationService) Create(ctx context.Context, userID string, req *mod
 // Update applies the request on top of the stored integration. Omitted
 // credentials are kept as they are. The last test result is cleared when the
 // connection changes, since it no longer applies.
-func (s *IntegrationService) Update(ctx context.Context, id, userID string, req *models.IntegrationRequest) (*models.Integration, error) {
+func (s *IntegrationService) Update(ctx context.Context, id, userID string, isAdmin bool, req *models.IntegrationRequest) (*models.Integration, error) {
 	current, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
-	in, err := s.buildInput(req, current)
+	in, err := s.buildInput(req, current, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -149,8 +160,7 @@ func (s *IntegrationService) Conn(ctx context.Context, integration *models.Integ
 		return nil, errors.New("stored credentials cannot be decrypted (was ENCRYPTION_KEY changed?)")
 	}
 	state, _ := s.states.LoadOrStore(integration.ID, &integrations.State{})
-	client := utils.NewSafeClient(integration.VerifyTLS, s.timeout)
-	return newConn(integration, creds, client, state.(*integrations.State)), nil
+	return s.newConn(integration, creds, state.(*integrations.State))
 }
 
 // Fetch polls a stored integration for its KPIs. Errors are redacted.
@@ -173,8 +183,8 @@ func (s *IntegrationService) Fetch(ctx context.Context, integration *models.Inte
 }
 
 // TestUnsaved tests a connection from a request body without storing anything
-func (s *IntegrationService) TestUnsaved(ctx context.Context, req *models.IntegrationRequest) (*models.IntegrationTestResult, error) {
-	in, err := s.buildInput(req, nil)
+func (s *IntegrationService) TestUnsaved(ctx context.Context, isAdmin bool, req *models.IntegrationRequest) (*models.IntegrationTestResult, error) {
+	in, err := s.buildInput(req, nil, isAdmin)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +235,7 @@ type integrationInput struct {
 
 // buildInput validates req. current is the stored integration on update and
 // nil otherwise; on update, empty request fields keep the stored value.
-func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current *models.Integration) (*integrationInput, error) {
+func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current *models.Integration, isAdmin bool) (*integrationInput, error) {
 	in := models.Integration{VerifyTLS: true, RefreshSeconds: defaultRefreshSeconds}
 	if current != nil {
 		in = *current
@@ -242,6 +252,9 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		return nil, invalid("Unknown integration kind")
 	}
 	meta := impl.Meta()
+	if meta.AdminOnly && !isAdmin {
+		return nil, invalid("Only admins can set up %s integrations", meta.Name)
+	}
 
 	if name := strings.TrimSpace(req.Name); name != "" {
 		in.Name = name
@@ -254,7 +267,7 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 	}
 
 	if rawURL := strings.TrimSpace(req.BaseURL); rawURL != "" {
-		baseURL, err := normalizeBaseURL(rawURL)
+		baseURL, err := normalizeBaseURL(rawURL, meta, s.dockerSocket)
 		if err != nil {
 			return nil, err
 		}
@@ -315,8 +328,21 @@ func connectionChanged(before, after *models.Integration) bool {
 
 // normalizeBaseURL validates a base URL and strips the trailing slash.
 // Credentials, queries and fragments are rejected so no secret is ever
-// stored in plain text or echoed back in responses.
-func normalizeBaseURL(rawURL string) (string, error) {
+// stored in plain text or echoed back in responses. Kinds that support it
+// may use the Docker socket the server allows.
+func normalizeBaseURL(rawURL string, meta integrations.Meta, allowed string) (string, error) {
+	if path, isSocket := strings.CutPrefix(rawURL, unixScheme); isSocket {
+		switch {
+		case !meta.DockerSocket:
+			return "", invalid("%s can't use a unix socket", meta.Name)
+		case allowed == "":
+			return "", invalid("Set DOCKER_SOCKET=%s on the Nimbus server to use this socket", path)
+		case path != allowed:
+			return "", invalid("Only the socket in DOCKER_SOCKET can be used: %s%s", unixScheme, allowed)
+		}
+		return rawURL, nil
+	}
+
 	if err := utils.ValidateWebhookURL(rawURL); err != nil {
 		return "", invalid("Invalid base URL: %s", err.Error())
 	}
@@ -393,19 +419,20 @@ func (s *IntegrationService) decryptCredentials(blob []byte, integrationID strin
 	return creds, nil
 }
 
-// runTest calls the kind's Test with a fresh safe client and a timeout.
+// runTest calls the kind's Test with a fresh client and a timeout.
 // Errors are redacted before they are shown or stored.
 func (s *IntegrationService) runTest(ctx context.Context, impl integrations.Integration, integration *models.Integration, creds models.IntegrationCredentials) models.IntegrationTestResult {
-	client := utils.NewSafeClient(integration.VerifyTLS, s.timeout)
-	defer client.CloseIdleConnections()
+	conn, err := s.newConn(integration, creds, &integrations.State{})
+	if err != nil {
+		return models.IntegrationTestResult{Error: err.Error()}
+	}
+	defer conn.Client.CloseIdleConnections()
 
 	ctx, cancel := context.WithTimeout(ctx, s.timeout)
 	defer cancel()
 
-	conn := newConn(integration, creds, client, &integrations.State{})
-
 	start := time.Now()
-	err := callTest(ctx, impl, conn)
+	err = callTest(ctx, impl, conn)
 	result := models.IntegrationTestResult{OK: err == nil, LatencyMs: time.Since(start).Milliseconds()}
 	if err != nil {
 		result.Error = redactSecrets(err.Error(), creds)
@@ -413,15 +440,30 @@ func (s *IntegrationService) runTest(ctx context.Context, impl integrations.Inte
 	return result
 }
 
-func newConn(integration *models.Integration, creds models.IntegrationCredentials, client *http.Client, state *integrations.State) *integrations.Conn {
+// newConn connects over the SSRF-safe client, or over the Docker socket
+// the server allows. A socket that DOCKER_SOCKET no longer names is refused.
+func (s *IntegrationService) newConn(integration *models.Integration, creds models.IntegrationCredentials, state *integrations.State) (*integrations.Conn, error) {
+	baseURL := integration.BaseURL
+	var client *http.Client
+	if path, isSocket := strings.CutPrefix(baseURL, unixScheme); isSocket {
+		switch {
+		case s.dockerSocket == "":
+			return nil, errors.New("the Nimbus server allows no socket; set DOCKER_SOCKET")
+		case path != s.dockerSocket:
+			return nil, fmt.Errorf("DOCKER_SOCKET now names another socket; change the URL to %s%s", unixScheme, s.dockerSocket)
+		}
+		baseURL, client = socketBaseURL, utils.NewUnixSocketClient(path, s.timeout)
+	} else {
+		client = utils.NewSafeClient(integration.VerifyTLS, s.timeout)
+	}
 	return &integrations.Conn{
-		BaseURL:   integration.BaseURL,
+		BaseURL:   baseURL,
 		Creds:     creds,
 		VerifyTLS: integration.VerifyTLS,
 		Options:   integration.Options,
 		Client:    client,
 		State:     state,
-	}
+	}, nil
 }
 
 // recoverCrash turns a panic in a kind or widget into an error, so one

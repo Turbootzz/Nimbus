@@ -20,7 +20,7 @@ func (h *IntegrationHandler) ListKinds(c *fiber.Ctx) error {
 	if _, err := RequireUserID(c); err != nil {
 		return err
 	}
-	return c.JSON(h.service.Kinds())
+	return c.JSON(h.service.Kinds(IsAdmin(c)))
 }
 
 // ListIntegrations returns the user's integrations (never their credentials)
@@ -59,7 +59,7 @@ func (h *IntegrationHandler) CreateIntegration(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	integration, err := h.service.Create(c.Context(), userID, &req)
+	integration, err := h.service.Create(c.Context(), userID, IsAdmin(c), &req)
 	if err != nil {
 		return integrationError(c, err, "create integration")
 	}
@@ -76,7 +76,7 @@ func (h *IntegrationHandler) UpdateIntegration(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	integration, err := h.service.Update(c.Context(), c.Params("id"), userID, &req)
+	integration, err := h.service.Update(c.Context(), c.Params("id"), userID, IsAdmin(c), &req)
 	if err != nil {
 		return integrationError(c, err, "update integration")
 	}
@@ -105,7 +105,7 @@ func (h *IntegrationHandler) TestUnsavedIntegration(c *fiber.Ctx) error {
 		return BadRequest(c, "Invalid request body")
 	}
 	// UserContext: outgoing requests must not hold on to fasthttp's recycled RequestCtx
-	result, err := h.service.TestUnsaved(c.UserContext(), &req)
+	result, err := h.service.TestUnsaved(c.UserContext(), IsAdmin(c), &req)
 	if err != nil {
 		return integrationError(c, err, "test integration")
 	}

@@ -188,7 +188,7 @@ func TestLiveData_IntegrationWidgetFetchRedactsSecrets(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	integration, err := f.service.Create(context.Background(), "u1", apiKeyRequest(server.URL))
+	integration, err := f.service.Create(context.Background(), "u1", false, apiKeyRequest(server.URL))
 	require.NoError(t, err)
 	f.widgets.enabled = []models.Widget{
 		{ID: "w-queue", UserID: "u1", Type: "svc-queue", IntegrationID: &integration.ID, RefreshSeconds: 60},
@@ -280,7 +280,7 @@ func TestLiveData_PublishServiceStatus(t *testing.T) {
 func TestIntegrationService_FetchKeepsSessionStateUntilReconnect(t *testing.T) {
 	service, _ := newTestIntegrationService(t)
 	ctx := context.Background()
-	integration, err := service.Create(ctx, "u1", &models.IntegrationRequest{Kind: "svc-stateful", Name: "S", BaseURL: "http://app.lan", AuthType: "none"})
+	integration, err := service.Create(ctx, "u1", false, &models.IntegrationRequest{Kind: "svc-stateful", Name: "S", BaseURL: "http://app.lan", AuthType: "none"})
 	require.NoError(t, err)
 
 	fetchCount := func() any {
@@ -292,7 +292,7 @@ func TestIntegrationService_FetchKeepsSessionStateUntilReconnect(t *testing.T) {
 	assert.Equal(t, 2, fetchCount(), "state survives between fetches")
 
 	newURL := "http://other.lan"
-	integration, err = service.Update(ctx, integration.ID, "u1", &models.IntegrationRequest{BaseURL: newURL})
+	integration, err = service.Update(ctx, integration.ID, "u1", false, &models.IntegrationRequest{BaseURL: newURL})
 	require.NoError(t, err)
 	assert.Equal(t, 1, fetchCount(), "a new connection starts a new session")
 
@@ -302,7 +302,7 @@ func TestIntegrationService_FetchKeepsSessionStateUntilReconnect(t *testing.T) {
 
 func TestIntegrationService_FetchRecoversFromPanics(t *testing.T) {
 	service, _ := newTestIntegrationService(t)
-	integration, err := service.Create(context.Background(), "u1", &models.IntegrationRequest{Kind: "svc-panic", Name: "P", BaseURL: "http://app.lan", AuthType: "none"})
+	integration, err := service.Create(context.Background(), "u1", false, &models.IntegrationRequest{Kind: "svc-panic", Name: "P", BaseURL: "http://app.lan", AuthType: "none"})
 	require.NoError(t, err)
 
 	_, err = service.Fetch(context.Background(), integration)

@@ -70,6 +70,9 @@ type Meta struct {
 	IntegrationKinds []string `json:"integration_kinds,omitempty"`
 	// MinRefreshSeconds overrides the global minimum (e.g. rate limits)
 	MinRefreshSeconds int `json:"min_refresh_seconds,omitempty"`
+	// DefaultRefreshSeconds overrides the default for new widgets, e.g. for
+	// numbers that change by the second
+	DefaultRefreshSeconds int `json:"default_refresh_seconds,omitempty"`
 	// AdminOnly types can only be added and configured by admins, e.g.
 	// because they show what the server can read on the LAN
 	AdminOnly bool `json:"admin_only,omitempty"`

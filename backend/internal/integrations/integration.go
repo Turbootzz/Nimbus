@@ -33,6 +33,14 @@ type Meta struct {
 	DefaultPort int      `json:"default_port,omitempty"`
 	AuthTypes   []string `json:"auth_types"` // first one is the default
 	KPIs        []KPI    `json:"kpis,omitempty"`
+	// URLHint replaces the example address in the form
+	URLHint string `json:"url_hint,omitempty"`
+	// AdminOnly kinds can only be set up by admins, e.g. because they
+	// expose the host
+	AdminOnly bool `json:"admin_only,omitempty"`
+	// DockerSocket kinds also take unix:///path as the URL, for the
+	// socket the server allows in DOCKER_SOCKET
+	DockerSocket bool `json:"docker_socket,omitempty"`
 }
 
 // KPI describes one value a kind can show on a service tile.

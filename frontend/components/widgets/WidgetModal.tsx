@@ -6,6 +6,8 @@ import { api } from '@/lib/api'
 import type { Widget, WidgetTypeMeta } from '@/types'
 import { getWidgetDefinition, widgetConfig } from '@/components/widgets/registry'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
+import IntegrationSelector from '@/components/integrations/IntegrationSelector'
+import { kindName, useIntegrations } from '@/hooks/useIntegrations'
 
 interface WidgetModalProps {
   types: WidgetTypeMeta[]
@@ -17,10 +19,38 @@ interface WidgetModalProps {
   onSaved: (widget: Widget) => void
 }
 
-// Types this version can add: known to the frontend and not needing an
-// integration (those come with the integration settings)
+// Types this version can add: the ones the frontend knows
 export function addableTypes(types: WidgetTypeMeta[]): WidgetTypeMeta[] {
-  return types.filter((t) => getWidgetDefinition(t.type) && !t.integration_kinds?.length)
+  return types.filter((t) => getWidgetDefinition(t.type))
+}
+
+interface IntegrationFieldProps {
+  wanted: string[] // kinds the widget type can use
+  value: string
+  onChange: (id: string) => void
+  disabled?: boolean
+}
+
+// Picks one of the user's integrations of the kinds a widget type uses
+function IntegrationField({ wanted, value, onChange, disabled }: IntegrationFieldProps) {
+  const { integrations, kinds, isLoading, error } = useIntegrations()
+  const names = wanted.map((kind) => kindName(kinds, kind)).join(' or ')
+  if (error) {
+    return <p className="text-error text-sm">Could not load your integrations: {error}</p>
+  }
+  return (
+    <IntegrationSelector
+      value={value}
+      onChange={onChange}
+      integrations={integrations.filter((i) => wanted.includes(i.kind))}
+      kinds={kinds}
+      isLoading={isLoading}
+      disabled={disabled}
+      label="Integration"
+      description={`The ${names} integration this widget reads.`}
+      emptyOption={`Choose a ${names} integration`}
+    />
+  )
 }
 
 export default function WidgetModal({
@@ -37,32 +67,42 @@ export default function WidgetModal({
     const definition = widget && getWidgetDefinition(widget.type)
     return definition ? widgetConfig(definition, widget) : {}
   })
+  const [integrationId, setIntegrationId] = useState(widget?.integration_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
 
   const definition = type ? getWidgetDefinition(type) : undefined
+  const wantedKinds = types.find((t) => t.type === type)?.integration_kinds ?? []
 
   const selectType = (next: string) => {
     const nextDefinition = getWidgetDefinition(next)
     if (!nextDefinition) return
     setType(next)
     setConfig(nextDefinition.defaultConfig)
+    // An integration picked for another type may be of the wrong kind
+    setIntegrationId('')
     setError(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!type) return
+    if (wantedKinds.length > 0 && !integrationId) {
+      setError('Choose an integration')
+      return
+    }
     setError(null)
     setIsSaving(true)
+    const integration = wantedKinds.length > 0 ? { integration_id: integrationId } : {}
     try {
       const response = widget
-        ? await api.updateWidget(widget.id, { title: title.trim(), config })
+        ? await api.updateWidget(widget.id, { title: title.trim(), config, ...integration })
         : await api.createWidget({
             type,
             title: title.trim(),
             config,
             group_id: groupId || undefined,
+            ...integration,
           })
       if (response.error || !response.data) {
         setError(response.error?.message || 'Failed to save widget')
@@ -172,6 +212,14 @@ export default function WidgetModal({
                   disabled={isSaving}
                 />
               </div>
+              {wantedKinds.length > 0 && (
+                <IntegrationField
+                  wanted={wantedKinds}
+                  value={integrationId}
+                  onChange={setIntegrationId}
+                  disabled={isSaving}
+                />
+              )}
               <definition.ConfigForm config={config} onChange={setConfig} disabled={isSaving} />
             </div>
 

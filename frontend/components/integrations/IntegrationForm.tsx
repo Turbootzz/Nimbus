@@ -235,13 +235,15 @@ export default function IntegrationForm({
                 type="url"
                 value={baseUrl}
                 onChange={(e) => setBaseUrl(e.target.value)}
-                placeholder={`http://192.168.1.10${port}`}
+                placeholder={meta?.url_hint ?? `http://192.168.1.10${port}`}
                 className={inputClass}
                 disabled={busy}
                 required
               />
               <p className="text-text-muted mt-1 text-xs">
                 The address Nimbus uses to reach the app, including any sub path.
+                {meta?.docker_socket &&
+                  ' Use unix:// with the socket the server allows in DOCKER_SOCKET, or the http:// address of a socket proxy.'}
               </p>
             </div>
 

@@ -114,6 +114,23 @@ Generate one with `openssl rand -base64 32`. The unified image creates it on fir
 
 **Keep this key safe.** API keys and passwords of your integrations are stored encrypted with it. If the key is lost or changed, Nimbus can't read them anymore and you have to enter them again. Back up the uploads volume, or set your own key and store it somewhere safe. Nimbus refuses to start without a valid key.
 
+### Docker socket
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DOCKER_SOCKET` | *(none)* | Path of the Docker socket the Docker integration may use, e.g. `/var/run/docker.sock`. Without it, only a socket proxy over `http://` works. |
+
+To use the socket, mount it and set the variable:
+
+```yaml
+    environment:
+      DOCKER_SOCKET: /var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+```
+
+`:ro` does not make the Docker API read-only: anything that can reach the socket can start and stop containers. Nimbus only ever sends `GET` requests over it, and only admins can add a Docker integration. A [socket proxy](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` limits it further; then use its `http://` address as the integration URL and leave `DOCKER_SOCKET` unset.
+
 ### Health Checks
 
 | Variable | Default | Description |

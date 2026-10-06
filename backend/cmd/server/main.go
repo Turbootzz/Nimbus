@@ -128,8 +128,12 @@ func main() {
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
-	// Initialize integration service
-	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher)
+	// Initialize integration service; DOCKER_SOCKET lets the Docker integration use that socket
+	dockerSocket := config.GetEnvOrDefault("DOCKER_SOCKET", "")
+	if dockerSocket != "" {
+		log.Printf("Docker integration may use the socket %s", dockerSocket)
+	}
+	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher, dockerSocket)
 
 	// Initialize widget service
 	widgetService := services.NewWidgetService(widgetRepo, groupRepo, integrationRepo)

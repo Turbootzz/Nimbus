@@ -167,6 +167,7 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
 | `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in volume, back it up) |
+| `DOCKER_SOCKET` | *(none)* | Docker socket the Docker integration may use, e.g. `/var/run/docker.sock` |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |
