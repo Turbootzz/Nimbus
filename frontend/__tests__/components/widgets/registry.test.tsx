@@ -47,6 +47,7 @@ describe('widget registry', () => {
     const addable = addableTypes(types).map((t) => t.type)
     expect(addable).toEqual([
       'bookmarks',
+      'calendar',
       'clock',
       'custom_api',
       'docker_containers',

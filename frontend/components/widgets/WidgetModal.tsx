@@ -220,7 +220,12 @@ export default function WidgetModal({
                   disabled={isSaving}
                 />
               )}
-              <definition.ConfigForm config={config} onChange={setConfig} disabled={isSaving} />
+              <definition.ConfigForm
+                config={config}
+                onChange={setConfig}
+                disabled={isSaving}
+                meta={types.find((t) => t.type === type)}
+              />
             </div>
 
             <div className="border-card-border flex justify-end gap-2 border-t p-4">

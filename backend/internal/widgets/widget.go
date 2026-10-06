@@ -8,6 +8,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/nimbus/backend/internal/integrations"
@@ -47,6 +48,33 @@ type SecretConfig interface {
 	Unredact(config, stored json.RawMessage) json.RawMessage
 }
 
+// ConfigIntegrations is implemented by types whose config lists several
+// integrations (of Meta.ConfigIntegrationKinds), like a calendar of Sonarr
+// and Radarr. The service checks they are the user's; Fetch gets them in
+// FetchRequest.Linked.
+type ConfigIntegrations interface {
+	IntegrationIDs(config json.RawMessage) []string
+	// SetIntegrationIDs returns the config with another list, e.g. without
+	// integrations that were deleted
+	SetIntegrationIDs(config json.RawMessage, ids []string) (json.RawMessage, error)
+}
+
+// recoverInto turns a panic into *err. Goroutines a Fetch starts need it:
+// the recover around Fetch can't see them, and a panic would stop the server.
+func recoverInto(err *error) {
+	if r := recover(); r != nil {
+		*err = fmt.Errorf("crashed: %v", r)
+	}
+}
+
+// LinkedIntegration is one integration a config lists, connected
+type LinkedIntegration struct {
+	ID   string
+	Kind string
+	Name string
+	Conn *integrations.Conn
+}
+
 // FetchRequest is everything a Fetch needs
 type FetchRequest struct {
 	Config json.RawMessage // normalised by Validate
@@ -54,6 +82,11 @@ type FetchRequest struct {
 	Client *http.Client
 	// Integration is the linked app, nil when the widget has none
 	Integration *integrations.Conn
+	// Linked are the integrations the config lists (ConfigIntegrations);
+	// one that is gone or can't connect is left out of the list
+	Linked []LinkedIntegration
+	// Unlinked explains the integrations left out of Linked
+	Unlinked []string
 }
 
 // Meta describes a widget type. Type is filled in by the registry.
@@ -73,6 +106,8 @@ type Meta struct {
 	// DefaultRefreshSeconds overrides the default for new widgets, e.g. for
 	// numbers that change by the second
 	DefaultRefreshSeconds int `json:"default_refresh_seconds,omitempty"`
+	// ConfigIntegrationKinds are the kinds a ConfigIntegrations type lists
+	ConfigIntegrationKinds []string `json:"config_integration_kinds,omitempty"`
 	// AdminOnly types can only be added and configured by admins, e.g.
 	// because they show what the server can read on the LAN
 	AdminOnly bool `json:"admin_only,omitempty"`

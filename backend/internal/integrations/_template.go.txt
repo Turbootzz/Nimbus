@@ -1,0 +1,59 @@
+// Copy to <app>.go (and _template_test.go.txt to <app>_test.go), then
+// replace "example" and the endpoints. See docs/INTEGRATIONS.md.
+package integrations
+
+import (
+	"context"
+	"net/http"
+
+	"github.com/nimbus/backend/internal/models"
+)
+
+type example struct{}
+
+func init() { Register(example{}) }
+
+// Kind is stored in the database: never change it once released
+func (example) Kind() string { return "example" }
+
+func (example) Meta() Meta {
+	return Meta{
+		Name:        "Example",
+		Icon:        "example", // a dashboard-icons slug
+		DefaultPort: 8080,
+		// The first is the default in the form
+		AuthTypes: []string{models.IntegrationAuthAPIKey},
+		// At most four, in the order they show on the tile
+		KPIs: []KPI{
+			{Key: "items", Label: "Items"},
+			{Key: "used", Label: "Used", Unit: "%"},
+		},
+	}
+}
+
+// exampleAuth puts the key in a header, never in the URL
+func exampleAuth(conn *Conn) authFunc {
+	return func(r *http.Request) { r.Header.Set("X-Api-Key", conn.Creds.APIKey) }
+}
+
+// Test is a cheap call that proves the URL and the key work
+func (example) Test(ctx context.Context, conn *Conn) error {
+	var status struct{ Version string }
+	return getJSON(ctx, conn, "/api/status", exampleAuth(conn), &status)
+}
+
+// Fetch runs on every refresh: keep it to a few requests
+func (example) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
+	var stats struct {
+		Items int     `json:"items"`
+		Used  float64 `json:"used"`
+		Total float64 `json:"total"`
+	}
+	if err := getJSON(ctx, conn, "/api/stats", exampleAuth(conn), &stats); err != nil {
+		return nil, err
+	}
+	return &Payload{KPIs: map[string]any{
+		"items": stats.Items,
+		"used":  percent(stats.Used, stats.Total),
+	}}, nil
+}

@@ -186,6 +186,7 @@ export interface WidgetTypeMeta {
   integration_kinds?: string[]
   min_refresh_seconds?: number
   default_refresh_seconds?: number
+  config_integration_kinds?: string[] // kinds the config lists (calendar)
   admin_only?: boolean // only listed for admins
 }
 
@@ -335,6 +336,27 @@ export interface DockerContainersPayload {
   containers: DockerContainer[]
   running: number
   total: number // includes hidden stopped containers
+}
+
+export interface CalendarWidgetConfig {
+  integrations: string[] // Sonarr and Radarr ids
+  ical_urls: string[]
+  days: number // how far ahead the agenda goes
+  verify_tls: boolean
+}
+
+export interface CalendarEvent {
+  title: string
+  start: string // RFC 3339, or YYYY-MM-DD when all day
+  all_day: boolean
+  source: number // index in sources
+}
+
+export interface CalendarPayload {
+  from: string // YYYY-MM-DD, the 1st of the month shown
+  sources: { name: string; kind: string }[]
+  events: CalendarEvent[]
+  failed?: string[]
 }
 
 // Latest data of a polled widget or integration (GET /dashboard/data and

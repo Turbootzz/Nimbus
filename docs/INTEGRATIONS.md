@@ -15,8 +15,8 @@ Add integrations under **Settings, Integrations**, then pick one under **Live nu
 | Pi-hole | queries, blocked, blocked %, blocklist size | app password, or none | Pi-hole v6 only. v5 used a different API. |
 | Proxmox VE | VMs running/total, LXC running/total, CPU %, memory % | API token | Enter the token as `user@pve!tokenid=secret`. The `PVEAuditor` role is enough. Turn off TLS verification for a self-signed certificate. |
 | qBittorrent | downloading, download speed, seeding, upload speed | username and password, or none | |
-| Radarr | wanted, queued, movies | API key | Settings, General. |
-| Sonarr | wanted, queued, series | API key | Settings, General. |
+| Radarr | wanted, queued, movies | API key | Settings, General. Also feeds the calendar widget (releases). |
+| Sonarr | wanted, queued, series | API key | Settings, General. Also feeds the calendar widget (episodes). |
 | Uptime Kuma | monitors up, down, up % | API key, or none | Reads `/metrics`. Create the key under Settings, API Keys. Pending and maintenance monitors are not counted. |
 
 The URL is the address the Nimbus server uses to reach the app, including a sub path if the app runs behind a reverse proxy (for example `https://proxy.lan/sonarr`).
@@ -25,7 +25,7 @@ The URL is the address the Nimbus server uses to reach the app, including a sub 
 
 Each app is one Go file in `backend/internal/integrations/` that registers itself. Nothing else needs to change: the settings page, the service form and the tile all read the app's metadata.
 
-1. Create `backend/internal/integrations/<app>.go` with a type that implements `Integration`:
+1. Copy `backend/internal/integrations/_template.go.txt` to `<app>.go` and `_template_test.go.txt` to `<app>_test.go`. The template is a working kind with a test. Then make the type implement `Integration` for your app:
    - `Kind()`: a stable id, stored in the database (`"pihole"`). Never change it later.
    - `Meta()`: the name, the [dashboard-icons](https://github.com/walkxcode/dashboard-icons) slug, the default port, the auth types it accepts (the first is the default) and its KPIs. The KPIs are the numbers on the tile, in display order, at most four.
    - `Test(ctx, conn)`: a cheap call that proves the URL and the credentials work.

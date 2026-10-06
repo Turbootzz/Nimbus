@@ -42,6 +42,12 @@ func VerifiesTLS(config json.RawMessage) bool {
 // getBody GETs rawURL with the given headers and returns a body of at most
 // maxFetchBodyBytes, without a UTF-8 byte order mark
 func getBody(ctx context.Context, client *http.Client, rawURL string, header http.Header) ([]byte, error) {
+	return getBodyLimit(ctx, client, rawURL, header, maxFetchBodyBytes)
+}
+
+// getBodyLimit is getBody with another size limit, for documents that are
+// big by nature (calendars with years of history)
+func getBodyLimit(ctx context.Context, client *http.Client, rawURL string, header http.Header, limit int64) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
@@ -64,12 +70,12 @@ func getBody(ctx context.Context, client *http.Client, rawURL string, header htt
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status %d", resp.StatusCode)
 	}
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxFetchBodyBytes+1))
+	body, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
 	if err != nil {
 		return nil, err
 	}
-	if len(body) > maxFetchBodyBytes {
-		return nil, errors.New("response is larger than 1 MB")
+	if int64(len(body)) > limit {
+		return nil, fmt.Errorf("response is larger than %d MB", limit>>20)
 	}
 	return bytes.TrimPrefix(body, utf8BOM), nil
 }

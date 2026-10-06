@@ -27,6 +27,16 @@ export const backendTypes: WidgetTypeMeta[] = [
     static: true,
   },
   {
+    type: 'calendar',
+    name: 'Calendar',
+    category: 'info',
+    default_size: '2x2',
+    allowed_sizes: ['2x1', '1x2', '2x2'],
+    static: false,
+    config_integration_kinds: ['sonarr', 'radarr'],
+    min_refresh_seconds: 300,
+  },
+  {
     type: 'clock',
     name: 'Clock',
     category: 'general',
