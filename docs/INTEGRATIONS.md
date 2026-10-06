@@ -38,6 +38,7 @@ Each app is one Go file in `backend/internal/integrations/` that registers itsel
 
 - Use `conn.Client` for every request. It blocks cloud metadata addresses and honours the TLS setting.
 - Use the helpers in `http.go`: `getJSON`, `eachJSON` for big lists (they are read item by item), and `withSession` for apps that log in first. Store session ids in `conn.State`, which lives as long as the integration.
+- An app with few session seats (like Pi-hole) should also implement `Closer`: `Close` logs the kept session out when the integration is deleted.
 - Put credentials in headers or the request body, never in the URL. Errors are shown to the user, and Go puts the URL in its errors.
 - Don't log credentials or responses.
 - Keep `Fetch` to a few requests. It runs on every refresh, by default every minute.

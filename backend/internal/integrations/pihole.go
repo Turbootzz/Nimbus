@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 
@@ -78,6 +79,20 @@ func (pihole) Test(ctx context.Context, conn *Conn) error {
 	if sid != "" {
 		// Pi-hole has few session seats; give this one back
 		_ = doRequest(ctx, conn, http.MethodDelete, "/api/auth", nil, piholeAuth(sid), nil)
+	}
+	return err
+}
+
+// Close logs out the session Fetch keeps, freeing its seat
+func (pihole) Close(ctx context.Context, conn *Conn) error {
+	sid, ok := conn.State.Get("sid")
+	if !ok || sid == "" {
+		return nil
+	}
+	conn.State.Delete("sid")
+	err := doRequest(ctx, conn, http.MethodDelete, "/api/auth", nil, piholeAuth(sid), nil)
+	if errors.Is(err, errRejected) {
+		return nil // the session had expired already
 	}
 	return err
 }

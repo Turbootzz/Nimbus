@@ -28,6 +28,10 @@ func TestPihole(t *testing.T) {
 			fmt.Fprintf(w, `{"session":{"valid":true,"sid":%q,"validity":1800}}`, validSID)
 		},
 		"DELETE /api/auth": func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("X-FTL-SID") != validSID {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 			logouts++
 			w.WriteHeader(http.StatusNoContent)
 		},
@@ -66,6 +70,19 @@ func TestPihole(t *testing.T) {
 
 	wrong := newTestConn(server.URL, models.IntegrationCredentials{Token: "nope"})
 	assert.ErrorIs(t, impl.Test(ctx, wrong), errRejected)
+
+	// Deleting the integration logs the kept session out, once
+	closer := impl.(Closer)
+	require.NoError(t, closer.Close(ctx, conn))
+	assert.Equal(t, 2, logouts)
+	require.NoError(t, closer.Close(ctx, conn))
+	assert.Equal(t, 2, logouts, "no session left to close")
+
+	// A session that had expired already is fine
+	_, err = impl.Fetch(ctx, conn)
+	require.NoError(t, err)
+	validSID = "sid-3"
+	assert.NoError(t, closer.Close(ctx, conn))
 }
 
 func TestPiholeWithoutPassword(t *testing.T) {
