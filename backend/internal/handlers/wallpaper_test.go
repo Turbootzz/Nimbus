@@ -53,6 +53,7 @@ func setupPreferencesApp(t *testing.T) (*fiber.App, *sql.DB) {
 		wallpaper_dim INTEGER NOT NULL DEFAULT 0,
 		card_opacity INTEGER NOT NULL DEFAULT 100,
 		card_blur INTEGER NOT NULL DEFAULT 0,
+		layout_mode TEXT NOT NULL DEFAULT 'classic',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)
@@ -129,6 +130,18 @@ func TestPreferences_DefaultsMatchTheDatabase(t *testing.T) {
 	assert.Equal(t, "auto", prefs.ThemeMode)
 	assert.Equal(t, "medium", prefs.CardScale)
 	assert.Equal(t, 100, prefs.CardOpacity)
+	assert.Equal(t, "classic", prefs.LayoutMode)
+}
+
+func TestPreferences_LayoutMode(t *testing.T) {
+	app, _ := setupPreferencesApp(t)
+	status, prefs, body := putJSON(t, app, "/preferences", `{"layout_mode":"canvas"}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.Equal(t, "canvas", prefs.LayoutMode)
+
+	status, _, body = putJSON(t, app, "/preferences", `{"layout_mode":"grid"}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Contains(t, body, "classic canvas")
 }
 
 func TestPreferences_GlassRanges(t *testing.T) {

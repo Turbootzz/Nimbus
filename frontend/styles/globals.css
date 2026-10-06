@@ -140,3 +140,17 @@ body::before {
     padding-left: 4rem;
   }
 }
+
+/* Canvas layout on the dashboard (set by ThemeScript, kept by the layout).
+   Before React renders the canvas, hide the sidebar and keep the header's
+   space, which the canvas top bar takes over. After the sidebar rules, so
+   it wins over the collapsed padding. */
+html[data-layout='canvas'] [data-sidebar='desktop'] {
+  display: none;
+}
+html[data-layout='canvas'] header[data-classic-chrome] {
+  visibility: hidden;
+}
+html[data-layout='canvas'] [data-main-content] {
+  padding-left: 0;
+}

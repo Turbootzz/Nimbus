@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   UserCircleIcon,
@@ -10,10 +11,16 @@ import {
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
+import { mainNavigation } from '@/lib/navigation'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
-export default function UserMenu() {
+interface UserMenuProps {
+  // The canvas layout has no sidebar, so its menu links to the main pages
+  withNavigation?: boolean
+}
+
+export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   const [user, setUser] = useState<User | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -117,6 +124,41 @@ export default function UserMenu() {
           }}
         >
           <div className="py-1">
+            {withNavigation && (
+              <>
+                {mainNavigation(user?.role === 'admin').map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                    style={{ color: 'var(--color-text-primary)' }}
+                    {...menuItemHover}
+                  >
+                    <item.icon
+                      className="mr-3 h-5 w-5"
+                      style={{ color: 'var(--color-text-muted)' }}
+                    />
+                    {item.name}
+                  </Link>
+                ))}
+                {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
+                  <a
+                    href="https://nimbusapp.dev"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-text-muted block px-4 py-1 text-xs hover:opacity-80"
+                  >
+                    Hosted by Nimbus Cloud
+                  </a>
+                )}
+                <div
+                  className="my-1 h-px"
+                  style={{ backgroundColor: 'var(--color-card-border)' }}
+                />
+              </>
+            )}
+
             {/* Profile option */}
             <button
               onClick={handleProfile}

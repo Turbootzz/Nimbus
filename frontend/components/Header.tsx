@@ -15,6 +15,7 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
 
   return (
     <header
+      data-classic-chrome
       className="sticky top-0 z-30 border-b"
       style={{
         backgroundColor: 'var(--color-card)',

@@ -83,6 +83,7 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			CardScale:             "medium",
 			ViewMode:              "grid",
 			CardOpacity:           100,
+			LayoutMode:            "classic",
 			UpdatedAt:             time.Time{}, // Zero value for time
 		})
 	}
