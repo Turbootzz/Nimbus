@@ -91,8 +91,9 @@ class ApiClient {
       }
     }
 
+    // A multipart body sets its own content type with the boundary
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     }
 
@@ -106,6 +107,11 @@ class ApiClient {
       // Handle 204 No Content responses (empty body)
       if (response.status === 204) {
         return { data: undefined as T }
+      }
+
+      // The proxy or server refuses a too large upload before Nimbus sees it
+      if (response.status === 413) {
+        return { error: { message: 'The file is too large' } }
       }
 
       // Parse response as text first to handle non-JSON responses gracefully
@@ -233,49 +239,18 @@ class ApiClient {
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
-    const apiUrl = getApiUrl()
-    if (!apiUrl) {
-      return {
-        error: { message: 'API URL not configured' },
-      }
-    }
+    const response = await this.request<{ user: User }>('/users/me/avatar', {
+      method: 'PUT',
+      body: formData,
+    })
+    return response.data ? { data: response.data.user } : { error: response.error }
+  }
 
-    try {
-      const response = await fetch(`${apiUrl}/users/me/avatar`, {
-        method: 'PUT',
-        credentials: 'include',
-        body: formData,
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch {
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          return {
-            error: {
-              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
-            },
-          }
-        }
-        return { error: { message: 'API returned an invalid response' } }
-      }
-
-      if (!response.ok) {
-        return {
-          error: { message: data.error || data.message || 'Failed to upload avatar' },
-        }
-      }
-
-      return {
-        data: data.user,
-      }
-    } catch (error) {
-      return {
-        error: { message: error instanceof Error ? error.message : 'Failed to upload avatar' },
-      }
-    }
+  // Makes the image the user's background; answers with the new preferences
+  async uploadWallpaper(file: File): Promise<ApiResponse<UserPreferences>> {
+    const formData = new FormData()
+    formData.append('wallpaper', file)
+    return this.request<UserPreferences>('/users/me/wallpaper', { method: 'PUT', body: formData })
   }
 
   // ============================================
@@ -332,56 +307,9 @@ class ApiClient {
   async uploadServiceIcon(
     file: File
   ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
-    const apiUrl = getApiUrl()
-    if (!apiUrl) {
-      return {
-        error: {
-          message: 'API URL not configured',
-        },
-      }
-    }
-
     const formData = new FormData()
     formData.append('icon', file)
-
-    try {
-      const response = await fetch(`${apiUrl}/uploads/service-icon`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include', // Send httpOnly cookies
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch {
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          return {
-            error: {
-              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
-            },
-          }
-        }
-        return { error: { message: 'API returned an invalid response' } }
-      }
-
-      if (!response.ok) {
-        return {
-          error: {
-            message: data.error || data.message || 'Upload failed',
-          },
-        }
-      }
-
-      return { data }
-    } catch (error) {
-      return {
-        error: {
-          message: error instanceof Error ? error.message : 'Upload failed',
-        },
-      }
-    }
+    return this.request('/uploads/service-icon', { method: 'POST', body: formData })
   }
 
   // ============================================

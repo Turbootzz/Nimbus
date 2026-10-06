@@ -54,8 +54,12 @@ type UserPreferences struct {
 	OpenInNewTab          bool      `json:"open_in_new_tab" db:"open_in_new_tab"`       // Whether to open services in new tab
 	EnableCardResizing    bool      `json:"enable_card_resizing" db:"enable_card_resizing"`
 	EnableServiceGrouping bool      `json:"enable_service_grouping" db:"enable_service_grouping"`
-	CardScale             string    `json:"card_scale" db:"card_scale"` // "small", "medium", or "large"
-	ViewMode              string    `json:"view_mode" db:"view_mode"`   // "grid" or "list"
+	CardScale             string    `json:"card_scale" db:"card_scale"`         // "small", "medium", or "large"
+	ViewMode              string    `json:"view_mode" db:"view_mode"`           // "grid" or "list"
+	WallpaperBlur         int       `json:"wallpaper_blur" db:"wallpaper_blur"` // px, 0-20
+	WallpaperDim          int       `json:"wallpaper_dim" db:"wallpaper_dim"`   // %, 0-80
+	CardOpacity           int       `json:"card_opacity" db:"card_opacity"`     // %, 0-100
+	CardBlur              int       `json:"card_blur" db:"card_blur"`           // px, 0-40
 	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -70,6 +74,10 @@ type PreferencesUpdateRequest struct {
 	EnableServiceGrouping *bool          `json:"enable_service_grouping"` // Optional, defaults to true if not provided
 	CardScale             *string        `json:"card_scale" validate:"omitempty,oneof=small medium large"`
 	ViewMode              *string        `json:"view_mode" validate:"omitempty,oneof=grid list"`
+	WallpaperBlur         *int           `json:"wallpaper_blur" validate:"omitempty,min=0,max=20"`
+	WallpaperDim          *int           `json:"wallpaper_dim" validate:"omitempty,min=0,max=80"`
+	CardOpacity           *int           `json:"card_opacity" validate:"omitempty,min=0,max=100"`
+	CardBlur              *int           `json:"card_blur" validate:"omitempty,min=0,max=40"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -82,6 +90,10 @@ type PreferencesResponse struct {
 	EnableServiceGrouping bool      `json:"enable_service_grouping"`
 	CardScale             string    `json:"card_scale"`
 	ViewMode              string    `json:"view_mode"`
+	WallpaperBlur         int       `json:"wallpaper_blur"`
+	WallpaperDim          int       `json:"wallpaper_dim"`
+	CardOpacity           int       `json:"card_opacity"`
+	CardBlur              int       `json:"card_blur"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
@@ -96,6 +108,10 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		EnableServiceGrouping: p.EnableServiceGrouping,
 		CardScale:             p.CardScale,
 		ViewMode:              p.ViewMode,
+		WallpaperBlur:         p.WallpaperBlur,
+		WallpaperDim:          p.WallpaperDim,
+		CardOpacity:           p.CardOpacity,
+		CardBlur:              p.CardBlur,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }

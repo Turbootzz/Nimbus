@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/nimbus/backend/internal/models"
 )
@@ -15,51 +17,12 @@ func NewPreferencesRepository(db *sql.DB) *PreferencesRepository {
 	return &PreferencesRepository{db: db}
 }
 
-// getOpenInNewTabValue returns the open_in_new_tab value, defaulting to true if nil
-func getOpenInNewTabValue(value *bool) bool {
-	if value != nil {
-		return *value
-	}
-	return true
-}
-
-// getEnableCardResizingValue returns the enable_card_resizing value, defaulting to true if nil
-func getEnableCardResizingValue(value *bool) bool {
-	if value != nil {
-		return *value
-	}
-	return true
-}
-
-// getEnableServiceGroupingValue returns the enable_service_grouping value, defaulting to true if nil
-func getEnableServiceGroupingValue(value *bool) bool {
-	if value != nil {
-		return *value
-	}
-	return true
-}
-
-// getCardScaleValue returns the card_scale value, defaulting to "medium" if nil
-func getCardScaleValue(value *string) string {
-	if value != nil {
-		return *value
-	}
-	return "medium"
-}
-
-// getViewModeValue returns the view_mode value, defaulting to "grid" if nil
-func getViewModeValue(value *string) string {
-	if value != nil {
-		return *value
-	}
-	return "grid"
-}
-
 // GetByUserID retrieves preferences for a specific user
 func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) (*models.UserPreferences, error) {
 	preferences := &models.UserPreferences{}
 	query := `
-		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode, created_at, updated_at
+		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -75,6 +38,10 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.EnableServiceGrouping,
 		&preferences.CardScale,
 		&preferences.ViewMode,
+		&preferences.WallpaperBlur,
+		&preferences.WallpaperDim,
+		&preferences.CardOpacity,
+		&preferences.CardBlur,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -113,102 +80,65 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 	return err
 }
 
-// Update updates existing user preferences
-func (r *PreferencesRepository) Update(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
-	query := `
-		UPDATE user_preferences
-		SET theme_mode = $1, theme_background = $2, theme_accent_color = $3, open_in_new_tab = $4, enable_card_resizing = $5, enable_service_grouping = $6, card_scale = $7, view_mode = $8, updated_at = CURRENT_TIMESTAMP
-		WHERE user_id = $9
-	`
-
-	result, err := r.db.ExecContext(
-		ctx,
-		query,
-		preferences.ThemeMode,
-		preferences.ThemeBackground.GetValue(),
-		preferences.ThemeAccentColor.GetValue(),
-		getOpenInNewTabValue(preferences.OpenInNewTab),
-		getEnableCardResizingValue(preferences.EnableCardResizing),
-		getEnableServiceGroupingValue(preferences.EnableServiceGrouping),
-		getCardScaleValue(preferences.CardScale),
-		getViewModeValue(preferences.ViewMode),
-		userID,
-	)
-
-	if err != nil {
-		return err
+// Upsert creates or updates preferences. Only the fields in the request are
+// written: a new row gets the column defaults for the rest, an existing row
+// keeps them. One INSERT ... ON CONFLICT, so concurrent first saves can't race.
+func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *models.PreferencesUpdateRequest) error {
+	columns := []string{"user_id"}
+	args := []any{userID}
+	// add writes a column when the request has it; pointers become NULL or
+	// their value
+	add := func(column string, value any, given bool) {
+		if given {
+			columns = append(columns, column)
+			args = append(args, value)
+		}
 	}
+	add("theme_mode", p.ThemeMode, p.ThemeMode != nil)
+	// Nullable fields: an explicit null clears the value, omitted keeps it
+	add("theme_background", p.ThemeBackground.GetValue(), p.ThemeBackground.IsSet())
+	add("theme_accent_color", p.ThemeAccentColor.GetValue(), p.ThemeAccentColor.IsSet())
+	add("open_in_new_tab", p.OpenInNewTab, p.OpenInNewTab != nil)
+	add("enable_card_resizing", p.EnableCardResizing, p.EnableCardResizing != nil)
+	add("enable_service_grouping", p.EnableServiceGrouping, p.EnableServiceGrouping != nil)
+	add("card_scale", p.CardScale, p.CardScale != nil)
+	add("view_mode", p.ViewMode, p.ViewMode != nil)
+	add("wallpaper_blur", p.WallpaperBlur, p.WallpaperBlur != nil)
+	add("wallpaper_dim", p.WallpaperDim, p.WallpaperDim != nil)
+	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
+	add("card_blur", p.CardBlur, p.CardBlur != nil)
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
+	placeholders := make([]string, len(columns))
+	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
+	for i, column := range columns {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		if column != "user_id" {
+			updates = append(updates, column+" = EXCLUDED."+column)
+		}
 	}
+	query := fmt.Sprintf(`INSERT INTO user_preferences (%s, created_at, updated_at)
+		VALUES (%s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+		ON CONFLICT (user_id) DO UPDATE SET %s`,
+		strings.Join(columns, ", "), strings.Join(placeholders, ", "), strings.Join(updates, ", "))
 
-	if rowsAffected == 0 {
-		return sql.ErrNoRows
-	}
-
-	return nil
+	_, err := r.db.ExecContext(ctx, query, args...)
+	return err
 }
 
-// Upsert creates or updates preferences (used when user might not have preferences yet)
-// This method supports partial updates using atomic INSERT ... ON CONFLICT to avoid race conditions
-func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, preferences *models.PreferencesUpdateRequest) error {
-	// Determine values for insert (with defaults for nil fields)
-	insertThemeMode := "auto"
-	if preferences.ThemeMode != nil {
-		insertThemeMode = *preferences.ThemeMode
+// WallpapersInUse returns the uploaded wallpapers that preferences point at
+func (r *PreferencesRepository) WallpapersInUse(ctx context.Context) (map[string]bool, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT theme_background FROM user_preferences WHERE theme_background LIKE '/uploads/wallpapers/%'`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list wallpapers: %w", err)
 	}
-
-	// Atomic upsert using INSERT ... ON CONFLICT
-	// For INSERT: use provided values or defaults
-	// For UPDATE: use COALESCE to keep existing values when new value is NULL
-	query := `
-		INSERT INTO user_preferences (user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-		ON CONFLICT (user_id) DO UPDATE SET
-			theme_mode = COALESCE($10, user_preferences.theme_mode),
-			theme_background = CASE
-				WHEN $11::boolean THEN $3
-				ELSE user_preferences.theme_background
-			END,
-			theme_accent_color = CASE
-				WHEN $12::boolean THEN $4
-				ELSE user_preferences.theme_accent_color
-			END,
-			open_in_new_tab = COALESCE($13, user_preferences.open_in_new_tab),
-			enable_card_resizing = COALESCE($14, user_preferences.enable_card_resizing),
-			enable_service_grouping = COALESCE($15, user_preferences.enable_service_grouping),
-			card_scale = COALESCE($16, user_preferences.card_scale),
-			view_mode = COALESCE($17, user_preferences.view_mode),
-			updated_at = CURRENT_TIMESTAMP
-	`
-
-	// Flags to indicate if field was provided (even if NULL)
-	hasBackground := preferences.ThemeBackground.IsSet()
-	hasAccentColor := preferences.ThemeAccentColor.IsSet()
-
-	_, err := r.db.ExecContext(
-		ctx,
-		query,
-		userID,                                  // $1
-		insertThemeMode,                         // $2 (for INSERT)
-		preferences.ThemeBackground.GetValue(),  // $3 (for both INSERT and UPDATE)
-		preferences.ThemeAccentColor.GetValue(), // $4 (for both INSERT and UPDATE)
-		getOpenInNewTabValue(preferences.OpenInNewTab),                   // $5 (for INSERT)
-		getEnableCardResizingValue(preferences.EnableCardResizing),       // $6 (for INSERT)
-		getEnableServiceGroupingValue(preferences.EnableServiceGrouping), // $7 (for INSERT)
-		getCardScaleValue(preferences.CardScale),                         // $8 (for INSERT)
-		getViewModeValue(preferences.ViewMode),                           // $9 (for INSERT)
-		preferences.ThemeMode,                                            // $10 (for UPDATE - COALESCE)
-		hasBackground,                                                    // $11 (flag: was background provided?)
-		hasAccentColor,                                                   // $12 (flag: was accent color provided?)
-		preferences.OpenInNewTab,                                         // $13 (for UPDATE - COALESCE)
-		preferences.EnableCardResizing,                                   // $14 (for UPDATE - COALESCE)
-		preferences.EnableServiceGrouping,                                // $15 (for UPDATE - COALESCE)
-		preferences.CardScale,                                            // $16 (for UPDATE - COALESCE)
-		preferences.ViewMode,                                             // $17 (for UPDATE - COALESCE)
-	)
-
-	return err
+	defer rows.Close()
+	inUse := map[string]bool{}
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, fmt.Errorf("failed to scan wallpaper: %w", err)
+		}
+		inUse[path] = true
+	}
+	return inUse, rows.Err()
 }

@@ -12,7 +12,7 @@ function applyThemeBeforeHydration() {
     // Read from localStorage
     const theme = localStorage.getItem('theme') || 'auto'
     const accentColor = localStorage.getItem('accentColor')
-    const background = localStorage.getItem('background')
+    const glassVars = localStorage.getItem('glassVars')
 
     const root = document.documentElement
 
@@ -33,15 +33,24 @@ function applyThemeBeforeHydration() {
       root.style.setProperty('--dark-primary-hover', accentColor)
     }
 
-    // Apply background
-    if (background) {
+    // Apply the wallpaper and glass card variables ThemeContext cached; a
+    // broken cache must not stop the rest of this script
+    if (glassVars) {
+      let vars: Record<string, unknown> = {}
       try {
-        const url = new URL(background, window.location.href)
-        if (url.protocol === 'http:' || url.protocol === 'https:') {
-          document.body.style.backgroundImage = `url("${url.href}")`
-        }
+        vars = JSON.parse(glassVars)
       } catch {
-        // Invalid URL, skip
+        // Rewritten by ThemeContext on the next load
+      }
+      const names = [
+        '--wallpaper-image',
+        '--wallpaper-blur',
+        '--wallpaper-dim',
+        '--card-opacity',
+        '--card-backdrop',
+      ]
+      for (const name of names) {
+        if (typeof vars[name] === 'string') root.style.setProperty(name, vars[name])
       }
     }
 

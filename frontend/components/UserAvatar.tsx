@@ -3,15 +3,11 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { UserCircleIcon } from '@heroicons/react/24/outline'
-import { getApiUrl } from '@/lib/utils/api-url'
+import { uploadUrl } from '@/lib/utils/api-url'
 
-const resolveAvatarUrl = (avatarUrl: string | null | undefined): string | undefined => {
-  if (!avatarUrl) return undefined
-  // OAuth providers return a full URL; local uploads are stored as a
-  // relative path that needs the API origin prepended.
-  if (avatarUrl.startsWith('http')) return avatarUrl
-  return getApiUrl() + avatarUrl
-}
+// OAuth providers return a full URL; local uploads a path on the API server
+const resolveAvatarUrl = (avatarUrl: string | null | undefined): string | undefined =>
+  avatarUrl ? uploadUrl(avatarUrl) : undefined
 
 interface UserAvatarProps {
   avatarUrl: string | null | undefined

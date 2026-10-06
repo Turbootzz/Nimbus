@@ -153,7 +153,7 @@ function CompactCard({
   const titleSize = scaleText[cardScale].title
   const statusDotSize = cardScale === 'small' ? 'h-2 w-2' : 'h-3 w-3'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -220,7 +220,7 @@ function StandardCard({
   const descSize = scaleText[cardScale].description
   const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -317,7 +317,7 @@ function LargeCard({
   const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
   const marginTop = cardScale === 'small' ? 'mt-2' : 'mt-4'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'

@@ -42,6 +42,17 @@ func (h *StaticHandler) ServeServiceIcon(c *fiber.Ctx) error {
 
 // ServeAvatar serves uploaded user avatar images
 func (h *StaticHandler) ServeAvatar(c *fiber.Ctx) error {
+	return serveUpload(c, AvatarUploadDir)
+}
+
+// ServeWallpaper serves uploaded wallpapers. Like avatars they are public:
+// the random file name is the only way to find one.
+func (h *StaticHandler) ServeWallpaper(c *fiber.Ctx) error {
+	return serveUpload(c, WallpaperUploadDir)
+}
+
+// serveUpload sends the file named in the route from dir
+func serveUpload(c *fiber.Ctx, dir string) error {
 	filename := c.Params("filename")
 	if filename == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -50,12 +61,7 @@ func (h *StaticHandler) ServeAvatar(c *fiber.Ctx) error {
 	}
 
 	// Prevent directory traversal attacks
-	filename = filepath.Base(filename)
-
-	// Construct full path
-	filePath := filepath.Join(AvatarUploadDir, filename)
-
-	// Check if file exists
+	filePath := filepath.Join(dir, filepath.Base(filename))
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "File not found",

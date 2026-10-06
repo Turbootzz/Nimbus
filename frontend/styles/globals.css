@@ -106,13 +106,28 @@ body {
   background: var(--color-background);
   color: var(--color-foreground);
   font-family: Arial, Helvetica, sans-serif;
-  /* Ensure background image shows through with high quality */
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-position: center center;
-  background-attachment: fixed;
-  image-rendering: high-quality;
-  image-rendering: -webkit-optimize-contrast;
+}
+
+/* The wallpaper sits on its own fixed layer behind the page, so it can be
+   blurred and dimmed without touching the content. ThemeContext sets the
+   variables; the layer grows by twice the blur so the edges stay sharp. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: calc(var(--wallpaper-blur, 0px) * -2);
+  z-index: -1;
+  pointer-events: none;
+  background:
+    linear-gradient(rgb(0 0 0 / var(--wallpaper-dim, 0)), rgb(0 0 0 / var(--wallpaper-dim, 0))),
+    var(--wallpaper-image, none) center / cover no-repeat;
+  filter: blur(var(--wallpaper-blur, 0px));
+}
+
+/* Dashboard cards: see-through and blurred when the user turns that on.
+   At the defaults (100%, no blur) this is plain bg-card. */
+@utility glass-card {
+  background-color: color-mix(in srgb, var(--color-card) var(--card-opacity, 100%), transparent);
+  backdrop-filter: var(--card-backdrop, none);
 }
 
 /* Pre-hydration sidebar collapsed state (set by ThemeScript) */

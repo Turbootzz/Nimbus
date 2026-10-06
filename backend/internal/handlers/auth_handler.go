@@ -14,18 +14,20 @@ import (
 )
 
 type AuthHandler struct {
-	userRepo     *repository.UserRepository
-	authService  *services.AuthService
-	settingsRepo *repository.SettingsRepository
-	cookieConfig utils.CookieConfig
+	userRepo        *repository.UserRepository
+	authService     *services.AuthService
+	settingsRepo    *repository.SettingsRepository
+	preferencesRepo *repository.PreferencesRepository
+	cookieConfig    utils.CookieConfig
 }
 
-func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService, settingsRepo *repository.SettingsRepository) *AuthHandler {
+func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService, settingsRepo *repository.SettingsRepository, preferencesRepo *repository.PreferencesRepository) *AuthHandler {
 	return &AuthHandler{
-		userRepo:     userRepo,
-		authService:  authService,
-		settingsRepo: settingsRepo,
-		cookieConfig: utils.GetCookieConfig(),
+		userRepo:        userRepo,
+		preferencesRepo: preferencesRepo,
+		authService:     authService,
+		settingsRepo:    settingsRepo,
+		cookieConfig:    utils.GetCookieConfig(),
 	}
 }
 
@@ -300,6 +302,8 @@ func (h *AuthHandler) DeleteAccount(c *fiber.Ctx) error {
 
 	// Run after the DB delete so we never orphan a row pointing at a missing file.
 	removeLocalAvatar(user.AvatarURL, "DeleteAccount")
+	// The preferences row went with the user, so the sweep drops their wallpaper
+	PruneWallpapers(c.Context(), h.preferencesRepo)
 
 	c.Cookie(utils.ClearAuthCookie(h.cookieConfig))
 	return c.JSON(fiber.Map{
