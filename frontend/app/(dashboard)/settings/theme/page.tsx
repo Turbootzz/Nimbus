@@ -3,6 +3,7 @@
 import { useTheme } from '@/contexts/ThemeContext'
 import { Toggle } from '@/components/ui/Toggle'
 import WallpaperSettings from '@/components/WallpaperSettings'
+import LayoutSettings from '@/components/LayoutSettings'
 
 export default function ThemePage() {
   const {
@@ -161,6 +162,8 @@ export default function ThemePage() {
               </div>
             </div>
           </div>
+
+          <LayoutSettings />
 
           <WallpaperSettings />
         </div>

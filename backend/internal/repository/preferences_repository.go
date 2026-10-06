@@ -22,7 +22,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 	preferences := &models.UserPreferences{}
 	query := `
 		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
-			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, created_at, updated_at
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -42,6 +42,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.WallpaperDim,
 		&preferences.CardOpacity,
 		&preferences.CardBlur,
+		&preferences.LayoutMode,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -107,6 +108,7 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *mo
 	add("wallpaper_dim", p.WallpaperDim, p.WallpaperDim != nil)
 	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
 	add("card_blur", p.CardBlur, p.CardBlur != nil)
+	add("layout_mode", p.LayoutMode, p.LayoutMode != nil)
 
 	placeholders := make([]string, len(columns))
 	updates := []string{"updated_at = CURRENT_TIMESTAMP"}

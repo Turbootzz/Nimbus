@@ -87,6 +87,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			wallpaper_dim INTEGER NOT NULL DEFAULT 0,
 			card_opacity INTEGER NOT NULL DEFAULT 100,
 			card_blur INTEGER NOT NULL DEFAULT 0,
+			layout_mode TEXT NOT NULL DEFAULT 'classic',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE

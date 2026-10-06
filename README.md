@@ -47,6 +47,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 
 **🎨 Personalization**
 - Custom wallpapers per user (upload or URL) with blur, dim and glass cards
+- Canvas layout (opt-in): the dashboard fills the page under a top bar, no sidebar
 - Light/dark mode toggle
 - Accent color themes
 - Drag & drop service tiles

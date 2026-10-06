@@ -54,6 +54,15 @@ function applyThemeBeforeHydration() {
       }
     }
 
+    // Canvas layout replaces the sidebar on the dashboard; CSS hides the
+    // classic chrome until React renders the canvas
+    if (
+      window.location.pathname === '/dashboard' &&
+      localStorage.getItem('nimbus-layout') === 'canvas'
+    ) {
+      root.setAttribute('data-layout', 'canvas')
+    }
+
     // Apply sidebar collapsed state
     const sidebarCollapsed = localStorage.getItem('nimbus-sidebar-collapsed')
     if (sidebarCollapsed === 'true') {

@@ -454,8 +454,12 @@ export interface UserPreferences {
   wallpaper_dim: number // %, 0-80
   card_opacity: number // %, 0-100
   card_blur: number // px, 0-40
+  layout_mode: LayoutMode
   updated_at?: string
 }
+
+// classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
+export type LayoutMode = 'classic' | 'canvas'
 
 export interface PreferencesUpdateRequest {
   theme_mode?: 'light' | 'dark' | 'auto'
@@ -470,6 +474,7 @@ export interface PreferencesUpdateRequest {
   wallpaper_dim?: number
   card_opacity?: number
   card_blur?: number
+  layout_mode?: LayoutMode
 }
 
 // API response types

@@ -11,7 +11,8 @@ import {
   ReactNode,
 } from 'react'
 import { api } from '@/lib/api'
-import type { PreferencesUpdateRequest, CardScale, ViewMode } from '@/types'
+import type { PreferencesUpdateRequest, CardScale, LayoutMode, ViewMode } from '@/types'
+import { setLayoutMode as storeLayoutMode } from '@/lib/layout-store'
 import {
   type Glass,
   defaultGlass,
@@ -44,6 +45,8 @@ interface ThemeContextType {
   setViewMode: (viewMode: ViewMode) => void
   // Merges the change; may raise the dim to keep glass cards readable
   setGlass: (change: Partial<Glass>) => void
+  // Read the layout with useLayoutMode (lib/layout-store), which can't flash
+  setLayoutMode: (layoutMode: LayoutMode) => void
   // Uploads and applies a wallpaper; resolves to an error message or null
   uploadWallpaper: (file: File) => Promise<string | null>
   loading: boolean
@@ -73,6 +76,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const pendingUpdatesRef = useRef<PreferencesUpdateRequest | null>(null)
   // The save on its way to the API, so an upload can wait for it
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
+  const layoutPickedRef = useRef(false)
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -177,6 +181,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setCardScaleState(apiCardScale)
           setViewModeState(apiViewMode)
           setGlassState(apiGlass)
+          // Unless the user already picked one while this was loading
+          if (!layoutPickedRef.current) storeLayoutMode(response.data.layout_mode ?? 'classic')
 
           // Update localStorage cache with API data
           localStorage.setItem('theme', apiTheme)
@@ -431,6 +437,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return null
   }, [])
 
+  const setLayoutMode = useCallback(
+    (v: LayoutMode) => {
+      layoutPickedRef.current = true
+      storeLayoutMode(v)
+      savePreferences({ layout_mode: v })
+    },
+    [savePreferences]
+  )
+
   const value = useMemo(
     () => ({
       theme,
@@ -452,6 +467,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCardScale,
       setViewMode,
       setGlass,
+      setLayoutMode,
       uploadWallpaper,
       loading,
     }),
@@ -475,6 +491,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCardScale,
       setViewMode,
       setGlass,
+      setLayoutMode,
       uploadWallpaper,
       loading,
     ]

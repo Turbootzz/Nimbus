@@ -37,6 +37,7 @@ import type {
   WidgetTypeMeta,
 } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useLayoutMode } from '@/lib/layout-store'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
@@ -84,6 +85,7 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
 export default function DashboardPage() {
   const { openInNewTab, enableCardResizing, enableServiceGrouping, cardScale, viewMode } =
     useTheme()
+  const layoutMode = useLayoutMode()
   const [services, setServices] = useState<Service[]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
   // Reordering saves every tile, so it waits until widgets are loaded
@@ -692,48 +694,52 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Stats cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="glass-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ServerIcon className="text-primary h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Total Services</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.total}</p>
+      {/* Stats cards; the canvas layout leaves them out */}
+      {layoutMode === 'classic' && (
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ServerIcon className="text-primary h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Total Services</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.total}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="glass-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <CheckCircleIcon className="text-success h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Online</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.online}</p>
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <CheckCircleIcon className="text-success h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Online</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.online}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="glass-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ExclamationCircleIcon className="text-error h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Offline</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.offline}</p>
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ExclamationCircleIcon className="text-error h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Offline</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.offline}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="glass-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ClockIcon className="text-info h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Avg Response</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.avgResponseTime}ms</p>
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ClockIcon className="text-info h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Avg Response</p>
+                <p className="text-text-primary text-2xl font-semibold">
+                  {stats.avgResponseTime}ms
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {!widgetsLoaded && (
         <p className="text-error mb-4 text-sm">

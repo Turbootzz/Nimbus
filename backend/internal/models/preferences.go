@@ -60,6 +60,7 @@ type UserPreferences struct {
 	WallpaperDim          int       `json:"wallpaper_dim" db:"wallpaper_dim"`   // %, 0-80
 	CardOpacity           int       `json:"card_opacity" db:"card_opacity"`     // %, 0-100
 	CardBlur              int       `json:"card_blur" db:"card_blur"`           // px, 0-40
+	LayoutMode            string    `json:"layout_mode" db:"layout_mode"`       // "classic" or "canvas"
 	CreatedAt             time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -78,6 +79,7 @@ type PreferencesUpdateRequest struct {
 	WallpaperDim          *int           `json:"wallpaper_dim" validate:"omitempty,min=0,max=80"`
 	CardOpacity           *int           `json:"card_opacity" validate:"omitempty,min=0,max=100"`
 	CardBlur              *int           `json:"card_blur" validate:"omitempty,min=0,max=40"`
+	LayoutMode            *string        `json:"layout_mode" validate:"omitempty,oneof=classic canvas"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -94,6 +96,7 @@ type PreferencesResponse struct {
 	WallpaperDim          int       `json:"wallpaper_dim"`
 	CardOpacity           int       `json:"card_opacity"`
 	CardBlur              int       `json:"card_blur"`
+	LayoutMode            string    `json:"layout_mode"`
 	UpdatedAt             time.Time `json:"updated_at"`
 }
 
@@ -112,6 +115,7 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		WallpaperDim:          p.WallpaperDim,
 		CardOpacity:           p.CardOpacity,
 		CardBlur:              p.CardBlur,
+		LayoutMode:            p.LayoutMode,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }
