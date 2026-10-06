@@ -141,6 +141,7 @@ func main() {
 	// Live widget data: the poller fetches, the hub pushes to open dashboards
 	sseHub := services.NewSSEHub()
 	liveDataService := services.NewLiveDataService(widgetRepo, integrationRepo, integrationService, snapshotRepo, sseHub)
+	liveDataService.SetStripSource(preferencesRepo)
 	if err := liveDataService.Warm(context.Background()); err != nil {
 		log.Printf("WARNING: Failed to load widget snapshots: %v", err)
 	}
@@ -155,6 +156,7 @@ func main() {
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService, integrationRepo)
 	serviceHandler.SetPoller(widgetPoller)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
+	preferencesHandler.SetPoller(widgetPoller)
 	// Wallpapers of users deleted by an admin, or left by a crash
 	go handlers.PruneWallpapers(context.Background(), preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)

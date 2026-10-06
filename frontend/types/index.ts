@@ -455,7 +455,29 @@ export interface UserPreferences {
   card_opacity: number // %, 0-100
   card_blur: number // px, 0-40
   layout_mode: LayoutMode
+  status_strip: StatusStrip
   updated_at?: string
+}
+
+// One KPI of an integration, or one value of a custom API widget (kpi is
+// then the field label)
+export interface StatusChip {
+  source: 'integration' | 'widget'
+  id: string
+  kpi: string
+}
+
+// A chip the user can pick, with what the strip shows for it
+export interface ChipOption {
+  chip: StatusChip
+  label: string // e.g. "Pi-hole · Blocked"
+  unit?: string
+}
+
+// Row of KPI chips at the top of the dashboard
+export interface StatusStrip {
+  enabled: boolean
+  chips: StatusChip[] // at most 6
 }
 
 // classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
@@ -475,6 +497,7 @@ export interface PreferencesUpdateRequest {
   card_opacity?: number
   card_blur?: number
   layout_mode?: LayoutMode
+  status_strip?: StatusStrip
 }
 
 // API response types

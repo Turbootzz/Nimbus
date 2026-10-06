@@ -38,6 +38,7 @@ import type {
 } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
+import StatusStrip from '@/components/StatusStrip'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
@@ -83,8 +84,14 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
 }
 
 export default function DashboardPage() {
-  const { openInNewTab, enableCardResizing, enableServiceGrouping, cardScale, viewMode } =
-    useTheme()
+  const {
+    openInNewTab,
+    enableCardResizing,
+    enableServiceGrouping,
+    cardScale,
+    viewMode,
+    statusStrip,
+  } = useTheme()
   const layoutMode = useLayoutMode()
   const [services, setServices] = useState<Service[]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
@@ -151,15 +158,26 @@ export default function DashboardPage() {
     return map
   }, [groups])
 
+  // Only effectively monitored services count (both service and group flag on)
+  const monitoredOnly = useCallback(
+    (list: Service[]) => list.filter((s) => isServiceEffectivelyMonitored(s, groupMonitoringMap)),
+    [groupMonitoringMap]
+  )
+
+  // Up and down across all groups, for the status strip pill
+  const allStatuses = useMemo(() => {
+    const monitored = monitoredOnly(services)
+    return {
+      up: monitored.filter((s) => s.status === 'online').length,
+      down: monitored.filter((s) => s.status === 'offline').length,
+    }
+  }, [services, monitoredOnly])
+
   // Calculate stats from filtered services using useMemo for efficiency
   // Only count monitored services for online/offline/response stats
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
-
-    // Filter to only effectively-monitored services (both service and group flag on)
-    const monitoredServices = servicesToCount.filter((s) =>
-      isServiceEffectivelyMonitored(s, groupMonitoringMap)
-    )
+    const monitoredServices = monitoredOnly(servicesToCount)
 
     const online = monitoredServices.filter((s) => s.status === 'online').length
     const offline = monitoredServices.filter((s) => s.status === 'offline').length
@@ -179,7 +197,7 @@ export default function DashboardPage() {
       offline,
       avgResponseTime,
     }
-  }, [services, filteredServices, enableServiceGrouping, groupMonitoringMap])
+  }, [services, filteredServices, enableServiceGrouping, monitoredOnly])
 
   // Memoize active tile for drag overlay
   const activeTile = useMemo(
@@ -694,6 +712,18 @@ export default function DashboardPage() {
 
   return (
     <div>
+      {statusStrip.enabled && (
+        <StatusStrip
+          strip={statusStrip}
+          snapshots={snapshots}
+          integrations={integrations}
+          kinds={kinds}
+          widgets={widgets}
+          up={allStatuses.up}
+          down={allStatuses.down}
+        />
+      )}
+
       {/* Stats cards; the canvas layout leaves them out */}
       {layoutMode === 'classic' && (
         <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
