@@ -111,7 +111,7 @@ export default function AdminSettingsPage() {
 
       <div className="space-y-6">
         {/* User Registration */}
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <h2 className="text-text-primary mb-2 text-xl font-semibold">User Registration</h2>
           <p className="text-text-secondary mb-4 text-sm">
             Control how new users can join your Nimbus instance
@@ -130,7 +130,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* SMTP / Email Configuration */}
-        <div className="bg-card border-card-border rounded-lg border p-6">
+        <div className="glass-card border-card-border rounded-lg border p-6">
           <h2 className="text-text-primary mb-2 text-xl font-semibold">Email / SMTP</h2>
           <p className="text-text-secondary mb-4 text-sm">
             Configure SMTP settings for password reset emails

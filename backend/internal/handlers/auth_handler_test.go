@@ -132,7 +132,7 @@ func TestAuthHandler_Login_RememberMe(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	// Create test user with hashed password
 	password := "TestPassword123!"
@@ -274,7 +274,7 @@ func TestAuthHandler_Login_InvalidCredentials(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	// Create test user
 	password := "CorrectPassword123!"
@@ -370,7 +370,7 @@ func TestAuthHandler_Register(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	app := fiber.New()
 	app.Post("/register", handler.Register)
@@ -482,7 +482,7 @@ func TestAuthHandler_Logout(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	app := fiber.New()
 	app.Post("/logout", handler.Logout)
@@ -536,7 +536,7 @@ func TestAuthHandler_TokenExpiration_30Days(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	// Create test user
 	password := "TestPassword123!"
@@ -601,7 +601,7 @@ func TestAuthHandler_InvalidJSON(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	tests := []struct {
 		name     string
@@ -656,7 +656,7 @@ func TestAuthHandler_Register_DisabledPublicRegistration(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	app := fiber.New()
 	app.Post("/register", handler.Register)
@@ -703,7 +703,7 @@ func TestAuthHandler_DeleteAccount(t *testing.T) {
 	userRepo := repository.NewUserRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
 	authService := services.NewAuthService()
-	handler := NewAuthHandler(userRepo, authService, settingsRepo)
+	handler := NewAuthHandler(userRepo, authService, settingsRepo, repository.NewPreferencesRepository(db))
 
 	password := "TestPassword123!"
 	hashedPassword, _ := authService.HashPassword(password)

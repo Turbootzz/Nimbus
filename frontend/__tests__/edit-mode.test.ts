@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { api } from '@/lib/api'
 import type { Service, CardSize } from '@/types'
+import { sizeToGridSpan } from '@/lib/card-utils'
 
 // Mock the api module
 vi.mock('@/lib/api', () => ({
@@ -203,12 +204,6 @@ describe('Edit Mode Functionality', () => {
 
   describe('Grid Span Mapping', () => {
     it('should map card sizes to correct grid span classes', () => {
-      const sizeToGridSpan: Record<CardSize, string> = {
-        '1x1': 'col-span-1 row-span-1',
-        '2x1': 'col-span-2 row-span-1',
-        '2x2': 'col-span-2 row-span-2',
-      }
-
       expect(sizeToGridSpan['1x1']).toBe('col-span-1 row-span-1')
       expect(sizeToGridSpan['2x1']).toBe('col-span-2 row-span-1')
       expect(sizeToGridSpan['2x2']).toBe('col-span-2 row-span-2')
@@ -217,12 +212,6 @@ describe('Edit Mode Functionality', () => {
     it('should handle undefined card_size by defaulting to 2x1', () => {
       const service = createMockService({ card_size: undefined })
       const effectiveSize = service.card_size || '2x1'
-
-      const sizeToGridSpan: Record<CardSize, string> = {
-        '1x1': 'col-span-1 row-span-1',
-        '2x1': 'col-span-2 row-span-1',
-        '2x2': 'col-span-2 row-span-2',
-      }
 
       expect(sizeToGridSpan[effectiveSize]).toBe('col-span-2 row-span-1')
     })
@@ -361,12 +350,6 @@ describe('Edit Mode Functionality', () => {
     it('should map to correct grid span when enableCardResizing is false', () => {
       const enableCardResizing = false
       const service = createMockService({ card_size: '2x2' })
-
-      const sizeToGridSpan: Record<CardSize, string> = {
-        '1x1': 'col-span-1 row-span-1',
-        '2x1': 'col-span-2 row-span-1',
-        '2x2': 'col-span-2 row-span-2',
-      }
 
       const effectiveSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
       const gridSpan = sizeToGridSpan[effectiveSize]

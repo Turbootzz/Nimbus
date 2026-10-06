@@ -19,9 +19,24 @@ SECRETS_FILE="${SECRETS_DIR}/generated.env"
 mkdir -p "${SECRETS_DIR}"
 chmod 700 "${SECRETS_DIR}"
 
-# Load previously generated secrets if they exist
+# An ENCRYPTION_KEY set by the user must win over a generated one, or the
+# user's key would silently never be used
+EXPLICIT_ENCRYPTION_KEY="${ENCRYPTION_KEY}"
+
+# Load previously generated secrets if they exist (set -a exports them, so
+# they reach the backend even when the variable isn't declared in compose)
 if [ -f "${SECRETS_FILE}" ]; then
+    set -a
     . "${SECRETS_FILE}"
+    set +a
+fi
+
+if [ -n "${EXPLICIT_ENCRYPTION_KEY}" ]; then
+    if [ "${ENCRYPTION_KEY}" != "${EXPLICIT_ENCRYPTION_KEY}" ]; then
+        echo "WARNING: ENCRYPTION_KEY differs from the generated key in ${SECRETS_FILE}."
+        echo "         Credentials saved with the generated key can't be read and must be entered again."
+    fi
+    export ENCRYPTION_KEY="${EXPLICIT_ENCRYPTION_KEY}"
 fi
 
 # Auto-generate JWT_SECRET if not provided
@@ -34,6 +49,17 @@ if [ -z "${JWT_SECRET}" ]; then
         chmod 600 "${SECRETS_FILE}"
     fi
     echo "INFO: JWT_SECRET auto-generated and saved for persistence"
+fi
+
+# Auto-generate ENCRYPTION_KEY if not provided (encrypts integration credentials).
+# Losing it makes stored credentials unreadable, so it is persisted too.
+if [ -z "${ENCRYPTION_KEY}" ]; then
+    export ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64 | tr -d '\n')
+    if ! grep -q "^ENCRYPTION_KEY=" "${SECRETS_FILE}" 2>/dev/null; then
+        echo "ENCRYPTION_KEY=${ENCRYPTION_KEY}" >> "${SECRETS_FILE}"
+        chmod 600 "${SECRETS_FILE}"
+    fi
+    echo "INFO: ENCRYPTION_KEY auto-generated and saved for persistence"
 fi
 
 # Wait for database

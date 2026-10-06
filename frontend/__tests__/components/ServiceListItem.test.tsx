@@ -249,7 +249,7 @@ describe('ServiceListItem', () => {
       const { container } = render(<ServiceListItem service={service} openInNewTab={false} />)
 
       const element = container.firstChild
-      expect(element).toHaveClass('bg-card')
+      expect(element).toHaveClass('glass-card')
       expect(element).toHaveClass('border-card-border')
       expect(element).toHaveClass('rounded-lg')
     })

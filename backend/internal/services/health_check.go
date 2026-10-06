@@ -56,12 +56,24 @@ type checkResult struct {
 	errorMessage *string
 }
 
+// StatusPublisher is told about every health check result, so open
+// dashboards update without polling
+type StatusPublisher interface {
+	PublishServiceStatus(userID, serviceID, status string, responseTime *int)
+}
+
 // HealthCheckService handles health checking of services
 type HealthCheckService struct {
 	serviceRepo         repository.ServiceRepositoryInterface
 	statusLogRepo       *repository.StatusLogRepository
 	notificationService *NotificationService
 	httpClient          *http.Client
+	publisher           StatusPublisher
+}
+
+// SetStatusPublisher sets where health check results are pushed
+func (h *HealthCheckService) SetStatusPublisher(p StatusPublisher) {
+	h.publisher = p
 }
 
 // isPrivateIP checks if an IP address is in a private/local range
@@ -298,7 +310,13 @@ func (h *HealthCheckService) CheckService(ctx context.Context, service *models.S
 	}
 
 	result := h.performCheck(ctx, service)
-	return h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage)
+	if err := h.updateStatus(ctx, service.ID, result.status, result.responseTime, result.errorMessage); err != nil {
+		return err
+	}
+	if h.publisher != nil {
+		h.publisher.PublishServiceStatus(service.UserID, service.ID, result.status, result.responseTime)
+	}
+	return nil
 }
 
 // CheckAllServices checks all services for a specific user

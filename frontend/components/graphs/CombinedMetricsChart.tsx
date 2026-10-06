@@ -91,7 +91,7 @@ export default function CombinedMetricsChart({
 
   if (loading) {
     return (
-      <div className="border-card-border bg-card flex h-80 items-center justify-center rounded-lg border">
+      <div className="border-card-border glass-card flex h-80 items-center justify-center rounded-lg border">
         <div className="text-text-secondary">Loading combined metrics...</div>
       </div>
     )
@@ -99,7 +99,7 @@ export default function CombinedMetricsChart({
 
   if (serviceIds.length === 0) {
     return (
-      <div className="border-card-border bg-card flex h-80 items-center justify-center rounded-lg border">
+      <div className="border-card-border glass-card flex h-80 items-center justify-center rounded-lg border">
         <div className="text-text-secondary">No services to display</div>
       </div>
     )
@@ -174,7 +174,7 @@ export default function CombinedMetricsChart({
   }
 
   return (
-    <div className="border-card-border bg-card rounded-lg border p-4 sm:p-6">
+    <div className="border-card-border glass-card rounded-lg border p-4 sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-text-primary text-lg font-semibold">Combined Performance Metrics</h2>

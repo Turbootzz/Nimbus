@@ -21,6 +21,7 @@ const (
 	CardSize1x1 = "1x1" // Compact square
 	CardSize2x1 = "2x1" // Standard rectangle (default)
 	CardSize2x2 = "2x2" // Large square
+	CardSize1x2 = "1x2" // Narrow and tall, for widgets only
 )
 
 const (
@@ -30,6 +31,11 @@ const (
 const (
 	DefaultIcon = "🔗"
 )
+
+// IsValidWidgetCardSize checks a widget size: the service sizes plus 1x2
+func IsValidWidgetCardSize(size string) bool {
+	return size == CardSize1x2 || IsValidCardSize(size)
+}
 
 // IsValidCardSize checks if the given size is a valid card size
 func IsValidCardSize(size string) bool {
@@ -55,6 +61,7 @@ type Service struct {
 	Position          int       `json:"position" db:"position"`                     // User-defined position for dashboard ordering
 	CardSize          string    `json:"card_size" db:"card_size"`                   // '1x1', '2x1', or '2x2'
 	GroupID           *string   `json:"group_id" db:"group_id"`                     // Optional group for organizing services
+	IntegrationID     *string   `json:"integration_id" db:"integration_id"`         // Optional app connection whose KPIs the tile shows
 	MonitoringEnabled bool      `json:"monitoring_enabled" db:"monitoring_enabled"` // Whether to include in health checks, metrics, and webhooks
 	CreatedAt         time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
@@ -70,6 +77,7 @@ type ServiceCreateRequest struct {
 	Description       string  `json:"description"`
 	CardSize          string  `json:"card_size"`          // '1x1', '2x1', or '2x2' (defaults to '2x1')
 	GroupID           *string `json:"group_id"`           // Optional group ID
+	IntegrationID     *string `json:"integration_id"`     // Optional integration for the KPI row
 	MonitoringEnabled *bool   `json:"monitoring_enabled"` // Optional, defaults to true
 }
 
@@ -83,6 +91,7 @@ type ServiceUpdateRequest struct {
 	Description       string  `json:"description"`
 	CardSize          string  `json:"card_size"`          // '1x1', '2x1', or '2x2' (preserves existing if empty)
 	GroupID           *string `json:"group_id"`           // Omit to preserve existing; empty string clears the group
+	IntegrationID     *string `json:"integration_id"`     // Omit to preserve existing; empty string unlinks
 	MonitoringEnabled *bool   `json:"monitoring_enabled"` // Optional, preserves existing if nil
 }
 
@@ -100,6 +109,7 @@ type ServiceResponse struct {
 	Position          int       `json:"position"`
 	CardSize          string    `json:"card_size"`
 	GroupID           *string   `json:"group_id,omitempty"` // Optional group ID
+	IntegrationID     *string   `json:"integration_id,omitempty"`
 	MonitoringEnabled bool      `json:"monitoring_enabled"`
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
@@ -120,6 +130,7 @@ func (s *Service) ToResponse() ServiceResponse {
 		Position:          s.Position,
 		CardSize:          s.CardSize,
 		GroupID:           s.GroupID,
+		IntegrationID:     s.IntegrationID,
 		MonitoringEnabled: s.MonitoringEnabled,
 		CreatedAt:         s.CreatedAt,
 		UpdatedAt:         s.UpdatedAt,

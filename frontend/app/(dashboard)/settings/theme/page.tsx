@@ -1,15 +1,16 @@
 'use client'
 
-import Image from 'next/image'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Toggle } from '@/components/ui/Toggle'
+import WallpaperSettings from '@/components/WallpaperSettings'
+import LayoutSettings from '@/components/LayoutSettings'
+import StatusStripSettings from '@/components/StatusStripSettings'
 
 export default function ThemePage() {
   const {
     theme,
     effectiveTheme,
     accentColor,
-    background,
     openInNewTab,
     enableCardResizing,
     enableServiceGrouping,
@@ -17,7 +18,6 @@ export default function ThemePage() {
     viewMode,
     setTheme,
     setAccentColor,
-    setBackground,
     setOpenInNewTab,
     setEnableCardResizing,
     setEnableServiceGrouping,
@@ -49,7 +49,7 @@ export default function ThemePage() {
         {/* Column 1: Appearance settings */}
         <div className="space-y-6">
           {/* Theme Mode */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Theme Mode</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose between light and dark theme</p>
 
@@ -113,7 +113,7 @@ export default function ThemePage() {
           </div>
 
           {/* Accent Color */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Accent Color</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose your preferred accent color</p>
 
@@ -164,54 +164,17 @@ export default function ThemePage() {
             </div>
           </div>
 
-          {/* Background Image */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
-            <h2 className="text-text-primary mb-2 text-xl font-semibold">Background Image</h2>
-            <p className="text-text-secondary mb-4 text-sm">Add a custom background image (URL)</p>
+          <LayoutSettings />
 
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <input
-                type="url"
-                value={background || ''}
-                onChange={(e) => setBackground(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="border-card-border bg-background text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none sm:min-w-50"
-              />
-              {background && (
-                <button
-                  onClick={() => setBackground(undefined)}
-                  className="border-card-border text-text-primary hover:bg-card-border rounded-lg border px-4 py-2 text-sm transition-colors"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
+          <StatusStripSettings />
 
-            {background && (
-              <div className="border-card-border relative mt-4 h-48 overflow-hidden rounded-lg border">
-                <Image
-                  src={background}
-                  alt="Background preview"
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-              </div>
-            )}
-
-            <div className="bg-info/10 border-info/30 mt-4 rounded-lg border p-4">
-              <p className="text-info text-sm">
-                <strong>Tip:</strong> For best quality, use high-resolution images (1920x1080 or
-                higher). The background uses CSS cover which maintains aspect ratio and quality.
-              </p>
-            </div>
-          </div>
+          <WallpaperSettings />
         </div>
 
         {/* Column 2: Behavior & Layout settings */}
         <div className="space-y-6">
           {/* Link Behavior */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Link Behavior</h2>
             <p className="text-text-secondary mb-4 text-sm">Choose how service links should open</p>
 
@@ -224,7 +187,7 @@ export default function ThemePage() {
           </div>
 
           {/* Card Resizing */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Resizing</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Control whether service cards can have different sizes
@@ -239,7 +202,7 @@ export default function ThemePage() {
           </div>
 
           {/* Service Grouping */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Service Grouping</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Organize your services into groups with a tabbed interface
@@ -254,7 +217,7 @@ export default function ThemePage() {
           </div>
 
           {/* Card Display */}
-          <div className="bg-card border-card-border rounded-lg border p-6">
+          <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Card Display</h2>
             <p className="text-text-secondary mb-4 text-sm">
               Customize how service cards are displayed

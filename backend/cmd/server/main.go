@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
 	"net/mail"
@@ -20,12 +21,20 @@ import (
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
+	"github.com/nimbus/backend/internal/utils"
 	"github.com/nimbus/backend/internal/workers"
 )
 
 func main() {
 	// Load environment variables
 	config.MustLoadEnv()
+
+	// Integration credentials are encrypted with ENCRYPTION_KEY. Only the
+	// server needs it, so it is checked here instead of in LoadEnv.
+	credentialCipher, err := utils.NewCipherFromEnv()
+	if err != nil {
+		log.Fatalf("Failed to load environment: %v", err)
+	}
 
 	// Connect to database
 	database, err := db.Connect()
@@ -51,6 +60,9 @@ func main() {
 	webhookRepo := repository.NewWebhookRepository(database)
 	settingsRepo := repository.NewSettingsRepository(database)
 	apiTokenRepo := repository.NewAPITokenRepository(database)
+	integrationRepo := repository.NewIntegrationRepository(database)
+	widgetRepo := repository.NewWidgetRepository(database)
+	snapshotRepo := repository.NewSnapshotRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -116,11 +128,37 @@ func main() {
 	// Initialize metrics service
 	metricsService := services.NewMetricsService(statusLogRepo, serviceRepo)
 
+	// Initialize integration service; DOCKER_SOCKET lets the Docker integration use that socket
+	dockerSocket := config.GetEnvOrDefault("DOCKER_SOCKET", "")
+	if dockerSocket != "" {
+		log.Printf("Docker integration may use the socket %s", dockerSocket)
+	}
+	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher, dockerSocket)
+
+	// Initialize widget service
+	widgetService := services.NewWidgetService(widgetRepo, groupRepo, integrationRepo)
+
+	// Live widget data: the poller fetches, the hub pushes to open dashboards
+	sseHub := services.NewSSEHub()
+	liveDataService := services.NewLiveDataService(widgetRepo, integrationRepo, integrationService, snapshotRepo, sseHub)
+	liveDataService.SetStripSource(preferencesRepo)
+	if err := liveDataService.Warm(context.Background()); err != nil {
+		log.Printf("WARNING: Failed to load widget snapshots: %v", err)
+	}
+	widgetPoller := workers.NewWidgetPoller(liveDataService)
+	widgetService.SetPoller(widgetPoller)
+	integrationService.SetPoller(widgetPoller)
+	healthCheckService.SetStatusPublisher(liveDataService)
+
 	// Initialize handlers
-	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo)
+	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo, preferencesRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
-	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService)
+	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService, integrationRepo)
+	serviceHandler.SetPoller(widgetPoller)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
+	preferencesHandler.SetPoller(widgetPoller)
+	// Wallpapers of users deleted by an admin, or left by a crash
+	go handlers.PruneWallpapers(context.Background(), preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
 	uploadHandler := handlers.NewUploadHandler(userRepo)
@@ -131,10 +169,14 @@ func main() {
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
+	integrationHandler := handlers.NewIntegrationHandler(integrationService)
+	widgetHandler := handlers.NewWidgetHandler(widgetService)
+	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
 
 	// Create fiber app
 	app := fiber.New(fiber.Config{
-		AppName: "Nimbus API",
+		AppName:   "Nimbus API",
+		BodyLimit: handlers.MaxRequestBodySize,
 	})
 
 	// Middleware
@@ -195,6 +237,9 @@ func main() {
 	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
+	// Sets service positions exactly as given. Services share their position
+	// space with widgets, so callers must not reuse a widget's position; the
+	// dashboard uses PUT /dashboard/reorder instead.
 	services.Put("/reorder", serviceHandler.ReorderServices)     // Must be before /:id routes
 	services.Get("/favicon", serviceHandler.FetchServiceFavicon) // Must be before /:id routes
 	// <guid> constraint rejects non-UUID :id at the router level (404)
@@ -228,6 +273,7 @@ func main() {
 	// IMPORTANT: This must be registered BEFORE the uploads group to avoid auth middleware
 	v1.Get("/uploads/service-icons/:filename", staticHandler.ServeServiceIcon)
 	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
+	v1.Get("/uploads/wallpapers/:filename", staticHandler.ServeWallpaper)
 
 	// Upload routes (protected)
 	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
@@ -236,6 +282,7 @@ func main() {
 	// User avatar route (protected)
 	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
 	users.Put("/avatar", uploadHandler.UploadAvatar)
+	users.Put("/wallpaper", preferencesHandler.UploadWallpaper)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
@@ -252,6 +299,34 @@ func main() {
 	apiTokens.Post("/", apiTokenHandler.CreateToken)
 	apiTokens.Get("/", apiTokenHandler.ListTokens)
 	apiTokens.Delete("/:id<guid>", apiTokenHandler.DeleteToken)
+
+	// Integration routes (protected; session auth only so a leaked API token
+	// can't point an integration elsewhere and exfiltrate its credentials)
+	integrationRoutes := v1.Group("/integrations", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	integrationRoutes.Get("/kinds", integrationHandler.ListKinds)
+	integrationRoutes.Post("/test", integrationHandler.TestUnsavedIntegration)
+	integrationRoutes.Post("/", integrationHandler.CreateIntegration)
+	integrationRoutes.Get("/", integrationHandler.ListIntegrations)
+	integrationRoutes.Get("/:id<guid>", integrationHandler.GetIntegration)
+	integrationRoutes.Put("/:id<guid>", integrationHandler.UpdateIntegration)
+	integrationRoutes.Delete("/:id<guid>", integrationHandler.DeleteIntegration)
+	integrationRoutes.Post("/:id<guid>/test", integrationHandler.TestIntegration)
+
+	// Widget routes (all protected)
+	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	widgetRoutes.Get("/types", widgetHandler.ListTypes) // Must be before /:id routes
+	widgetRoutes.Post("/", widgetHandler.CreateWidget)
+	widgetRoutes.Get("/", widgetHandler.ListWidgets)
+	widgetRoutes.Get("/:id<guid>", widgetHandler.GetWidget)
+	widgetRoutes.Put("/:id<guid>", widgetHandler.UpdateWidget)
+	widgetRoutes.Delete("/:id<guid>", widgetHandler.DeleteWidget)
+	widgetRoutes.Post("/:id<guid>/refresh", widgetHandler.RefreshWidget)
+
+	// Dashboard routes (all protected); services and widgets share one order
+	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
+	dashboard.Get("/data", dashboardHandler.Data)
+	dashboard.Get("/stream", dashboardHandler.Stream)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
@@ -285,7 +360,11 @@ func main() {
 
 	// Start metrics cleanup worker (also cleans up webhook logs)
 	metricsCleanup := workers.NewMetricsCleanupWorker(metricsService, webhookRepo, passwordResetRepo)
+	metricsCleanup.SetSnapshotPruner(liveDataService)
 	metricsCleanup.Start()
+
+	// Start widget poller
+	widgetPoller.Start()
 
 	// Start DNS cache cleanup worker
 	dnsCleanup := workers.NewDNSCleanupWorker()
@@ -337,7 +416,10 @@ func main() {
 	<-sigChan
 	log.Println("\nReceived shutdown signal, shutting down gracefully...")
 
-	// Stop workers
+	// Stop workers; close the dashboard streams first, or they keep
+	// connections open and Shutdown waits for them
+	sseHub.Close()
+	widgetPoller.Stop()
 	healthMonitor.Stop()
 	metricsCleanup.Stop()
 	dnsCleanup.Stop()

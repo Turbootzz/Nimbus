@@ -1,0 +1,39 @@
+package integrations
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"testing"
+
+	"github.com/nimbus/backend/internal/models"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestExample(t *testing.T) {
+	impl := registered(t, "example")
+	// Answer like the real app does; fakeApp fails on any other request
+	server := fakeApp(t, map[string]http.HandlerFunc{
+		"GET /api/status": func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("X-Api-Key") != "key" {
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			fmt.Fprint(w, `{"version":"1.0"}`)
+		},
+		"GET /api/stats": func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprint(w, `{"items":12,"used":30,"total":120}`)
+		},
+	})
+	ctx := context.Background()
+	conn := newTestConn(server.URL, models.IntegrationCredentials{APIKey: "key"})
+
+	require.NoError(t, impl.Test(ctx, conn))
+	payload, err := impl.Fetch(ctx, conn)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"items": 12, "used": 25}, payload.KPIs)
+
+	// Rejected credentials
+	assert.ErrorIs(t, impl.Test(ctx, newTestConn(server.URL, models.IntegrationCredentials{APIKey: "wrong"})), errRejected)
+}

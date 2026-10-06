@@ -5,18 +5,14 @@ import Link from 'next/link'
 import NimbusLogo from '@/components/NimbusLogo'
 import { usePathname, useRouter } from 'next/navigation'
 import {
-  HomeIcon,
-  ServerIcon,
-  CogIcon,
   ArrowRightStartOnRectangleIcon,
   XMarkIcon,
   PlusIcon,
-  UserGroupIcon,
-  ChartBarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { mainNavigation } from '@/lib/navigation'
 import type { User } from '@/types'
 
 interface SidebarProps {
@@ -52,15 +48,7 @@ export default function Sidebar({
   }, [])
 
   const navigation = useMemo(
-    () => [
-      { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
-      { name: 'Services', href: '/services', icon: ServerIcon },
-      { name: 'Metrics', href: '/metrics', icon: ChartBarIcon },
-      ...(currentUser?.role === 'admin'
-        ? [{ name: 'Users', href: '/admin/users', icon: UserGroupIcon }]
-        : []),
-      { name: 'Settings', href: '/settings', icon: CogIcon },
-    ],
+    () => mainNavigation(currentUser?.role === 'admin'),
     [currentUser?.role]
   )
 

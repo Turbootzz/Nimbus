@@ -3,6 +3,7 @@
 import { Bars3Icon } from '@heroicons/react/24/outline'
 import UserMenu from './UserMenu'
 import ThemeToggle from './ThemeToggle'
+import SearchButton from './SearchButton'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 interface HeaderProps {
@@ -15,6 +16,7 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
 
   return (
     <header
+      data-classic-chrome
       className="sticky top-0 z-30 border-b"
       style={{
         backgroundColor: 'var(--color-card)',
@@ -43,6 +45,8 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
 
         {/* Right section */}
         <div className="flex items-center space-x-4">
+          <SearchButton />
+
           {/* Theme toggle */}
           <ThemeToggle />
 

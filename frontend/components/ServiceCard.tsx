@@ -1,7 +1,6 @@
 'use client'
 
 import { ClockIcon } from '@heroicons/react/24/outline'
-import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
   getStatusColor,
@@ -11,6 +10,8 @@ import {
 } from '@/lib/status-utils'
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import EditOverlay from '@/components/EditOverlay'
+import KpiRow, { type ServiceKpis } from '@/components/KpiRow'
 
 interface ServiceCardProps {
   service: Service
@@ -24,6 +25,8 @@ interface ServiceCardProps {
   // Effective monitoring state (accounts for the group's monitoring flag too).
   // Defaults to service.monitoring_enabled when not provided.
   isMonitored?: boolean
+  // Numbers from the linked integration (standard and large cards)
+  kpis?: ServiceKpis
 }
 
 export default function ServiceCard({
@@ -36,6 +39,7 @@ export default function ServiceCard({
   enableCardResizing = true,
   cardScale = 'medium',
   isMonitored,
+  kpis,
 }: ServiceCardProps) {
   const monitored = isMonitored ?? service.monitoring_enabled
   // When card resizing is disabled, always use 2x1
@@ -68,6 +72,7 @@ export default function ServiceCard({
     showSizeBadge: enableCardResizing,
     cardScale,
     monitored,
+    kpis,
   }
 
   // When resizing is disabled, always use StandardCard (2x1)
@@ -101,6 +106,7 @@ interface CardVariantProps {
   showSizeBadge: boolean
   cardScale: CardScale
   monitored: boolean
+  kpis?: ServiceKpis
 }
 
 // Icon sizes based on cardScale - icons shrink with denser grids
@@ -128,40 +134,6 @@ const scaleText: Record<CardScale, { title: string; description: string }> = {
   large: { title: 'text-lg', description: 'text-sm' },
 }
 
-// Reusable edit mode overlay with drag handle and size badge
-interface EditOverlayProps {
-  dragHandleProps?: Record<string, unknown>
-  cardSize: CardSize
-  showSizeBadge: boolean
-  compact?: boolean
-}
-
-function EditOverlay({
-  dragHandleProps,
-  cardSize,
-  showSizeBadge,
-  compact = false,
-}: EditOverlayProps) {
-  const position = compact ? 'top-1 right-1 left-1' : 'top-2 right-2 left-2'
-  const iconSize = compact ? 'h-4 w-4' : 'h-5 w-5'
-
-  return (
-    <div className={`absolute ${position} z-10 flex items-center justify-between`}>
-      <div
-        {...dragHandleProps}
-        className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={(e) => e.stopPropagation()}
-      >
-        <Bars3Icon className={`text-text-muted ${iconSize}`} />
-      </div>
-      {showSizeBadge && (
-        <span className="bg-primary rounded px-1.5 py-0.5 text-xs text-white">{cardSize}</span>
-      )}
-    </div>
-  )
-}
-
 // 1x1 - Compact: large icon centered, name below, status indicator dot
 function CompactCard({
   service,
@@ -181,7 +153,7 @@ function CompactCard({
   const titleSize = scaleText[cardScale].title
   const statusDotSize = cardScale === 'small' ? 'h-2 w-2' : 'h-3 w-3'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col items-center justify-center rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -240,6 +212,7 @@ function StandardCard({
   showSizeBadge,
   cardScale,
   monitored,
+  kpis,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].standard
@@ -247,7 +220,7 @@ function StandardCard({
   const descSize = scaleText[cardScale].description
   const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -279,6 +252,12 @@ function StandardCard({
       </h3>
       {service.description && (
         <p className={`text-text-secondary line-clamp-1 ${descSize}`}>{service.description}</p>
+      )}
+
+      {kpis && (
+        <div className="mt-2">
+          <KpiRow {...kpis} />
+        </div>
       )}
 
       {monitored && (
@@ -324,6 +303,7 @@ function LargeCard({
   showSizeBadge,
   cardScale,
   monitored,
+  kpis,
 }: CardVariantProps) {
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].large
@@ -337,7 +317,7 @@ function LargeCard({
   const marginBottom = cardScale === 'small' ? 'mb-2' : 'mb-4'
   const marginTop = cardScale === 'small' ? 'mt-2' : 'mt-4'
 
-  const baseClasses = `${gridSpan} bg-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
+  const baseClasses = `${gridSpan} glass-card border-card-border flex h-full flex-col rounded-lg border ${padding} transition-all relative`
   const editClasses = isEditMode
     ? 'border-dashed border-2 cursor-pointer hover:border-primary'
     : 'hover:border-primary hover:shadow-lg'
@@ -379,6 +359,7 @@ function LargeCard({
 
       {/* Footer with URL and response time */}
       <div className={`${marginTop} space-y-2`}>
+        {kpis && <KpiRow {...kpis} />}
         <div className="text-text-muted truncate text-center text-xs">{service.url}</div>
         {monitored &&
           service.status === 'online' &&

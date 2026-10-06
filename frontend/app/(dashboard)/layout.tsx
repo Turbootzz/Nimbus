@@ -4,12 +4,15 @@ import { useState, useMemo, useEffect, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
+import CanvasTopBar from '@/components/layout/CanvasTopBar'
+import CommandPalette from '@/components/CommandPalette'
 import {
   subscribeSidebar,
   getSidebarSnapshot,
   getSidebarServerSnapshot,
   setSidebarCollapsed,
 } from '@/lib/sidebar-store'
+import { getLayoutSnapshot, useLayoutMode } from '@/lib/layout-store'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -31,11 +34,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getSidebarServerSnapshot
   )
   const pathname = usePathname()
+  // Canvas is only for the dashboard; every other page keeps the sidebar
+  const canvas = useLayoutMode() === 'canvas' && pathname === '/dashboard'
 
-  // Clean up pre-hydration data attribute once React takes over
+  // Clean up the pre-hydration sidebar attribute once React takes over. The
+  // canvas one follows the stored choice, not this render: during hydration
+  // this render is still classic, and the canvas follows right after.
   useEffect(() => {
     document.documentElement.removeAttribute('data-sidebar-collapsed')
   }, [])
+  useEffect(() => {
+    const root = document.documentElement
+    if (getLayoutSnapshot() === 'canvas' && pathname === '/dashboard') {
+      root.setAttribute('data-layout', 'canvas')
+    } else {
+      root.removeAttribute('data-layout')
+    }
+  }, [canvas, pathname])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
@@ -44,10 +59,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return route?.title ?? 'Dashboard'
   }, [pathname])
 
+  // One tree for both layouts: only the chrome around <main> changes, so the
+  // page itself never remounts when the layout switches
   return (
     <div className="min-h-screen">
       {/* Mobile sidebar backdrop */}
-      {isSidebarOpen && (
+      {!canvas && isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
@@ -55,24 +72,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar */}
-      <Sidebar
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        isDesktopCollapsed={isDesktopCollapsed}
-        setIsDesktopCollapsed={setSidebarCollapsed}
-      />
+      {!canvas && (
+        <Sidebar
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+          isDesktopCollapsed={isDesktopCollapsed}
+          setIsDesktopCollapsed={setSidebarCollapsed}
+        />
+      )}
 
-      {/* Main content */}
+      {/* Main content; its padding must match the sidebar widths (w-16, w-52) */}
       <div
         data-main-content
-        className={`transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-56'}`}
+        className={
+          canvas
+            ? ''
+            : `transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-52'}`
+        }
       >
-        {/* Header */}
-        <Header onMenuClick={() => setIsSidebarOpen(true)} title={pageTitle} />
+        {canvas ? (
+          <CanvasTopBar />
+        ) : (
+          <Header onMenuClick={() => setIsSidebarOpen(true)} title={pageTitle} />
+        )}
 
         {/* Page content */}
-        <main className="p-4 sm:p-6 lg:p-8">{children}</main>
+        <main
+          className={canvas ? 'mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8' : 'p-4 sm:p-6 lg:p-8'}
+        >
+          {children}
+        </main>
       </div>
+
+      <CommandPalette />
     </div>
   )
 }

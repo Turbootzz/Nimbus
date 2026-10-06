@@ -55,3 +55,10 @@ export const getApiUrl = (): string => {
   // Priority 3: Fallback for SSR or edge cases
   return `http://localhost:${defaultPort}${apiPath}`
 }
+
+/**
+ * Turns a stored file reference into a URL: uploads (avatars, wallpapers) are
+ * kept as a path on the API server, anything else is already a full URL.
+ */
+export const uploadUrl = (path: string): string =>
+  path.startsWith('/uploads/') ? getApiUrl() + path : path

@@ -31,7 +31,8 @@ export interface AuthResponse {
 
 // Service types
 export type IconType = 'emoji' | 'image_upload' | 'image_url'
-export type CardSize = '1x1' | '2x1' | '2x2'
+// 1x2 (narrow and tall) is for widgets only
+export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
 export type CardScale = 'small' | 'medium' | 'large'
 export type ViewMode = 'grid' | 'list'
 
@@ -48,6 +49,7 @@ export interface Service {
   position: number
   card_size: CardSize
   group_id?: string
+  integration_id?: string // linked app whose KPIs the tile shows
   monitoring_enabled: boolean
   created_at: string
   updated_at?: string
@@ -62,6 +64,7 @@ export interface ServiceCreateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  integration_id?: string
   monitoring_enabled?: boolean
 }
 
@@ -74,6 +77,7 @@ export interface ServiceUpdateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  integration_id?: string // '' unlinks, omitted keeps the link
   monitoring_enabled?: boolean
 }
 
@@ -84,6 +88,308 @@ export interface ServicePosition {
 
 export interface ServiceReorderRequest {
   services: ServicePosition[]
+}
+
+// Integration types (connections to apps like Sonarr)
+export type IntegrationAuthType = 'none' | 'api_key' | 'basic' | 'token'
+
+export interface Kpi {
+  key: string
+  label: string
+  unit?: string
+}
+
+// A kind of app Nimbus can connect to, from GET /integrations/kinds
+export interface IntegrationKindMeta {
+  kind: string
+  name: string
+  icon?: string // dashboard-icons slug
+  default_port?: number
+  auth_types: IntegrationAuthType[] // first one is the default
+  kpis?: Kpi[]
+  url_hint?: string // example URL for the form
+  admin_only?: boolean // only listed for admins
+  docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
+}
+
+// Never contains credentials, only whether they are set
+export interface Integration {
+  id: string
+  kind: string
+  name: string
+  base_url: string
+  auth_type: IntegrationAuthType
+  has_credentials: boolean
+  verify_tls: boolean
+  options: Record<string, unknown>
+  refresh_seconds: number
+  last_test_at: string | null
+  last_test_ok: boolean | null
+  last_error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface IntegrationCredentials {
+  api_key?: string
+  username?: string
+  password?: string
+  token?: string
+}
+
+// On update, omitted fields (including credentials) keep their value
+export interface IntegrationRequest {
+  kind?: string
+  name?: string
+  base_url?: string
+  auth_type?: IntegrationAuthType
+  credentials?: IntegrationCredentials
+  verify_tls?: boolean
+  refresh_seconds?: number
+}
+
+export interface IntegrationTestResult {
+  ok: boolean
+  error?: string
+  latency_ms: number
+}
+
+// Payload of an integration snapshot
+export interface IntegrationPayload {
+  kpis?: Record<string, number | string>
+}
+
+// Widget types (dashboard tiles that are not links)
+export interface Widget {
+  id: string
+  type: string
+  title: string
+  group_id: string | null
+  integration_id: string | null
+  config: Record<string, unknown>
+  card_size: CardSize
+  position: number
+  refresh_seconds: number
+  enabled: boolean
+  created_at: string
+  updated_at: string
+}
+
+// Metadata of a widget type, from GET /widgets/types
+export interface WidgetTypeMeta {
+  type: string
+  name: string
+  category: string
+  default_size: CardSize
+  allowed_sizes: CardSize[]
+  static: boolean
+  integration_kinds?: string[]
+  min_refresh_seconds?: number
+  default_refresh_seconds?: number
+  config_integration_kinds?: string[] // kinds the config lists (calendar)
+  admin_only?: boolean // only listed for admins
+}
+
+export interface WidgetCreateRequest {
+  type: string
+  title?: string
+  group_id?: string
+  integration_id?: string
+  config?: Record<string, unknown>
+  card_size?: CardSize
+}
+
+// Omitted fields keep their value; '' clears group_id
+export interface WidgetUpdateRequest {
+  title?: string
+  group_id?: string
+  integration_id?: string
+  config?: Record<string, unknown>
+  card_size?: CardSize
+  refresh_seconds?: number
+  enabled?: boolean
+}
+
+// Configs of the static widget types (validated by the backend)
+export interface ClockWidgetConfig {
+  timezone: string // IANA name; empty uses the browser's zone
+  hour12: boolean
+  show_seconds: boolean
+  date_format: 'none' | 'short' | 'long'
+}
+
+export interface NoteWidgetConfig {
+  content: string // markdown
+}
+
+export interface Bookmark {
+  name: string
+  url: string
+  icon: string // emoji or image URL
+}
+
+export interface BookmarksWidgetConfig {
+  items: Bookmark[]
+}
+
+// The embed fills its card; there is no height setting
+export interface EmbedWidgetConfig {
+  url: string
+}
+
+export interface WeatherWidgetConfig {
+  latitude?: number
+  longitude?: number
+  location: string // name shown on the tile
+  units: 'metric' | 'imperial'
+}
+
+export interface WeatherDay {
+  date: string // YYYY-MM-DD
+  weather_code: number
+  max: number
+  min: number
+}
+
+// Payload of a weather snapshot; weather codes are WMO codes
+export interface WeatherPayload {
+  temperature: number
+  feels_like: number
+  weather_code: number
+  wind_speed: number
+  is_day: boolean
+  temperature_unit: string
+  wind_unit: string
+  daily: WeatherDay[]
+}
+
+export interface CustomApiHeader {
+  name: string
+  value: string // never returned: a saved value comes back as ********
+}
+
+export interface CustomApiField {
+  label: string
+  path: string // e.g. data.items[0].name or items.length
+  unit: string
+}
+
+export interface CustomApiWidgetConfig {
+  url: string
+  headers: CustomApiHeader[]
+  fields: CustomApiField[]
+  verify_tls: boolean
+}
+
+// Values keyed by field label
+export interface CustomApiPayload {
+  kpis: Record<string, number | string | boolean | null>
+  missing?: string[] // labels whose path found nothing
+}
+
+export interface RssWidgetConfig {
+  feeds: string[]
+  limit: number // items shown, newest first
+  verify_tls: boolean
+}
+
+export interface RssItem {
+  title: string
+  link?: string // http(s) only
+  date?: string // RFC 3339
+  source: string // feed title
+}
+
+export interface RssPayload {
+  items: RssItem[]
+  failed?: string[] // feeds that could not be loaded while others could
+}
+
+export interface SystemStatsWidgetConfig {
+  disk_path: string
+}
+
+export interface SystemStatsPayload {
+  cpu_percent: number
+  memory_percent: number
+  memory_used: number // bytes
+  memory_total: number
+  disk_percent: number
+  disk_used: number
+  disk_total: number
+  uptime_seconds: number
+}
+
+export interface DockerContainersWidgetConfig {
+  hide_stopped: boolean
+}
+
+export interface DockerContainer {
+  id: string // short id
+  name: string
+  image: string
+  state: string // running, exited, paused, ...
+  status: string // e.g. "Up 3 days"
+}
+
+export interface DockerContainersPayload {
+  containers: DockerContainer[]
+  running: number
+  total: number // includes hidden stopped containers
+}
+
+export interface CalendarWidgetConfig {
+  integrations: string[] // Sonarr and Radarr ids
+  ical_urls: string[]
+  days: number // how far ahead the agenda goes
+  verify_tls: boolean
+}
+
+export interface CalendarEvent {
+  title: string
+  start: string // RFC 3339, or YYYY-MM-DD when all day
+  all_day: boolean
+  source: number // index in sources
+}
+
+export interface CalendarPayload {
+  from: string // YYYY-MM-DD, the 1st of the month shown
+  sources: { name: string; kind: string }[]
+  events: CalendarEvent[]
+  failed?: string[]
+}
+
+// Latest data of a polled widget or integration (GET /dashboard/data and
+// the snapshot event of /dashboard/stream)
+export interface Snapshot {
+  source_kind: 'widget' | 'integration'
+  source_id: string
+  payload: unknown // last good result, null before the first success
+  error?: string // latest fetch failed
+  fetched_at: string
+  stale: boolean // payload is older than it should be
+}
+
+// service_status event of /dashboard/stream, sent after each health check
+export interface ServiceStatusEvent {
+  id: string
+  status: Service['status']
+  response_time?: number
+}
+
+// Services and widgets share one grid and one position space
+export type Tile =
+  | { kind: 'service'; id: string; position: number; service: Service }
+  | { kind: 'widget'; id: string; position: number; widget: Widget }
+
+export interface TilePosition {
+  id: string
+  kind: Tile['kind']
+  position: number
+}
+
+export interface TileReorderRequest {
+  tiles: TilePosition[]
 }
 
 // Group types
@@ -144,8 +450,38 @@ export interface UserPreferences {
   enable_service_grouping: boolean
   card_scale: CardScale
   view_mode: ViewMode
+  wallpaper_blur: number // px, 0-20
+  wallpaper_dim: number // %, 0-80
+  card_opacity: number // %, 0-100
+  card_blur: number // px, 0-40
+  layout_mode: LayoutMode
+  status_strip: StatusStrip
   updated_at?: string
 }
+
+// One KPI of an integration, or one value of a custom API widget (kpi is
+// then the field label)
+export interface StatusChip {
+  source: 'integration' | 'widget'
+  id: string
+  kpi: string
+}
+
+// A chip the user can pick, with what the strip shows for it
+export interface ChipOption {
+  chip: StatusChip
+  label: string // e.g. "Pi-hole · Blocked"
+  unit?: string
+}
+
+// Row of KPI chips at the top of the dashboard
+export interface StatusStrip {
+  enabled: boolean
+  chips: StatusChip[] // at most 6
+}
+
+// classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
+export type LayoutMode = 'classic' | 'canvas'
 
 export interface PreferencesUpdateRequest {
   theme_mode?: 'light' | 'dark' | 'auto'
@@ -156,6 +492,12 @@ export interface PreferencesUpdateRequest {
   enable_service_grouping?: boolean
   card_scale?: CardScale
   view_mode?: ViewMode
+  wallpaper_blur?: number
+  wallpaper_dim?: number
+  card_opacity?: number
+  card_blur?: number
+  layout_mode?: LayoutMode
+  status_strip?: StatusStrip
 }
 
 // API response types

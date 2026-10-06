@@ -8,6 +8,10 @@
 # Optional: Create a .env file to customize:
 #   DB_PASSWORD=your-custom-password    # Default: nimbus-default-password
 #   JWT_SECRET=your-custom-secret       # Auto-generated if not set
+#   ENCRYPTION_KEY=your-base64-key      # Auto-generated if not set (openssl rand -base64 32)
+#
+# Auto-generated secrets are stored in the uploads volume. Back it up: without
+# ENCRYPTION_KEY, saved integration credentials can't be read.
 #
 # Coming from the old separate backend/frontend containers? See docs/MIGRATION.md
 
@@ -38,6 +42,8 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
       JWT_SECRET: ${JWT_SECRET:-}
+      # Encrypts integration credentials, auto-generated if empty:
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       DB_HOST: db
       # Public URL for password reset emails and OAuth redirects:
       # FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
@@ -59,8 +65,11 @@ services:
       # DB_PORT: 5432
       # DB_USER: nimbus
       # DB_NAME: nimbus
+      # Docker integration over the socket (mount it below too):
+      # DOCKER_SOCKET: /var/run/docker.sock
     volumes:
       - uploads_data:/app/backend/uploads
+      # - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - "3000:3000"
     depends_on:

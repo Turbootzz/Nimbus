@@ -24,15 +24,38 @@ import {
 } from '@dnd-kit/core'
 import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import { mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
-import type { Service, CardSize, Group } from '@/types'
+import { mergeHealthData, mergeServicesHealth, shouldSkipPoll } from '@/lib/polling'
+import { snapshotKey, useDashboardStream } from '@/hooks/useDashboardStream'
+import { useIntegrations } from '@/hooks/useIntegrations'
+import type {
+  Service,
+  CardSize,
+  Group,
+  ServiceStatusEvent,
+  Tile,
+  Widget,
+  WidgetTypeMeta,
+} from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useLayoutMode } from '@/lib/layout-store'
+import StatusStrip from '@/components/StatusStrip'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
+import WidgetCard from '@/components/widgets/WidgetCard'
+import WidgetModal from '@/components/widgets/WidgetModal'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
+import {
+  filterTilesByGroup,
+  mergeTiles,
+  reorderTiles,
+  splitTiles,
+  tileKey,
+  toTilePositions,
+} from '@/lib/tiles'
 
 function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
@@ -48,22 +71,33 @@ function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): C
       return closestCenter(args)
     }
 
-    // For service drags: prioritize group tabs (pointer-based), then service grid (center-based)
+    // For tile drags: prioritize group tabs (pointer-based), then the grid (center-based)
     const pointerCollisions = pointerWithin(args)
     const groupTabCollision = pointerCollisions.find((c) => toStringId(c.id).startsWith('group-'))
     if (groupTabCollision) {
       return [groupTabCollision]
     }
 
-    // Fall back to closestCenter for service card reordering
+    // Fall back to closestCenter for tile reordering
     return closestCenter(args)
   }
 }
 
 export default function DashboardPage() {
-  const { openInNewTab, enableCardResizing, enableServiceGrouping, cardScale, viewMode } =
-    useTheme()
+  const {
+    openInNewTab,
+    enableCardResizing,
+    enableServiceGrouping,
+    cardScale,
+    viewMode,
+    statusStrip,
+  } = useTheme()
+  const layoutMode = useLayoutMode()
   const [services, setServices] = useState<Service[]>([])
+  const [widgets, setWidgets] = useState<Widget[]>([])
+  // Reordering saves every tile, so it waits until widgets are loaded
+  const [widgetsLoaded, setWidgetsLoaded] = useState(false)
+  const [widgetTypes, setWidgetTypes] = useState<WidgetTypeMeta[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -84,25 +118,36 @@ export default function DashboardPage() {
   const [deletingGroup, setDeletingGroup] = useState<Group | null>(null)
   const [deleteGroupServices, setDeleteGroupServices] = useState(false)
 
-  // Filter services by selected group
-  // When grouping is disabled: show all services
-  // When grouping is enabled:
-  //   - Default group: show services with this group_id OR no group_id (backwards compat)
-  //   - Other groups: show only services with this specific group_id
-  const filteredServices = useMemo(() => {
-    if (!enableServiceGrouping) {
-      return services
-    }
-    if (!selectedGroupId) {
-      return services
-    }
-    const selectedGroup = groups.find((g) => g.id === selectedGroupId)
-    if (selectedGroup?.is_default) {
-      // Default group includes ungrouped services for backwards compatibility
-      return services.filter((s) => s.group_id === selectedGroupId || !s.group_id)
-    }
-    return services.filter((s) => s.group_id === selectedGroupId)
-  }, [services, selectedGroupId, enableServiceGrouping, groups])
+  // Widget modal: open for a new widget, or for editing an existing one
+  const [showWidgetModal, setShowWidgetModal] = useState(false)
+  const [editingWidget, setEditingWidget] = useState<Widget | null>(null)
+  const [deletingWidget, setDeletingWidget] = useState<Widget | null>(null)
+
+  // Services and widgets in one grid, ordered by their shared positions
+  const tiles = useMemo(() => mergeTiles(services, widgets), [services, widgets])
+
+  // Tiles of the selected group; the default group also shows ungrouped
+  // tiles (backwards compat). Without grouping everything is shown.
+  const filteredTiles = useMemo(
+    () => (enableServiceGrouping ? filterTilesByGroup(tiles, selectedGroupId, groups) : tiles),
+    [tiles, selectedGroupId, enableServiceGrouping, groups]
+  )
+
+  const filteredServices = useMemo(
+    () => filteredTiles.flatMap((t) => (t.kind === 'service' ? [t.service] : [])),
+    [filteredTiles]
+  )
+
+  // Tiles that can be dragged: list view only shows services
+  const sortableTiles = useMemo(
+    () => (viewMode === 'list' ? filteredTiles.filter((t) => t.kind === 'service') : filteredTiles),
+    [filteredTiles, viewMode]
+  )
+
+  const widgetTypeMap = useMemo(
+    () => Object.fromEntries(widgetTypes.map((t) => [t.type, t])),
+    [widgetTypes]
+  )
 
   // Create a map of group IDs to their monitoring status
   const groupMonitoringMap = useMemo(() => {
@@ -113,15 +158,26 @@ export default function DashboardPage() {
     return map
   }, [groups])
 
+  // Only effectively monitored services count (both service and group flag on)
+  const monitoredOnly = useCallback(
+    (list: Service[]) => list.filter((s) => isServiceEffectivelyMonitored(s, groupMonitoringMap)),
+    [groupMonitoringMap]
+  )
+
+  // Up and down across all groups, for the status strip pill
+  const allStatuses = useMemo(() => {
+    const monitored = monitoredOnly(services)
+    return {
+      up: monitored.filter((s) => s.status === 'online').length,
+      down: monitored.filter((s) => s.status === 'offline').length,
+    }
+  }, [services, monitoredOnly])
+
   // Calculate stats from filtered services using useMemo for efficiency
   // Only count monitored services for online/offline/response stats
   const stats = useMemo(() => {
     const servicesToCount = enableServiceGrouping ? filteredServices : services
-
-    // Filter to only effectively-monitored services (both service and group flag on)
-    const monitoredServices = servicesToCount.filter((s) =>
-      isServiceEffectivelyMonitored(s, groupMonitoringMap)
-    )
+    const monitoredServices = monitoredOnly(servicesToCount)
 
     const online = monitoredServices.filter((s) => s.status === 'online').length
     const offline = monitoredServices.filter((s) => s.status === 'offline').length
@@ -141,12 +197,12 @@ export default function DashboardPage() {
       offline,
       avgResponseTime,
     }
-  }, [services, filteredServices, enableServiceGrouping, groupMonitoringMap])
+  }, [services, filteredServices, enableServiceGrouping, monitoredOnly])
 
-  // Memoize active service for drag overlay
-  const activeService = useMemo(
-    () => (activeId ? services.find((s) => s.id === activeId) : null),
-    [activeId, services]
+  // Memoize active tile for drag overlay
+  const activeTile = useMemo(
+    () => (activeId ? tiles.find((t) => tileKey(t) === activeId) : null),
+    [activeId, tiles]
   )
 
   // Create collision detection that handles both tab and service drags
@@ -188,28 +244,46 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  // Poll health status every 30 seconds for live updates
-  useEffect(() => {
-    const pollHealth = async () => {
-      // Skip if we just did a full fetch (within last 5 seconds)
-      if (shouldSkipPoll(lastPollTime.current)) return
-
-      try {
-        const response = await api.getServices()
-        if (response.data) {
-          // Only update status and response_time to avoid disrupting UI state
-          setServices((prev) => mergeServicesHealth(prev, response.data!))
-        }
-      } catch (error) {
-        console.error('Failed to poll health:', error)
+  // Live updates: health checks and widget data arrive over SSE; while the
+  // stream is down the hook falls back to polling every 30 seconds
+  const resyncServices = useCallback(async () => {
+    // Skip if we just did a full fetch (within last 5 seconds)
+    if (shouldSkipPoll(lastPollTime.current)) return
+    try {
+      const response = await api.getServices()
+      if (response.data) {
+        // Only update status and response_time to avoid disrupting UI state
+        setServices((prev) => mergeServicesHealth(prev, response.data!))
       }
+    } catch (error) {
+      console.error('Failed to poll health:', error)
     }
-
-    // Poll every 30 seconds
-    const interval = setInterval(pollHealth, 30000)
-
-    return () => clearInterval(interval)
   }, [])
+
+  const applyServiceStatus = useCallback((event: ServiceStatusEvent) => {
+    setServices((prev) =>
+      prev.map((s) =>
+        s.id === event.id
+          ? mergeHealthData(s, { status: event.status, response_time: event.response_time })
+          : s
+      )
+    )
+  }, [])
+
+  // KPI definitions per integration, for service tiles linked to one
+  const { integrations, kinds } = useIntegrations()
+  const integrationKpis = useMemo(
+    () =>
+      Object.fromEntries(
+        integrations.map((i) => [i.id, kinds.find((k) => k.kind === i.kind)?.kpis ?? []])
+      ),
+    [integrations, kinds]
+  )
+
+  const { snapshots } = useDashboardStream({
+    onServiceStatus: applyServiceStatus,
+    onResync: resyncServices,
+  })
 
   // Auto-select default group when groups load
   useEffect(() => {
@@ -237,16 +311,28 @@ export default function DashboardPage() {
   const fetchData = async () => {
     setIsLoading(true)
     try {
-      const [servicesResponse, groupsResponse] = await Promise.all([
-        api.getServices(),
-        api.getGroups(),
-      ])
+      const [servicesResponse, groupsResponse, widgetsResponse, widgetTypesResponse] =
+        await Promise.all([
+          api.getServices(),
+          api.getGroups(),
+          api.getWidgets(),
+          api.getWidgetTypes(),
+        ])
 
       if (servicesResponse.data) {
         setServices(servicesResponse.data)
       }
       if (groupsResponse.data) {
         setGroups(groupsResponse.data)
+      }
+      if (widgetsResponse.data) {
+        setWidgets(widgetsResponse.data)
+        setWidgetsLoaded(true)
+      } else {
+        console.error('Failed to fetch widgets:', widgetsResponse.error?.message)
+      }
+      if (widgetTypesResponse.data) {
+        setWidgetTypes(widgetTypesResponse.data)
       }
       // Track when we did a full fetch to avoid immediate poll overlap
       lastPollTime.current = Date.now()
@@ -265,7 +351,7 @@ export default function DashboardPage() {
     setIsDraggingTab(isTabDrag)
 
     if (!isTabDrag) {
-      // Service drag - set active ID for drag overlay
+      // Tile drag - set active ID for drag overlay
       setActiveId(id)
     }
   }
@@ -322,105 +408,88 @@ export default function DashboardPage() {
     // Skip if it was a tab drag that didn't land on another tab
     if (isTabDrag) return
 
-    const activeServiceId = activeId
-
     // Check if dropped on a group tab (IDs prefixed with "group-")
     if (overId.startsWith('group-')) {
-      const targetGroupId = overId.replace('group-', '')
-      const draggedService = services.find((s) => s.id === activeServiceId)
-      if (!draggedService) return
-
-      // Find target group to check if it's the default
-      const targetGroup = groups.find((g) => g.id === targetGroupId)
-      const isTargetDefault = targetGroup?.is_default
-
-      // For default group: empty string clears the group (services become ungrouped)
-      // For other groups: set group_id to the target group's ID
-      const newGroupId = isTargetDefault ? '' : targetGroupId
-
-      // Check if already in the target group
-      // Service is in default if: group_id is null/undefined OR matches default group ID
-      const isCurrentlyInDefault =
-        !draggedService.group_id || draggedService.group_id === targetGroupId
-      if (isTargetDefault && isCurrentlyInDefault && !draggedService.group_id) return
-      if (!isTargetDefault && draggedService.group_id === targetGroupId) return
-
-      // Capture current state for rollback
-      const previousServices = services
-
-      // Optimistic update - move service to new group
-      setServices(
-        services.map((s) =>
-          s.id === activeServiceId ? { ...s, group_id: newGroupId || undefined } : s
-        )
-      )
-
-      // Persist to backend
-      try {
-        await api.updateService(activeServiceId, {
-          name: draggedService.name,
-          url: draggedService.url,
-          description: draggedService.description || '',
-          icon: draggedService.icon || '',
-          icon_type: draggedService.icon_type || 'emoji',
-          icon_image_path: draggedService.icon_image_path || '',
-          group_id: newGroupId,
-        })
-      } catch (error) {
-        console.error('Failed to move service to group:', error)
-        setServices(previousServices)
+      const draggedTile = tiles.find((t) => tileKey(t) === activeId)
+      if (draggedTile) {
+        await moveTileToGroup(draggedTile, overId.replace('group-', ''))
       }
       return
     }
 
-    // Normal reorder within the same group
-    if (active.id === over.id) return
-
-    // Use filtered services for the reorder operation
-    const servicesToReorder = enableServiceGrouping ? filteredServices : services
-    const oldIndex = servicesToReorder.findIndex((s) => s.id === active.id)
-    const newIndex = servicesToReorder.findIndex((s) => s.id === over.id)
-    if (oldIndex === -1 || newIndex === -1) return
+    // Normal reorder within the visible tiles; hidden tiles keep their slots
+    if (activeId === overId || !widgetsLoaded) return
+    const reordered = reorderTiles(tiles, sortableTiles, activeId, overId)
+    if (!reordered) return
 
     // Capture current state for rollback
     const previousServices = services
-
-    // Reorder within filtered list
-    const reorderedFiltered = arrayMove(servicesToReorder, oldIndex, newIndex)
-
-    // Merge reordered group services back into the full list.
-    // When grouping is enabled, we only reorder services within the selected group.
-    // Algorithm: iterate through all services, replacing group members with their
-    // new order while keeping non-group services in their original positions.
-    let reorderedAll: Service[]
-    if (enableServiceGrouping && selectedGroupId) {
-      const reorderingIds = new Set(servicesToReorder.map((s) => s.id))
-      let filteredIndex = 0
-      reorderedAll = services.map((s) => {
-        if (reorderingIds.has(s.id)) {
-          return reorderedFiltered[filteredIndex++]
-        }
-        return s
-      })
-    } else {
-      reorderedAll = reorderedFiltered
-    }
+    const previousWidgets = widgets
 
     // Optimistic update
-    setServices(reorderedAll)
+    const next = splitTiles(reordered)
+    setServices(next.services)
+    setWidgets(next.widgets)
 
-    // Persist to backend with absolute positions from the full services list
-    // This ensures positions are unique across all groups
+    // Persist every position so services and widgets never share one
     try {
-      const positionsToUpdate = reorderedFiltered.map((s) => ({
-        id: s.id,
-        position: reorderedAll.findIndex((rs) => rs.id === s.id),
-      }))
-      await api.reorderServices({
-        services: positionsToUpdate,
-      })
+      const response = await api.reorderTiles({ tiles: toTilePositions(reordered) })
+      if (response.error) throw new Error(response.error.message)
     } catch (error) {
       console.error('Failed to save order:', error)
+      setServices(previousServices)
+      setWidgets(previousWidgets)
+    }
+  }
+
+  // Moves a service or widget to another group (dropped on a group tab)
+  const moveTileToGroup = async (tile: Tile, targetGroupId: string) => {
+    // For default group: empty string clears the group (tile becomes ungrouped)
+    // For other groups: set group_id to the target group's ID
+    const isTargetDefault = groups.find((g) => g.id === targetGroupId)?.is_default
+    const newGroupId = isTargetDefault ? '' : targetGroupId
+
+    const currentGroupId = tile.kind === 'service' ? tile.service.group_id : tile.widget.group_id
+    if (isTargetDefault && !currentGroupId) return
+    if (!isTargetDefault && currentGroupId === targetGroupId) return
+
+    if (tile.kind === 'widget') {
+      const previousWidgets = widgets
+      setWidgets(
+        widgets.map((w) => (w.id === tile.id ? { ...w, group_id: newGroupId || null } : w))
+      )
+      try {
+        const response = await api.updateWidget(tile.id, { group_id: newGroupId })
+        if (response.error) throw new Error(response.error.message)
+      } catch (error) {
+        console.error('Failed to move widget to group:', error)
+        setWidgets(previousWidgets)
+      }
+      return
+    }
+
+    const draggedService = tile.service
+    const previousServices = services
+
+    // Optimistic update - move service to new group
+    setServices(
+      services.map((s) => (s.id === tile.id ? { ...s, group_id: newGroupId || undefined } : s))
+    )
+
+    // Persist to backend; the API client returns errors instead of throwing
+    try {
+      const response = await api.updateService(tile.id, {
+        name: draggedService.name,
+        url: draggedService.url,
+        description: draggedService.description || '',
+        icon: draggedService.icon || '',
+        icon_type: draggedService.icon_type || 'emoji',
+        icon_image_path: draggedService.icon_image_path || '',
+        group_id: newGroupId,
+      })
+      if (response.error) throw new Error(response.error.message)
+    } catch (error) {
+      console.error('Failed to move service to group:', error)
       setServices(previousServices)
     }
   }
@@ -446,7 +515,7 @@ export default function DashboardPage() {
       }
 
       const freshService = response.data
-      await api.updateService(id, {
+      const updated = await api.updateService(id, {
         name: freshService.name,
         url: freshService.url,
         description: freshService.description || '',
@@ -456,6 +525,7 @@ export default function DashboardPage() {
         group_id: freshService.group_id ?? '',
         card_size: newSize,
       })
+      if (updated.error) throw new Error(updated.error.message)
     } catch (error) {
       console.error('Failed to update card size:', error)
       setServices(previousServices)
@@ -486,6 +556,62 @@ export default function DashboardPage() {
   const handleToggleEditMode = useCallback(() => {
     setIsEditMode((prev) => !prev)
   }, [])
+
+  // Widget handlers
+  const handleAddWidget = useCallback(() => {
+    setEditingWidget(null)
+    setShowWidgetModal(true)
+  }, [])
+
+  const handleEditWidget = useCallback((widget: Widget) => {
+    setEditingWidget(widget)
+    setShowWidgetModal(true)
+  }, [])
+
+  const handleWidgetSaved = (saved: Widget) => {
+    setWidgets((prev) =>
+      prev.some((w) => w.id === saved.id)
+        ? prev.map((w) => (w.id === saved.id ? saved : w))
+        : [...prev, saved]
+    )
+    setShowWidgetModal(false)
+    setEditingWidget(null)
+  }
+
+  const handleWidgetSizeChange = async (widget: Widget, size: CardSize) => {
+    if (resizingId) return
+    const previousWidgets = widgets
+    setResizingId(widget.id)
+    setWidgets(widgets.map((w) => (w.id === widget.id ? { ...w, card_size: size } : w)))
+    try {
+      const response = await api.updateWidget(widget.id, { card_size: size })
+      if (response.error) throw new Error(response.error.message)
+    } catch (error) {
+      console.error('Failed to update widget size:', error)
+      setWidgets(previousWidgets)
+    } finally {
+      setResizingId(null)
+    }
+  }
+
+  const handleRefreshWidget = useCallback(async (widget: Widget) => {
+    const response = await api.refreshWidget(widget.id)
+    if (response.error) console.error('Failed to refresh widget:', response.error.message)
+  }, [])
+
+  const handleConfirmDeleteWidget = async () => {
+    if (!deletingWidget) return
+    try {
+      const response = await api.deleteWidget(deletingWidget.id)
+      if (response.error) {
+        console.error('Failed to delete widget:', response.error.message)
+        return
+      }
+      setWidgets((prev) => prev.filter((w) => w.id !== deletingWidget.id))
+    } finally {
+      setDeletingWidget(null)
+    }
+  }
 
   // Memoize add service href to avoid recalculating on every render.
   // `from=dashboard` tells /services/new where to redirect after create.
@@ -555,12 +681,16 @@ export default function DashboardPage() {
 
       // Update services state based on whether they were deleted or moved
       if (deleteGroupServices) {
-        // Remove services that were in the deleted group
+        // Remove services and widgets that were in the deleted group
         setServices(services.filter((s) => s.group_id !== deletingGroup.id))
+        setWidgets(widgets.filter((w) => w.group_id !== deletingGroup.id))
       } else {
-        // Move services from deleted group to null (ungrouped) locally
+        // Move services and widgets from deleted group to ungrouped locally
         setServices(
           services.map((s) => (s.group_id === deletingGroup.id ? { ...s, group_id: undefined } : s))
+        )
+        setWidgets(
+          widgets.map((w) => (w.group_id === deletingGroup.id ? { ...w, group_id: null } : w))
         )
       }
     } finally {
@@ -582,48 +712,71 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Stats cards */}
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="bg-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ServerIcon className="text-primary h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Total Services</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.total}</p>
-            </div>
-          </div>
-        </div>
+      {statusStrip.enabled && (
+        <StatusStrip
+          strip={statusStrip}
+          snapshots={snapshots}
+          integrations={integrations}
+          kinds={kinds}
+          widgets={widgets}
+          up={allStatuses.up}
+          down={allStatuses.down}
+        />
+      )}
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <CheckCircleIcon className="text-success h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Online</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.online}</p>
+      {/* Stats cards; the canvas layout leaves them out */}
+      {layoutMode === 'classic' && (
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ServerIcon className="text-primary h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Total Services</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.total}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ExclamationCircleIcon className="text-error h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Offline</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.offline}</p>
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <CheckCircleIcon className="text-success h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Online</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.online}</p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="bg-card border-card-border rounded-lg border p-6">
-          <div className="flex items-center">
-            <ClockIcon className="text-info h-8 w-8" />
-            <div className="ml-4">
-              <p className="text-text-muted text-sm">Avg Response</p>
-              <p className="text-text-primary text-2xl font-semibold">{stats.avgResponseTime}ms</p>
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ExclamationCircleIcon className="text-error h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Offline</p>
+                <p className="text-text-primary text-2xl font-semibold">{stats.offline}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="glass-card border-card-border rounded-lg border p-6">
+            <div className="flex items-center">
+              <ClockIcon className="text-info h-8 w-8" />
+              <div className="ml-4">
+                <p className="text-text-muted text-sm">Avg Response</p>
+                <p className="text-text-primary text-2xl font-semibold">
+                  {stats.avgResponseTime}ms
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {!widgetsLoaded && (
+        <p className="text-error mb-4 text-sm">
+          Widgets could not be loaded. Reload the page to see them; until then the order cannot be
+          changed.
+        </p>
+      )}
 
       {/* Header with group tabs and action buttons */}
       {isEditMode ? (
@@ -647,11 +800,12 @@ export default function DashboardPage() {
             activeId={activeId}
             isDraggingTab={isDraggingTab}
             addServiceHref={addServiceHref}
+            onAddWidget={handleAddWidget}
           />
 
-          <SortableContext items={filteredServices.map((s) => s.id)} strategy={rectSortingStrategy}>
+          <SortableContext items={sortableTiles.map(tileKey)} strategy={rectSortingStrategy}>
             <ServicesGrid
-              services={filteredServices}
+              tiles={filteredTiles}
               openInNewTab={openInNewTab}
               enableCardResizing={enableCardResizing}
               cardScale={cardScale}
@@ -659,29 +813,52 @@ export default function DashboardPage() {
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
               groupMonitoringMap={groupMonitoringMap}
+              widgetTypes={widgetTypeMap}
+              onWidgetSizeChange={handleWidgetSizeChange}
+              onEditWidget={handleEditWidget}
+              onDeleteWidget={setDeletingWidget}
+              onRefreshWidget={handleRefreshWidget}
+              snapshots={snapshots}
+              integrationKpis={integrationKpis}
             />
           </SortableContext>
 
           <DragOverlay dropAnimation={null}>
-            {activeService &&
+            {activeTile?.kind === 'widget' && (
+              <WidgetCard
+                widget={activeTile.widget}
+                snapshot={snapshots[snapshotKey('widget', activeTile.widget.id)]}
+                openInNewTab={openInNewTab}
+                cardScale={cardScale}
+                isEditMode
+                isDragging
+              />
+            )}
+            {activeTile?.kind === 'service' &&
               (viewMode === 'list' ? (
                 <ServiceListItem
-                  service={activeService}
+                  service={activeTile.service}
                   openInNewTab={openInNewTab}
                   isEditMode={true}
                   isDragging={true}
-                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
+                  isMonitored={isServiceEffectivelyMonitored(
+                    activeTile.service,
+                    groupMonitoringMap
+                  )}
                 />
               ) : (
                 <ServiceCard
-                  service={activeService}
+                  service={activeTile.service}
                   openInNewTab={openInNewTab}
                   isEditMode={true}
                   onSizeChange={() => {}}
                   isDragging={true}
                   enableCardResizing={enableCardResizing}
                   cardScale={cardScale}
-                  isMonitored={isServiceEffectivelyMonitored(activeService, groupMonitoringMap)}
+                  isMonitored={isServiceEffectivelyMonitored(
+                    activeTile.service,
+                    groupMonitoringMap
+                  )}
                 />
               ))}
           </DragOverlay>
@@ -701,26 +878,30 @@ export default function DashboardPage() {
             activeId={activeId}
             isDraggingTab={isDraggingTab}
             addServiceHref={addServiceHref}
+            onAddWidget={handleAddWidget}
           />
 
           <ServicesGrid
-            services={filteredServices}
+            tiles={filteredTiles}
             openInNewTab={openInNewTab}
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             viewMode={viewMode}
             groupMonitoringMap={groupMonitoringMap}
+            widgetTypes={widgetTypeMap}
+            snapshots={snapshots}
+            integrationKpis={integrationKpis}
           />
         </>
       )}
 
-      {/* Empty state for groups with no services */}
-      {enableServiceGrouping && filteredServices.length === 0 && !isLoading && (
-        <div className="bg-card border-card-border rounded-lg border p-12 text-center">
+      {/* Empty state for groups with no tiles */}
+      {enableServiceGrouping && filteredTiles.length === 0 && !isLoading && (
+        <div className="glass-card border-card-border rounded-lg border p-12 text-center">
           <ServerIcon className="text-text-muted mx-auto mb-4 h-12 w-12" />
-          <h3 className="text-text-primary mb-2 text-lg font-medium">No services in this group</h3>
+          <h3 className="text-text-primary mb-2 text-lg font-medium">Nothing in this group yet</h3>
           <p className="text-text-secondary mb-4">
-            Add a service and assign it to this group to see it here.
+            Add a service or a widget to this group to see it here.
           </p>
           <Link
             href={addServiceHref}
@@ -745,6 +926,31 @@ export default function DashboardPage() {
         />
       )}
 
+      {/* Widget add/edit modal */}
+      {showWidgetModal && (
+        <WidgetModal
+          types={widgetTypes}
+          widget={editingWidget}
+          groupId={enableServiceGrouping ? selectedGroupId : null}
+          onClose={() => {
+            setShowWidgetModal(false)
+            setEditingWidget(null)
+          }}
+          onSaved={handleWidgetSaved}
+        />
+      )}
+
+      {/* Widget delete confirmation */}
+      {deletingWidget && (
+        <ConfirmDialog
+          title="Delete Widget"
+          message="Are you sure you want to delete this widget? This cannot be undone."
+          confirmLabel="Delete"
+          onConfirm={handleConfirmDeleteWidget}
+          onCancel={() => setDeletingWidget(null)}
+        />
+      )}
+
       {/* Delete confirmation modal */}
       {deletingGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -761,7 +967,7 @@ export default function DashboardPage() {
             <p className="text-text-secondary mb-4">
               Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;?
               {!deleteGroupServices &&
-                ' Services in this group will be moved to the default group.'}
+                ' Services and widgets in this group will be moved to the default group.'}
             </p>
 
             {/* Checkbox to delete services */}
@@ -773,14 +979,14 @@ export default function DashboardPage() {
                 className="text-error focus:ring-error mt-0.5 h-4 w-4 rounded border-gray-300"
               />
               <span className="text-text-secondary text-sm">
-                Permanently delete all services in this group
+                Permanently delete all services and widgets in this group
               </span>
             </label>
 
             {deleteGroupServices && (
               <p className="text-error mb-4 text-sm">
-                Warning: This will permanently delete all services in this group. This action cannot
-                be undone.
+                Warning: This will permanently delete all services and widgets in this group. This
+                action cannot be undone.
               </p>
             )}
 

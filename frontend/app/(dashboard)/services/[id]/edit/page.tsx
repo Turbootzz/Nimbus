@@ -8,6 +8,8 @@ import { api } from '@/lib/api'
 import { isValidUrl } from '@/lib/utils/url'
 import IconSelector from '@/components/IconSelector'
 import GroupSelector from '@/components/GroupSelector'
+import IntegrationSelector from '@/components/integrations/IntegrationSelector'
+import { useIntegrations } from '@/hooks/useIntegrations'
 import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
@@ -34,8 +36,10 @@ export default function EditServicePage() {
     icon_image_path: '',
     description: '',
     group_id: '' as string,
+    integration_id: '',
     monitoring_enabled: true,
   })
+  const { integrations, kinds, isLoading: integrationsLoading } = useIntegrations()
 
   const { groupMonitoringDisabled, monitoringDescription } = useGroupMonitoringLock({
     groups,
@@ -65,6 +69,7 @@ export default function EditServicePage() {
           icon_image_path: service.icon_image_path || '',
           description: service.description || '',
           group_id: service.group_id || '',
+          integration_id: service.integration_id || '',
           monitoring_enabled: service.monitoring_enabled ?? true,
         })
       }
@@ -150,6 +155,7 @@ export default function EditServicePage() {
         icon_image_path: iconImagePath,
         description: formData.description.trim(),
         group_id: enableServiceGrouping ? formData.group_id : undefined,
+        integration_id: formData.integration_id, // '' unlinks
         monitoring_enabled: formData.monitoring_enabled,
       })
 
@@ -222,7 +228,7 @@ export default function EditServicePage() {
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="bg-card border-card-border rounded-lg border p-6">
+      <form onSubmit={handleSubmit} className="glass-card border-card-border rounded-lg border p-6">
         <div className="space-y-6">
           {/* Service Name */}
           <div>
@@ -299,6 +305,15 @@ export default function EditServicePage() {
               disabled={isSaving}
             />
           )}
+
+          <IntegrationSelector
+            value={formData.integration_id}
+            onChange={(value) => setFormData((prev) => ({ ...prev, integration_id: value }))}
+            integrations={integrations}
+            kinds={kinds}
+            isLoading={integrationsLoading}
+            disabled={isSaving}
+          />
 
           {/* Service Description */}
           <div>

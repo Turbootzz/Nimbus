@@ -175,7 +175,7 @@ export default function ServiceDetailPage() {
       </Link>
 
       {/* Service Header */}
-      <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
+      <div className="border-card-border glass-card mb-6 rounded-lg border p-4 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3 sm:gap-4">
             <ServiceIcon service={service} size="lg" />
@@ -229,7 +229,7 @@ export default function ServiceDetailPage() {
       </div>
 
       {/* Current Status */}
-      <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
+      <div className="border-card-border glass-card mb-6 rounded-lg border p-4 sm:p-6">
         <h2 className="text-text-primary mb-4 text-lg font-semibold">Current Status</h2>
         {service.monitoring_enabled ? (
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
@@ -296,7 +296,7 @@ export default function ServiceDetailPage() {
 
       {/* Chart - Only show when monitoring is enabled */}
       {service.monitoring_enabled && (
-        <div className="border-card-border bg-card mb-6 rounded-lg border p-4 sm:p-6">
+        <div className="border-card-border glass-card mb-6 rounded-lg border p-4 sm:p-6">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="text-text-primary text-lg font-semibold">Uptime & Performance</h2>
             <div className="flex flex-wrap gap-2">

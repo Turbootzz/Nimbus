@@ -37,6 +37,16 @@ import type {
   ChangePasswordRequest,
   SMTPStatusResponse,
   UpdateSMTPSettingsRequest,
+  Widget,
+  WidgetTypeMeta,
+  WidgetCreateRequest,
+  WidgetUpdateRequest,
+  TileReorderRequest,
+  Snapshot,
+  Integration,
+  IntegrationKindMeta,
+  IntegrationRequest,
+  IntegrationTestResult,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -81,8 +91,9 @@ class ApiClient {
       }
     }
 
+    // A multipart body sets its own content type with the boundary
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers as Record<string, string>),
     }
 
@@ -96,6 +107,11 @@ class ApiClient {
       // Handle 204 No Content responses (empty body)
       if (response.status === 204) {
         return { data: undefined as T }
+      }
+
+      // The proxy or server refuses a too large upload before Nimbus sees it
+      if (response.status === 413) {
+        return { error: { message: 'The file is too large' } }
       }
 
       // Parse response as text first to handle non-JSON responses gracefully
@@ -223,49 +239,18 @@ class ApiClient {
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
-    const apiUrl = getApiUrl()
-    if (!apiUrl) {
-      return {
-        error: { message: 'API URL not configured' },
-      }
-    }
+    const response = await this.request<{ user: User }>('/users/me/avatar', {
+      method: 'PUT',
+      body: formData,
+    })
+    return response.data ? { data: response.data.user } : { error: response.error }
+  }
 
-    try {
-      const response = await fetch(`${apiUrl}/users/me/avatar`, {
-        method: 'PUT',
-        credentials: 'include',
-        body: formData,
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch {
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          return {
-            error: {
-              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
-            },
-          }
-        }
-        return { error: { message: 'API returned an invalid response' } }
-      }
-
-      if (!response.ok) {
-        return {
-          error: { message: data.error || data.message || 'Failed to upload avatar' },
-        }
-      }
-
-      return {
-        data: data.user,
-      }
-    } catch (error) {
-      return {
-        error: { message: error instanceof Error ? error.message : 'Failed to upload avatar' },
-      }
-    }
+  // Makes the image the user's background; answers with the new preferences
+  async uploadWallpaper(file: File): Promise<ApiResponse<UserPreferences>> {
+    const formData = new FormData()
+    formData.append('wallpaper', file)
+    return this.request<UserPreferences>('/users/me/wallpaper', { method: 'PUT', body: formData })
   }
 
   // ============================================
@@ -322,56 +307,9 @@ class ApiClient {
   async uploadServiceIcon(
     file: File
   ): Promise<ApiResponse<{ icon_image_path: string; message: string }>> {
-    const apiUrl = getApiUrl()
-    if (!apiUrl) {
-      return {
-        error: {
-          message: 'API URL not configured',
-        },
-      }
-    }
-
     const formData = new FormData()
     formData.append('icon', file)
-
-    try {
-      const response = await fetch(`${apiUrl}/uploads/service-icon`, {
-        method: 'POST',
-        body: formData,
-        credentials: 'include', // Send httpOnly cookies
-      })
-
-      const text = await response.text()
-      let data
-      try {
-        data = JSON.parse(text)
-      } catch {
-        if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          return {
-            error: {
-              message: 'Cannot reach API server. Check NEXT_PUBLIC_API_URL configuration.',
-            },
-          }
-        }
-        return { error: { message: 'API returned an invalid response' } }
-      }
-
-      if (!response.ok) {
-        return {
-          error: {
-            message: data.error || data.message || 'Upload failed',
-          },
-        }
-      }
-
-      return { data }
-    } catch (error) {
-      return {
-        error: {
-          message: error instanceof Error ? error.message : 'Upload failed',
-        },
-      }
-    }
+    return this.request('/uploads/service-icon', { method: 'POST', body: formData })
   }
 
   // ============================================
@@ -412,6 +350,99 @@ class ApiClient {
 
   async reorderGroups(data: GroupReorderRequest): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>('/groups/reorder', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Widgets and dashboard order
+  // ============================================
+
+  async getWidgetTypes(): Promise<ApiResponse<WidgetTypeMeta[]>> {
+    return this.request<WidgetTypeMeta[]>('/widgets/types')
+  }
+
+  async getWidgets(): Promise<ApiResponse<Widget[]>> {
+    return this.request<Widget[]>('/widgets')
+  }
+
+  async createWidget(data: WidgetCreateRequest): Promise<ApiResponse<Widget>> {
+    return this.request<Widget>('/widgets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateWidget(id: string, data: WidgetUpdateRequest): Promise<ApiResponse<Widget>> {
+    return this.request<Widget>(`/widgets/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteWidget(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/widgets/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ============================================
+  // Integrations
+  // ============================================
+
+  async getIntegrationKinds(): Promise<ApiResponse<IntegrationKindMeta[]>> {
+    return this.request<IntegrationKindMeta[]>('/integrations/kinds')
+  }
+
+  async getIntegrations(): Promise<ApiResponse<Integration[]>> {
+    return this.request<Integration[]>('/integrations')
+  }
+
+  async createIntegration(data: IntegrationRequest): Promise<ApiResponse<Integration>> {
+    return this.request<Integration>('/integrations', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async updateIntegration(id: string, data: IntegrationRequest): Promise<ApiResponse<Integration>> {
+    return this.request<Integration>(`/integrations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async deleteIntegration(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/integrations/${id}`, { method: 'DELETE' })
+  }
+
+  // Tests a connection from the form without saving it
+  async testIntegration(data: IntegrationRequest): Promise<ApiResponse<IntegrationTestResult>> {
+    return this.request<IntegrationTestResult>('/integrations/test', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  // Tests a saved integration and records the result
+  async testSavedIntegration(id: string): Promise<ApiResponse<IntegrationTestResult>> {
+    return this.request<IntegrationTestResult>(`/integrations/${id}/test`, { method: 'POST' })
+  }
+
+  // Fetches a widget's data now; 429 when it was fetched moments ago
+  async refreshWidget(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/widgets/${id}/refresh`, { method: 'POST' })
+  }
+
+  // Latest data of all polled widgets, before the stream takes over
+  async getDashboardData(): Promise<ApiResponse<Snapshot[]>> {
+    return this.request<Snapshot[]>('/dashboard/data')
+  }
+
+  // Saves the order of services and widgets together
+  async reorderTiles(data: TileReorderRequest): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/dashboard/reorder', {
       method: 'PUT',
       body: JSON.stringify(data),
     })

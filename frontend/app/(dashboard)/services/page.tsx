@@ -14,16 +14,21 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import { arrayMove, SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
-import type { Service, Group } from '@/types'
+import type { Service, Group, Widget } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
 import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/monitoring'
+import { mergeTiles, reorderTiles, splitTiles, tileKey, toTilePositions } from '@/lib/tiles'
 
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([])
   const [groups, setGroups] = useState<Group[]>([])
+  // Widgets are not shown here, but share positions with services, so the
+  // order can only be saved once they are loaded
+  const [widgets, setWidgets] = useState<Widget[]>([])
+  const [widgetsLoaded, setWidgetsLoaded] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -54,9 +59,10 @@ export default function ServicesPage() {
     try {
       // allSettled (vs Promise.all): groups are only used to derive monitoring
       // state, so a groups failure must not abort the services render.
-      const [servicesSettled, groupsSettled] = await Promise.allSettled([
+      const [servicesSettled, groupsSettled, widgetsSettled] = await Promise.allSettled([
         api.getServices(),
         api.getGroups(),
+        api.getWidgets(),
       ])
 
       if (servicesSettled.status === 'fulfilled') {
@@ -75,6 +81,13 @@ export default function ServicesPage() {
         setGroups(groupsSettled.value.data)
       } else if (groupsSettled.status === 'rejected') {
         console.error('Failed to fetch groups:', groupsSettled.reason)
+      }
+
+      if (widgetsSettled.status === 'fulfilled' && widgetsSettled.value.data) {
+        setWidgets(widgetsSettled.value.data)
+        setWidgetsLoaded(true)
+      } else {
+        console.error('Failed to fetch widgets:', widgetsSettled)
       }
     } catch (error) {
       console.error('Failed to fetch services:', error)
@@ -121,35 +134,44 @@ export default function ServicesPage() {
       return
     }
 
-    const oldIndex = services.findIndex((s) => s.id === active.id)
-    const newIndex = services.findIndex((s) => s.id === over.id)
+    if (!widgetsLoaded) {
+      setError('Widgets could not be loaded, so the new order cannot be saved. Reload the page.')
+      return
+    }
 
-    if (oldIndex === -1 || newIndex === -1) {
+    // Move among the services; widgets keep their places in the shared order
+    const all = mergeTiles(services, widgets)
+    const reordered = reorderTiles(
+      all,
+      all.filter((t) => t.kind === 'service'),
+      tileKey({ kind: 'service', id: String(active.id) }),
+      tileKey({ kind: 'service', id: String(over.id) })
+    )
+    if (!reordered) {
       return
     }
 
     // Optimistically update UI
-    const reorderedServices = arrayMove(services, oldIndex, newIndex)
-    setServices(reorderedServices)
-
-    // Update positions on backend
-    const updatedPositions = reorderedServices.map((service, index) => ({
-      id: service.id,
-      position: index,
-    }))
+    const previousServices = services
+    const previousWidgets = widgets
+    const next = splitTiles(reordered)
+    setServices(next.services)
+    setWidgets(next.widgets)
 
     try {
-      const response = await api.reorderServices({ services: updatedPositions })
+      const response = await api.reorderTiles({ tiles: toTilePositions(reordered) })
 
       if (response.error) {
         console.error('Failed to save order:', response.error.message || response.error)
         // Revert on error
-        setServices(services)
+        setServices(previousServices)
+        setWidgets(previousWidgets)
       }
     } catch (error) {
       console.error('Failed to save order:', error)
       // Revert on error
-      setServices(services)
+      setServices(previousServices)
+      setWidgets(previousWidgets)
     }
   }
 
@@ -205,7 +227,7 @@ export default function ServicesPage() {
 
       {/* Services grid */}
       {services.length === 0 ? (
-        <div className="bg-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
+        <div className="glass-card border-card-border flex flex-col items-center justify-center rounded-lg border p-12 text-center">
           <div className="text-text-muted mb-4 text-6xl">🔗</div>
           <h3 className="text-text-primary mb-2 text-xl font-semibold">No services yet</h3>
           <p className="text-text-secondary mb-6 max-w-md">

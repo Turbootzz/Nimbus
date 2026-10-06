@@ -17,6 +17,7 @@ vi.mock('@/lib/api', () => ({
       })
     ),
     updatePreferences: vi.fn(() => Promise.resolve({ data: {} })),
+    uploadWallpaper: vi.fn(),
   },
 }))
 
@@ -385,6 +386,126 @@ describe('ThemeContext', () => {
 
       expect(result.current.background).toBeUndefined()
       expect(localStorage.getItem('background')).toBeNull()
+    })
+  })
+
+  describe('Wallpaper and glass cards', () => {
+    const cssVar = (name: string) => document.documentElement.style.getPropertyValue(name)
+
+    it('applies, caches and saves the glass settings', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      act(() => {
+        result.current.setBackground('https://example.com/bg.jpg')
+      })
+      act(() => {
+        result.current.setGlass({ wallpaperBlur: 6, cardBlur: 12 })
+      })
+
+      expect(result.current.glass).toEqual({
+        wallpaperBlur: 6,
+        wallpaperDim: 0,
+        cardOpacity: 100,
+        cardBlur: 12,
+      })
+      expect(cssVar('--wallpaper-image')).toBe('url("https://example.com/bg.jpg")')
+      expect(cssVar('--wallpaper-blur')).toBe('6px')
+      expect(cssVar('--card-backdrop')).toBe('blur(12px)')
+      expect(JSON.parse(localStorage.getItem('glassVars')!)['--card-opacity']).toBe('100%')
+      expect(JSON.parse(localStorage.getItem('glass')!).cardBlur).toBe(12)
+      const { api } = await import('@/lib/api')
+      await waitFor(() =>
+        expect(api.updatePreferences).toHaveBeenCalledWith(
+          expect.objectContaining({ wallpaper_blur: 6, wallpaper_dim: 0, card_opacity: 100 })
+        )
+      )
+    })
+
+    it('keeps see-through cards readable by raising the dim', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      act(() => {
+        result.current.setGlass({ cardOpacity: 40 })
+      })
+      expect(result.current.glass.wallpaperDim).toBe(30)
+      expect(cssVar('--card-opacity')).toBe('40%')
+      // Without a wallpaper there is nothing to dim
+      expect(cssVar('--wallpaper-dim')).toBe('0')
+    })
+
+    it('loads an uploaded wallpaper from the API server', async () => {
+      const { api } = await import('@/lib/api')
+      vi.mocked(api.uploadWallpaper).mockResolvedValue({
+        data: { theme_background: '/uploads/wallpapers/abc.jpg' } as never,
+      })
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+
+      let error: string | null = 'unset'
+      await act(async () => {
+        error = await result.current.uploadWallpaper(new File(['x'], 'bg.jpg'))
+      })
+      expect(error).toBeNull()
+      expect(result.current.background).toBe('/uploads/wallpapers/abc.jpg')
+      expect(cssVar('--wallpaper-image')).toMatch(
+        /^url\("http:\/\/localhost:8080\/api\/v1\/uploads\/wallpapers\/abc\.jpg"\)$/
+      )
+
+      // An upload waits for a save that is still on its way
+      let finishSave: () => void = () => {}
+      vi.mocked(api.updatePreferences).mockImplementationOnce(
+        () => new Promise((resolve) => (finishSave = () => resolve({ data: {} as never })))
+      )
+      vi.mocked(api.uploadWallpaper).mockClear()
+      act(() => {
+        result.current.setBackground('https://example.com/old.jpg')
+      })
+      let upload: Promise<string | null> = Promise.resolve(null)
+      act(() => {
+        upload = result.current.uploadWallpaper(new File(['x'], 'bg.jpg'))
+      })
+      await Promise.resolve()
+      expect(api.uploadWallpaper).not.toHaveBeenCalled()
+      await act(async () => {
+        finishSave()
+        await upload
+      })
+      expect(api.uploadWallpaper).toHaveBeenCalledTimes(1)
+
+      vi.mocked(api.uploadWallpaper).mockResolvedValue({ error: { message: 'Too big' } })
+      await act(async () => {
+        error = await result.current.uploadWallpaper(new File(['x'], 'bg.jpg'))
+      })
+      expect(error).toBe('Too big')
+    })
+
+    it('ignores a non-http background', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      act(() => {
+        result.current.setBackground('javascript:alert(1)')
+      })
+      expect(cssVar('--wallpaper-image')).toBe('none')
+    })
+  })
+
+  describe('Status strip', () => {
+    it('drops cached chips that are not chips', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const chip = { source: 'widget', id: 'w-1', kpi: 'CPU' }
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'statusStrip',
+            newValue: JSON.stringify({ enabled: true, chips: [null, { source: 'x' }, chip] }),
+            storageArea: localStorage,
+          })
+        )
+      })
+      expect(result.current.statusStrip).toEqual({ enabled: true, chips: [chip] })
     })
   })
 

@@ -22,6 +22,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	schema := `
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
@@ -396,6 +397,7 @@ func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
 	servicesSchema := `
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
@@ -493,6 +495,7 @@ func TestServiceRepository_GetAllForMonitoring_GroupMonitoring(t *testing.T) {
 	servicesSchema := `
 		CREATE TABLE IF NOT EXISTS services (
 			id TEXT PRIMARY KEY,
+			integration_id TEXT,
 			user_id TEXT NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,

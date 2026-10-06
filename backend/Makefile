@@ -1,8 +1,19 @@
-.PHONY: dev build test clean migrate migrate-up migrate-down migrate-create testdb fmt vet ci-check
+.PHONY: dev encryption-key build test clean migrate migrate-up migrate-down migrate-create testdb fmt vet ci-check
 
 # Development
-dev:
+dev: encryption-key
 	go run cmd/server/main.go
+
+# Generate ENCRYPTION_KEY once, like docker/entrypoint.sh does. It goes into
+# the env file the server loads: backend/.env, else the root .env.
+encryption-key:
+	@f=.env; [ -f $$f ] || f=../.env; \
+	if [ -z "$$ENCRYPTION_KEY" ] && [ -f $$f ] && ! grep -q '^ENCRYPTION_KEY=.' $$f; then \
+		chmod 600 $$f || exit 1; \
+		[ -z "$$(tail -c1 $$f)" ] || echo >> $$f; \
+		echo "ENCRYPTION_KEY=$$(head -c 32 /dev/urandom | base64 | tr -d '\n')" >> $$f; \
+		echo "✓ Generated ENCRYPTION_KEY in $$f. Keep it: saved integration credentials need it."; \
+	fi
 
 # Test database connection
 testdb:

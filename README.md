@@ -46,7 +46,10 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 <td width="50%">
 
 **🎨 Personalization**
-- Custom backgrounds per user
+- Custom wallpapers per user (upload or URL) with blur, dim and glass cards
+- Canvas layout: the dashboard fills the page under a top bar, no sidebar. The default for new users; switch in Theme settings
+- Status strip: key numbers from your apps and an "Operational / N down" pill at the top
+- Search: press `/` or Ctrl+K to find and open a service
 - Light/dark mode toggle
 - Accent color themes
 - Drag & drop service tiles
@@ -59,6 +62,19 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 </td>
 </tr>
 </table>
+
+### 🧩 Widgets & integrations (2.0, `dev` image)
+
+Add widgets next to your services with **Add Widget** on the dashboard: Clock, Note (Markdown), Bookmarks, Embed, Weather, RSS, Calendar, Custom API, System stats and Docker containers. Widget data is fetched by the server and pushed to the dashboard live. See [docs/WIDGETS.md](docs/WIDGETS.md).
+
+Integrations show live numbers from your apps on a service tile. Add one under **Settings, Integrations**, then pick it under **Live numbers** when you edit the service. Credentials are stored encrypted with `ENCRYPTION_KEY`.
+
+| App | Status |
+|---|---|
+| AdGuard Home, Docker, Home Assistant, Jellyfin, Pi-hole v6, Proxmox VE, qBittorrent, Radarr, Sonarr, Uptime Kuma | native |
+| Portainer, Prowlarr, SABnzbd, Immich, Tautulli, Jellyseerr / Overseerr, TrueNAS SCALE, Nextcloud, Speedtest Tracker, Beszel, Nginx Proxy Manager, Kavita, Mealie, Gotify, Gluetun, Traefik, Paperless-ngx, Navidrome, Grafana | planned, [up for grabs](https://github.com/Turbootzz/Nimbus/issues/196) |
+
+What each app shows and how it signs in is in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md). Adding one is a single Go file plus a test; the same page explains how.
 
 ---
 
@@ -104,6 +120,7 @@ services:
     environment:
       DB_PASSWORD: ${DB_PASSWORD:-nimbus-default-password}
       JWT_SECRET: ${JWT_SECRET:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
     volumes:
       - uploads_data:/app/backend/uploads
     ports:
@@ -154,6 +171,8 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in volume, back it up) |
+| `DOCKER_SOCKET` | *(none)* | Docker socket the Docker integration may use, e.g. `/var/run/docker.sock` |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |
@@ -226,6 +245,8 @@ Run `make help` for all available commands.
 | [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, Prometheus |
 | [README.md](README.md) | Information about Nimbus |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
+| [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
+| [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
 
 ---
 
@@ -244,7 +265,7 @@ Run `make help` for all available commands.
 - [x] Uptime webhook notifications
 - [x] Optional landing page
 - [x] Zero-config Docker deployment
-- [ ] Widget/plugin system
+- [ ] Widgets and app integrations (in progress on `dev`)
 - [ ] PWA support
 
 ---

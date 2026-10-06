@@ -30,7 +30,7 @@ export function ServiceManagementCardPresentation({
   return (
     <div
       style={style}
-      className="bg-card border-card-border group relative flex h-full flex-col rounded-lg border p-6 transition-all hover:shadow-lg"
+      className="glass-card border-card-border group relative flex h-full flex-col rounded-lg border p-6 transition-all hover:shadow-lg"
     >
       {/* Service icon and status */}
       <div className="mb-4 flex items-start justify-between">

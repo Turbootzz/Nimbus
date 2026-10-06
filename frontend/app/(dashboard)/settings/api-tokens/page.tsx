@@ -139,7 +139,7 @@ export default function ApiTokensPage() {
 
       <form
         onSubmit={handleCreate}
-        className="bg-card border-card-border mb-8 rounded-lg border p-6"
+        className="glass-card border-card-border mb-8 rounded-lg border p-6"
       >
         <h2 className="text-text-primary mb-4 text-lg font-semibold">Create new token</h2>
         <div className="space-y-4">
@@ -170,14 +170,14 @@ export default function ApiTokensPage() {
 
       <div className="space-y-4">
         {tokens.length === 0 ? (
-          <div className="bg-card border-card-border rounded-lg border p-8 text-center">
+          <div className="glass-card border-card-border rounded-lg border p-8 text-center">
             <p className="text-text-secondary">No API tokens yet. Create one above.</p>
           </div>
         ) : (
           tokens.map((token) => (
             <div
               key={token.id}
-              className="bg-card border-card-border flex items-center justify-between gap-4 rounded-lg border p-4"
+              className="glass-card border-card-border flex items-center justify-between gap-4 rounded-lg border p-4"
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">

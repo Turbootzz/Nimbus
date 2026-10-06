@@ -22,3 +22,42 @@ type ServiceRepositoryInterface interface {
 
 // Ensure ServiceRepository implements the interface
 var _ ServiceRepositoryInterface = (*ServiceRepository)(nil)
+
+// IntegrationRepositoryInterface defines the interface for integration repository operations
+type IntegrationRepositoryInterface interface {
+	Create(ctx context.Context, integration *models.Integration, credentialsEnc []byte, maxPerUser int) error
+	GetByID(ctx context.Context, id, userID string) (*models.Integration, error)
+	GetCredentials(ctx context.Context, id, userID string) ([]byte, error)
+	ListByUserID(ctx context.Context, userID string) ([]models.Integration, error)
+	ListInUse(ctx context.Context) ([]models.Integration, error)
+	Update(ctx context.Context, integration *models.Integration, credentialsEnc []byte) error
+	UpdateTestResult(ctx context.Context, id, userID string, ok bool, lastError *string) error
+	Delete(ctx context.Context, id, userID string) error
+}
+
+// Ensure IntegrationRepository implements the interface
+var _ IntegrationRepositoryInterface = (*IntegrationRepository)(nil)
+
+// WidgetRepositoryInterface defines the interface for widget repository operations
+type WidgetRepositoryInterface interface {
+	Create(ctx context.Context, widget *models.Widget, maxPerUser int) error
+	GetByID(ctx context.Context, id, userID string) (*models.Widget, error)
+	ListByUserID(ctx context.Context, userID string) ([]models.Widget, error)
+	ListEnabled(ctx context.Context) ([]models.Widget, error)
+	Update(ctx context.Context, widget *models.Widget) error
+	Delete(ctx context.Context, id, userID string) error
+	ReorderTiles(ctx context.Context, userID string, tiles []models.TilePosition) error
+}
+
+// Ensure WidgetRepository implements the interface
+var _ WidgetRepositoryInterface = (*WidgetRepository)(nil)
+
+// SnapshotRepositoryInterface defines the interface for snapshot repository operations
+type SnapshotRepositoryInterface interface {
+	Upsert(ctx context.Context, snap *models.Snapshot) error
+	ListAll(ctx context.Context) ([]models.Snapshot, error)
+	PruneOrphans(ctx context.Context) (int64, error)
+}
+
+// Ensure SnapshotRepository implements the interface
+var _ SnapshotRepositoryInterface = (*SnapshotRepository)(nil)
