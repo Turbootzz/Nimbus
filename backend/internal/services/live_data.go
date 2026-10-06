@@ -151,7 +151,8 @@ func (s *LiveDataService) widgetSource(widget models.Widget, meta widgets.Meta, 
 		Interval: time.Duration(widget.RefreshSeconds) * time.Second,
 		Version:  fingerprint(parts...),
 		Fetch: func(ctx context.Context) (any, error) {
-			req := &widgets.FetchRequest{Config: widget.Config, Client: utils.NewSafeClient(true, maxFetchTimeout)}
+			client := utils.NewSafeClient(widgets.VerifiesTLS(widget.Config), maxFetchTimeout)
+			req := &widgets.FetchRequest{Config: widget.Config, Client: client}
 			defer req.Client.CloseIdleConnections()
 
 			if len(meta.IntegrationKinds) > 0 {

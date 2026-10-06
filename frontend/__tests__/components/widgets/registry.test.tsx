@@ -49,7 +49,15 @@ describe('widget registry', () => {
       { ...backendStaticTypes[0], type: 'clock', integration_kinds: ['sonarr'] },
     ]
     const addable = addableTypes(types).map((t) => t.type)
-    expect(addable).toEqual(['bookmarks', 'clock', 'iframe', 'markdown', 'weather'])
+    expect(addable).toEqual([
+      'bookmarks',
+      'clock',
+      'custom_api',
+      'iframe',
+      'markdown',
+      'rss',
+      'weather',
+    ])
   })
 
   it('renders an unknown type message instead of crashing', async () => {

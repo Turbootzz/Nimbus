@@ -19,7 +19,11 @@ describe('WeatherWidget', () => {
     render(<WeatherWidget {...base} cardSize="2x1" snapshot={makeSnapshot()} />)
     expect(screen.getByText('17°')).toBeInTheDocument()
     expect(screen.getByText('Amsterdam')).toBeInTheDocument()
-    expect(screen.getByText(/Rain · feels like 15° · wind 7 km\/h/)).toBeInTheDocument()
+    // One row high: a short detail line, the wind is in its tooltip
+    expect(screen.getByText('Rain · feels like 15°')).toHaveAttribute(
+      'title',
+      'Rain · feels like 15° · wind 7 km/h'
+    )
     expect(screen.getAllByRole('listitem')).toHaveLength(3) // today is already shown
     expect(screen.getByLabelText('Thunderstorm')).toBeInTheDocument()
   })
@@ -27,6 +31,7 @@ describe('WeatherWidget', () => {
   it('shows all days on a large tile and only the basics on a small one', () => {
     const { unmount } = render(<WeatherWidget {...base} cardSize="2x2" snapshot={makeSnapshot()} />)
     expect(screen.getAllByRole('listitem')).toHaveLength(4)
+    expect(screen.getByText(/Rain · feels like 15° · wind 7 km\/h/)).toBeInTheDocument()
     unmount()
 
     render(<WeatherWidget {...base} cardSize="1x1" snapshot={makeSnapshot()} />)

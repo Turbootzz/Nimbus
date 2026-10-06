@@ -35,6 +35,14 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     static: true,
   },
   {
+    type: 'custom_api',
+    name: 'Custom API',
+    category: 'info',
+    default_size: '2x1',
+    allowed_sizes: ['1x1', '2x1', '2x2'],
+    static: false,
+  },
+  {
     type: 'iframe',
     name: 'Embed',
     category: 'general',
@@ -49,6 +57,15 @@ export const backendStaticTypes: WidgetTypeMeta[] = [
     default_size: '2x2',
     allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
     static: true,
+  },
+  {
+    type: 'rss',
+    name: 'RSS',
+    category: 'info',
+    default_size: '2x2',
+    allowed_sizes: ['1x1', '2x1', '1x2', '2x2'],
+    static: false,
+    min_refresh_seconds: 300,
   },
   {
     type: 'weather',

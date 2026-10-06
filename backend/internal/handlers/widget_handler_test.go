@@ -113,6 +113,10 @@ func setupWidgetTestDB(t *testing.T) *sql.DB {
 // setupWidgetTestApp mirrors the routes in main.go with a stub auth
 // middleware that sets the given user ID
 func setupWidgetTestApp(db *sql.DB, userID string) *fiber.App {
+	return setupWidgetTestAppAs(db, userID, "user")
+}
+
+func setupWidgetTestAppAs(db *sql.DB, userID, role string) *fiber.App {
 	service := services.NewWidgetService(
 		repository.NewWidgetRepository(db),
 		repository.NewGroupRepository(db),
@@ -123,6 +127,7 @@ func setupWidgetTestApp(db *sql.DB, userID string) *fiber.App {
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {
 		c.Locals("user_id", userID)
+		c.Locals("role", role)
 		return c.Next()
 	})
 	app.Get("/widgets/types", handler.ListTypes)
@@ -365,4 +370,64 @@ func TestWidgetHandler_TallSize(t *testing.T) {
 	assert.Equal(t, "2x2", embed.CardSize, "embeds default to 2x2")
 	status, body := doWidgetRequest(t, app, http.MethodPut, "/widgets/"+embed.ID, `{"card_size":"1x2"}`)
 	assert.Equal(t, fiber.StatusOK, status, body)
+}
+
+func TestWidgetHandler_AdminOnlyType(t *testing.T) {
+	db := setupWidgetTestDB(t)
+	user := setupWidgetTestAppAs(db, widgetOwnerID, "user")
+	admin := setupWidgetTestAppAs(db, widgetOwnerID, "admin")
+	config := `{"url":"http://10.0.0.2/api","headers":[{"name":"X-Api-Key","value":"k1"}],"fields":[{"label":"A","path":"a"}]}`
+
+	typesOf := func(app *fiber.App) map[string]widgets.Meta {
+		_, body := doWidgetRequest(t, app, http.MethodGet, "/widgets/types", "")
+		var types []widgets.Meta
+		require.NoError(t, json.Unmarshal([]byte(body), &types))
+		byType := map[string]widgets.Meta{}
+		for _, meta := range types {
+			byType[meta.Type] = meta
+		}
+		return byType
+	}
+	assert.NotContains(t, typesOf(user), "custom_api")
+	assert.True(t, typesOf(admin)["custom_api"].AdminOnly)
+
+	status, body := doWidgetRequest(t, user, http.MethodPost, "/widgets", `{"type":"custom_api","config":`+config+`}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Contains(t, body, "Only admins")
+
+	created := createWidget(t, admin, `{"type":"custom_api","config":`+config+`}`)
+
+	// A user (e.g. a demoted admin) can still move it, not change what it fetches
+	status, body = doWidgetRequest(t, user, http.MethodPut, "/widgets/"+created.ID, `{"title":"Stats"}`)
+	assert.Equal(t, fiber.StatusOK, status, body)
+	status, _ = doWidgetRequest(t, user, http.MethodPut, "/widgets/"+created.ID, `{"config":`+config+`}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+}
+
+func TestWidgetHandler_SecretsAreMasked(t *testing.T) {
+	db := setupWidgetTestDB(t)
+	app := setupWidgetTestAppAs(db, widgetOwnerID, "admin")
+	storedConfig := func(id string) string {
+		var config string
+		require.NoError(t, db.QueryRow(`SELECT config FROM widgets WHERE id = ?`, id).Scan(&config))
+		return config
+	}
+
+	created := createWidget(t, app, `{"type":"custom_api","config":{"url":"http://10.0.0.2/api","headers":[{"name":"X-Api-Key","value":"k1"}],"fields":[{"label":"A","path":"a"}]}}`)
+	assert.NotContains(t, string(created.Config), "k1")
+	assert.Contains(t, string(created.Config), `"value":"********"`)
+	assert.Contains(t, storedConfig(created.ID), "k1")
+
+	for _, path := range []string{"/widgets", "/widgets/" + created.ID} {
+		_, body := doWidgetRequest(t, app, http.MethodGet, path, "")
+		assert.NotContains(t, body, "k1", path)
+	}
+
+	// Saving the masked config with another label keeps the stored key
+	status, body := doWidgetRequest(t, app, http.MethodPut, "/widgets/"+created.ID,
+		`{"config":{"url":"http://10.0.0.2/api","headers":[{"name":"X-Api-Key","value":"********"}],"fields":[{"label":"B","path":"a"}]}}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.NotContains(t, body, "k1")
+	assert.Contains(t, storedConfig(created.ID), "k1")
+	assert.Contains(t, storedConfig(created.ID), `"label":"B"`)
 }

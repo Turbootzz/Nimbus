@@ -3,7 +3,7 @@
 import type { Kpi, Snapshot, IntegrationPayload } from '@/types'
 
 // Tailwind needs full class names, so no template strings here
-const columns: Record<number, string> = {
+export const kpiColumns: Record<number, string> = {
   1: 'grid-cols-1',
   2: 'grid-cols-2',
   3: 'grid-cols-3',
@@ -15,7 +15,7 @@ export interface ServiceKpis {
   snapshot?: Snapshot
 }
 
-function formatValue(value: unknown, unit?: string): string {
+export function formatKpiValue(value: unknown, unit?: string): string {
   if (value === undefined || value === null) return '-'
   const text = typeof value === 'number' ? value.toLocaleString() : String(value)
   return unit ? `${text} ${unit}` : text
@@ -35,7 +35,7 @@ export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
       : undefined
 
   return (
-    <dl className={`grid gap-2 ${columns[shown.length]}`} title={problem}>
+    <dl className={`grid gap-2 ${kpiColumns[shown.length]}`} title={problem}>
       {shown.map((kpi) => (
         <div key={kpi.key} className="min-w-0">
           <dt className="text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
@@ -49,7 +49,7 @@ export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
                 <span className="sr-only">Loading</span>
               </span>
             ) : (
-              formatValue(values?.[kpi.key], kpi.unit)
+              formatKpiValue(values?.[kpi.key], kpi.unit)
             )}
           </dd>
         </div>

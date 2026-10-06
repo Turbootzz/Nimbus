@@ -182,6 +182,7 @@ export interface WidgetTypeMeta {
   static: boolean
   integration_kinds?: string[]
   min_refresh_seconds?: number
+  admin_only?: boolean // only listed for admins
 }
 
 export interface WidgetCreateRequest {
@@ -253,6 +254,48 @@ export interface WeatherPayload {
   temperature_unit: string
   wind_unit: string
   daily: WeatherDay[]
+}
+
+export interface CustomApiHeader {
+  name: string
+  value: string // never returned: a saved value comes back as ********
+}
+
+export interface CustomApiField {
+  label: string
+  path: string // e.g. data.items[0].name or items.length
+  unit: string
+}
+
+export interface CustomApiWidgetConfig {
+  url: string
+  headers: CustomApiHeader[]
+  fields: CustomApiField[]
+  verify_tls: boolean
+}
+
+// Values keyed by field label
+export interface CustomApiPayload {
+  kpis: Record<string, number | string | boolean | null>
+  missing?: string[] // labels whose path found nothing
+}
+
+export interface RssWidgetConfig {
+  feeds: string[]
+  limit: number // items shown, newest first
+  verify_tls: boolean
+}
+
+export interface RssItem {
+  title: string
+  link?: string // http(s) only
+  date?: string // RFC 3339
+  source: string // feed title
+}
+
+export interface RssPayload {
+  items: RssItem[]
+  failed?: string[] // feeds that could not be loaded while others could
 }
 
 // Latest data of a polled widget or integration (GET /dashboard/data and

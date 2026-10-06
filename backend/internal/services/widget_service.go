@@ -48,17 +48,44 @@ func (s *WidgetService) SetPoller(p Poller) {
 	s.poller = p
 }
 
-// Types lists the registered widget types
-func (s *WidgetService) Types() []widgets.Meta {
-	return widgets.Types()
+// Types lists the widget types the user can add
+func (s *WidgetService) Types(isAdmin bool) []widgets.Meta {
+	types := widgets.Types()
+	if !isAdmin {
+		types = slices.DeleteFunc(types, func(m widgets.Meta) bool { return m.AdminOnly })
+	}
+	return types
 }
 
+// List returns the user's widgets with secrets in their config masked
 func (s *WidgetService) List(ctx context.Context, userID string) ([]models.Widget, error) {
-	return s.repo.ListByUserID(ctx, userID)
+	list, err := s.repo.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		redact(&list[i])
+	}
+	return list, nil
 }
 
+// Get returns a widget with secrets in its config masked
 func (s *WidgetService) Get(ctx context.Context, id, userID string) (*models.Widget, error) {
-	return s.repo.GetByID(ctx, id, userID)
+	widget, err := s.repo.GetByID(ctx, id, userID)
+	if err != nil {
+		return nil, err
+	}
+	redact(widget)
+	return widget, nil
+}
+
+// redact masks secrets in the config, for widgets sent to a client
+func redact(widget *models.Widget) {
+	if widgetType, ok := widgets.Get(widget.Type); ok {
+		if secret, ok := widgetType.(widgets.SecretConfig); ok {
+			widget.Config = secret.Redact(widget.Config)
+		}
+	}
 }
 
 func (s *WidgetService) Delete(ctx context.Context, id, userID string) error {
@@ -89,8 +116,8 @@ func (s *WidgetService) Refresh(ctx context.Context, id, userID string) error {
 }
 
 // Create validates the request and adds the widget at the end of the grid
-func (s *WidgetService) Create(ctx context.Context, userID string, req *models.WidgetRequest) (*models.Widget, error) {
-	widget, err := s.apply(ctx, userID, req, nil)
+func (s *WidgetService) Create(ctx context.Context, userID string, isAdmin bool, req *models.WidgetRequest) (*models.Widget, error) {
+	widget, err := s.apply(ctx, userID, isAdmin, req, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -101,16 +128,17 @@ func (s *WidgetService) Create(ctx context.Context, userID string, req *models.W
 		return nil, err
 	}
 	kick(s.poller)
+	redact(widget)
 	return widget, nil
 }
 
 // Update applies the request on top of the stored widget
-func (s *WidgetService) Update(ctx context.Context, id, userID string, req *models.WidgetRequest) (*models.Widget, error) {
+func (s *WidgetService) Update(ctx context.Context, id, userID string, isAdmin bool, req *models.WidgetRequest) (*models.Widget, error) {
 	current, err := s.repo.GetByID(ctx, id, userID)
 	if err != nil {
 		return nil, err
 	}
-	widget, err := s.apply(ctx, userID, req, current)
+	widget, err := s.apply(ctx, userID, isAdmin, req, current)
 	if err != nil {
 		return nil, err
 	}
@@ -118,6 +146,7 @@ func (s *WidgetService) Update(ctx context.Context, id, userID string, req *mode
 		return nil, err
 	}
 	kick(s.poller)
+	redact(widget)
 	return widget, nil
 }
 
@@ -152,7 +181,7 @@ func (s *WidgetService) ReorderTiles(ctx context.Context, userID string, req *mo
 
 // apply validates req on top of current (nil on create) and returns the
 // widget to store. On update, omitted fields keep their stored value.
-func (s *WidgetService) apply(ctx context.Context, userID string, req *models.WidgetRequest, current *models.Widget) (*models.Widget, error) {
+func (s *WidgetService) apply(ctx context.Context, userID string, isAdmin bool, req *models.WidgetRequest, current *models.Widget) (*models.Widget, error) {
 	w := models.Widget{UserID: userID, Enabled: true}
 	if current != nil {
 		w = *current
@@ -169,6 +198,10 @@ func (s *WidgetService) apply(ctx context.Context, userID string, req *models.Wi
 		return nil, invalid("Unknown widget type")
 	}
 	meta := widgetType.Meta()
+	// Moving or resizing is fine; adding or changing what it fetches is not
+	if meta.AdminOnly && !isAdmin && (current == nil || hasConfig(req.Config)) {
+		return nil, invalid("Only admins can set up %s widgets", meta.Name)
+	}
 
 	if req.Title != nil {
 		w.Title = strings.TrimSpace(*req.Title)
@@ -237,7 +270,7 @@ func (s *WidgetService) apply(ctx context.Context, userID string, req *models.Wi
 // stored one on update and is validated as {} on create, so types with
 // required fields reject it.
 func (s *WidgetService) validateConfig(widgetType widgets.WidgetType, config json.RawMessage, current *models.Widget) (json.RawMessage, error) {
-	if len(config) == 0 || string(config) == "null" {
+	if !hasConfig(config) {
 		if current != nil {
 			return current.Config, nil
 		}
@@ -246,11 +279,19 @@ func (s *WidgetService) validateConfig(widgetType widgets.WidgetType, config jso
 	if len(config) > maxWidgetConfigBytes {
 		return nil, invalid("Config is too large")
 	}
+	// Masked secrets that come back unchanged keep their stored value
+	if secret, ok := widgetType.(widgets.SecretConfig); ok && current != nil {
+		config = secret.Unredact(config, current.Config)
+	}
 	normalised, err := widgetType.Validate(config)
 	if err != nil {
 		return nil, invalid("Invalid config: %s", err.Error())
 	}
 	return normalised, nil
+}
+
+func hasConfig(config json.RawMessage) bool {
+	return len(config) > 0 && string(config) != "null"
 }
 
 // resolveGroup checks that a group belongs to the user; "" means no group

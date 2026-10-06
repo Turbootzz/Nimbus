@@ -35,7 +35,7 @@ export default function BookmarksWidget({
     return <p className="text-text-muted text-sm">No bookmarks yet</p>
   }
   return (
-    <ul className="-mx-2 space-y-0.5">
+    <ul className="space-y-0.5">
       {config.items.map((bookmark, index) => (
         <li key={`${index}-${bookmark.url}`}>
           <a

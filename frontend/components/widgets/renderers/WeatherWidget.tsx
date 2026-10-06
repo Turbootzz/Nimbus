@@ -14,33 +14,43 @@ export default function WeatherWidget({
 
   const now = describeWeather(weather.weather_code, weather.is_day)
   const temp = (value: number) => `${Math.round(value)}°`
-  const days =
-    cardSize === '2x2' ? weather.daily : cardSize === '2x1' ? weather.daily.slice(1, 4) : []
+  // A 2x1 tile is one row high, so the forecast goes next to the current
+  // weather instead of below it
+  const wide = cardSize === '2x1'
+  const days = cardSize === '2x2' ? weather.daily : wide ? weather.daily.slice(1, 4) : []
+  const detail = `${now.label} · feels like ${temp(weather.feels_like)}`
+  const wind = `wind ${Math.round(weather.wind_speed)} ${weather.wind_unit}`
 
   return (
-    <div className="flex h-full flex-col justify-between gap-2">
-      <div className="flex items-center gap-3">
-        <span className={cardSize === '1x1' ? 'text-3xl' : 'text-4xl'} aria-hidden="true">
-          {now.icon}
-        </span>
-        <div className="min-w-0">
-          <p className="text-text-primary text-2xl font-semibold tabular-nums">
-            {temp(weather.temperature)}
-          </p>
-          <p className="text-text-secondary truncate text-xs">{config.location || now.label}</p>
+    <div className={`flex h-full gap-3 ${wide ? 'items-center' : 'flex-col justify-between'}`}>
+      <div className={`flex min-w-0 flex-col gap-2 ${wide ? 'flex-1' : ''}`}>
+        <div className="flex items-center gap-3">
+          <span className={cardSize === '1x1' ? 'text-3xl' : 'text-4xl'} aria-hidden="true">
+            {now.icon}
+          </span>
+          <div className="min-w-0">
+            <p className="text-text-primary text-2xl font-semibold tabular-nums">
+              {temp(weather.temperature)}
+            </p>
+            <p className="text-text-secondary truncate text-xs">{config.location || now.label}</p>
+          </div>
         </div>
-      </div>
 
-      {cardSize !== '1x1' && (
-        <p className="text-text-muted text-xs">
-          {now.label} · feels like {temp(weather.feels_like)} · wind{' '}
-          {Math.round(weather.wind_speed)} {weather.wind_unit}
-        </p>
-      )}
+        {wide && (
+          <p className="text-text-muted truncate text-xs" title={`${detail} · ${wind}`}>
+            {detail}
+          </p>
+        )}
+        {cardSize === '2x2' && (
+          <p className="text-text-muted text-xs">
+            {detail} · {wind}
+          </p>
+        )}
+      </div>
 
       {days.length > 0 && (
         <ul
-          className={`grid gap-1 text-center text-xs ${days.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}
+          className={`grid gap-1 text-center text-xs ${wide ? 'flex-1' : ''} ${days.length > 3 ? 'grid-cols-4' : 'grid-cols-3'}`}
         >
           {days.map((day) => {
             const condition = describeWeather(day.weather_code)
