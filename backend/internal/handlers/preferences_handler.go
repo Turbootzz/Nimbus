@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 	"github.com/nimbus/backend/internal/utils"
 )
 
@@ -35,6 +36,12 @@ var localWallpaper = regexp.MustCompile(`^/uploads/wallpapers/[0-9a-f]{32}\.(jpg
 type PreferencesHandler struct {
 	preferencesRepo *repository.PreferencesRepository
 	validator       *validator.Validate
+	poller          services.Poller
+}
+
+// SetPoller lets a status strip change start or stop polling its integrations
+func (h *PreferencesHandler) SetPoller(p services.Poller) {
+	h.poller = p
 }
 
 func NewPreferencesHandler(preferencesRepo *repository.PreferencesRepository) *PreferencesHandler {
@@ -84,6 +91,7 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			ViewMode:              "grid",
 			CardOpacity:           100,
 			LayoutMode:            "classic",
+			StatusStrip:           models.StatusStrip{Chips: []models.StatusChip{}},
 			UpdatedAt:             time.Time{}, // Zero value for time
 		})
 	}
@@ -171,6 +179,8 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 					errorMessages[field] = fmt.Sprintf("%s must be a valid HTTP or HTTPS URL", field)
 				case "min", "max":
 					errorMessages[field] = fmt.Sprintf("%s is out of range", field)
+				case "uuid":
+					errorMessages[field] = fmt.Sprintf("%s must be an id", field)
 				default:
 					errorMessages[field] = fmt.Sprintf("%s is invalid", field)
 				}
@@ -193,6 +203,9 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update preferences",
 		})
+	}
+	if req.StatusStrip != nil && h.poller != nil {
+		h.poller.Kick()
 	}
 	return c.JSON(preferences.ToResponse())
 }

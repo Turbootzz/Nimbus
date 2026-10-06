@@ -11,7 +11,14 @@ import {
   ReactNode,
 } from 'react'
 import { api } from '@/lib/api'
-import type { PreferencesUpdateRequest, CardScale, LayoutMode, ViewMode } from '@/types'
+import type {
+  PreferencesUpdateRequest,
+  CardScale,
+  LayoutMode,
+  StatusChip,
+  StatusStrip,
+  ViewMode,
+} from '@/types'
 import { setLayoutMode as storeLayoutMode } from '@/lib/layout-store'
 import {
   type Glass,
@@ -35,6 +42,7 @@ interface ThemeContextType {
   cardScale: CardScale
   viewMode: ViewMode
   glass: Glass
+  statusStrip: StatusStrip
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
@@ -45,6 +53,7 @@ interface ThemeContextType {
   setViewMode: (viewMode: ViewMode) => void
   // Merges the change; may raise the dim to keep glass cards readable
   setGlass: (change: Partial<Glass>) => void
+  setStatusStrip: (statusStrip: StatusStrip) => void
   // Read the layout with useLayoutMode (lib/layout-store), which can't flash
   setLayoutMode: (layoutMode: LayoutMode) => void
   // Uploads and applies a wallpaper; resolves to an error message or null
@@ -53,6 +62,28 @@ interface ThemeContextType {
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
+
+const noStatusStrip: StatusStrip = { enabled: false, chips: [] }
+
+// parseStatusStrip reads the cached strip; off when missing or broken, and
+// without chips that aren't chips
+function parseStatusStrip(raw: string | null): StatusStrip {
+  if (!raw) return noStatusStrip
+  try {
+    const strip = JSON.parse(raw) as Partial<StatusStrip> | null
+    const chips = Array.isArray(strip?.chips)
+      ? strip.chips.filter(
+          (chip): chip is StatusChip =>
+            (chip?.source === 'integration' || chip?.source === 'widget') &&
+            typeof chip.id === 'string' &&
+            typeof chip.kpi === 'string'
+        )
+      : []
+    return { enabled: strip?.enabled === true, chips }
+  } catch {
+    return noStatusStrip
+  }
+}
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // Initialize with defaults (same for server and client to prevent hydration mismatch)
@@ -66,6 +97,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [cardScale, setCardScaleState] = useState<CardScale>('medium')
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [glass, setGlassState] = useState<Glass>(defaultGlass)
+  const [statusStrip, setStatusStripState] = useState<StatusStrip>(noStatusStrip)
   // False until the cached preferences are read; before that the state holds
   // defaults, and applying them would undo what ThemeScript painted
   const [restored, setRestored] = useState(false)
@@ -76,7 +108,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const pendingUpdatesRef = useRef<PreferencesUpdateRequest | null>(null)
   // The save on its way to the API, so an upload can wait for it
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
-  const layoutPickedRef = useRef(false)
+  // Preferences the user changed while the first load was running; that
+  // load must not undo them
+  const changedRef = useRef(new Set<'layout' | 'statusStrip'>())
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -119,6 +153,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setCardScaleState(e.newValue as CardScale)
       } else if (e.key === 'viewMode' && e.newValue) {
         setViewModeState(e.newValue as ViewMode)
+      } else if (e.key === 'statusStrip' && e.newValue) {
+        setStatusStripState(parseStatusStrip(e.newValue))
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)
         if (parsed) setGlassState(parsed)
@@ -154,6 +190,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedCardScale) setCardScaleState(savedCardScale)
       if (savedViewMode) setViewModeState(savedViewMode)
       if (savedGlass) setGlassState(savedGlass)
+      setStatusStripState(parseStatusStrip(localStorage.getItem('statusStrip')))
       setRestored(true)
 
       // Step 2: Try to load from API and sync
@@ -181,8 +218,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setCardScaleState(apiCardScale)
           setViewModeState(apiViewMode)
           setGlassState(apiGlass)
+          if (!changedRef.current.has('statusStrip')) {
+            const apiStatusStrip = response.data.status_strip ?? noStatusStrip
+            setStatusStripState(apiStatusStrip)
+            localStorage.setItem('statusStrip', JSON.stringify(apiStatusStrip))
+          }
           // Unless the user already picked one while this was loading
-          if (!layoutPickedRef.current) storeLayoutMode(response.data.layout_mode ?? 'classic')
+          if (!changedRef.current.has('layout')) {
+            storeLayoutMode(response.data.layout_mode ?? 'classic')
+          }
 
           // Update localStorage cache with API data
           localStorage.setItem('theme', apiTheme)
@@ -278,6 +322,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     if (updates.card_scale) localStorage.setItem('cardScale', updates.card_scale)
     if (updates.view_mode) localStorage.setItem('viewMode', updates.view_mode)
+    if (updates.status_strip) {
+      localStorage.setItem('statusStrip', JSON.stringify(updates.status_strip))
+    }
     if (updates.theme_accent_color !== undefined) {
       if (updates.theme_accent_color) {
         localStorage.setItem('accentColor', updates.theme_accent_color)
@@ -437,9 +484,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return null
   }, [])
 
+  const setStatusStrip = useCallback(
+    (v: StatusStrip) => {
+      changedRef.current.add('statusStrip')
+      setStatusStripState(v)
+      savePreferences({ status_strip: v })
+    },
+    [savePreferences]
+  )
+
   const setLayoutMode = useCallback(
     (v: LayoutMode) => {
-      layoutPickedRef.current = true
+      changedRef.current.add('layout')
       storeLayoutMode(v)
       savePreferences({ layout_mode: v })
     },
@@ -458,6 +514,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       cardScale,
       viewMode,
       glass,
+      statusStrip,
       setTheme,
       setAccentColor,
       setBackground,
@@ -467,6 +524,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCardScale,
       setViewMode,
       setGlass,
+      setStatusStrip,
       setLayoutMode,
       uploadWallpaper,
       loading,
@@ -482,6 +540,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       cardScale,
       viewMode,
       glass,
+      statusStrip,
       setTheme,
       setAccentColor,
       setBackground,
@@ -491,6 +550,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setCardScale,
       setViewMode,
       setGlass,
+      setStatusStrip,
       setLayoutMode,
       uploadWallpaper,
       loading,

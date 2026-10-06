@@ -88,6 +88,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			card_opacity INTEGER NOT NULL DEFAULT 100,
 			card_blur INTEGER NOT NULL DEFAULT 0,
 			layout_mode TEXT NOT NULL DEFAULT 'classic',
+			status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -1163,4 +1164,32 @@ func TestPreferencesRepository_WallpaperAndGlass(t *testing.T) {
 	resp := prefs.ToResponse()
 	assert.Equal(t, 8, resp.WallpaperBlur)
 	assert.Equal(t, 0, resp.CardOpacity)
+}
+
+func TestPreferencesRepository_StripIntegrations(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+	_, err := db.Exec(`INSERT INTO users (id, email, name, password, role, created_at, updated_at) VALUES ('user-2', 'b@example.com', 'B', 'x', 'user', ?, ?)`, time.Now(), time.Now())
+	require.NoError(t, err)
+
+	strip := func(enabled bool, chips ...models.StatusChip) *models.PreferencesUpdateRequest {
+		return &models.PreferencesUpdateRequest{StatusStrip: &models.StatusStrip{Enabled: enabled, Chips: chips}}
+	}
+	require.NoError(t, repo.Upsert(ctx, "user-1", strip(true,
+		models.StatusChip{Source: "integration", ID: "i-1", KPI: "queued"},
+		models.StatusChip{Source: "widget", ID: "w-1", KPI: "CPU"},
+	)))
+	require.NoError(t, repo.Upsert(ctx, "user-2", strip(false, models.StatusChip{Source: "integration", ID: "i-2", KPI: "x"})))
+
+	used, err := repo.StripIntegrations(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, map[string][]string{"i-1": {"user-1"}}, used, "only enabled strips, only integrations")
+
+	// Another strip showing i-1 keeps user-1 in the list
+	require.NoError(t, repo.Upsert(ctx, "user-2", strip(true, models.StatusChip{Source: "integration", ID: "i-1", KPI: "x"})))
+	used, err = repo.StripIntegrations(ctx)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"user-1", "user-2"}, used["i-1"])
 }

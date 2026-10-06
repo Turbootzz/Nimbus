@@ -58,6 +58,11 @@ type ServiceStatusEvent struct {
 	ResponseTime *int   `json:"response_time,omitempty"`
 }
 
+// StripSource lists the integrations status strips show
+type StripSource interface {
+	StripIntegrations(ctx context.Context) (map[string][]string, error)
+}
+
 // LiveDataService provides what the poller fetches and keeps the results:
 // in memory for the dashboard, in the database for restarts, and pushed to
 // open dashboards over SSE.
@@ -68,7 +73,13 @@ type LiveDataService struct {
 	snapshots          repository.SnapshotRepositoryInterface
 	cache              *DashboardCache
 	hub                *SSEHub
+	strips             StripSource
 	now                func() time.Time
+}
+
+// SetStripSource makes integrations that only a status strip shows polled too
+func (s *LiveDataService) SetStripSource(strips StripSource) {
+	s.strips = strips
 }
 
 func NewLiveDataService(
@@ -101,6 +112,11 @@ func (s *LiveDataService) Sources(ctx context.Context) ([]LiveSource, error) {
 		return nil, err
 	}
 
+	integrationList, err = s.addStripIntegrations(ctx, integrationList)
+	if err != nil {
+		return nil, err
+	}
+
 	sources := make([]LiveSource, 0, len(integrationList)+len(widgetList))
 	byID := make(map[string]*models.Integration, len(integrationList))
 	for i := range integrationList {
@@ -129,6 +145,42 @@ func (s *LiveDataService) Sources(ctx context.Context) ([]LiveSource, error) {
 		sources = append(sources, src)
 	}
 	return sources, nil
+}
+
+// addStripIntegrations adds the integrations status strips show that no
+// service or widget uses. Only the strip owner's own integrations count.
+func (s *LiveDataService) addStripIntegrations(ctx context.Context, list []models.Integration) ([]models.Integration, error) {
+	if s.strips == nil {
+		return list, nil
+	}
+	used, err := s.strips.StripIntegrations(ctx)
+	if err != nil {
+		return nil, err
+	}
+	have := make(map[string]bool, len(list))
+	for _, integration := range list {
+		have[integration.ID] = true
+	}
+	// ponytail: one query per strip-only integration (at most six per user)
+	for id, userIDs := range used {
+		for _, userID := range userIDs {
+			if have[id] {
+				break
+			}
+			integration, err := s.integrationRepo.GetByID(ctx, id, userID)
+			if errors.Is(err, repository.ErrIntegrationNotFound) {
+				continue // deleted, or not this strip owner's
+			}
+			if err != nil {
+				// A strip chip isn't worth holding back everything else
+				log.Printf("WARNING: failed to load strip integration %s: %v", id, err)
+				continue
+			}
+			list = append(list, *integration)
+			have[id] = true
+		}
+	}
+	return list, nil
 }
 
 func (s *LiveDataService) integrationSource(integration *models.Integration) LiveSource {

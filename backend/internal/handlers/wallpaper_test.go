@@ -54,6 +54,7 @@ func setupPreferencesApp(t *testing.T) (*fiber.App, *sql.DB) {
 		card_opacity INTEGER NOT NULL DEFAULT 100,
 		card_blur INTEGER NOT NULL DEFAULT 0,
 		layout_mode TEXT NOT NULL DEFAULT 'classic',
+		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)
@@ -238,4 +239,32 @@ func TestPreferences_SweepWaitsForUploadsInProgress(t *testing.T) {
 	wallpaperSweep.RUnlock()
 	PruneWallpapers(context.Background(), repo)
 	assert.Empty(t, wallpaperFiles(t))
+}
+
+func TestPreferences_StatusStrip(t *testing.T) {
+	app, _ := setupPreferencesApp(t)
+	chip := `{"source":"integration","id":"11111111-1111-1111-1111-111111111111","kpi":"blocked_percent"}`
+
+	_, prefs, _ := putJSON(t, app, "/preferences", `{"theme_mode":"dark"}`)
+	assert.Equal(t, models.StatusStrip{Chips: []models.StatusChip{}}, prefs.StatusStrip, "off with no chips by default")
+
+	status, prefs, body := putJSON(t, app, "/preferences", `{"status_strip":{"enabled":true,"chips":[`+chip+`]}}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.True(t, prefs.StatusStrip.Enabled)
+	assert.Equal(t, "blocked_percent", prefs.StatusStrip.Chips[0].KPI)
+
+	// Other updates keep the strip
+	_, prefs, _ = putJSON(t, app, "/preferences", `{"card_blur":4}`)
+	assert.Len(t, prefs.StatusStrip.Chips, 1)
+
+	for name, bad := range map[string]string{
+		"too many chips": `{"enabled":true,"chips":[` + strings.TrimSuffix(strings.Repeat(chip+",", 7), ",") + `]}`,
+		"bad source":     `{"chips":[{"source":"service","id":"11111111-1111-1111-1111-111111111111","kpi":"x"}]}`,
+		"bad id":         `{"chips":[{"source":"widget","id":"nope","kpi":"x"}]}`,
+		"no kpi":         `{"chips":[{"source":"widget","id":"11111111-1111-1111-1111-111111111111","kpi":""}]}`,
+		"duplicate chip": `{"chips":[` + chip + `,` + chip + `]}`,
+	} {
+		status, _, _ := putJSON(t, app, "/preferences", `{"status_strip":`+bad+`}`)
+		assert.Equal(t, fiber.StatusBadRequest, status, name)
+	}
 }

@@ -4,6 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { Toggle } from '@/components/ui/Toggle'
 import WallpaperSettings from '@/components/WallpaperSettings'
 import LayoutSettings from '@/components/LayoutSettings'
+import StatusStripSettings from '@/components/StatusStripSettings'
 
 export default function ThemePage() {
   const {
@@ -164,6 +165,8 @@ export default function ThemePage() {
           </div>
 
           <LayoutSettings />
+
+          <StatusStripSettings />
 
           <WallpaperSettings />
         </div>

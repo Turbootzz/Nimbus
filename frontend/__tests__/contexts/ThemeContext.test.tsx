@@ -491,6 +491,24 @@ describe('ThemeContext', () => {
     })
   })
 
+  describe('Status strip', () => {
+    it('drops cached chips that are not chips', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const chip = { source: 'widget', id: 'w-1', kpi: 'CPU' }
+      act(() => {
+        window.dispatchEvent(
+          new StorageEvent('storage', {
+            key: 'statusStrip',
+            newValue: JSON.stringify({ enabled: true, chips: [null, { source: 'x' }, chip] }),
+            storageArea: localStorage,
+          })
+        )
+      })
+      expect(result.current.statusStrip).toEqual({ enabled: true, chips: [chip] })
+    })
+  })
+
   describe('Open in new tab preference', () => {
     it('should toggle openInNewTab setting', async () => {
       const { result } = renderHook(() => useTheme(), { wrapper })

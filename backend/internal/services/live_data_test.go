@@ -334,6 +334,36 @@ func TestLiveData_VersionIgnoresLayoutChanges(t *testing.T) {
 	assert.NotEqual(t, base, versionOf(slower))
 }
 
+type stripSourceStub map[string][]string
+
+func (s stripSourceStub) StripIntegrations(context.Context) (map[string][]string, error) {
+	return s, nil
+}
+
+func TestLiveData_StatusStripIntegrationsArePolled(t *testing.T) {
+	f := newLiveFixture(t)
+	ctx := context.Background()
+	mine, err := f.service.Create(ctx, "u1", false, apiKeyRequest("http://nas.lan"))
+	require.NoError(t, err)
+	theirs, err := f.service.Create(ctx, "u2", false, apiKeyRequest("http://other.lan"))
+	require.NoError(t, err)
+	// Neither is used by a service or widget
+	f.integrations.unused = map[string]bool{mine.ID: true, theirs.ID: true}
+
+	sources, err := f.live.Sources(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, sources)
+
+	// u1's strip shows its own integration and, wrongly, u2's. u2 also has
+	// mine in their strip, listed first, which must not hide it from u1.
+	f.live.SetStripSource(stripSourceStub{mine.ID: {"u2", "u1"}, theirs.ID: {"u1"}})
+	sources, err = f.live.Sources(ctx)
+	require.NoError(t, err)
+	require.Len(t, sources, 1, "only the strip owner's own integration")
+	assert.Equal(t, "integration:"+mine.ID, sources[0].Key())
+	assert.Equal(t, "u1", sources[0].UserID)
+}
+
 // multiWidget lists its integrations in the config, like the calendar
 type multiWidget struct{}
 

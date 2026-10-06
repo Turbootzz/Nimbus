@@ -22,7 +22,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 	preferences := &models.UserPreferences{}
 	query := `
 		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
-			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, created_at, updated_at
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, status_strip, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -43,6 +43,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.CardOpacity,
 		&preferences.CardBlur,
 		&preferences.LayoutMode,
+		&preferences.StatusStrip,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -109,6 +110,9 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *mo
 	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
 	add("card_blur", p.CardBlur, p.CardBlur != nil)
 	add("layout_mode", p.LayoutMode, p.LayoutMode != nil)
+	if p.StatusStrip != nil {
+		add("status_strip", *p.StatusStrip, true)
+	}
 
 	placeholders := make([]string, len(columns))
 	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
@@ -143,4 +147,29 @@ func (r *PreferencesRepository) WallpapersInUse(ctx context.Context) (map[string
 		inUse[path] = true
 	}
 	return inUse, rows.Err()
+}
+
+// StripIntegrations returns the integrations that enabled status strips
+// show, as integration ID to the IDs of the users whose strips show it.
+// Only the owner's strip counts, so the caller checks which one that is.
+func (r *PreferencesRepository) StripIntegrations(ctx context.Context) (map[string][]string, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT user_id, status_strip FROM user_preferences`)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list status strips: %w", err)
+	}
+	defer rows.Close()
+	used := map[string][]string{}
+	for rows.Next() {
+		var userID string
+		var strip models.StatusStrip
+		if err := rows.Scan(&userID, &strip); err != nil {
+			return nil, fmt.Errorf("failed to scan status strip: %w", err)
+		}
+		for _, chip := range strip.Chips {
+			if strip.Enabled && chip.Source == "integration" {
+				used[chip.ID] = append(used[chip.ID], userID)
+			}
+		}
+	}
+	return used, rows.Err()
 }
