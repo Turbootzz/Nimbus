@@ -76,7 +76,8 @@ func (h *IntegrationHandler) UpdateIntegration(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return BadRequest(c, "Invalid request body")
 	}
-	integration, err := h.service.Update(c.Context(), c.Params("id"), userID, IsAdmin(c), &req)
+	// UserContext: a reconnect may log out of the app over the network
+	integration, err := h.service.Update(c.UserContext(), c.Params("id"), userID, IsAdmin(c), &req)
 	if err != nil {
 		return integrationError(c, err, "update integration")
 	}
@@ -89,7 +90,7 @@ func (h *IntegrationHandler) DeleteIntegration(c *fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	if err := h.service.Delete(c.Context(), c.Params("id"), userID); err != nil {
+	if err := h.service.Delete(c.UserContext(), c.Params("id"), userID); err != nil {
 		return integrationError(c, err, "delete integration")
 	}
 	return c.SendStatus(fiber.StatusNoContent)

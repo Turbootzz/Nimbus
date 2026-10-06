@@ -538,3 +538,60 @@ func TestIntegrationService_DockerSocket(t *testing.T) {
 	_, err = svc.Conn(ctx, created)
 	assert.ErrorContains(t, err, "allows no socket")
 }
+
+// sessionKind keeps a session and reports when it is closed
+type sessionKind struct{ fakeKind }
+
+func (sessionKind) Kind() string { return "svc-session" }
+func (sessionKind) Fetch(_ context.Context, conn *integrations.Conn) (*integrations.Payload, error) {
+	conn.State.Set("sid", "s-1")
+	return &integrations.Payload{}, nil
+}
+func (sessionKind) Close(_ context.Context, conn *integrations.Conn) error {
+	sid, _ := conn.State.Get("sid")
+	closedSessions <- sid + " at " + conn.BaseURL
+	return nil
+}
+
+// closedSessions gets a line per Close; it is written from the background
+var closedSessions = make(chan string, 10)
+
+func init() { integrations.Register(sessionKind{}) }
+
+func TestIntegrationService_SessionIsClosed(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+	req := apiKeyRequest("http://app.lan")
+	req.Kind = "svc-session"
+	closed := func() string {
+		select {
+		case line := <-closedSessions:
+			return line
+		case <-time.After(2 * time.Second):
+			return "nothing closed"
+		}
+	}
+
+	// Never fetched: no session to close
+	quiet, err := svc.Create(ctx, "user-1", false, req)
+	require.NoError(t, err)
+	require.NoError(t, svc.Delete(ctx, quiet.ID, "user-1"))
+	assert.Empty(t, closedSessions)
+
+	busy, err := svc.Create(ctx, "user-1", false, req)
+	require.NoError(t, err)
+	_, err = svc.Fetch(ctx, busy)
+	require.NoError(t, err)
+
+	// Moving it logs out at the old address
+	_, err = svc.Update(ctx, busy.ID, "user-1", false, &models.IntegrationRequest{BaseURL: "http://new.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, "s-1 at http://app.lan", closed())
+
+	moved, err := svc.Get(ctx, busy.ID, "user-1")
+	require.NoError(t, err)
+	_, err = svc.Fetch(ctx, moved)
+	require.NoError(t, err)
+	require.NoError(t, svc.Delete(ctx, busy.ID, "user-1"))
+	assert.Equal(t, "s-1 at http://new.lan", closed())
+}

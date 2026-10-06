@@ -76,12 +76,56 @@ func (s *IntegrationService) SetPoller(p Poller) {
 }
 
 func (s *IntegrationService) Delete(ctx context.Context, id, userID string) error {
+	// Prepared before the delete: ending a session needs the credentials
+	var closeSession func()
+	if _, open := s.states.Load(id); open {
+		if current, err := s.repo.GetByID(ctx, id, userID); err == nil {
+			closeSession = s.sessionCloser(ctx, current)
+		}
+	}
 	if err := s.repo.Delete(ctx, id, userID); err != nil {
 		return err
 	}
 	s.states.Delete(id)
+	if closeSession != nil {
+		closeSession()
+	}
 	kick(s.poller)
 	return nil
+}
+
+// sessionCloser prepares ending the session the integration's kind keeps on
+// its app (integrations.Closer), with its current URL and credentials; nil
+// when there is none. The returned func logs out in the background, so an
+// unreachable app never holds up the request; failures are only logged, as
+// the app ends the session itself after a while.
+func (s *IntegrationService) sessionCloser(ctx context.Context, integration *models.Integration) func() {
+	if _, open := s.states.Load(integration.ID); !open {
+		return nil
+	}
+	impl, ok := integrations.Get(integration.Kind)
+	if !ok {
+		return nil
+	}
+	closer, ok := impl.(integrations.Closer)
+	if !ok {
+		return nil
+	}
+	conn, err := s.Conn(ctx, integration)
+	if err != nil {
+		log.Printf("integration %s: can't end its session: %v", integration.ID, err)
+		return nil
+	}
+	return func() {
+		go func() {
+			defer conn.Client.CloseIdleConnections()
+			ctx, cancel := context.WithTimeout(context.Background(), s.timeout)
+			defer cancel()
+			if err := callClose(ctx, closer, conn); err != nil {
+				log.Printf("integration %s: could not end its session: %s", integration.ID, redactSecrets(err.Error(), conn.Creds))
+			}
+		}()
+	}
 }
 
 // Create validates the request, encrypts the credentials and stores it
@@ -133,8 +177,11 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, isAd
 
 	integration := in.integration
 	reconnect := in.creds != nil || connectionChanged(current, &integration)
+	var closeSession func()
 	if reconnect {
 		integration.LastTestAt, integration.LastTestOK, integration.LastError = nil, nil, nil
+		// The old session is ended with the old URL and credentials
+		closeSession = s.sessionCloser(ctx, current)
 	}
 	if err := s.repo.Update(ctx, &integration, blob); err != nil {
 		return nil, err
@@ -142,6 +189,9 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, isAd
 	if reconnect {
 		// A session from the old connection may not fit the new one
 		s.states.Delete(integration.ID)
+		if closeSession != nil {
+			closeSession()
+		}
 	}
 	kick(s.poller)
 	return &integration, nil
@@ -477,6 +527,11 @@ func recoverCrash(name string, err *error) {
 func callTest(ctx context.Context, impl integrations.Integration, conn *integrations.Conn) (err error) {
 	defer recoverCrash("integration "+impl.Kind(), &err)
 	return impl.Test(ctx, conn)
+}
+
+func callClose(ctx context.Context, closer integrations.Closer, conn *integrations.Conn) (err error) {
+	defer recoverCrash("closing a session", &err)
+	return closer.Close(ctx, conn)
 }
 
 func callFetch(ctx context.Context, impl integrations.Integration, conn *integrations.Conn) (payload *integrations.Payload, err error) {

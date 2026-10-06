@@ -24,6 +24,13 @@ type Integration interface {
 	Fetch(ctx context.Context, conn *Conn) (*Payload, error)
 }
 
+// Closer is implemented by kinds that keep a session open on the app
+// (Pi-hole has few session seats). Close ends it when the integration is
+// deleted.
+type Closer interface {
+	Close(ctx context.Context, conn *Conn) error
+}
+
 // Meta describes a kind for the integration form and KPI rows.
 // Kind is filled in by the registry.
 type Meta struct {
