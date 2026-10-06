@@ -3,6 +3,7 @@
 import { Bars3Icon } from '@heroicons/react/24/outline'
 import UserMenu from './UserMenu'
 import ThemeToggle from './ThemeToggle'
+import SearchButton from './SearchButton'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 interface HeaderProps {
@@ -44,6 +45,8 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
 
         {/* Right section */}
         <div className="flex items-center space-x-4">
+          <SearchButton />
+
           {/* Theme toggle */}
           <ThemeToggle />
 

@@ -49,6 +49,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Custom wallpapers per user (upload or URL) with blur, dim and glass cards
 - Canvas layout (opt-in): the dashboard fills the page under a top bar, no sidebar
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
+- Search: press `/` or Ctrl+K to find and open a service
 - Light/dark mode toggle
 - Accent color themes
 - Drag & drop service tiles

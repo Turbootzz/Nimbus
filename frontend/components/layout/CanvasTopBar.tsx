@@ -5,6 +5,7 @@ import Link from 'next/link'
 import NimbusLogo from '@/components/NimbusLogo'
 import ThemeToggle from '@/components/ThemeToggle'
 import UserMenu from '@/components/UserMenu'
+import SearchButton from '@/components/SearchButton'
 
 // Time and date, rendered after mount so server and browser agree
 function TopBarClock() {
@@ -42,6 +43,7 @@ export default function CanvasTopBar() {
         </Link>
         <TopBarClock />
         <div className="flex items-center gap-2 justify-self-end">
+          <SearchButton />
           <ThemeToggle />
           <UserMenu withNavigation />
         </div>
