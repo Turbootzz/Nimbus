@@ -219,7 +219,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Preset, font, icon source and custom CSS as the server has them. The
   // first three are cached for ThemeScript; the CSS never is.
   const applyThemePreferences = useCallback((data: UserPreferences) => {
-    const apiPreset = parsePreset(data.theme_preset)
+    // A preset only exists in its own mode; another client or an imported
+    // file may have stored one with a mode it doesn't have
+    const apiPreset = presetForMode(parsePreset(data.theme_preset), data.theme_mode || 'auto')
     const apiFont = parseFont(data.theme_font)
     setPresetState(apiPreset)
     setFontState(apiFont)

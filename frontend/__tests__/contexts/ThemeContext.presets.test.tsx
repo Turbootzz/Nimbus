@@ -91,6 +91,17 @@ describe('ThemeContext presets, font and custom CSS', () => {
     expect(root.style.getPropertyValue('--color-on-primary')).toBe('')
   })
 
+  it('shows the default theme when the server has a preset in a mode it lacks', async () => {
+    vi.mocked(api.getPreferences).mockResolvedValue({
+      data: { ...stored, theme_mode: 'light' },
+    } as never)
+    const theme = await renderTheme()
+
+    expect(theme.current.preset).toBe('default')
+    expect(root.hasAttribute('data-preset')).toBe(false)
+    expect(localStorage.getItem('themePreset')).toBe('default')
+  })
+
   it('picking a preset applies at once, with its mode and without the old accent', async () => {
     const theme = await renderTheme()
     act(() => theme.current.setPreset('catppuccin-latte'))

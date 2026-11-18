@@ -185,7 +185,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           className="rounded-lg p-3 text-sm"
           style={{
             backgroundColor: 'var(--color-primary)',
-            color: 'white',
+            color: 'var(--color-on-primary, white)',
             opacity: 0.9,
           }}
         >
@@ -355,7 +355,10 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           onClick={handleSave}
           disabled={isSaving}
           className="rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary)' }}
+          style={{
+            backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
+          }}
         >
           {isSaving ? 'Saving...' : 'Save settings'}
         </button>

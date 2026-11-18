@@ -59,15 +59,15 @@ If your CSS hides the page, add `?safe=1` to the address of any page while logge
 
 ### What is refused, and why
 
-Your CSS only applies to you: it is stored with your account, never cached in the browser, and only added on the pages behind the login (not the login page, and not for other users). It still must be safe to share, because a theme file contains it. So the server checks it on every save, including an import, and refuses the whole save when it finds:
+Your CSS only applies to you: it is stored with your account and only added on the pages behind the login (not the login page, the offline page, or for other users). It is never put in the browser's local storage, which the login page reads; the installed app keeps it with your other preferences for offline use, in a cache that is tied to your account and emptied when you log out or someone else logs in. It still must be safe to share, because a theme file contains it. So the server checks it on every save, including an import, and refuses the whole save when it finds:
 
 - `@import` in any form;
 - `url()` holding anything other than an inline `data:image/...`. That covers `background`, `cursor`, `mask`, `@font-face src` and every other place a URL can go;
-- `image-set()` and `src()`, which can also name a URL;
+- `image-set()`, `image()` and `src()`, which can also name a URL;
 - `expression()`, `javascript:` and `-moz-binding` (script hooks of long-gone browsers);
 - `</style`.
 
-The check runs on the CSS the way a browser reads it: escapes such as `\75rl(` are decoded and case is ignored. It is deliberately stricter than a browser, so a `url(` inside a string or a comment is refused too.
+The check runs on the CSS the way a browser reads it: escapes such as `\75rl(` are decoded and case is ignored. It is deliberately stricter than a browser, so a `url(` inside a string or a comment is refused too, and so is a reference like `url(#gradient)`.
 
 With that, CSS can't load anything from another site, which also means it can't send anything out: the well-known trick of reading a field with attribute selectors (`input[value^="a"]`) needs a request per match to leak what it found.
 
@@ -78,5 +78,7 @@ CSS can't run scripts either. Nimbus adds it to the page as the text of a `<styl
 **Export theme** downloads `nimbus-theme.json` with the theme, mode, accent, font, monospace KPI labels, icon source, the glass settings (wallpaper blur and dim, card opacity and blur) and your custom CSS. The wallpaper image is not in it.
 
 **Import theme** reads such a file and first shows what it would set, including the full custom CSS. Read the CSS of a file you got from someone else before you apply it. Nothing changes until you choose **Apply theme**; the server then checks every value the same way as when you change it by hand, and applies all of it or nothing.
+
+A [dashboard export](CONFIGURATION.md#dashboard-export-and-import) carries the same theme settings, custom CSS included, next to the dashboard itself. Importing one in replace mode shows the CSS first as well, and the server checks it the same way.
 
 The file is versioned (`"nimbus_theme": 1`). Fields it doesn't have keep their current value, and anything else in the file is ignored.
