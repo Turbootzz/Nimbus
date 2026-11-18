@@ -879,7 +879,8 @@ func TestDeliver_RefusesCrossOriginRedirect(t *testing.T) {
 	for _, code = range []int{http.StatusFound, http.StatusTemporaryRedirect} {
 		redirectTo = other.URL + "/login"
 		status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
-		if status != 0 || errMsg != errCrossOriginRedirect.Error() {
+		// The safe client refuses a body-resending redirect first, with its own message
+		if status != 0 || !strings.HasPrefix(errMsg, "refused a redirect") {
 			t.Errorf("%d to another origin: status = %d, error = %q", code, status, errMsg)
 		}
 	}
