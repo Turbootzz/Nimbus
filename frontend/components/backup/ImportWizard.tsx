@@ -3,6 +3,8 @@
 import { useId, useRef, useState } from 'react'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { ReadOnlyNote } from '@/components/ConfigFileBanner'
 import { SummaryTable, issuesOf } from '@/components/backup/DashboardImport'
 import { canCreate, defaultTargets, mapGroups, type GroupTargets } from '@/lib/import-wizard'
 import type {
@@ -35,6 +37,8 @@ const cellClass = 'py-2 pr-4 align-top'
 // normal one (merge), so nothing here can delete anything.
 export default function ImportWizard() {
   const id = useId()
+  // Locked by a config file: only the preview works
+  const readOnly = useConfigFile()?.read_only ?? false
   const fileInput = useRef<HTMLInputElement>(null)
   const [config, setConfig] = useState('')
   const [format, setFormat] = useState<ImportFormat | 'auto'>('auto')
@@ -459,11 +463,12 @@ export default function ImportWizard() {
                 <button
                   type="button"
                   onClick={apply}
-                  disabled={busy}
+                  disabled={busy || readOnly}
                   className="bg-primary hover:bg-primary/90 focus-visible:ring-primary mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Import
                 </button>
+                {readOnly && <ReadOnlyNote />}
               </div>
             )}
           </div>

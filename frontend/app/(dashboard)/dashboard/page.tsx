@@ -957,13 +957,15 @@ export default function DashboardPage() {
           <p className="text-text-secondary mb-4">
             Add a service or a widget to this group to see it here.
           </p>
-          <Link
-            href={addServiceHref}
-            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Add Service
-          </Link>
+          {!readOnly && (
+            <Link
+              href={addServiceHref}
+              className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Service
+            </Link>
+          )}
         </div>
       )}
 

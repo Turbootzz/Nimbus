@@ -5,6 +5,7 @@ import ServiceForm from '@/components/ServiceForm'
 import { api } from '@/lib/api'
 import type { Group, Service } from '@/types'
 
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
     createService: vi.fn(),

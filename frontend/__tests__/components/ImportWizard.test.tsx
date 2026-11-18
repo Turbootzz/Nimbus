@@ -6,6 +6,7 @@ import ImportWizard from '@/components/backup/ImportWizard'
 import { api } from '@/lib/api'
 import type { ConvertResult, Group, ImportSummary } from '@/types'
 
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
     convertConfig: vi.fn(),

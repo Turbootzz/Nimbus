@@ -26,3 +26,12 @@ export default function ConfigFileBanner() {
     </div>
   )
 }
+
+// Explains a save button that a read-only dashboard disables
+export function ReadOnlyNote() {
+  return (
+    <p className="text-text-muted mt-2 text-sm">
+      This dashboard is managed by a config file and is read-only. Change the file instead.
+    </p>
+  )
+}

@@ -6,6 +6,7 @@ import DashboardImport from '@/components/backup/DashboardImport'
 import { api } from '@/lib/api'
 import type { ImportSummary } from '@/types'
 
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
     exportDashboard: vi.fn(),

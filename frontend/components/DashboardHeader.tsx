@@ -64,7 +64,7 @@ export default function DashboardHeader({
       </div>
 
       {readOnly ? (
-        <p className="text-text-muted inline-flex shrink-0 items-center gap-2 text-sm">
+        <p className="text-text-muted wallpaper-panel inline-flex shrink-0 items-center gap-2 text-sm">
           <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
           Read-only: managed by config file
         </p>
