@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { API_CACHE, bindApiCacheTo } from '@/lib/pwa'
+import { API_CACHE, bindApiCacheTo, clearApiCache } from '@/lib/pwa'
 
 describe('offline cache owner', () => {
   const deleteCache = vi.fn(async () => true)
@@ -9,6 +9,7 @@ describe('offline cache owner', () => {
     vi.stubGlobal('localStorage', {
       getItem: (key: string) => store.get(key) ?? null,
       setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
     })
     deleteCache.mockClear()
     vi.stubGlobal('caches', { delete: deleteCache })
@@ -21,6 +22,16 @@ describe('offline cache owner', () => {
     await bindApiCacheTo('user-b')
 
     expect(deleteCache).toHaveBeenCalledWith(API_CACHE)
+  })
+
+  it('keeps what a new user synced after signing in', async () => {
+    await bindApiCacheTo('user-a')
+    await clearApiCache() // user B signs in
+    deleteCache.mockClear()
+
+    await bindApiCacheTo('user-b')
+
+    expect(deleteCache).not.toHaveBeenCalled()
   })
 
   it('keeps the offline copy for the same user', async () => {

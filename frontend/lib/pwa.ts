@@ -6,6 +6,9 @@ export const API_CACHE = 'nimbus-api-v1'
 export const CACHED_AT_HEADER = 'X-Nimbus-Cached-At'
 export const CLEAR_API_CACHE = 'CLEAR_API_CACHE'
 
+// localStorage key: the user the offline copy was made for
+const CACHE_OWNER_KEY = 'offlineCacheOwner'
+
 /**
  * Drops the API responses kept for offline use. Called when the session
  * changes (login, logout, 401) so one user's dashboard never shows up for the
@@ -17,13 +20,12 @@ export async function clearApiCache(): Promise<void> {
     // The worker also stops in-flight responses from being stored afterwards
     navigator.serviceWorker?.controller?.postMessage({ type: CLEAR_API_CACHE })
     if ('caches' in window) await caches.delete(API_CACHE)
+    // Last: if this fails, the stale owner only causes one more purge
+    window.localStorage?.removeItem(CACHE_OWNER_KEY)
   } catch (error) {
     console.warn('Could not clear the offline cache:', error)
   }
 }
-
-// localStorage key: the user the offline copy was made for
-const CACHE_OWNER_KEY = 'offlineCacheOwner'
 
 /**
  * Ties the offline copy to a user: when someone else turns out to be signed in
@@ -33,9 +35,10 @@ const CACHE_OWNER_KEY = 'offlineCacheOwner'
 export async function bindApiCacheTo(userId: string): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    if (localStorage.getItem(CACHE_OWNER_KEY) === userId) return
-    await clearApiCache()
-    localStorage.setItem(CACHE_OWNER_KEY, userId)
+    const owner = localStorage.getItem(CACHE_OWNER_KEY)
+    // No owner: every purge clears it, so what is cached now is this user's
+    if (owner && owner !== userId) await clearApiCache()
+    if (owner !== userId) localStorage.setItem(CACHE_OWNER_KEY, userId)
   } catch (error) {
     console.warn('Could not bind the offline cache:', error)
   }
