@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import ScrollArea from '@/components/ui/ScrollArea'
+import { useModalLayer } from '@/hooks/useModalLayer'
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void
@@ -91,6 +92,7 @@ const emojiCategories = {
 
 export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   const [activeCategory, setActiveCategory] = useState<string>('Smileys & People')
+  const dialogRef = useModalLayer(onClose)
 
   const categories = Object.keys(emojiCategories)
   const currentEmojis = emojiCategories[activeCategory as keyof typeof emojiCategories]
@@ -99,11 +101,20 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
     <div className="bg-card border-card-border fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
 
-      <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Choose an Emoji"
+        className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg focus:outline-none"
+      >
         {/* Header */}
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <h3 className="text-text-primary text-lg font-semibold">Choose an Emoji</h3>
+          {/* type="button": the picker sits inside the service form */}
           <button
+            type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
             aria-label="Close"

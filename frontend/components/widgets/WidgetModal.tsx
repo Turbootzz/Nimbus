@@ -8,6 +8,7 @@ import { getWidgetDefinition, widgetConfig } from '@/components/widgets/registry
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
 import IntegrationSelector from '@/components/integrations/IntegrationSelector'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
+import { useModalLayer } from '@/hooks/useModalLayer'
 
 interface WidgetModalProps {
   types: WidgetTypeMeta[]
@@ -70,6 +71,8 @@ export default function WidgetModal({
   const [integrationId, setIntegrationId] = useState(widget?.integration_id ?? '')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  // Esc closes, except while a save is running
+  const dialogRef = useModalLayer(onClose, !isSaving)
 
   const definition = type ? getWidgetDefinition(type) : undefined
   const wantedKinds = types.find((t) => t.type === type)?.integration_kinds ?? []
@@ -127,10 +130,12 @@ export default function WidgetModal({
       />
 
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="widget-modal-title"
-        className="bg-card border-card-border relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border shadow-lg"
+        className="bg-card border-card-border relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border shadow-lg focus:outline-none"
       >
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <div className="flex items-center gap-2">

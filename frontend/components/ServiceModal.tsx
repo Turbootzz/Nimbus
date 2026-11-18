@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { Service } from '@/types'
 import ServiceForm from '@/components/ServiceForm'
+import { useModalLayer } from '@/hooks/useModalLayer'
 
 interface ServiceModalProps {
   service: Service
@@ -16,13 +17,7 @@ export default function ServiceModal({ service, onClose, onSaved }: ServiceModal
   const [isSaving, setIsSaving] = useState(false)
 
   // Esc closes, except while a save is running
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isSaving) onClose()
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isSaving, onClose])
+  const dialogRef = useModalLayer(onClose, !isSaving)
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -33,10 +28,12 @@ export default function ServiceModal({ service, onClose, onSaved }: ServiceModal
       />
 
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="service-modal-title"
-        className="bg-card border-card-border relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border shadow-lg"
+        className="bg-card border-card-border relative z-10 flex max-h-[90vh] w-full max-w-lg flex-col rounded-lg border shadow-lg focus:outline-none"
       >
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <h3 id="service-modal-title" className="text-text-primary text-lg font-semibold">

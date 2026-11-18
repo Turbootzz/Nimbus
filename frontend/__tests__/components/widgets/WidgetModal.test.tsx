@@ -19,6 +19,28 @@ describe('WidgetModal', () => {
     vi.clearAllMocks()
   })
 
+  it('takes the focus and closes on Esc, but not while saving', async () => {
+    let finish: () => void = () => {}
+    vi.mocked(api.createWidget).mockReturnValue(
+      new Promise((resolve) => (finish = () => resolve({ error: { message: 'nope' } })))
+    )
+    const onClose = vi.fn()
+
+    render(<WidgetModal types={backendTypes} onClose={onClose} onSaved={() => {}} />)
+    expect(screen.getByRole('dialog', { name: 'Add Widget' })).toHaveFocus()
+
+    fireEvent.click(screen.getByText('Note'))
+    fireEvent.click(screen.getByText('Add Widget', { selector: 'button' }))
+    expect(await screen.findByText('Saving...')).toBeDisabled()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+
+    finish()
+    expect(await screen.findByText('nope')).toBeInTheDocument()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('picks a type, then creates the widget in the given group', async () => {
     const created = makeWidget({ id: 'new', title: 'Notes' })
     vi.mocked(api.createWidget).mockResolvedValue({ data: created })
