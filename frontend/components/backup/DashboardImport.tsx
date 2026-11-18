@@ -265,8 +265,9 @@ export default function DashboardImport() {
                 <p className="font-medium">Replace deletes your current dashboard.</p>
                 <p>
                   All your groups, services, widgets and integrations are deleted, including the
-                  credentials saved with your integrations, and your preferences are overwritten.
-                  This cannot be undone. Export first if you want a way back.
+                  credentials saved with your integrations and the status history of your services,
+                  and your preferences are overwritten. This cannot be undone. Export first if you
+                  want a way back.
                 </p>
               </div>
             )}

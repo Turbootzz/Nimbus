@@ -294,13 +294,17 @@ falls back to its emoji, and an import keeps the wallpaper you have.
 | Mode | What it does |
 |---|---|
 | `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
-| `replace` | Deletes **all** your groups, services, widgets and integrations (with their saved credentials) and creates the file's instead. Preferences in the file overwrite yours; fields the file leaves out keep their value. |
+| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value. |
 
 An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
 touches the dashboard of the user who imports. Everything in the file is checked like a normal
 create, so a non-admin can not import admin-only things (Docker integrations, Custom API,
 Docker or System stats widgets), and the limits of 50 integrations and 200 widgets per user
 apply.
+
+An export of a dashboard that is itself broken can be refused on import, for example a widget
+whose integration was deleted. The error names the entry (`widgets[3]`); remove or fix it in
+the file and import again.
 
 ### API
 

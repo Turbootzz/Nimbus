@@ -239,6 +239,22 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 		doc.Widgets = append(doc.Widgets, out)
 	}
 
+	// Old reorders stored positions a document can't hold; keep the order
+	positions := make([]*int, 0, len(doc.Services)+len(doc.Widgets))
+	tooHigh := false
+	for i := range doc.Services {
+		positions = append(positions, &doc.Services[i].Position)
+	}
+	for i := range doc.Widgets {
+		positions = append(positions, &doc.Widgets[i].Position)
+	}
+	for _, position := range positions {
+		tooHigh = tooHigh || *position > dashdoc.MaxPosition
+	}
+	if tooHigh {
+		rankPositions(positions)
+	}
+
 	preferences, err := s.Preferences.GetByUserID(ctx, userID)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
@@ -668,7 +684,15 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 		return nil, err
 	}
 	if mode == dashdoc.ModeMerge {
-		rankPositions(&p.rows)
+		// So a merge can put them right behind the user's tiles
+		positions := make([]*int, 0, len(p.rows.Services)+len(p.rows.Widgets))
+		for _, service := range p.rows.Services {
+			positions = append(positions, &service.Position)
+		}
+		for _, widget := range p.rows.Widgets {
+			positions = append(positions, &widget.Position)
+		}
+		rankPositions(positions)
 	}
 	p.created = dashdoc.Summary{
 		Groups:           dashdoc.Count{Created: len(p.rows.Groups)},
@@ -683,22 +707,16 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 }
 
 // rankPositions renumbers tile positions 0, 1, 2, ... in their order (equal
-// positions stay equal), so a merge can put them right behind the user's tiles
-func rankPositions(rows *repository.DashboardRows) {
-	positions := make([]int, 0, len(rows.Services)+len(rows.Widgets))
-	for _, service := range rows.Services {
-		positions = append(positions, service.Position)
+// positions stay equal)
+func rankPositions(positions []*int) {
+	sorted := make([]int, len(positions))
+	for i, position := range positions {
+		sorted[i] = *position
 	}
-	for _, widget := range rows.Widgets {
-		positions = append(positions, widget.Position)
-	}
-	slices.Sort(positions)
-	positions = slices.Compact(positions)
-	for _, service := range rows.Services {
-		service.Position, _ = slices.BinarySearch(positions, service.Position)
-	}
-	for _, widget := range rows.Widgets {
-		widget.Position, _ = slices.BinarySearch(positions, widget.Position)
+	slices.Sort(sorted)
+	sorted = slices.Compact(sorted)
+	for _, position := range positions {
+		*position, _ = slices.BinarySearch(sorted, *position)
 	}
 }
 

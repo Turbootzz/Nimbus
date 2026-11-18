@@ -420,6 +420,23 @@ func TestExportLeavesOutMissingImages(t *testing.T) {
 	assert.Empty(t, doc.Preferences.WallpaperData)
 }
 
+func TestExportRenumbersPositionsADocumentCannotHold(t *testing.T) {
+	env := newTransferEnv(t)
+	env.addService(t, transferUser, models.Service{Name: "First", URL: "http://first.lan"})
+	env.addService(t, transferUser, models.Service{Name: "Last", URL: "http://last.lan"})
+	env.addWidget(t, transferUser, models.WidgetRequest{Type: "markdown"})
+	_, err := env.db.Exec(`UPDATE services SET position = 2000000000 WHERE name = 'Last'`)
+	require.NoError(t, err)
+
+	doc := env.export(t, transferUser)
+
+	assert.Equal(t, []int{0, 2}, []int{doc.Services[0].Position, doc.Services[1].Position})
+	assert.Equal(t, 1, doc.Widgets[0].Position)
+	_, err = env.svc.Apply(context.Background(), transferUser, doc, dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, toJSON(t, doc), toJSON(t, env.export(t, transferUser)))
+}
+
 func TestRoundTripReplaceGivesIdenticalDashboard(t *testing.T) {
 	env := newTransferEnv(t)
 	env.seedDashboard(t)
