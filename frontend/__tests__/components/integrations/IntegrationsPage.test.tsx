@@ -47,6 +47,20 @@ describe('IntegrationsPage', () => {
     expect(api.testSavedIntegration).toHaveBeenCalledWith('i1')
   })
 
+  it('flags an imported integration that still needs its credentials', async () => {
+    vi.mocked(api.getIntegrations).mockResolvedValue({
+      data: [
+        makeIntegration({ has_credentials: false }),
+        makeIntegration({ id: 'i2', name: 'Open', auth_type: 'none', has_credentials: false }),
+      ],
+    })
+    render(<IntegrationsPage />)
+
+    expect(await screen.findByText(/needs credentials/i)).toBeInTheDocument()
+    // No credentials is fine for an integration that takes none
+    expect(screen.getByText('Not tested')).toBeInTheDocument()
+  })
+
   it('deletes after confirming', async () => {
     vi.mocked(api.getIntegrations).mockResolvedValue({ data: [makeIntegration()] })
     vi.mocked(api.deleteIntegration).mockResolvedValue({ data: undefined })
