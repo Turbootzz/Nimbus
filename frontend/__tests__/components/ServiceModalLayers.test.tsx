@@ -40,11 +40,15 @@ describe('ServiceModal with the emoji picker open', () => {
   })
 
   const openPicker = async (onClose = vi.fn()) => {
-    render(<ServiceModal service={service} onClose={onClose} onSaved={() => {}} />)
+    const modal = (close: () => void) => (
+      <ServiceModal service={service} onClose={close} onSaved={() => {}} />
+    )
+    const { rerender } = render(modal(() => onClose()))
     await waitFor(() => expect(api.getIntegrations).toHaveBeenCalled())
-    // A re-render of the form must not put the modal back on top
     fireEvent.change(screen.getByLabelText(/Service Name/), { target: { value: 'Jellyfin' } })
     fireEvent.click(screen.getByText('Pick Emoji'))
+    // A new onClose under the open picker must not put the modal back on top
+    rerender(modal(() => onClose()))
     return { onClose, picker: screen.getByRole('dialog', { name: 'Choose an Emoji' }) }
   }
 
