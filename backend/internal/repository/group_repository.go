@@ -47,8 +47,10 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 		WHERE user_id = $1
 		ORDER BY position DESC
 		LIMIT 1
-		FOR UPDATE
 	`
+	if r.isPostgreSQL {
+		posQuery += " FOR UPDATE" // SQLite (tests) has no row locks
+	}
 	err = tx.QueryRowContext(ctx, posQuery, group.UserID).Scan(&maxPos)
 	if err != nil && err != sql.ErrNoRows {
 		return err

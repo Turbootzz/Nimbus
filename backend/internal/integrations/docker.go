@@ -77,22 +77,36 @@ func (c DockerContainer) Stopped() bool {
 	return c.State == "exited" || c.State == "created" || c.State == "dead"
 }
 
+// apiContainer is one container as the Docker API lists it. Labels often
+// hold secrets (proxy auth, env-like values): they never leave this package,
+// only the parsed nimbus.* and homepage.* fields do.
+type apiContainer struct {
+	ID     string `json:"Id"`
+	Names  []string
+	Image  string
+	State  string
+	Status string
+	Labels map[string]string
+	Ports  []struct {
+		PublicPort int
+		Type       string
+	}
+}
+
+func (c apiContainer) name() string {
+	if len(c.Names) == 0 {
+		return ""
+	}
+	return strings.TrimPrefix(c.Names[0], "/")
+}
+
+const dockerContainersPath = "/containers/json?all=1"
+
 // DockerContainers lists all containers: running ones first, then by name
 func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error) {
-	type apiContainer struct {
-		ID     string `json:"Id"`
-		Names  []string
-		Image  string
-		State  string
-		Status string
-	}
 	containers := []DockerContainer{}
-	err := eachJSON(ctx, conn, "/containers/json?all=1", dockerAuth(conn), func(c apiContainer) {
-		name := ""
-		if len(c.Names) > 0 {
-			name = strings.TrimPrefix(c.Names[0], "/")
-		}
-		containers = append(containers, DockerContainer{ID: shortID(c.ID), Name: name, Image: c.Image, State: c.State, Status: c.Status})
+	err := eachJSON(ctx, conn, dockerContainersPath, dockerAuth(conn), func(c apiContainer) {
+		containers = append(containers, DockerContainer{ID: shortID(c.ID), Name: c.name(), Image: c.Image, State: c.State, Status: c.Status})
 	})
 	if err != nil {
 		return nil, dockerErr(conn, err)
