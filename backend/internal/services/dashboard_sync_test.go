@@ -439,3 +439,37 @@ func TestDocumentedConfigFileApplies(t *testing.T) {
 	assert.Equal(t, 2, summary.Widgets.Created)
 	assert.Zero(t, summary.NeedsCredentials+summary.NeedsSecrets)
 }
+
+func TestSyncCarriesTileStyleAndGroupDisplay(t *testing.T) {
+	env := newTransferEnv(t)
+	doc := &dashdoc.Document{
+		Version:     dashdoc.Version,
+		Groups:      []dashdoc.Group{{Name: "Quick", TileStyle: models.TileStyleChips}, {Name: "Media"}},
+		Preferences: &dashdoc.Preferences{GroupDisplay: new("sections")},
+	}
+	summary := env.sync(t, transferAdmin, doc, true)
+	assert.Equal(t, dashdoc.Count{Created: 2}, summary.Groups)
+	assert.True(t, summary.Preferences)
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+
+	var style string
+	var display *string
+	require.NoError(t, env.db.QueryRow(`SELECT tile_style FROM groups WHERE name = 'Quick'`).Scan(&style))
+	assert.Equal(t, models.TileStyleChips, style)
+	require.NoError(t, env.db.QueryRow(`SELECT group_display FROM user_preferences WHERE user_id = ?`, transferAdmin).Scan(&display))
+	require.NotNil(t, display)
+	assert.Equal(t, "sections", *display)
+
+	// Changed in the file: updated in place. A group display that is left
+	// out follows the layout again.
+	quick := env.id(t, "groups", "name", "Quick")
+	doc.Groups[0].TileStyle, doc.Groups[1].TileStyle = "", models.TileStyleChips
+	doc.Preferences.GroupDisplay = nil
+	summary = env.sync(t, transferAdmin, doc, true)
+	assert.Equal(t, dashdoc.Count{Updated: 2}, summary.Groups)
+	assert.True(t, summary.Preferences)
+	assert.Equal(t, quick, env.id(t, "groups", "tile_style", models.TileStyleCards))
+	require.NoError(t, env.db.QueryRow(`SELECT group_display FROM user_preferences WHERE user_id = ?`, transferAdmin).Scan(&display))
+	assert.Nil(t, display)
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+}

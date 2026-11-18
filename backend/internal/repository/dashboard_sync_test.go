@@ -43,7 +43,7 @@ func TestDashboardSyncWritesCreatesUpdatesAndDeletes(t *testing.T) {
 
 	changes := &DashboardChanges{
 		Create: DashboardRows{
-			Groups: []*models.Group{{ID: "new-group", Name: "New", Color: "#0ea5e9", Position: 5, MonitoringEnabled: true, CreatedAt: now, UpdatedAt: now}},
+			Groups: []*models.Group{{ID: "new-group", Name: "New", Color: "#0ea5e9", Position: 5, MonitoringEnabled: true, TileStyle: models.TileStyleCards, CreatedAt: now, UpdatedAt: now}},
 			Services: []*models.Service{{
 				ID: "new-service", Name: "Radarr", URL: "http://radarr.lan", IconType: models.IconTypeEmoji, Status: models.StatusUnknown,
 				Position: 4, CardSize: models.CardSize2x1, GroupID: &tools, MonitoringEnabled: true, CreatedAt: now, UpdatedAt: now,
@@ -51,7 +51,7 @@ func TestDashboardSyncWritesCreatesUpdatesAndDeletes(t *testing.T) {
 			Preferences: &models.PreferencesUpdateRequest{ThemeMode: stringPtr("dark")},
 		},
 		Update: DashboardRows{
-			Groups: []*models.Group{{ID: "mine-tools", Name: "Utilities", Color: "#111111", Position: 3, MonitoringEnabled: false, UpdatedAt: now}},
+			Groups: []*models.Group{{ID: "mine-tools", Name: "Utilities", Color: "#111111", Position: 3, MonitoringEnabled: false, TileStyle: models.TileStyleChips, UpdatedAt: now}},
 			Integrations: []*models.Integration{{
 				ID: integration, Name: "Sonarr 4K", BaseURL: "http://sonarr4k.lan", AuthType: models.IntegrationAuthAPIKey,
 				VerifyTLS: false, Options: json.RawMessage(`{"a":1}`), RefreshSeconds: 120,
@@ -70,10 +70,10 @@ func TestDashboardSyncWritesCreatesUpdatesAndDeletes(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, DashboardState{Groups: 3, Services: 2, Widgets: 0, Integrations: 1, DefaultGroupID: "mine-default"}, state)
 
-	var name, color, groupID, status string
+	var name, color, groupID, status, tileStyle string
 	var position int
-	require.NoError(t, db.QueryRow(`SELECT name, color, position FROM groups WHERE id = 'mine-tools'`).Scan(&name, &color, &position))
-	assert.Equal(t, []any{"Utilities", "#111111", 3}, []any{name, color, position})
+	require.NoError(t, db.QueryRow(`SELECT name, color, position, tile_style FROM groups WHERE id = 'mine-tools'`).Scan(&name, &color, &position, &tileStyle))
+	assert.Equal(t, []any{"Utilities", "#111111", 3, models.TileStyleChips}, []any{name, color, position, tileStyle})
 	require.NoError(t, db.QueryRow(`SELECT url, position, group_id, status FROM services WHERE id = 'mine-service'`).Scan(&name, &position, &groupID, &status))
 	assert.Equal(t, []any{"http://sonarr.example.com", 7, "mine-tools", models.StatusUnknown}, []any{name, position, groupID, status})
 
@@ -120,7 +120,7 @@ func TestDashboardSyncIsAllOrNothingAndOnlyTouchesTheUser(t *testing.T) {
 	before := dump()
 
 	newGroup := func() *models.Group {
-		return &models.Group{ID: "new-group", Name: "New", Color: "#0ea5e9", MonitoringEnabled: true, CreatedAt: now, UpdatedAt: now}
+		return &models.Group{ID: "new-group", Name: "New", Color: "#0ea5e9", MonitoringEnabled: true, TileStyle: models.TileStyleCards, CreatedAt: now, UpdatedAt: now}
 	}
 	cases := map[string]func(*DashboardChanges){
 		// The create before it must be rolled back with it
@@ -129,7 +129,7 @@ func TestDashboardSyncIsAllOrNothingAndOnlyTouchesTheUser(t *testing.T) {
 		},
 		"a delete of a row that is gone": func(c *DashboardChanges) { c.Delete.Widgets = []string{"gone"} },
 		"an update of another user's group": func(c *DashboardChanges) {
-			c.Update.Groups = []*models.Group{{ID: "other-tools", Name: "Stolen", Color: "#000000", UpdatedAt: now}}
+			c.Update.Groups = []*models.Group{{ID: "other-tools", Name: "Stolen", Color: "#000000", TileStyle: models.TileStyleCards, UpdatedAt: now}}
 		},
 		"an update of another user's integration": func(c *DashboardChanges) {
 			c.Update.Integrations = []*models.Integration{{ID: "other-integration", Name: "Stolen", BaseURL: "http://evil.lan", AuthType: models.IntegrationAuthNone}}

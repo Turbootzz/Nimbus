@@ -64,9 +64,11 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 	}
 	for _, group := range changes.Update.Groups {
 		err := exec("update group", `
-			UPDATE groups SET name = $1, color = $2, position = $3, is_default = $4, monitoring_enabled = $5, updated_at = $6
-			WHERE id = $7 AND user_id = $8`,
-			group.Name, group.Color, group.Position, group.IsDefault, group.MonitoringEnabled, group.UpdatedAt, group.ID, userID)
+			UPDATE groups SET name = $1, color = $2, position = $3, is_default = $4, monitoring_enabled = $5,
+				tile_style = $6, updated_at = $7
+			WHERE id = $8 AND user_id = $9`,
+			group.Name, group.Color, group.Position, group.IsDefault, group.MonitoringEnabled, group.TileStyle,
+			group.UpdatedAt, group.ID, userID)
 		if err != nil {
 			return err
 		}

@@ -404,6 +404,7 @@ func (r *syncRun) groups(stored *storedDashboard) {
 		}
 		updated := *old
 		updated.Name, updated.Color, updated.MonitoringEnabled, updated.IsDefault = group.Name, group.Color, group.MonitoringEnabled, group.IsDefault
+		updated.TileStyle = group.TileStyle
 		if r.prune {
 			updated.Position = i
 		}
@@ -644,6 +645,10 @@ func withPreferences(p models.UserPreferences, request *models.PreferencesUpdate
 	set(&p.CardBlur, request.CardBlur)
 	set(&p.LayoutMode, request.LayoutMode)
 	set(&p.StatusStrip, request.StatusStrip)
+	// Not given, a document's group display follows the layout again
+	if request.GroupDisplay != nil || request.FollowLayout {
+		p.GroupDisplay = request.GroupDisplay
+	}
 	if request.ThemeBackground.IsSet() {
 		p.ThemeBackground = request.ThemeBackground.Value
 	}
