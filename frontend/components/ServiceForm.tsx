@@ -177,7 +177,10 @@ export default function ServiceForm({
       onSaved(response.data)
     } catch (error) {
       console.error('Failed to save service:', error)
-      setError(error instanceof Error ? error.message : 'Unable to save service. Please try again.')
+      const action = isEdit ? 'update' : 'create'
+      setError(
+        error instanceof Error ? error.message : `Unable to ${action} service. Please try again.`
+      )
     } finally {
       setSaving(false)
     }
