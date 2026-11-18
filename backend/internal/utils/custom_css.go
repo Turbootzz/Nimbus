@@ -15,6 +15,8 @@ const MaxCustomCSSBytes = 20 * 1024
 var forbiddenCSS = []struct{ token, message string }{
 	{"@import", "@import is not allowed"},
 	{"image-set(", "image-set() is not allowed; use url() with a data: image"},
+	// Takes a URL as a plain string like image-set(); no browser has it yet
+	{"image(", "image() is not allowed; use url() with a data: image"},
 	{"src(", "src() is not allowed"},
 	{"expression(", "expression() is not allowed"},
 	{"javascript:", "javascript: is not allowed"},
