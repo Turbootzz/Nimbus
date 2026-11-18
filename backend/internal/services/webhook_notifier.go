@@ -101,8 +101,8 @@ var (
 // the addresses the name resolves to. That last check is best effort. The
 // proxy resolves the name again, so it does not stop DNS rebinding or a name
 // that only the proxy's DNS maps to a metadata address; and a name that does
-// not resolve here still goes to the proxy, since hosts behind a proxy often
-// have no outside DNS.
+// not resolve here (or not within the timeout) still goes to the proxy, since
+// hosts behind a proxy often have no outside DNS.
 func webhookProxy(req *http.Request) (*url.URL, error) {
 	host := req.URL.Hostname()
 	if utils.IsBlockedHost(host) || utils.IsBlockedIP(host) {
