@@ -35,6 +35,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
 import { setEditMode, setTopBarWeather, toggleEditMode, useEditMode } from '@/lib/dashboard-store'
 import StatusStrip from '@/components/StatusStrip'
+import DiscoveredTray from '@/components/DiscoveredTray'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceChip from '@/components/ServiceChip'
 import ServiceListItem from '@/components/ServiceListItem'
@@ -848,6 +849,7 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <DiscoveredTray variant="link" />
       {statusStrip.enabled && (
         <StatusStrip
           strip={statusStrip}

@@ -85,6 +85,7 @@ export default function AdminSettingsPage() {
   }
 
   const publicRegSetting = settings.find((s) => s.key === 'public_registration_enabled')
+  const autoAddValue = settings.find((s) => s.key === 'discovery_auto_add')?.value || 'false'
 
   // Show loading while checking auth or loading settings
   if (isCheckingAuth || isLoading) {
@@ -128,6 +129,24 @@ export default function AdminSettingsPage() {
             label="Public Registration"
             description="Allow new users to register accounts. When disabled, only admins can create new users."
             disabled={actionLoading === 'public_registration_enabled'}
+          />
+        </div>
+
+        {/* Docker discovery */}
+        <div className="glass-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Docker Discovery</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Containers behind an admin&apos;s Docker integration show up under Discovered on the
+            Services page
+          </p>
+
+          <Toggle
+            id="discovery-auto-add-toggle"
+            enabled={autoAddValue === 'true'}
+            onChange={() => handleToggle('discovery_auto_add', autoAddValue)}
+            label="Auto-add labelled containers"
+            description="Add containers labelled nimbus.enable=true with a nimbus.url to that admin's dashboard, without asking. Unlabelled containers and guessed addresses are never added on their own."
+            disabled={actionLoading === 'discovery_auto_add'}
           />
         </div>
 

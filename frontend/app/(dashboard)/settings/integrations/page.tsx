@@ -33,6 +33,25 @@ export default function IntegrationsPage() {
   const [deleting, setDeleting] = useState<Integration | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  // ?kind=&name=&url= (from the Discovered tray) opens the form filled in;
+  // the credentials are still entered here
+  const [linkParams, setLinkParams] = useState(() =>
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search)
+  )
+  const linkedKind = kinds.find((k) => k.kind === linkParams?.get('kind'))
+  const prefill = linkedKind && {
+    kind: linkedKind.kind,
+    name: linkParams?.get('name') || linkedKind.name,
+    base_url: linkParams?.get('url') || '',
+  }
+  const closeForm = () => {
+    setShowForm(false)
+    setEditing(null)
+    if (linkParams) {
+      setLinkParams(null)
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }
 
   const handleSaved = (saved: Integration) => {
     setIntegrations((prev) =>
@@ -40,8 +59,7 @@ export default function IntegrationsPage() {
         ? prev.map((i) => (i.id === saved.id ? saved : i))
         : [...prev, saved]
     )
-    setShowForm(false)
-    setEditing(null)
+    closeForm()
   }
 
   const handleTest = async (integration: Integration) => {
@@ -179,14 +197,12 @@ export default function IntegrationsPage() {
         </ul>
       )}
 
-      {showForm && (
+      {(showForm || prefill) && (
         <IntegrationForm
           kinds={kinds}
           integration={editing}
-          onClose={() => {
-            setShowForm(false)
-            setEditing(null)
-          }}
+          prefill={prefill}
+          onClose={closeForm}
           onSaved={handleSaved}
         />
       )}

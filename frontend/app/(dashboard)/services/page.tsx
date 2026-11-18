@@ -19,6 +19,7 @@ import { api } from '@/lib/api'
 import type { Service, Group, Widget } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
+import DiscoveredTray from '@/components/DiscoveredTray'
 import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import { mergeTiles, reorderTiles, splitTiles, tileKey, toTilePositions } from '@/lib/tiles'
 
@@ -224,6 +225,8 @@ export default function ServicesPage() {
           {error}
         </div>
       )}
+
+      <DiscoveredTray onAdded={(service) => setServices((prev) => [...prev, service])} />
 
       {/* Services grid */}
       {services.length === 0 ? (
