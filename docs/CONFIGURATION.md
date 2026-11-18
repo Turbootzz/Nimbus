@@ -624,7 +624,7 @@ the dashboard of its **owner**, everyone else is untouched.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NIMBUS_CONFIG_FILE` | *(none)* | Path of the config file inside the container. Unset means the mode is off. |
-| `NIMBUS_CONFIG_MODE` | `replace` | `replace`: the file is the whole dashboard, what it doesn't list is removed, and its `preferences` are applied. `merge`: the file only adds and updates its own entries; everything else, and your preferences, stay. |
+| `NIMBUS_CONFIG_MODE` | `replace` | `replace`: each list in the file (`groups`, `integrations`, `services`, `widgets`) is all there is of that kind, what it doesn't have is deleted, and the file's `preferences` are applied. A list the file leaves out is left alone. `merge`: the file only adds and updates its own entries; everything else, and your preferences, stay. |
 | `NIMBUS_CONFIG_READONLY` | `false` | `true` locks the owner's groups, services, widgets and integrations against edits in the UI and the API (and the preferences, when the file sets them in `replace` mode). |
 
 ### The file
@@ -779,7 +779,8 @@ can be renamed freely.
 In `replace` mode, what the file doesn't list is **deleted**, with its status history. That
 goes per list: a list that is in the file (`services:` with entries, or an explicit
 `services: []`) is everything there is of that kind, and a list that is left out or left empty
-(`services:` with nothing behind it) is not touched at all. So a file that lost a section, or
+(`services:` with nothing behind it) keeps all its entries (one that sat in a group or used an
+integration the file removes loses only that link). So a file that lost a section, or
 one with only `preferences`, never empties the dashboard; write `[]` when you really want none.
 Taking single entries out of a list does delete them: keep the file in Git.
 
@@ -824,10 +825,13 @@ Config file: not applied, the dashboard stays as it is: environment variable not
 Config file: applied for admin@example.com: groups +0 ~0 -0, services +1 ~1 -0, widgets +0 ~0 -0, integrations +0 ~1 -0 (created, updated, removed)
 ```
 
-The line about an applied file holds counts only. An error can quote the value it is about
-(a URL that is not valid, for example); what came from a `${VAR}` is replaced by `***` there,
-so keep secrets in variables instead of writing them in the file. Unknown fields are refused,
-like in an import, so a typo is reported instead of ignored.
+The log never repeats what a variable held, nor any other value of the file of four characters
+or more. The line about an applied file
+holds counts only, and an error names the entry (`widgets[2]`) and says what is wrong; where
+that explanation would quote a value, a feed URL for example, it is replaced by
+`(not shown: the message quotes a value of the file)`. Unknown fields are refused, like in an
+import, so a typo is reported instead of ignored; the name of such a field, or of a YAML
+anchor that doesn't exist, is the one thing from the file an error does show.
 
 ---
 
