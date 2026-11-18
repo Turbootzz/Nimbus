@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
@@ -169,11 +170,13 @@ func (r *APITokenRepository) Delete(ctx context.Context, id, userID string) erro
 	return nil
 }
 
-// UpdateLastUsed stamps the token's last usage time
+// UpdateLastUsed stamps the token's last usage time. The column has no time
+// zone, so store UTC: CURRENT_TIMESTAMP would be the database's local time
+// and break the caller's once-a-minute throttle.
 func (r *APITokenRepository) UpdateLastUsed(ctx context.Context, id string) error {
-	query := `UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1`
+	query := `UPDATE api_tokens SET last_used_at = $1 WHERE id = $2`
 
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.db.ExecContext(ctx, query, time.Now().UTC(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update api token last used: %w", err)
 	}
