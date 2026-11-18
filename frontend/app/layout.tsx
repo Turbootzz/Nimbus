@@ -1,8 +1,9 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import '../styles/globals.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeScript } from '@/components/ThemeScript'
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -30,7 +31,6 @@ export const metadata: Metadata = {
     ],
     apple: '/favicon/apple-touch-icon.png',
   },
-  manifest: '/favicon/site.webmanifest',
   // SEO metadata only when NEXT_PUBLIC_SITE_URL is configured
   ...(siteUrl && {
     title: SEO_TITLE,
@@ -72,6 +72,11 @@ export const metadata: Metadata = {
   }),
 }
 
+// Colours the browser and installed-app chrome; matches the manifest
+export const viewport: Viewport = {
+  themeColor: '#0ea5e9',
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -108,6 +113,7 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <ThemeProvider>{children}</ThemeProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )
