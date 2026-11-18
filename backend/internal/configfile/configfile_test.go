@@ -1,15 +1,19 @@
 package configfile
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -155,7 +159,7 @@ func (f fakeUsers) GetByEmail(email string) (*models.User, error) {
 	if user, ok := f[email]; ok {
 		return user, nil
 	}
-	return nil, errors.New("user not found")
+	return nil, repository.ErrUserNotFound
 }
 
 const goodFile = "owner: admin@example.com\nversion: 1\npreferences:\n  theme_mode: dark\n"
@@ -273,4 +277,86 @@ func TestWatcherStartsAndStops(t *testing.T) {
 	w.Start()
 	w.Stop()
 	assert.Len(t, syncer.calls, 1, "applied at start")
+}
+
+func TestWatcherLetsGoOfAnOwnerWhoIsNoLongerThatAdmin(t *testing.T) {
+	ctx := context.Background()
+	w, syncer, users, _ := newTestWatcher(t, goodFile, Options{Prune: true, ReadOnly: true})
+	w.Check(ctx)
+	require.True(t, w.Locks("admin-1"))
+
+	// Demoted: the lock lifts and the unchanged file is no longer applied
+	users["admin@example.com"] = &models.User{ID: "admin-1", Role: "user"}
+	w.Check(ctx)
+	w.Check(ctx)
+	assert.False(t, w.Manages("admin-1"))
+	assert.False(t, w.Locks("admin-1"))
+	assert.Len(t, syncer.calls, 1)
+
+	// An admin again: the same file is applied once more
+	users["admin@example.com"] = &models.User{ID: "admin-1", Role: "admin"}
+	w.Check(ctx)
+	w.Check(ctx)
+	assert.True(t, w.Locks("admin-1"))
+	assert.Len(t, syncer.calls, 2)
+
+	// Deleted and created again: the new account is the owner
+	delete(users, "admin@example.com")
+	w.Check(ctx)
+	assert.False(t, w.Manages("admin-1"))
+	users["admin@example.com"] = &models.User{ID: "admin-2", Role: "admin"}
+	w.Check(ctx)
+	assert.False(t, w.Manages("admin-1"))
+	assert.True(t, w.Manages("admin-2"))
+	assert.Equal(t, []string{"admin-1", "admin-1", "admin-2"}, syncer.calls)
+
+	// A file that now names somebody who is no admin manages nobody
+	users["other@example.com"] = &models.User{ID: "user-9", Role: "user"}
+	require.NoError(t, os.WriteFile(w.opts.Path, []byte("owner: other@example.com\nversion: 1\n"), 0o600))
+	w.Check(ctx)
+	assert.False(t, w.Manages("admin-2"))
+	assert.False(t, w.Manages("user-9"))
+}
+
+func TestWatcherWaitsForAFileThatIsStillBeingWritten(t *testing.T) {
+	ctx := context.Background()
+	w, syncer, _, write := newTestWatcher(t, goodFile, Options{Settle: 20 * time.Millisecond})
+	go func() {
+		time.Sleep(5 * time.Millisecond)
+		write(goodFile + "services: []\n")
+	}()
+	w.Check(ctx)
+	assert.Empty(t, syncer.calls, "the file changed while it was read")
+	w.Check(ctx)
+	assert.Len(t, syncer.calls, 1, "applied once it stays the same")
+}
+
+func TestWatcherLogsNoSecrets(t *testing.T) {
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	lookup := env(map[string]string{"FEED": "https://feeds.example.com/?token=SENTINEL-secret", "KEY": "SENTINEL"})
+
+	// What a validation quotes from the file
+	content := "owner: admin@example.com\nversion: 1\nwidgets:\n  - type: rss\n    config:\n      feeds: [\"${FEED}\"]\n"
+	w, syncer, _, write := newTestWatcher(t, content, Options{Lookup: lookup})
+	syncer.err = &dashdoc.ValidationError{Issues: []dashdoc.Issue{{Path: "widgets[0]", Message: `Invalid config: invalid feed URL "https://feeds.example.com/?token=SENTINEL-secret": no such host`}}}
+	w.Check(context.Background())
+	assert.Contains(t, logged.String(), "widgets[0]: Invalid config: invalid feed URL")
+
+	// A file that can't be parsed, in every way a value can be misplaced
+	for _, broken := range []string{
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret\n   bad: [\n",
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret: x\n",
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials: SENTINEL-secret\n",
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: [\"${KEY}\"]\n",
+		"owner: admin@example.com\nversion: SENTINEL-secret\n",
+		`{"owner": "admin@example.com", "version": 1, "integrations": [{"credentials": {"api_key": "SENTINEL-secret"}]}`,
+		`{"owner": "admin@example.com", "version": 1, "preferences": {"theme_background": ["${KEY}"]}}`,
+	} {
+		write(broken)
+		w.Check(context.Background())
+	}
+	assert.Equal(t, 8, strings.Count(logged.String(), "not applied"), logged.String())
+	assert.NotContains(t, logged.String(), "SENTINEL")
 }

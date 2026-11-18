@@ -211,7 +211,7 @@ func main() {
 	var configWatcher *configfile.Watcher
 	if configFile.Path != "" {
 		configWatcher = configfile.NewWatcher(configfile.Options{
-			Path: configFile.Path, Prune: configFile.Prune, ReadOnly: configFile.ReadOnly,
+			Path: configFile.Path, Prune: configFile.Prune, ReadOnly: configFile.ReadOnly, Settle: configfile.DefaultSettle,
 		}, transferService, userRepo)
 		authHandler.SetConfigFile(configWatcher)
 		// Auto-add leaves a dashboard alone that the file would undo it on

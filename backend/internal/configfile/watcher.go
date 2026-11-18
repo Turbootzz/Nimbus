@@ -13,10 +13,16 @@ import (
 
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
 )
 
 // DefaultInterval is how often the file is checked for changes
 const DefaultInterval = 60 * time.Second
+
+// DefaultSettle is how long a changed file must stay the same before it is
+// applied: a file that is still being written can be valid YAML already, and
+// applying half of it would remove the rest of the dashboard
+const DefaultSettle = 2 * time.Second
 
 // Syncer applies a document to a user's dashboard in place
 // (services.DashboardTransferService)
@@ -41,6 +47,9 @@ type Options struct {
 	ReadOnly bool
 	// Interval defaults to DefaultInterval
 	Interval time.Duration
+	// Settle is how long new content must stay the same before it is applied
+	// (DefaultSettle); 0 applies it at once
+	Settle time.Duration
 	// Lookup resolves ${VAR}; defaults to os.LookupEnv
 	Lookup func(string) (string, bool)
 }
@@ -62,8 +71,9 @@ type Watcher struct {
 	handled bool
 	// lastLog avoids repeating the same message every interval
 	lastLog string
-	// ownerID is the admin the file belongs to, once known
-	ownerID string
+	// ownerID is the admin the file belongs to, once known, and ownerEmail
+	// the address the file names them by
+	ownerID, ownerEmail string
 	// preferences tells whether the file sets the owner's preferences
 	preferences bool
 }
@@ -144,6 +154,9 @@ func (w *Watcher) say(format string, args ...any) {
 // Check applies the file when it changed since it was last handled. It never
 // fails: whatever goes wrong is logged and leaves the dashboard as it is.
 func (w *Watcher) Check(ctx context.Context) {
+	// Every time, also for a file that can't be read: an owner who was
+	// demoted or deleted must not stay locked
+	w.forgetLostOwner()
 	data, err := read(w.opts.Path)
 	if err != nil {
 		w.say("can't be read, the dashboard stays as it is: %v", err)
@@ -154,6 +167,9 @@ func (w *Watcher) Check(ctx context.Context) {
 	same := w.handled && hash == w.hash
 	w.mu.RUnlock()
 	if same {
+		return
+	}
+	if !w.settled(hash) {
 		return
 	}
 	// retry leaves the content to be tried again at the next check
@@ -173,16 +189,20 @@ func (w *Watcher) Check(ctx context.Context) {
 	if err != nil || owner.Role != "admin" {
 		// On a fresh volume the admin is only created by the setup
 		w.say("waiting for an admin with the email address %s to exist; users are never created from the file", file.Owner)
+		w.mu.Lock()
+		w.ownerID = ""
+		w.mu.Unlock()
 		finish(true)
 		return
 	}
 	w.mu.Lock()
-	w.ownerID, w.preferences = owner.ID, file.Preferences != nil
+	w.ownerID, w.ownerEmail, w.preferences = owner.ID, file.Owner, file.Preferences != nil
 	w.mu.Unlock()
 
 	summary, err := w.syncer.Sync(ctx, owner.ID, &file.Document, w.opts.Prune)
 	if err != nil {
-		w.say("not applied, the dashboard stays as it is: %v", err)
+		// An error can quote a value of the file
+		w.say("not applied, the dashboard stays as it is: %s", file.Mask(err.Error()))
 		// A file that is not valid stays that way; anything else may pass
 		var invalid *dashdoc.ValidationError
 		finish(!errors.As(err, &invalid))
@@ -190,6 +210,44 @@ func (w *Watcher) Check(ctx context.Context) {
 	}
 	finish(false)
 	w.say("applied for %s: %s", file.Owner, describe(summary))
+}
+
+// forgetLostOwner forgets an owner who is no longer the admin with that
+// email address, which lifts the lock. The file then counts as not handled,
+// so it is applied when that admin is back.
+func (w *Watcher) forgetLostOwner() {
+	w.mu.RLock()
+	id, email := w.ownerID, w.ownerEmail
+	w.mu.RUnlock()
+	if id == "" {
+		return
+	}
+	owner, err := w.users.GetByEmail(email)
+	if err == nil && owner.Role == "admin" && owner.ID == id {
+		return
+	}
+	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
+		// The database gave no answer: nothing is known to have changed
+		return
+	}
+	w.mu.Lock()
+	w.ownerID, w.handled = "", false
+	w.mu.Unlock()
+}
+
+// settled reports whether the file still has the content with that hash
+// after Options.Settle
+func (w *Watcher) settled(hash [sha256.Size]byte) bool {
+	if w.opts.Settle <= 0 {
+		return true
+	}
+	select {
+	case <-time.After(w.opts.Settle):
+	case <-w.stop:
+		return false
+	}
+	data, err := read(w.opts.Path)
+	return err == nil && sha256.Sum256(data) == hash
 }
 
 // describe sums up a sync in counts; it never holds values from the file

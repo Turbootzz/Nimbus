@@ -24,6 +24,18 @@ type File struct {
 	// Owner is the email address of an existing admin
 	Owner string `json:"owner"`
 	dashdoc.Document
+	// variables are the values ${VAR} was replaced by: the secrets
+	variables []string
+}
+
+// Mask returns text without what the file's variables hold, for the log.
+// ponytail: only the value as it is; one that an error shows escaped
+// (a quote, a backslash) is not recognised
+func (f *File) Mask(text string) string {
+	for _, value := range f.variables {
+		text = strings.ReplaceAll(text, value, "***")
+	}
+	return text
 }
 
 // Parse reads a config file. `${VAR}` in a string value is replaced by what
@@ -46,7 +58,7 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 		return nil, errors.New("the file must hold a mapping with owner, version and the dashboard")
 	}
 
-	values := &interpolation{lookup: lookup, missing: map[string]bool{}}
+	values := &interpolation{lookup: lookup, missing: map[string]bool{}, used: map[string]bool{}}
 	tree = values.apply(tree)
 	if len(values.missing) > 0 {
 		names := make([]string, 0, len(values.missing))
@@ -75,6 +87,11 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 	if file.Owner = strings.TrimSpace(file.Owner); file.Owner == "" {
 		return nil, errors.New("owner is required: the email address of the admin the dashboard belongs to")
 	}
+	// The longest first, so a value that holds another is masked whole
+	for value := range values.used {
+		file.variables = append(file.variables, value)
+	}
+	sort.Slice(file.variables, func(i, j int) bool { return len(file.variables[i]) > len(file.variables[j]) })
 	return &file, nil
 }
 
@@ -88,6 +105,8 @@ type interpolation struct {
 	// missing are the variables that are not set. An empty one counts too:
 	// a secret must never silently become empty.
 	missing map[string]bool
+	// used are the values the variables were replaced by
+	used map[string]bool
 	// nul: a value holds the character the database can't store
 	nul bool
 }
@@ -104,7 +123,9 @@ func (in *interpolation) apply(value any) any {
 			replacement, ok := in.lookup(name)
 			if !ok || replacement == "" {
 				in.missing[name] = true
+				return ""
 			}
+			in.used[replacement] = true
 			return replacement
 		})
 		in.nul = in.nul || strings.ContainsRune(replaced, 0)
