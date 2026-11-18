@@ -309,14 +309,18 @@ func TestIntegrationService_Options(t *testing.T) {
 	}
 
 	for options, want := range map[string]string{
-		``:                               "Site is required",
-		`{"site":"  "}`:                  "Site is required",
-		`{"site":"toolong"}`:             "Site must be 5 characters or less",
-		`{"site":5}`:                     "Site must be text",
-		`{"site":"a","entity":"Sensor"}`: "Entity is not valid; it looks like sensor.temp",
-		`{"site":"a","zzz":"1","b":"1"}`: `Options has no option "b"`,
-		`{"site":"a","limit":"ten"}`:     "Limit is not valid",
-		`{"site":"a","limit":10}`:        "Limit must be text",
+		``:                   "Site is required",
+		`{"site":"  "}`:      "Site is required",
+		`{"site":"toolong"}`: "Site must be 5 characters or less",
+		`{"site":5}`:         "Site must be text",
+		`{"site":"a\nb"}`:    "Site is not valid",
+		`{"site":["a"]}`:     "Site must be text",
+		`["site"]`:           "Options must be a JSON object",
+		`{"site":"` + strings.Repeat("a", 17000) + `"}`: "Options are too large",
+		`{"site":"a","entity":"Sensor"}`:                "Entity is not valid; it looks like sensor.temp",
+		`{"site":"a","zzz":"1","b":"1"}`:                `Options has no option "b"`,
+		`{"site":"a","limit":"ten"}`:                    "Limit is not valid",
+		`{"site":"a","limit":10}`:                       "Limit must be text",
 	} {
 		_, err := svc.Create(ctx, "user-1", false, request(options))
 		var vErr *ValidationError
@@ -335,12 +339,25 @@ func TestIntegrationService_Options(t *testing.T) {
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"site":"home"}`, string(created.Options))
 
-	// The database hands JSON back in its own spacing and key order: that is no change
-	before := models.Integration{Options: json.RawMessage(`{"site": "home", "entity": "a.b"}`)}
-	after := models.Integration{Options: json.RawMessage(`{"entity":"a.b","site":"home"}`)}
-	assert.False(t, connectionChanged(&before, &after))
-	after.Options = json.RawMessage(`{"site":"work"}`)
-	assert.True(t, connectionChanged(&before, &after))
+	// Postgres hands JSONB back in its own form: a space after : and , keys
+	// by length, characters unescaped, numbers as written. That is no change.
+	for _, c := range []struct {
+		stored, sent string
+		changed      bool
+	}{
+		{`{"site": "home", "entity": "a.b"}`, `{"entity":"a.b","site":"home"}`, false},
+		{`{"site": "a&b <é>"}`, `{"site":"a\u0026b \u003c\u00e9\u003e"}`, false},
+		{`{}`, `{}`, false},
+		{`{"days": 1000, "ratio": 1.0}`, `{"days":1e3,"ratio":1}`, false}, // rows from before options were text
+		{`{"site": "home", "entity": "a.b"}`, `{"site":"work"}`, true},
+		{`{"site": "home"}`, `{"site":"Home"}`, true},
+		{`{"site": "home"}`, `{}`, true},
+		{`{"days": 1}`, `{"days":"1"}`, true},
+	} {
+		before := models.Integration{Options: json.RawMessage(c.stored)}
+		after := models.Integration{Options: json.RawMessage(c.sent)}
+		assert.Equal(t, c.changed, connectionChanged(&before, &after), "%s to %s", c.stored, c.sent)
+	}
 
 	// Omitted options are kept
 	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})

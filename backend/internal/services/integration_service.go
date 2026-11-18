@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -403,7 +404,7 @@ func validateOptions(meta integrations.Meta, raw json.RawMessage) (json.RawMessa
 			continue
 		case utf8.RuneCountInString(value) > option.MaxLen():
 			return nil, invalid("%s must be %d characters or less", option.Label, option.MaxLen())
-		case !option.Matches(value):
+		case strings.ContainsFunc(value, unicode.IsControl) || !option.Matches(value):
 			if option.Placeholder != "" {
 				return nil, invalid("%s is not valid; it looks like %s", option.Label, option.Placeholder)
 			}
