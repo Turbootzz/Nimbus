@@ -7,6 +7,7 @@ import Header from '@/components/Header'
 import CanvasTopBar from '@/components/layout/CanvasTopBar'
 import CommandPalette from '@/components/CommandPalette'
 import CustomCss from '@/components/CustomCss'
+import ConfigFileBanner from '@/components/ConfigFileBanner'
 import {
   subscribeSidebar,
   getSidebarSnapshot,
@@ -112,6 +113,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main
           className={canvas ? 'mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8' : 'p-4 sm:p-6 lg:p-8'}
         >
+          <ConfigFileBanner />
           {children}
         </main>
       </div>

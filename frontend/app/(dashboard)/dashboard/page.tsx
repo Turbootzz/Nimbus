@@ -48,6 +48,7 @@ import WidgetCard from '@/components/widgets/WidgetCard'
 import WidgetModal from '@/components/widgets/WidgetModal'
 import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { useConfigFile } from '@/hooks/useConfigFile'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import { createCollisionDetection } from '@/lib/tile-collision'
 import {
@@ -91,6 +92,7 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   // Shared with the canvas top bar, whose user menu also toggles it
   const isEditMode = useEditMode()
+  const configFile = useConfigFile()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -778,6 +780,7 @@ export default function DashboardPage() {
 
   const header = (
     <DashboardHeader
+      readOnly={configFile?.read_only}
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
