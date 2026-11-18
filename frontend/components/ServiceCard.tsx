@@ -1,6 +1,7 @@
 'use client'
 
-import { ClockIcon } from '@heroicons/react/24/outline'
+import type { ReactNode } from 'react'
+import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
   getStatusColor,
@@ -10,7 +11,7 @@ import {
 } from '@/lib/status-utils'
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
-import EditOverlay from '@/components/EditOverlay'
+import EditOverlay, { overlayActionClass } from '@/components/EditOverlay'
 import KpiRow, { type ServiceKpis } from '@/components/KpiRow'
 
 interface ServiceCardProps {
@@ -18,6 +19,8 @@ interface ServiceCardProps {
   openInNewTab: boolean
   isEditMode?: boolean
   onSizeChange?: (id: string, newSize: CardSize) => void
+  // Shows a pencil in edit mode
+  onEdit?: (service: Service) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   enableCardResizing?: boolean
@@ -34,6 +37,7 @@ export default function ServiceCard({
   openInNewTab,
   isEditMode = false,
   onSizeChange,
+  onEdit,
   dragHandleProps,
   isDragging = false,
   enableCardResizing = true,
@@ -60,12 +64,28 @@ export default function ServiceCard({
     }
   }
 
+  const editActions = onEdit && (
+    <button
+      type="button"
+      onClick={(e) => {
+        // A click on the tile itself changes its size
+        e.stopPropagation()
+        onEdit(service)
+      }}
+      className={overlayActionClass}
+      aria-label={`Edit ${service.name}`}
+    >
+      <PencilIcon className="h-4 w-4" />
+    </button>
+  )
+
   const variantProps = {
     service,
     gridSpan,
     linkProps,
     isEditMode,
     onSizeChange: handleClick,
+    editActions,
     dragHandleProps,
     isDragging,
     cardSize,
@@ -100,6 +120,7 @@ interface CardVariantProps {
   }
   isEditMode: boolean
   onSizeChange: () => void
+  editActions?: ReactNode
   dragHandleProps?: Record<string, unknown>
   isDragging: boolean
   cardSize: CardSize
@@ -141,6 +162,7 @@ function CompactCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -166,6 +188,7 @@ function CompactCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
           compact
         />
       )}
@@ -206,6 +229,7 @@ function StandardCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -233,6 +257,7 @@ function StandardCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
         />
       )}
       <div className={`${marginBottom} flex items-start justify-between`}>
@@ -297,6 +322,7 @@ function LargeCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -330,6 +356,7 @@ function LargeCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
         />
       )}
       {/* Status in top right */}

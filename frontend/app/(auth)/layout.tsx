@@ -11,7 +11,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       <div className="w-full max-w-md px-6">
         {/* Logo/Branding */}
-        <div className="mb-8 flex flex-col items-center text-center">
+        <div className="wallpaper-panel mx-auto mb-8 flex flex-col items-center text-center">
           <div className="mb-2 flex items-center gap-3">
             <NimbusLogo size={48} priority />
             <h1 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>

@@ -1,6 +1,15 @@
 'use client'
 
-import type { CardSize, CardScale, Kpi, Tile, ViewMode, Widget, WidgetTypeMeta } from '@/types'
+import type {
+  CardSize,
+  CardScale,
+  Kpi,
+  Service,
+  Tile,
+  ViewMode,
+  Widget,
+  WidgetTypeMeta,
+} from '@/types'
 import ServiceCard from '@/components/ServiceCard'
 import SortableTile from '@/components/SortableTile'
 import ServicesList from '@/components/ServicesList'
@@ -31,6 +40,7 @@ interface ServicesGridProps {
   viewMode: ViewMode
   isEditMode?: boolean
   onSizeChange?: (id: string, newSize: CardSize) => void
+  onEditService?: (service: Service) => void
   groupMonitoringMap?: GroupMonitoringMap
   widgetTypes?: Record<string, WidgetTypeMeta>
   onWidgetSizeChange?: (widget: Widget, size: CardSize) => void
@@ -50,6 +60,7 @@ export default function ServicesGrid({
   viewMode,
   isEditMode = false,
   onSizeChange,
+  onEditService,
   groupMonitoringMap,
   widgetTypes,
   onWidgetSizeChange,
@@ -70,9 +81,10 @@ export default function ServicesGrid({
           openInNewTab={openInNewTab}
           isEditMode={isEditMode}
           groupMonitoringMap={groupMonitoringMap}
+          onEditService={onEditService}
         />
         {widgetCount > 0 && (
-          <p className="text-text-muted mt-3 text-xs">
+          <p className="text-text-muted wallpaper-panel mt-3 text-xs">
             {widgetCount} {widgetCount === 1 ? 'widget is' : 'widgets are'} only shown in grid view.
           </p>
         )}
@@ -129,6 +141,7 @@ export default function ServicesGrid({
             openInNewTab={openInNewTab}
             isEditMode
             onSizeChange={onSizeChange}
+            onEdit={onEditService}
             dragHandleProps={dragHandleProps}
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}

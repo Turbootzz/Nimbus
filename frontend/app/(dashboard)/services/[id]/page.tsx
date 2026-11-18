@@ -135,18 +135,20 @@ export default function ServiceDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-text-secondary">Loading...</div>
+        <div className="text-text-secondary wallpaper-panel">Loading...</div>
       </div>
     )
   }
 
   if (error || !service) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center">
-        <div className="text-error mb-4">{error || 'Service not found'}</div>
-        <Link href="/dashboard" className="text-primary hover:text-primary-hover">
-          Back to Dashboard
-        </Link>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="wallpaper-panel flex flex-col items-center">
+          <div className="text-error mb-4">{error || 'Service not found'}</div>
+          <Link href="/dashboard" className="text-primary hover:text-primary-hover">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     )
   }
@@ -168,7 +170,7 @@ export default function ServiceDetailPage() {
       {/* Back Link */}
       <Link
         href="/dashboard"
-        className="text-text-secondary hover:text-text-primary mb-4 inline-flex items-center"
+        className="text-text-secondary hover:text-text-primary wallpaper-panel mb-4 inline-flex items-center"
       >
         <ArrowLeftIcon className="mr-2 h-5 w-5" />
         Back to Dashboard

@@ -182,7 +182,7 @@ export default function ServicesPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center">
-        <div className="text-center">
+        <div className="wallpaper-panel text-center">
           <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
           <p className="text-text-secondary">Loading services...</p>
         </div>
@@ -197,7 +197,7 @@ export default function ServicesPage() {
     <div>
       {/* Page header */}
       <div className="mb-6 flex items-center justify-between">
-        <div>
+        <div className="wallpaper-panel">
           <h1 className="text-text-primary text-3xl font-bold">Services</h1>
           <p className="text-text-secondary mt-1">Manage your homelab services</p>
         </div>

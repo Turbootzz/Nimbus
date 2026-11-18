@@ -10,12 +10,14 @@ interface SortableServiceListItemProps {
   service: Service
   openInNewTab: boolean
   isMonitored?: boolean
+  onEdit?: (service: Service) => void
 }
 
 export default function SortableServiceListItem({
   service,
   openInNewTab,
   isMonitored,
+  onEdit,
 }: SortableServiceListItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: tileKey({ kind: 'service', id: service.id }),
@@ -34,6 +36,7 @@ export default function SortableServiceListItem({
         service={service}
         openInNewTab={openInNewTab}
         isEditMode={true}
+        onEdit={onEdit}
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDragging}
         isMonitored={isMonitored}

@@ -46,6 +46,7 @@ import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
 import WidgetCard from '@/components/widgets/WidgetCard'
 import WidgetModal from '@/components/widgets/WidgetModal'
+import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import {
@@ -122,6 +123,9 @@ export default function DashboardPage() {
   const [showWidgetModal, setShowWidgetModal] = useState(false)
   const [editingWidget, setEditingWidget] = useState<Widget | null>(null)
   const [deletingWidget, setDeletingWidget] = useState<Widget | null>(null)
+
+  // Service being edited in the modal
+  const [editingService, setEditingService] = useState<Service | null>(null)
 
   // Services and widgets in one grid, ordered by their shared positions
   const tiles = useMemo(() => mergeTiles(services, widgets), [services, widgets])
@@ -468,7 +472,6 @@ export default function DashboardPage() {
       return
     }
 
-    const draggedService = tile.service
     const previousServices = services
 
     // Optimistic update - move service to new group
@@ -478,15 +481,8 @@ export default function DashboardPage() {
 
     // Persist to backend; the API client returns errors instead of throwing
     try {
-      const response = await api.updateService(tile.id, {
-        name: draggedService.name,
-        url: draggedService.url,
-        description: draggedService.description || '',
-        icon: draggedService.icon || '',
-        icon_type: draggedService.icon_type || 'emoji',
-        icon_image_path: draggedService.icon_image_path || '',
-        group_id: newGroupId,
-      })
+      // Only the group: other fields keep what is stored
+      const response = await api.updateService(tile.id, { group_id: newGroupId })
       if (response.error) throw new Error(response.error.message)
     } catch (error) {
       console.error('Failed to move service to group:', error)
@@ -505,26 +501,9 @@ export default function DashboardPage() {
     setResizingId(id)
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
 
-    // Fetch fresh service data to avoid overwriting concurrent updates
+    // Only the size: an edit saved meanwhile keeps its other fields
     try {
-      const response = await api.getService(id)
-      if (response.error || !response.data) {
-        console.error('Failed to fetch service:', response.error?.message)
-        setServices(previousServices)
-        return
-      }
-
-      const freshService = response.data
-      const updated = await api.updateService(id, {
-        name: freshService.name,
-        url: freshService.url,
-        description: freshService.description || '',
-        icon: freshService.icon || '',
-        icon_type: freshService.icon_type || 'emoji',
-        icon_image_path: freshService.icon_image_path || '',
-        group_id: freshService.group_id ?? '',
-        card_size: newSize,
-      })
+      const updated = await api.updateService(id, { card_size: newSize })
       if (updated.error) throw new Error(updated.error.message)
     } catch (error) {
       console.error('Failed to update card size:', error)
@@ -577,6 +556,14 @@ export default function DashboardPage() {
     setShowWidgetModal(false)
     setEditingWidget(null)
   }
+
+  const closeServiceModal = useCallback(() => setEditingService(null), [])
+
+  // The response is the whole service, health included
+  const handleServiceSaved = useCallback((saved: Service) => {
+    setServices((prev) => prev.map((s) => (s.id === saved.id ? saved : s)))
+    setEditingService(null)
+  }, [])
 
   const handleWidgetSizeChange = async (widget: Widget, size: CardSize) => {
     if (resizingId) return
@@ -702,7 +689,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center">
-        <div className="text-center">
+        <div className="wallpaper-panel text-center">
           <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
           <p className="text-text-secondary">Loading dashboard...</p>
         </div>
@@ -772,7 +759,7 @@ export default function DashboardPage() {
       )}
 
       {!widgetsLoaded && (
-        <p className="text-error mb-4 text-sm">
+        <p className="text-error wallpaper-panel mb-4 text-sm">
           Widgets could not be loaded. Reload the page to see them; until then the order cannot be
           changed.
         </p>
@@ -812,6 +799,7 @@ export default function DashboardPage() {
               viewMode={viewMode}
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
+              onEditService={setEditingService}
               groupMonitoringMap={groupMonitoringMap}
               widgetTypes={widgetTypeMap}
               onWidgetSizeChange={handleWidgetSizeChange}
@@ -937,6 +925,15 @@ export default function DashboardPage() {
             setEditingWidget(null)
           }}
           onSaved={handleWidgetSaved}
+        />
+      )}
+
+      {/* Service edit modal */}
+      {editingService && (
+        <ServiceModal
+          service={editingService}
+          onClose={closeServiceModal}
+          onSaved={handleServiceSaved}
         />
       )}
 

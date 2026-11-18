@@ -38,11 +38,13 @@ export default function ThemePage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6 xl:max-w-none">
-      <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Theme Settings</h1>
-      <p className="text-text-secondary mb-2 text-sm sm:text-base">
-        Customize the appearance of your dashboard
-      </p>
-      <p className="text-text-muted mb-8 text-xs sm:text-sm">Changes are saved automatically</p>
+      <div className="wallpaper-panel mb-8">
+        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Theme Settings</h1>
+        <p className="text-text-secondary mb-2 text-sm sm:text-base">
+          Customize the appearance of your dashboard
+        </p>
+        <p className="text-text-muted text-xs sm:text-sm">Changes are saved automatically</p>
+      </div>
 
       {/* Two-column layout on XL screens */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">

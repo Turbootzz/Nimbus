@@ -102,12 +102,14 @@ export default function ProfilePage() {
     return (
       <div className="p-4 sm:p-6">
         <h1
-          className="mb-4 text-2xl font-bold sm:text-3xl"
+          className="wallpaper-panel mb-4 text-2xl font-bold sm:text-3xl"
           style={{ color: 'var(--color-text-primary)' }}
         >
           Profile
         </h1>
-        <p style={{ color: 'var(--color-text-secondary)' }}>Loading...</p>
+        <p className="wallpaper-panel" style={{ color: 'var(--color-text-secondary)' }}>
+          Loading...
+        </p>
       </div>
     )
   }
@@ -115,7 +117,7 @@ export default function ProfilePage() {
   return (
     <div className="p-4 sm:p-6">
       <h1
-        className="mb-4 text-2xl font-bold sm:text-3xl"
+        className="wallpaper-panel mb-4 text-2xl font-bold sm:text-3xl"
         style={{ color: 'var(--color-text-primary)' }}
       >
         Profile
