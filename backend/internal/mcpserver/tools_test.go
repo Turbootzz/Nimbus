@@ -11,6 +11,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/auth"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/widgets"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -342,6 +343,38 @@ func TestGetWidgetData(t *testing.T) {
 	_, _, err = tools.getWidgetData(ctx, requestAs("nobody"), idInput{ID: "wid-weather"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no widgets")
+}
+
+// The config goes through the same masking as the REST API (the real Redact
+// of each type) and then loses what URLs carry in their query or user info
+func TestGetWidgetData_NoSecrets(t *testing.T) {
+	configs := map[string]string{
+		"custom_api": `{"url":"https://api.example.com/v1/stats?apikey=QUERYSECRET","headers":[{"name":"X-Api-Key","value":"HEADERSECRET"}],"fields":[{"label":"Users","path":"users"}]}`,
+		"calendar":   `{"ical_urls":["https://calendar.example.com/private-ICALSECRET/basic.ics"]}`,
+		"rss":        `{"feeds":["https://USERSECRET:PASSSECRET@feeds.example.com/private.xml?token=FEEDSECRET"]}`,
+		"iframe":     `{"url":"https://grafana.example.com/d/abc?auth_token=IFRAMESECRET"}`,
+	}
+	data := newFakeData()
+	for widgetType, config := range configs {
+		raw := json.RawMessage(config)
+		// What WidgetService.List does before a widget leaves the server
+		if registered, ok := widgets.Get(widgetType); ok {
+			if secret, ok := registered.(widgets.SecretConfig); ok {
+				raw = secret.Redact(raw)
+			}
+		}
+		data.widgets[alice] = append(data.widgets[alice], models.Widget{ID: "wid-" + widgetType, UserID: alice, Type: widgetType, Config: raw})
+	}
+	tools := &tools{data.deps()}
+
+	for widgetType := range configs {
+		_, widget, err := tools.getWidgetData(context.Background(), requestAs(alice), idInput{ID: "wid-" + widgetType})
+		require.NoError(t, err)
+		out, err := json.Marshal(widget)
+		require.NoError(t, err)
+		assert.NotContains(t, string(out), "SECRET", widgetType)
+		assert.Contains(t, string(out), "example.com", "%s keeps the host", widgetType)
+	}
 }
 
 func TestListIntegrations_NoSecretsOrURLs(t *testing.T) {

@@ -18,14 +18,14 @@ Nimbus holds no LLM keys and calls no AI service. It only answers the requests y
 
 There is also one resource, `nimbus://dashboard`: a short text summary with the status counts, the offline services, the groups, the widgets and the integrations.
 
-Everything is limited to the user who owns the token. An assistant sees what that user sees in Nimbus, with the same masking of secrets, and nothing of other users.
+Everything is limited to the user who owns the token. An assistant sees no more than that user sees in Nimbus, with the same masking of secrets, and nothing of other users.
 
 ## 1. Create a token
 
 1. Open **Settings → API Tokens**.
 2. Give the token a name, for example `Claude`.
 3. Select the **MCP** scope. You can clear the other scopes: `mcp` is enough for every read tool.
-4. Optional: select **Write** (`write:services`) too if the assistant may run `recheck_service`.
+4. Optional: select **Write services** (`write:services`) too if the assistant may run `recheck_service`.
 5. Optional: choose when the token expires.
 6. Select **Create Token** and copy the token. It starts with `nimbus_` and is shown once.
 
@@ -55,6 +55,8 @@ curl -s http://localhost:3000/mcp \
 ## 3. Connect a client
 
 The examples use `http://localhost:3000/mcp` and `nimbus_your_token`. Replace both.
+
+The snippets follow the documentation of each client as of November 2026. The Open WebUI and Home Assistant setups are **untested** against a running Nimbus: please open an issue if a step is off.
 
 ### Claude Code
 
@@ -118,7 +120,7 @@ Custom connectors in Claude are a different mechanism from this config file. The
 
 Open WebUI 0.6.31 or newer talks to the endpoint directly. Only an administrator can add it.
 
-1. Open **Settings → Integrations** in the admin section.
+1. Open **Settings → Integrations** in the admin section (older versions call it **Admin Settings → External Tools** or **Tool Servers**).
 2. Under **External Tool Servers**, select **+ Add Connection**.
 3. Set **Type** to **MCP (Streamable HTTP)**. Do not leave it on OpenAPI.
 4. Enter the URL. From an Open WebUI container, `localhost` is the container itself: use the address of the Nimbus host or its container name, for example `http://nimbus:3000/mcp`.
@@ -144,7 +146,7 @@ With [Caddy](https://caddyserver.com), next to Nimbus:
 }
 ```
 
-Then add the integration in Home Assistant with the URL `http://<caddy-host>:8787/mcp`.
+Then add the integration in Home Assistant with the URL `http://<caddy-host>:8787/mcp`. This proxy setup is untested: it relies on Home Assistant skipping its OAuth sign-in when the server does not ask for one.
 
 Anyone who can reach that port can use the token, without knowing it. Only expose the port to Home Assistant, and use a token with just the `mcp` scope.
 
@@ -174,7 +176,7 @@ Clients that only start local programs (stdio) can use `mcp-remote` as in the Cl
 
 - **Read-only by default.** A token with only the `mcp` scope can read and nothing else. `recheck_service` needs `write:services` on the same token, and all it does is run a health check.
 - **`mcp` is not API access.** The scope opens `/mcp` only. To use the REST API the token needs the other scopes.
-- **No secrets.** Credentials of integrations are never returned, and neither are the URLs or options of integrations. Secrets in widget settings are masked like they are in the web UI.
+- **No secrets.** Credentials of integrations are never returned, and neither are the URLs or options of integrations. Secrets in widget settings are masked like they are in the web UI, and URLs in widget settings lose their query string and user info, where keys often live.
 - **The assistant sees your dashboard.** Service names, URLs, descriptions and widget content go to the AI provider of the client you connect. Use a local model if that matters to you.
 - **Text from your apps is data.** Widget content such as RSS items or calendar entries comes from outside. Nimbus tells clients to treat it as data, but be careful with assistants that can also act on other tools.
 - **Keep it on your network.** `/mcp` is as reachable as Nimbus itself. On a LAN that is fine. If Nimbus is reachable from the internet, use HTTPS: a token sent over plain HTTP can be read on the way.
@@ -189,6 +191,7 @@ Clients that only start local programs (stdio) can use `mcp-remote` as in the Cl
 | `401` | No token, a wrong, revoked or expired token, or the header did not arrive (check your reverse proxy) |
 | `403` | The token has no `mcp` scope. Create a new token with it; scopes of an existing token cannot be changed |
 | `404` or a web page | The request reached the frontend. Check that the path is exactly `/mcp` and, with separate containers, that the URL points at the backend |
+| `413` | The request is larger than 1 MB |
 | `405` | The client sent `GET`. That is normal for clients probing for a stream; they continue with `POST` |
 | `429` | Rate limit. Wait a minute or raise `API_TOKEN_RATE_LIMIT` |
 | "this API token is read-only" | `recheck_service` needs a token that also has `write:services` |

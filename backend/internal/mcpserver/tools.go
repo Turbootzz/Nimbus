@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"slices"
 	"strings"
 	"time"
@@ -419,7 +420,7 @@ func (t *tools) getWidgetData(ctx context.Context, req *mcp.CallToolRequest, in 
 	}
 	widget := widgets[index]
 
-	data := WidgetData{ID: widget.ID, Type: widget.Type, Title: widget.Title, Enabled: widget.Enabled, Config: decodeJSON(widget.Config)}
+	data := WidgetData{ID: widget.ID, Type: widget.Type, Title: widget.Title, Enabled: widget.Enabled, Config: stripURLSecrets(decodeJSON(widget.Config))}
 	key := models.SnapshotKey(models.SnapshotSourceWidget, widget.ID)
 	for _, snap := range t.deps.Snapshots.Snapshots(who.userID) {
 		if snap.Key() != key {
@@ -439,6 +440,28 @@ func decodeJSON(raw json.RawMessage) any {
 	var value any
 	if len(raw) == 0 || json.Unmarshal(raw, &value) != nil {
 		return nil
+	}
+	return value
+}
+
+// stripURLSecrets removes the query and the user info from every URL in a
+// widget config. Keys often live there (?apikey=..., private feed URLs), and
+// an assistant has no use for them.
+func stripURLSecrets(value any) any {
+	switch v := value.(type) {
+	case map[string]any:
+		for key, item := range v {
+			v[key] = stripURLSecrets(item)
+		}
+	case []any:
+		for i, item := range v {
+			v[i] = stripURLSecrets(item)
+		}
+	case string:
+		if u, err := url.Parse(v); err == nil && u.Host != "" && (u.RawQuery != "" || u.User != nil) {
+			u.RawQuery, u.User, u.Fragment = "", nil, ""
+			return u.String()
+		}
 	}
 	return value
 }

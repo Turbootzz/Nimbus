@@ -109,9 +109,12 @@ func NewHandler(deps Deps) fiber.Handler {
 			// nothing has to be kept open through fasthttp or a reverse proxy.
 			Stateless:    true,
 			JSONResponse: true,
-			// That protection is for servers without authentication on
-			// localhost. Here nginx forwards to 127.0.0.1 with the public
-			// Host, which it would reject, and every request needs a token.
+			// That is the SDK's DNS rebinding protection, for servers without
+			// authentication on localhost. Here nginx forwards to 127.0.0.1
+			// with the public Host, which it would reject. It is safe to turn
+			// off because only the Authorization header authenticates: the
+			// session cookie is ignored on this route, so a web page cannot
+			// make a logged-in browser call it. Keep it that way.
 			DisableLocalhostProtection: true,
 		},
 	)
@@ -119,8 +122,18 @@ func NewHandler(deps Deps) fiber.Handler {
 		Scopes:                 []string{models.ScopeMCP},
 		AllowMissingExpiration: true, // tokens may never expire
 	})
-	return adaptor.HTTPHandler(bearer(rateLimit(streamable)))
+	handler := adaptor.HTTPHandler(bearer(rateLimit(streamable)))
+	return func(c *fiber.Ctx) error {
+		// The app-wide limit is sized for wallpaper uploads
+		if len(c.Body()) > maxBodyBytes {
+			return c.SendStatus(fiber.StatusRequestEntityTooLarge)
+		}
+		return handler(c)
+	}
 }
+
+// maxBodyBytes is plenty for a JSON-RPC request
+const maxBodyBytes = 1 << 20
 
 const tokenIDKey = "token_id"
 

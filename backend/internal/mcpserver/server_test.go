@@ -302,6 +302,17 @@ func TestMCP_Authentication(t *testing.T) {
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
 
+func TestMCP_RejectsLargeBodies(t *testing.T) {
+	server := newMCPTestServer(t)
+	req, err := http.NewRequest(http.MethodPost, server.url, strings.NewReader(strings.Repeat("x", maxBodyBytes+1)))
+	require.NoError(t, err)
+	req.Header.Set("Authorization", "Bearer "+server.token(t, alice, nil, models.ScopeMCP))
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+	assert.Equal(t, http.StatusRequestEntityTooLarge, resp.StatusCode)
+}
+
 func TestMCP_RateLimit(t *testing.T) {
 	server := newMCPTestServer(t)
 	middleware.SetAPITokenRateLimit(2)
