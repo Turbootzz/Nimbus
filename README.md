@@ -89,6 +89,20 @@ What each app shows and how it signs in is in [docs/INTEGRATIONS.md](docs/INTEGR
 
 ---
 
+## 🔀 Switch from Homepage/Homarr in one minute
+
+Already have a dashboard? Bring it along:
+
+1. Open **Settings → Export & Import → Import from another dashboard**.
+2. Paste your config or choose the file: Homepage `services.yaml`, a Homarr 0.x board JSON, Homer `config.yml`, Dashy `conf.yml`, or a `docker-compose.yml`.
+3. Check the preview, choose which groups it goes into, and press **Import**.
+
+Groups, links, descriptions and icons come along, and apps Nimbus has an integration for (Sonarr, Radarr, Pi-hole, ...) get one. API keys and passwords are never copied: enter them under **Settings → Integrations** afterwards. Anything that can't be taken over is listed before you import, and nothing you already have is changed. Details per dashboard are in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#import-from-another-dashboard).
+
+Rather keep the dashboard in Git? Set `NIMBUS_CONFIG_FILE` and Nimbus follows a YAML or JSON file, with secrets from the environment: see [Config File](docs/CONFIGURATION.md#config-file).
+
+---
+
 ## 🚀 Quick Start
 
 Deploy Nimbus in under 30 seconds with Docker. **Zero configuration required!**
@@ -184,6 +198,7 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
 | `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials and notification tokens (persisted in volume, back it up) |
 | `DOCKER_SOCKET` | *(none)* | Docker socket the Docker integration may use, e.g. `/var/run/docker.sock` |
+| `NIMBUS_CONFIG_FILE` | *(none)* | Keep an admin's dashboard in sync with a YAML or JSON file ([Config File](docs/CONFIGURATION.md#config-file)); with `NIMBUS_CONFIG_MODE` and `NIMBUS_CONFIG_READONLY` |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |

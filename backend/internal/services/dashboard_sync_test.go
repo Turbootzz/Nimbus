@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/nimbus/backend/internal/configfile"
@@ -415,4 +417,25 @@ preferences:
 	exported := toJSON(t, first.export(t, transferFresh))
 	assert.NotContains(t, exported, "key-from-env")
 	assert.NotContains(t, exported, "token-from-env")
+}
+
+// The example in docs/CONFIGURATION.md must stay a file Nimbus applies
+func TestDocumentedConfigFileApplies(t *testing.T) {
+	docs, err := os.ReadFile("../../../docs/CONFIGURATION.md")
+	require.NoError(t, err)
+	_, example, found := strings.Cut(string(docs), "```yaml\n# nimbus.yaml\n")
+	require.True(t, found, "the example is gone from the docs")
+	example, _, _ = strings.Cut(example, "```")
+
+	parsed, err := configfile.Parse([]byte(example), func(name string) (string, bool) { return "value-of-" + name, true })
+	require.NoError(t, err)
+	assert.Equal(t, "admin@example.com", parsed.Owner)
+
+	env := newTransferEnv(t)
+	summary, err := env.svc.Sync(context.Background(), transferFresh, &parsed.Document, true)
+	require.NoError(t, err)
+	assert.Equal(t, 2, summary.Integrations.Created)
+	assert.Equal(t, 2, summary.Services.Created)
+	assert.Equal(t, 2, summary.Widgets.Created)
+	assert.Zero(t, summary.NeedsCredentials+summary.NeedsSecrets)
 }
