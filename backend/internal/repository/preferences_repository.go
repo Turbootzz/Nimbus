@@ -22,7 +22,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 	preferences := &models.UserPreferences{}
 	query := `
 		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
-			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, status_strip, created_at, updated_at
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, group_display, status_strip, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -43,6 +43,7 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.CardOpacity,
 		&preferences.CardBlur,
 		&preferences.LayoutMode,
+		&preferences.GroupDisplay,
 		&preferences.StatusStrip,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
@@ -120,6 +121,7 @@ func upsertPreferences(ctx context.Context, db execer, userID string, p *models.
 	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
 	add("card_blur", p.CardBlur, p.CardBlur != nil)
 	add("layout_mode", p.LayoutMode, p.LayoutMode != nil)
+	add("group_display", p.GroupDisplay, p.GroupDisplay != nil)
 	if p.StatusStrip != nil {
 		add("status_strip", *p.StatusStrip, true)
 	}
