@@ -86,6 +86,16 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 // written: a new row gets the column defaults for the rest, an existing row
 // keeps them. One INSERT ... ON CONFLICT, so concurrent first saves can't race.
 func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *models.PreferencesUpdateRequest) error {
+	return upsertPreferences(ctx, r.db, userID, p)
+}
+
+// execer is satisfied by *sql.DB and *sql.Tx
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// upsertPreferences is Upsert on a connection or inside a transaction
+func upsertPreferences(ctx context.Context, db execer, userID string, p *models.PreferencesUpdateRequest) error {
 	columns := []string{"user_id"}
 	args := []any{userID}
 	// add writes a column when the request has it; pointers become NULL or
@@ -127,7 +137,7 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *mo
 		ON CONFLICT (user_id) DO UPDATE SET %s`,
 		strings.Join(columns, ", "), strings.Join(placeholders, ", "), strings.Join(updates, ", "))
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := db.ExecContext(ctx, query, args...)
 	return err
 }
 

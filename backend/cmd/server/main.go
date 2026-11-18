@@ -175,6 +175,21 @@ func main() {
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
 	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
 
+	// Dashboard export/import
+	transferService := services.NewDashboardTransferService(services.DashboardTransferDeps{
+		Dashboard:          repository.NewDashboardRepository(database),
+		Groups:             groupRepo,
+		Services:           serviceRepo,
+		Widgets:            widgetRepo,
+		Integrations:       integrationRepo,
+		Preferences:        preferencesRepo,
+		Users:              userRepo,
+		IntegrationService: integrationService,
+		Images:             handlers.NewUploadStore(preferencesRepo),
+	})
+	transferService.SetPoller(widgetPoller)
+	transferHandler := handlers.NewDashboardTransferHandler(transferService)
+
 	// Create fiber app
 	app := fiber.New(fiber.Config{
 		AppName:   "Nimbus API",
@@ -329,6 +344,12 @@ func main() {
 	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
 	dashboard.Get("/data", dashboardHandler.Data)
 	dashboard.Get("/stream", dashboardHandler.Stream)
+
+	// Dashboard export/import (session only, like the integrations it reads
+	// and replaces)
+	transferAuth := []fiber.Handler{middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth()}
+	v1.Get("/export", append(transferAuth, transferHandler.Export)...)
+	v1.Post("/import", append(transferAuth, transferHandler.Import)...)
 
 	// User preferences routes (protected)
 	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))

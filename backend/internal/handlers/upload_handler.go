@@ -57,13 +57,9 @@ func saveValidatedImage(src io.Reader, dir string, maxSize int64, allowedTypes s
 	if err != nil {
 		return "", fmt.Errorf("read image: %w", err)
 	}
-	if int64(len(data)) > maxSize {
-		return "", errImageTooLarge
-	}
-
-	detected := detectContentType(data)
-	if !isAllowedMimeType(detected, allowedTypes) {
-		return "", errImageInvalidType
+	detected, err := validateImage(data, maxSize, allowedTypes)
+	if err != nil {
+		return "", err
 	}
 
 	base, err := generateUniqueFilename()
@@ -77,6 +73,19 @@ func saveValidatedImage(src io.Reader, dir string, maxSize int64, allowedTypes s
 		return "", fmt.Errorf("write image: %w", err)
 	}
 	return filename, nil
+}
+
+// validateImage checks the size of an image and sniffs its content type from
+// the magic bytes, which it returns when it is one of allowedTypes
+func validateImage(data []byte, maxSize int64, allowedTypes string) (string, error) {
+	if int64(len(data)) > maxSize {
+		return "", errImageTooLarge
+	}
+	detected := detectContentType(data)
+	if !isAllowedMimeType(detected, allowedTypes) {
+		return "", errImageInvalidType
+	}
+	return detected, nil
 }
 
 // UploadServiceIcon handles service icon image uploads
