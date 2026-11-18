@@ -166,8 +166,11 @@ func TestSameService(t *testing.T) {
 	}{
 		{"https://app.lan/api", "https://APP.lan:443/v2", true},
 		{"http://app.lan/api", "http://app.lan:80/v2", true},
-		{"http://app.lan:5000/api", "https://app.lan:5001/api", true}, // upgrade
-		{"http://app.lan/api", "https://app.lan/api", true},
+		{"http://app.lan/api", "https://app.lan/api", true}, // standard upgrade
+		{"http://app.lan:80/api", "https://app.lan:443/api", true},
+		{"http://app.lan:5000/api", "https://app.lan:5001/api", false}, // another port can be another app
+		{"http://app.lan/api", "https://app.lan:8443/api", false},
+		{"http://app.lan:8080/api", "https://app.lan/api", false},
 		{"https://app.lan/api", "http://app.lan/api", false}, // downgrade
 		{"https://app.lan/api", "https://app.lan:8443/api", false},
 		{"http://app.lan:8080/api", "http://app.lan:9000/api", false},

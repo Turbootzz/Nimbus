@@ -93,16 +93,17 @@ var redirectSafeHeaders = map[string]bool{
 
 // sameService reports whether a redirect stays with the app the first
 // request went to: the same scheme, host and port, like curl and browsers
-// (another port can be another app), or an upgrade from http to https on
-// the same host, which always changes the port.
+// (another port can be another app), or the standard upgrade from http on
+// port 80 to https on port 443 of the same host.
 func sameService(first, next *url.URL) bool {
 	if !strings.EqualFold(next.Hostname(), first.Hostname()) {
 		return false
 	}
+	from, to := effectivePort(first), effectivePort(next)
 	if first.Scheme == "http" && next.Scheme == "https" {
-		return true
+		return from == "80" && to == "443"
 	}
-	return next.Scheme == first.Scheme && effectivePort(next) == effectivePort(first)
+	return next.Scheme == first.Scheme && to == from
 }
 
 func effectivePort(u *url.URL) string {
