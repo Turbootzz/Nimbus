@@ -90,8 +90,8 @@ export default function NotificationsPage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <div className="wallpaper-panel mb-8 flex items-center justify-between">
-        <div>
+      <div className="mb-8 flex items-center justify-between">
+        <div className="wallpaper-panel">
           <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Notifications</h1>
           <p className="text-text-secondary text-sm sm:text-base">
             Configure webhooks to receive alerts when services change status

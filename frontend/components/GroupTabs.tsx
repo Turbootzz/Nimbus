@@ -97,7 +97,7 @@ function SortableDroppableTab({
       className={`group relative flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 whitespace-nowrap transition-colors sm:px-4 ${
         isSelected
           ? 'bg-card border-card-border border-b-card border-t border-r border-l'
-          : 'bg-card-hover/50 hover:bg-card-hover wallpaper:glass-card'
+          : 'bg-card-hover/50 hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover'
       } ${showDropIndicator ? 'ring-primary ring-2' : ''} ${isDragging ? 'z-50' : ''} cursor-pointer`}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
@@ -208,7 +208,7 @@ export default function GroupTabs({
           <button
             type="button"
             onClick={onCreateGroup}
-            className="text-text-muted hover:text-primary hover:bg-card-hover wallpaper:glass-card mb-0 flex items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
+            className="text-text-muted hover:text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover mb-0 flex items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
             title="Add new group"
           >
             <PlusIcon className="h-4 w-4" />

@@ -89,8 +89,8 @@ export default function IntegrationsPage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <div className="wallpaper-panel mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
+      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="wallpaper-panel">
           <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Integrations</h1>
           <p className="text-text-secondary text-sm sm:text-base">
             Connect Nimbus to your apps. Link an integration to a service on its{' '}

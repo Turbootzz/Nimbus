@@ -119,7 +119,7 @@ export default function ApiTokensPage() {
       )}
 
       {createdToken && (
-        <div className="border-primary/40 bg-primary/5 wallpaper:glass-card mb-6 rounded-lg border p-4">
+        <div className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4">
           <p className="text-text-primary mb-2 text-sm font-semibold">
             Token created. You won&apos;t be able to see this token again — copy it now.
           </p>

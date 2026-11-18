@@ -196,8 +196,8 @@ export default function ServicesPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="wallpaper-panel mb-6 flex items-center justify-between">
-        <div>
+      <div className="mb-6 flex items-center justify-between">
+        <div className="wallpaper-panel">
           <h1 className="text-text-primary text-3xl font-bold">Services</h1>
           <p className="text-text-secondary mt-1">Manage your homelab services</p>
         </div>

@@ -84,7 +84,7 @@ export default function ServicesGrid({
           onEditService={onEditService}
         />
         {widgetCount > 0 && (
-          <p className="text-text-muted wallpaper-panel wallpaper:w-fit mt-3 text-xs">
+          <p className="text-text-muted wallpaper-panel mt-3 text-xs">
             {widgetCount} {widgetCount === 1 ? 'widget is' : 'widgets are'} only shown in grid view.
           </p>
         )}

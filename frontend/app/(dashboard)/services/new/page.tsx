@@ -49,9 +49,7 @@ function NewServiceContent() {
 
 export default function NewServicePage() {
   return (
-    <Suspense
-      fallback={<div className="text-text-secondary wallpaper-panel w-fit">Loading...</div>}
-    >
+    <Suspense fallback={<div className="text-text-secondary wallpaper-panel">Loading...</div>}>
       <NewServiceContent />
     </Suspense>
   )

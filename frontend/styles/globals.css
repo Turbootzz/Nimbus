@@ -9,6 +9,7 @@
   --color-primary-light: #e0f2fe; /* sky-100 */
   --color-card: #ffffff; /* white cards on gray background */
   --color-card-border: #e5e7eb; /* gray-200 */
+  --color-card-hover: #f3f4f6; /* gray-100 - hovered rows and buttons */
   --color-sidebar: #f9fafb; /* gray-50 */
   --color-sidebar-border: #e5e7eb; /* gray-200 */
   --color-text-primary: #0a0a0a;
@@ -27,6 +28,7 @@
   --dark-primary-light: #075985; /* sky-900 - darker bg */
   --dark-card: #18181b; /* zinc-900 */
   --dark-card-border: #27272a; /* zinc-800 */
+  --dark-card-hover: #27272a; /* zinc-800 */
   --dark-sidebar: #111113;
   --dark-sidebar-border: #27272a; /* zinc-800 */
   --dark-text-primary: #fafafa;
@@ -43,6 +45,7 @@ html.dark {
   --color-primary-light: var(--dark-primary-light);
   --color-card: var(--dark-card);
   --color-card-border: var(--dark-card-border);
+  --color-card-hover: var(--dark-card-hover);
   --color-sidebar: var(--dark-sidebar);
   --color-sidebar-border: var(--dark-sidebar-border);
   --color-text-primary: var(--dark-text-primary);
@@ -65,6 +68,7 @@ html.light {
     --color-primary-light: var(--dark-primary-light);
     --color-card: var(--dark-card);
     --color-card-border: var(--dark-card-border);
+    --color-card-hover: var(--dark-card-hover);
     --color-sidebar: var(--dark-sidebar);
     --color-sidebar-border: var(--dark-sidebar-border);
     --color-text-primary: var(--dark-text-primary);
@@ -82,6 +86,7 @@ html.light {
   --color-foreground: var(--color-foreground);
   --color-card: var(--color-card);
   --color-card-border: var(--color-card-border);
+  --color-card-hover: var(--color-card-hover);
   --color-sidebar: var(--color-sidebar);
   --color-sidebar-border: var(--color-sidebar-border);
   --color-text-primary: var(--color-text-primary);
@@ -134,15 +139,28 @@ body::before {
 /* Text and controls that sit straight on the page instead of on a card. A
    wallpaper can be any brightness, so with one (html[data-wallpaper], set by
    ThemeContext) they get the card surface; without one nothing changes.
-   Controls with their own shape use wallpaper:glass-card, bare text blocks
-   wallpaper-panel. Leaf elements only: a backdrop filter re-anchors fixed
-   children such as modals. */
+   The surface never goes below 80% opacity: unlike a card it only exists to
+   keep text readable, whatever card opacity the user picked.
+   Controls with their own shape use wallpaper-surface, bare text blocks
+   wallpaper-panel, which also pads and hugs the text. Leaf elements only: a
+   backdrop filter re-anchors fixed children such as modals. */
 @custom-variant wallpaper (html[data-wallpaper] &);
 
-@utility wallpaper-panel {
+@utility wallpaper-surface {
   html[data-wallpaper] & {
-    background-color: color-mix(in srgb, var(--color-card) var(--card-opacity, 100%), transparent);
+    background-color: color-mix(
+      in srgb,
+      var(--color-card) max(var(--card-opacity, 100%), 80%),
+      transparent
+    );
     backdrop-filter: var(--card-backdrop, none);
+  }
+}
+
+@utility wallpaper-panel {
+  @apply wallpaper-surface;
+  html[data-wallpaper] & {
+    width: fit-content;
     border-radius: 0.5rem;
     padding: 0.75rem 1rem;
   }
