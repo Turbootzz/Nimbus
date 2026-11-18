@@ -24,7 +24,7 @@ func Homepage(data []byte) (dashdoc.Document, []string, error) {
 	for _, group := range groups {
 		// A group is a map with one key: its name
 		for _, name := range sortedKeys(asMap(group)) {
-			b.homepageGroup(name, asMap(group)[name], 0)
+			b.homepageGroup(asString(name), asMap(group)[name], 0)
 		}
 	}
 	return b.result()
@@ -38,14 +38,14 @@ func (b *builder) homepageGroup(group string, entries any, depth int) {
 		for _, name := range sortedKeys(asMap(item)) {
 			switch value := asMap(item)[name].(type) {
 			case map[string]any:
-				b.homepageService(group, name, value)
+				b.homepageService(group, asString(name), value)
 			case []any:
 				// A bookmark is a list with one map; a nested group a list of
 				// services. Nimbus groups are flat, so it becomes its own group.
 				if len(value) > 0 && asString(asMap(value[0])["href"]) != "" {
-					b.homepageService(group, name, asMap(value[0]))
+					b.homepageService(group, asString(name), asMap(value[0]))
 				} else if depth < maxGroupDepth {
-					b.homepageGroup(name, value, depth+1)
+					b.homepageGroup(asString(name), value, depth+1)
 				}
 			default:
 				b.warn("%s: skipped, it has no settings", name)

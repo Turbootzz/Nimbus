@@ -41,7 +41,7 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 			group:       labels["homepage.group"],
 		}
 		if e.name == "" {
-			e.name = displayName(name)
+			e.name = displayName(asString(name))
 		}
 		if e.icon == "" {
 			if slug := imageSlug(asString(settings["image"])); slug != "" {

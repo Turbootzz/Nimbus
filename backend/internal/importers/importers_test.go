@@ -42,6 +42,10 @@ func convert(t *testing.T, name, format string) *Result {
 // assertImportable checks what the import would refuse an entity for
 func assertImportable(t *testing.T, doc *dashdoc.Document) {
 	t.Helper()
+	raw, err := json.Marshal(doc)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), `\u0000`, "control characters are refused")
+	assert.NotContains(t, string(raw), `\u0007`)
 	for _, group := range doc.Groups {
 		assert.NotEmpty(t, group.Name)
 		assert.LessOrEqual(t, len(group.Name), models.MaxGroupNameLen)

@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/nimbus/backend/internal/dashdoc"
 	"go.yaml.in/yaml/v3"
@@ -182,11 +183,17 @@ func asList(value any) []any {
 	return l
 }
 
-// asString returns a scalar as text; maps, lists and nil give ""
+// asString returns a scalar as text, without the control characters (NUL
+// and the like) an import refuses; maps, lists and nil give ""
 func asString(value any) string {
 	switch v := value.(type) {
 	case string:
-		return strings.TrimSpace(v)
+		return strings.TrimSpace(strings.Map(func(r rune) rune {
+			if unicode.IsControl(r) {
+				return -1
+			}
+			return r
+		}, v))
 	case nil, map[string]any, []any:
 		return ""
 	default:
