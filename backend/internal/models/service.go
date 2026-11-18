@@ -32,6 +32,12 @@ const (
 	DefaultIcon = "🔗"
 )
 
+// Column limits of services.name and services.icon, in characters
+const (
+	MaxServiceNameLen = 255
+	MaxServiceIconLen = 50
+)
+
 // IsValidWidgetCardSize checks a widget size: the service sizes plus 1x2
 func IsValidWidgetCardSize(size string) bool {
 	return size == CardSize1x2 || IsValidCardSize(size)

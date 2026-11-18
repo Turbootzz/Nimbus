@@ -244,6 +244,19 @@ func TestIntegrationService_AuthNoneStoresNoBlob(t *testing.T) {
 	assert.Nil(t, repo.blobs[integration.ID])
 }
 
+// Postgres refuses a lone surrogate escape in JSONB; Go reads it leniently
+func TestIntegrationService_OptionsAreStoredAsParsed(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+
+	integration, err := svc.Create(context.Background(), "user-1", false, &models.IntegrationRequest{
+		Kind: "svc-fake", Name: "Open", BaseURL: "http://10.0.0.5", AuthType: models.IntegrationAuthNone,
+		Options: json.RawMessage(`{"node": "pve", "bad": "\ud800"}`),
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"node":"pve","bad":"\ufffd"}`, string(integration.Options))
+	assert.NotContains(t, string(integration.Options), `\ud800`)
+}
+
 func TestIntegrationService_DefaultAuthTypeIsFirstOfKind(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	req := apiKeyRequest("http://10.0.0.5")

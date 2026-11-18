@@ -5,6 +5,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/utils"
@@ -67,6 +68,12 @@ func NewGroupFromRequest(req *models.GroupCreateRequest) (*models.Group, error) 
 func NewServiceFromRequest(req *models.ServiceCreateRequest) (*models.Service, error) {
 	if req.Name == "" || req.URL == "" {
 		return nil, invalid("Name and URL are required")
+	}
+	if utf8.RuneCountInString(req.Name) > models.MaxServiceNameLen {
+		return nil, invalid("Name must be %d characters or less", models.MaxServiceNameLen)
+	}
+	if utf8.RuneCountInString(req.Icon) > models.MaxServiceIconLen {
+		return nil, invalid("Icon must be %d characters or less", models.MaxServiceIconLen)
 	}
 
 	parsedURL, err := url.ParseRequestURI(req.URL)

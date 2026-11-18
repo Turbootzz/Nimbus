@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -393,6 +394,27 @@ func TestServiceHandler_CreateService(t *testing.T) {
 			requestBody: models.ServiceCreateRequest{
 				Name: "Test Service",
 				URL:  "not-a-valid-url",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:   "Name longer than the column",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			requestBody: models.ServiceCreateRequest{
+				Name: strings.Repeat("a", models.MaxServiceNameLen+1),
+				URL:  "https://example.com",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:   "Icon longer than the column",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			requestBody: models.ServiceCreateRequest{
+				Name: "Test Service",
+				URL:  "https://example.com",
+				Icon: strings.Repeat("a", models.MaxServiceIconLen+1),
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
