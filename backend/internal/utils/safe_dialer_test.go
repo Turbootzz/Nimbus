@@ -147,6 +147,8 @@ func TestDropCredentialsOnRedirect_HTTPSDowngrade(t *testing.T) {
 	first := httptest.NewRequest(http.MethodGet, "https://app.lan/api", nil)
 	upgrade := httptest.NewRequest(http.MethodGet, "http://app.lan/api", nil)
 	upgrade.Header.Set("X-API-Key", "secret")
+	upgrade.Header["x-odd-key"] = []string{"secret"} // set past canonical casing
+	upgrade.Header["accept"] = []string{"text/plain"}
 
 	// http to https on the same host keeps the key
 	next := httptest.NewRequest(http.MethodGet, "https://APP.lan:8443/api", nil)
@@ -156,5 +158,5 @@ func TestDropCredentialsOnRedirect_HTTPSDowngrade(t *testing.T) {
 
 	// https to http never does
 	require.NoError(t, dropCredentialsOnRedirect(upgrade, first))
-	assert.Empty(t, upgrade.Header.Get("X-API-Key"))
+	assert.Equal(t, http.Header{"accept": {"text/plain"}}, upgrade.Header)
 }

@@ -107,8 +107,9 @@ func dropCredentialsOnRedirect(req, first *http.Request) error {
 		return errors.New("refused a redirect that sends the request body to another host")
 	}
 	for name := range req.Header {
-		if !redirectSafeHeaders[name] {
-			req.Header.Del(name)
+		// Not Header.Del: a key set without canonical casing would stay
+		if !redirectSafeHeaders[http.CanonicalHeaderKey(name)] {
+			delete(req.Header, name)
 		}
 	}
 	return nil
