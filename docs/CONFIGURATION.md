@@ -21,6 +21,7 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
 - [API Tokens](#api-tokens)
 - [Prometheus Integration](#prometheus-integration)
 - [Dashboard Export and Import](#dashboard-export-and-import)
+- [Public Status Page](#public-status-page)
 - [Production Deployment](#production-deployment)
 
 ---
@@ -92,6 +93,12 @@ postgres://nimbus:password@localhost:5432/nimbus?sslmode=disable
 - *empty/unset* — Auto-detect based on browser location
 
 > **Note:** The unified image sets this automatically. Only configure manually for separate container deployments.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `INTERNAL_API_URL` | *see below* | Backend API URL for requests the frontend server makes itself (the public status page), including `/api/v1` |
+
+Without it the frontend server uses `NEXT_PUBLIC_API_URL` when that is a full URL, and otherwise `http://127.0.0.1:8080/api/v1`, which is right for the unified image. With separate containers, set it to an address the frontend container can reach, such as `http://backend:8080/api/v1`.
 
 **Production CORS example (separate containers only):**
 ```bash
@@ -513,6 +520,31 @@ on an entity that something points at. Unknown fields and any other `version` ar
 
 Only `version` is required at the top level; a file with just services is a valid import. For
 the limits: 100 groups, 500 services, 200 widgets and 50 integrations per file.
+## Public Status Page
+
+Nimbus can share the uptime of one group of services on a page that needs no account: `/status`. It is off by default, and while it is off both the page and its API answer `404`, like any address that does not exist.
+
+Turn it on under **Settings → Admin → Public status page**:
+
+| Setting | Description |
+|---------|-------------|
+| Enable the status page | Makes `/status` reachable for anyone who can reach your Nimbus |
+| Group to show | One of **your own** groups (groups are personal). Only services with monitoring on appear |
+| Title | Heading and browser title of the page; `Status` when empty |
+| Logo | Optional image next to the title (JPG, PNG, GIF or WEBP, up to 512 KB) |
+| Show links | Off by default. When on, each service name links to its URL and icons loaded from a URL are shown |
+
+What visitors can see is deliberately little: the title and logo, and per service its name, icon, current status and uptime over the last 24 hours and 7 days. Service URLs, descriptions, response times, error messages, integration data and everything outside the chosen group stay private. An icon that is loaded from a URL would give away where it lives, so without **Show links** such a service shows its emoji instead; uploaded icons are always shown.
+
+Good to know:
+
+- The bars come from the stored status logs: 24 bars of one hour and 28 bars of six hours. Grey means there were no checks in that period.
+- The page data is cached for 30 seconds and the page refreshes itself every minute. Saving the settings takes effect at once.
+- Each visitor address may make 300 requests per 15 minutes. Behind your own reverse proxy all visitors can share one address, and with it one limit.
+- Search engines are asked not to index the page (`noindex`).
+- The page turns itself off when the chosen group is deleted or its owner is no longer an admin.
+
+The data is also available as JSON at `GET /api/v1/public/status`.
 
 ---
 
