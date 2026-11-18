@@ -799,6 +799,110 @@ func TestServiceHandler_UpdateService_PreservesGroupID(t *testing.T) {
 	})
 }
 
+// A resize or a group move sends only its own field, so it cannot write back
+// a name or URL it read before an edit landed
+func TestServiceHandler_UpdateService_PartialBody(t *testing.T) {
+	db := setupTestDB(t)
+	defer db.Close()
+
+	serviceRepo := repository.NewServiceRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
+	handler := NewServiceHandler(serviceRepo, groupRepo, nil, nil)
+
+	userID := "cccccccc-cccc-cccc-cccc-ccccccccccc1"
+	groupID := "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+	serviceID := "11111111-1111-1111-1111-111111111111"
+
+	createGroupDirectly(t, db, &models.Group{
+		ID: groupID, UserID: userID, Name: "My Group", Color: "#3B82F6",
+		MonitoringEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	})
+	createServiceDirectly(t, db, &models.Service{
+		ID: serviceID, UserID: userID, Name: "Service", URL: "https://example.com",
+		Icon: "🔗", Description: "Media", Status: models.StatusUnknown,
+		CardSize: models.CardSize2x1, GroupID: &groupID,
+		CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	})
+
+	put := func(t *testing.T, body string) int {
+		t.Helper()
+		app := fiber.New()
+		app.Put("/services/:id", func(c *fiber.Ctx) error {
+			c.Locals("user_id", userID)
+			return handler.UpdateService(c)
+		})
+		req := httptest.NewRequest(http.MethodPut, "/services/"+serviceID, bytes.NewReader([]byte(body)))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		return resp.StatusCode
+	}
+	stored := func(t *testing.T) *models.Service {
+		t.Helper()
+		svc, err := serviceRepo.GetByID(context.Background(), serviceID)
+		if err != nil {
+			t.Fatalf("Failed to retrieve service: %v", err)
+		}
+		return svc
+	}
+
+	t.Run("card_size alone keeps every other field", func(t *testing.T) {
+		if status := put(t, `{"card_size":"2x2"}`); status != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", status)
+		}
+		svc := stored(t)
+		if svc.CardSize != models.CardSize2x2 {
+			t.Errorf("card_size = %q, want 2x2", svc.CardSize)
+		}
+		if svc.Name != "Service" || svc.URL != "https://example.com" || svc.Description != "Media" {
+			t.Errorf("fields changed: name %q, url %q, description %q", svc.Name, svc.URL, svc.Description)
+		}
+		if svc.GroupID == nil || *svc.GroupID != groupID {
+			t.Errorf("group_id changed: %v", svc.GroupID)
+		}
+	})
+
+	t.Run("a name or url sent empty is rejected", func(t *testing.T) {
+		for _, body := range []string{
+			`{"name":"","card_size":"1x1"}`,
+			`{"url":"","card_size":"1x1"}`,
+			`{"name":"","url":"https://example.com"}`,
+		} {
+			if status := put(t, body); status != http.StatusBadRequest {
+				t.Errorf("%s: expected 400, got %d", body, status)
+			}
+		}
+		if svc := stored(t); svc.Name != "Service" || svc.CardSize != models.CardSize2x2 {
+			t.Errorf("a rejected update changed the service: %q %q", svc.Name, svc.CardSize)
+		}
+	})
+
+	t.Run("group_id alone clears only the group", func(t *testing.T) {
+		if status := put(t, `{"group_id":""}`); status != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", status)
+		}
+		svc := stored(t)
+		if svc.GroupID != nil {
+			t.Errorf("group_id should be nil, got %q", *svc.GroupID)
+		}
+		if svc.Name != "Service" || svc.Description != "Media" || svc.CardSize != models.CardSize2x2 {
+			t.Errorf("fields changed: %q %q %q", svc.Name, svc.Description, svc.CardSize)
+		}
+	})
+
+	t.Run("a description sent empty is cleared", func(t *testing.T) {
+		body := `{"name":"Renamed","url":"https://example.com","description":""}`
+		if status := put(t, body); status != http.StatusOK {
+			t.Fatalf("Expected 200, got %d", status)
+		}
+		if svc := stored(t); svc.Name != "Renamed" || svc.Description != "" {
+			t.Errorf("name %q, description %q", svc.Name, svc.Description)
+		}
+	})
+}
+
 func TestServiceHandler_UpdateService_NoAuth(t *testing.T) {
 	db := setupTestDB(t)
 	defer db.Close()
