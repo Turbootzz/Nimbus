@@ -197,6 +197,13 @@ func main() {
 	app := fiber.New(fiber.Config{
 		AppName:   "Nimbus API",
 		BodyLimit: handlers.MaxRequestBodySize,
+		// In the Docker image nginx sits in front on the same host and sets
+		// X-Real-IP; believe that header from loopback only, so c.IP() is the
+		// client and nobody else can fake it
+		ProxyHeader:             "X-Real-IP",
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"127.0.0.1", "::1"},
+		EnableIPValidation:      true, // no header (local development): the peer address
 	})
 
 	// Middleware
