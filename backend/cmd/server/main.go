@@ -214,6 +214,8 @@ func main() {
 			Path: configFile.Path, Prune: configFile.Prune, ReadOnly: configFile.ReadOnly,
 		}, transferService, userRepo)
 		authHandler.SetConfigFile(configWatcher)
+		// Auto-add leaves a dashboard alone that the file would undo it on
+		discoveryService.SetManaged(configWatcher.OwnsServices)
 	}
 	// NIMBUS_CONFIG_READONLY: the owner can't edit what the file manages
 	lockDashboard := middleware.ConfigReadOnly(func(userID string) bool {
@@ -386,7 +388,7 @@ func main() {
 	// Discovery routes (admin only and session only, like the Docker integration they read)
 	discovery := v1.Group("/discovery", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
 	discovery.Get("/docker", discoveryHandler.DiscoverDocker)
-	discovery.Post("/docker/services", discoveryHandler.AddDiscovered)
+	discovery.Post("/docker/services", lockDashboard, discoveryHandler.AddDiscovered)
 	discovery.Post("/docker/ignored", discoveryHandler.IgnoreDiscovered)
 	discovery.Delete("/docker/ignored", discoveryHandler.UnignoreDiscovered)
 

@@ -117,6 +117,13 @@ func (w *Watcher) Locks(userID string) bool {
 	return w.opts.ReadOnly && w.Manages(userID)
 }
 
+// OwnsServices reports whether the file decides which services the user
+// has: when it is the whole dashboard (replace) or the dashboard is
+// read-only. Nothing else should add services there.
+func (w *Watcher) OwnsServices(userID string) bool {
+	return (w.opts.Prune || w.opts.ReadOnly) && w.Manages(userID)
+}
+
 // LocksPreferences reports whether the user's preferences are read-only:
 // when the file sets them, which only a replace does
 func (w *Watcher) LocksPreferences(userID string) bool {

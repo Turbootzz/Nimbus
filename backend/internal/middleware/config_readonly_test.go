@@ -7,6 +7,9 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -33,6 +36,7 @@ func TestConfigReadOnly(t *testing.T) {
 		{http.MethodDelete, "/widgets/1", "owner", http.StatusConflict},
 		{http.MethodPatch, "/integrations/1", "owner", http.StatusConflict},
 		{http.MethodPut, "/dashboard/reorder", "owner", http.StatusConflict},
+		{http.MethodPost, "/discovery/docker/services", "owner", http.StatusConflict},
 		{http.MethodPost, "/import?mode=replace", "owner", http.StatusConflict},
 		{http.MethodPost, "/import?mode=merge&dry_run=0", "owner", http.StatusConflict},
 		// Looking is fine
@@ -58,4 +62,33 @@ func TestConfigReadOnly(t *testing.T) {
 			assert.Contains(t, string(body), "NIMBUS_CONFIG_FILE")
 		}
 	}
+}
+
+// A write token of the owner is locked like the owner's session: the lock
+// goes by user, whatever the request authenticated with
+func TestConfigReadOnly_LocksTokenWrites(t *testing.T) {
+	setupTestEnv()
+	db := setupMiddlewareTestDB(t)
+	defer db.Close()
+	owner := createTestUser(t, db, "admin")
+	// A second user; createTestUser always uses the same email address
+	other := &models.User{ID: "22222222-2222-2222-2222-222222222222"}
+	_, err := db.Exec(`INSERT INTO users (id, email, name, role, created_at, updated_at) VALUES (?, 'other@example.com', 'Other', 'user', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, other.ID)
+	require.NoError(t, err)
+
+	app := fiber.New()
+	auth := AuthMiddleware(services.NewAuthService(), repository.NewUserRepository(db), repository.NewAPITokenRepository(db), models.ScopeReadServices)
+	app.Use(auth, ConfigReadOnly(func(userID string) bool { return userID == owner.ID }))
+	app.All("/services", func(c *fiber.Ctx) error { return c.SendString("ok") })
+
+	request := func(method string, user *models.User) int {
+		req := httptest.NewRequest(method, "/services", nil)
+		req.Header.Set("Authorization", "Bearer "+createTestAPIToken(t, db, user.ID, false))
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		return resp.StatusCode
+	}
+	assert.Equal(t, http.StatusOK, request(http.MethodGet, owner))
+	assert.Equal(t, http.StatusConflict, request(http.MethodPost, owner))
+	assert.Equal(t, http.StatusOK, request(http.MethodPost, other))
 }

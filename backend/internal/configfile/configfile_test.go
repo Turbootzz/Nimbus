@@ -256,6 +256,12 @@ func TestWatcherLocks(t *testing.T) {
 	w.Check(ctx)
 	assert.True(t, w.Manages("admin-1"))
 	assert.False(t, w.Locks("admin-1"), "not read-only")
+	assert.True(t, w.OwnsServices("admin-1"), "a replace removes what the file doesn't list")
+	assert.False(t, w.OwnsServices("user-2"))
+
+	w, _, _, _ = newTestWatcher(t, goodFile, Options{})
+	w.Check(ctx)
+	assert.False(t, w.OwnsServices("admin-1"), "a merge leaves other services alone")
 
 	w, _, _, _ = newTestWatcher(t, goodFile, Options{ReadOnly: true})
 	w.Check(ctx)
