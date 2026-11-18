@@ -364,9 +364,9 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 		webhook.RetryDelaySeconds = *req.RetryDelaySeconds
 	}
 
-	webhook.UpdatedAt = time.Now()
-
-	if err := h.webhookRepo.Update(c.Context(), webhook); err != nil {
+	// Only a request that changes the target writes it, see WebhookRepository.Update
+	targetChanged := req.Format != nil || req.URL != nil || req.Options != nil || req.VerifyTLS != nil || creds != nil
+	if err := h.webhookRepo.Update(c.Context(), webhook, targetChanged, creds != nil); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update webhook",
 		})
