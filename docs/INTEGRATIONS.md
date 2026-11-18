@@ -128,7 +128,7 @@ The icon is the dashboard-icons image named after the image, without registry, o
 
 - Discovery sends one request per Docker integration: the container list (`GET /containers/json`). It never opens the addresses or icons it finds.
 - Labels often hold secrets (reverse-proxy passwords, tokens). Nimbus reads only the labels in the table above and returns nothing else, not in this API and not in the Docker containers widget.
-- Whoever can start containers can set labels. Addresses and icon URLs other than `http://` and `https://` are dropped, and label text is shown as plain text. Still, with auto-add on, anyone who can start a container on that host can put a link on your dashboard. Like every service, an added container is health-checked: the Nimbus server sends a `GET` to its address every interval (it does not follow redirects and keeps only the status and response time). Leave auto-add off if people you don't trust with that can start containers.
+- Whoever can start containers can set labels. Addresses and icon URLs other than `http://` and `https://` are dropped, and label text is shown as plain text. Still, with auto-add on, anyone who can start a container on that host can put a link on your dashboard. Like every service, an added container is health-checked: the Nimbus server sends a `GET` to its address every interval (it does not follow redirects and keeps only the status and response time). Addresses in your own network are allowed, as for any service; cloud metadata addresses (such as `169.254.169.254`) are refused, both as a service address and by the health checker when a name resolves to one. One run adds at most 20 containers. Leave auto-add off if people you don't trust with that can start containers: that is usually only whoever controls the Docker host, but a socket proxy or Portainer can give label rights to more people.
 - Prefer a [socket proxy](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` over mounting the socket. If you mount it, mount it `:ro` and read [Docker socket](CONFIGURATION.md#docker-socket): `:ro` alone does not make the Docker API read-only.
 
 ```yaml
@@ -150,7 +150,7 @@ All routes need an admin's session; API tokens are refused.
 
 | Route | Does |
 |-------|------|
-| `GET /api/v1/discovery/docker` | Lists the containers that are not a service yet, with `ignored` set on the ignored ones, and an `errors` entry per integration that failed. |
+| `GET /api/v1/discovery/docker` | Lists the containers that are not a service yet, with `ignored` set on the ignored ones, and an `errors` entry per integration that failed. Docker's answer is reused for 30 seconds; `?refresh=true` asks again. |
 | `POST /api/v1/discovery/docker/services` | Adds one: `{"key", "name", "url", "icon_url", "group", "description"}`. `409` when it was added or ignored already. |
 | `POST /api/v1/discovery/docker/ignored` | Ignores `{"key"}`. |
 | `DELETE /api/v1/discovery/docker/ignored?key=` | Un-ignores. |

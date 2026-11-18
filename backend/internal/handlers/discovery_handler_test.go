@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
@@ -306,6 +307,8 @@ func TestDiscoveryHandler_UnixSocketGuessUsesRequestHost(t *testing.T) {
 		"evil.lan/path":     "",
 		"evil.lan?x=1":      "",
 		"user@evil.lan":     "",
+		"evil<lan":          "",
+		`evil"lan`:          "",
 	} {
 		assert.Equal(t, want, hostName(host), host)
 	}
@@ -453,6 +456,7 @@ func TestDiscoveryHandler_AddValidates(t *testing.T) {
 		"javascript url":           func(r *models.DiscoveryAddRequest) { r.URL = "javascript:alert(1)" },
 		"javascript url with host": func(r *models.DiscoveryAddRequest) { r.URL = "javascript://web.lan/%0aalert(1)" },
 		"file url":                 func(r *models.DiscoveryAddRequest) { r.URL = "file:///etc/passwd" },
+		"cloud metadata url":       func(r *models.DiscoveryAddRequest) { r.URL = "http://169.254.169.254/latest/meta-data/" },
 		"no host":                  func(r *models.DiscoveryAddRequest) { r.URL = "http://" },
 		"data icon":                func(r *models.DiscoveryAddRequest) { r.IconURL = "data:image/svg+xml,<svg/>" },
 		"long group":               func(r *models.DiscoveryAddRequest) { r.Group = strings.Repeat("g", 36) },
@@ -630,4 +634,111 @@ func TestSettingsHandler_DiscoveryAutoAddIsBoolean(t *testing.T) {
 	enabled, err := newDiscoveryFixture(t, db).service.AutoAddEnabled(context.Background())
 	require.NoError(t, err)
 	assert.True(t, enabled)
+}
+
+// The container list is reused for a moment, so the dashboard pill does not
+// ask Docker on every page load; Refresh asks again
+func TestDiscoveryHandler_CachesTheContainerList(t *testing.T) {
+	f := newDiscoveryFixture(t, setupDiscoveryDB(t))
+	docker, requests := fakeDocker(t, discoveryContainers)
+	integration := f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	app := f.app(discoveryAdminID, "admin")
+
+	first := discover(t, app)
+	status, body := discoveryRequest(t, app, http.MethodPost, "/discovery/docker/ignored", keyBody(integration.ID+"/web"))
+	require.Equal(t, fiber.StatusNoContent, status, body)
+	second := discover(t, app)
+	assert.Equal(t, 1, *requests, "Docker is asked once")
+	assert.Len(t, second.Containers, len(first.Containers))
+	assert.Equal(t, []string{"web"}, containerNames(second, true), "added and ignored state is never cached")
+
+	status, body = discoveryRequest(t, app, http.MethodGet, "/discovery/docker?refresh=true", "")
+	require.Equal(t, fiber.StatusOK, status, body)
+	assert.Equal(t, 2, *requests)
+}
+
+// A label can't point the health checker at a cloud metadata endpoint
+func TestDiscoveryService_DropsMetadataURLLabel(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, `[{"Id":"1","Names":["/meta"],"Image":"x","State":"running",
+		"Labels":{"nimbus.enable":"true","nimbus.url":"http://169.254.169.254/latest/meta-data/"}}]`)
+	f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	_, err := db.Exec(`UPDATE system_settings SET value = 'true' WHERE key = 'discovery_auto_add'`)
+	require.NoError(t, err)
+
+	result := discover(t, f.app(discoveryAdminID, "admin"))
+	require.Len(t, result.Containers, 1)
+	assert.Empty(t, result.Containers[0].URL)
+
+	added, err := f.service.AutoAdd(context.Background())
+	require.NoError(t, err)
+	assert.Zero(t, added)
+}
+
+// When the service can't be created the claim is given back: the container
+// must not end up hidden as "ignored"
+func TestDiscoveryHandler_FailedAddReleasesTheContainer(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, discoveryContainers)
+	integration := f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	_, err := db.Exec(`CREATE TRIGGER services_fail BEFORE INSERT ON services BEGIN SELECT RAISE(ABORT, 'boom'); END`)
+	require.NoError(t, err)
+
+	_, err = f.service.Add(context.Background(), discoveryAdminID, &models.DiscoveryAddRequest{
+		Key: integration.ID + "/web", Name: "Web", URL: "http://web.lan",
+	})
+	require.Error(t, err)
+	var claims int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM discovered_containers`).Scan(&claims))
+	assert.Zero(t, claims)
+}
+
+// Adds running at once (two clicks, or a click during an auto-add run) share
+// one new group instead of each creating it
+func TestDiscoveryService_ConcurrentAddsCreateOneGroup(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, discoveryContainers)
+	integration := f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+
+	var wg sync.WaitGroup
+	for i := range 8 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, err := f.service.Add(context.Background(), discoveryAdminID, &models.DiscoveryAddRequest{
+				Key: fmt.Sprintf("%s/app%d", integration.ID, i), Name: "App", URL: "http://app.lan", Group: "Media",
+			})
+			assert.NoError(t, err)
+		}()
+	}
+	wg.Wait()
+	var groups, linked int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM groups`).Scan(&groups))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM discovered_containers WHERE service_id IS NOT NULL`).Scan(&linked))
+	assert.Equal(t, 1, groups)
+	assert.Equal(t, 8, linked)
+}
+
+// One run adds a bounded number of containers; the rest follow on later runs
+func TestDiscoveryService_AutoAddIsBoundedPerRun(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	containers := []string{}
+	for i := range 25 {
+		containers = append(containers, fmt.Sprintf(
+			`{"Id":"%d","Names":["/app%d"],"Image":"x","State":"running","Labels":{"nimbus.enable":"true","nimbus.url":"http://app%d.lan"}}`, i, i, i))
+	}
+	docker, _ := fakeDocker(t, "["+strings.Join(containers, ",")+"]")
+	f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	_, err := db.Exec(`UPDATE system_settings SET value = 'true' WHERE key = 'discovery_auto_add'`)
+	require.NoError(t, err)
+
+	for _, want := range []int{20, 5, 0} {
+		added, err := f.service.AutoAdd(context.Background())
+		require.NoError(t, err)
+		assert.Equal(t, want, added)
+	}
 }

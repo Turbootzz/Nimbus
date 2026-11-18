@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -28,6 +29,11 @@ const (
 	discoveredNameMax        = 255
 	discoveredDescriptionMax = 500
 	discoveredURLMax         = 2048
+	// How long a Docker integration's container list is reused, so the
+	// dashboard pill does not ask Docker on every page load
+	containerCacheTTL = 30 * time.Second
+	// Most containers one auto-add run adds; the rest follow on later runs
+	autoAddMaxPerRun = 20
 )
 
 // ErrDiscoveryHandled means the container was added or ignored already
@@ -47,6 +53,21 @@ type DiscoveryService struct {
 	settings     *repository.SettingsRepository
 	// iconBase is the dashboard-icons URL; empty leaves icons out
 	iconBase string
+
+	// ponytail: in-process locks, Nimbus runs as one process. groupMu keeps
+	// two adds from creating the same group twice (group names have no unique
+	// index); use a database lock if Nimbus ever runs as several instances.
+	groupMu sync.Mutex
+	cacheMu sync.Mutex
+	cache   map[string]cachedContainers
+}
+
+// cachedContainers is one Docker integration's answer, error included: an
+// unreachable host is not asked again on every page load either
+type cachedContainers struct {
+	containers []integrations.DiscoveredContainer
+	err        error
+	at         time.Time
 }
 
 func NewDiscoveryService(
@@ -64,6 +85,7 @@ func NewDiscoveryService(
 		groups:       groupRepo,
 		settings:     settingsRepo,
 		iconBase:     iconBase,
+		cache:        map[string]cachedContainers{},
 	}
 }
 
@@ -71,7 +93,8 @@ func NewDiscoveryService(
 // are not a service yet; ignored ones are included and marked. A failing
 // integration is reported without hiding the others. socketHost is the host
 // Nimbus was reached on, the best guess for containers behind a unix socket.
-func (s *DiscoveryService) Discover(ctx context.Context, userID, socketHost string) (*models.DiscoveryResult, error) {
+// refresh asks Docker again instead of reusing a recent answer.
+func (s *DiscoveryService) Discover(ctx context.Context, userID, socketHost string, refresh bool) (*models.DiscoveryResult, error) {
 	all, err := s.integrations.List(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -88,7 +111,7 @@ func (s *DiscoveryService) Discover(ctx context.Context, userID, socketHost stri
 			continue
 		}
 		result.Integrations++
-		containers, err := s.containers(ctx, integration)
+		containers, err := s.containers(ctx, integration, refresh)
 		if err != nil {
 			result.Errors = append(result.Errors, models.DiscoveryError{
 				IntegrationID: integration.ID, IntegrationName: integration.Name, Error: err.Error(),
@@ -122,8 +145,30 @@ func (s *DiscoveryService) Discover(ctx context.Context, userID, socketHost stri
 	return result, nil
 }
 
-// containers asks one Docker integration for its containers. Errors are redacted.
-func (s *DiscoveryService) containers(ctx context.Context, integration *models.Integration) ([]integrations.DiscoveredContainer, error) {
+// containers returns one Docker integration's containers, from the cache
+// unless fresh is set or the answer is older than containerCacheTTL
+func (s *DiscoveryService) containers(ctx context.Context, integration *models.Integration, fresh bool) ([]integrations.DiscoveredContainer, error) {
+	// The address is part of the key, so an edited integration is asked anew.
+	// ponytail: entries of deleted integrations stay until restart (one small
+	// list each); sweep them if that ever matters.
+	key := integration.ID + " " + integration.BaseURL
+	s.cacheMu.Lock()
+	cached, ok := s.cache[key]
+	s.cacheMu.Unlock()
+	if ok && !fresh && time.Since(cached.at) < containerCacheTTL {
+		return cached.containers, cached.err
+	}
+	containers, err := s.fetchContainers(ctx, integration)
+	if ctx.Err() == nil { // a cancelled request says nothing about Docker
+		s.cacheMu.Lock()
+		s.cache[key] = cachedContainers{containers: containers, err: err, at: time.Now()}
+		s.cacheMu.Unlock()
+	}
+	return containers, err
+}
+
+// fetchContainers asks one Docker integration for its containers. Errors are redacted.
+func (s *DiscoveryService) fetchContainers(ctx context.Context, integration *models.Integration) ([]integrations.DiscoveredContainer, error) {
 	conn, err := s.integrations.Conn(ctx, integration)
 	if err != nil {
 		return nil, err
@@ -157,9 +202,8 @@ func (s *DiscoveryService) candidate(integration *models.Integration, container 
 	}
 	if validServiceURL(labels.URL) {
 		candidate.URL = labels.URL
-	} else {
-		candidate.URL = guessURL(integration.BaseURL, socketHost, container.Port)
-		candidate.URLGuessed = candidate.URL != ""
+	} else if guess := guessURL(integration.BaseURL, socketHost, container.Port); validServiceURL(guess) {
+		candidate.URL, candidate.URLGuessed = guess, true
 	}
 	if impl, ok := integrations.Get(labels.Widget); ok && candidate.URL != "" {
 		candidate.Integration = &models.DiscoveredIntegration{Kind: labels.Widget, Name: impl.Meta().Name, BaseURL: candidate.URL}
@@ -180,10 +224,11 @@ func (s *DiscoveryService) iconURL(icon, image string) string {
 	return s.iconBase + "/" + slug + ".svg"
 }
 
-// validServiceURL allows only http(s) URLs with a host: labels come from
-// whoever can start containers, and the URL ends up as a link
+// validServiceURL allows only http(s) URLs with a host that is no cloud
+// metadata endpoint: labels come from whoever can start containers, and the
+// URL ends up as a link and as a health check target
 func validServiceURL(rawURL string) bool {
-	return len(rawURL) <= discoveredURLMax && utils.ValidateIconURL(rawURL) == nil
+	return len(rawURL) <= discoveredURLMax && utils.ValidateServiceURL(rawURL) == nil
 }
 
 // guessURL builds a URL from a published port, "" without one. The host is
@@ -270,14 +315,19 @@ func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.D
 		return nil, ErrDiscoveryHandled
 	}
 	service, err := s.createService(ctx, userID, name, serviceURL, iconURL, group, req.Description)
+	// The claim is settled even when the request or the worker was cancelled
+	// meanwhile: a claim left behind would hide the container as ignored
+	settle := context.WithoutCancel(ctx)
 	if err != nil {
-		if releaseErr := s.repo.Release(ctx, userID, req.Key); releaseErr != nil {
+		if releaseErr := s.repo.Release(settle, userID, req.Key); releaseErr != nil {
 			log.Printf("discovery: %v", releaseErr)
 		}
 		return nil, err
 	}
-	if err := s.repo.SetService(ctx, userID, req.Key, service.ID); err != nil {
-		return nil, err
+	if err := s.repo.SetService(settle, userID, req.Key, service.ID); err != nil {
+		// The service exists and the claim keeps the container from being
+		// offered again; only the link between the two is missing
+		log.Printf("discovery: %v", err)
 	}
 	return service, nil
 }
@@ -317,6 +367,8 @@ func (s *DiscoveryService) groupID(ctx context.Context, userID, name string) (*s
 	if name == "" {
 		return nil, nil
 	}
+	s.groupMu.Lock()
+	defer s.groupMu.Unlock()
 	groups, err := s.groups.GetAllByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groups: %w", err)
@@ -363,7 +415,8 @@ func (s *DiscoveryService) AutoAddEnabled(ctx context.Context) (bool, error) {
 // AutoAdd adds every container labelled nimbus.enable=true that has a URL
 // label, for each admin's Docker integrations, when the admin setting is on.
 // It never adds a guessed URL, an ignored container, or one it added before
-// (also not after that service was deleted). Returns how many were added.
+// (also not after that service was deleted). Returns how many were added,
+// at most autoAddMaxPerRun.
 func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 	enabled, err := s.AutoAddEnabled(ctx)
 	if err != nil || !enabled {
@@ -385,12 +438,15 @@ func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 			}
 			handledByUser[integration.UserID] = handled
 		}
-		containers, err := s.containers(ctx, integration)
+		containers, err := s.containers(ctx, integration, true)
 		if err != nil {
 			log.Printf("discovery: integration %s: %v", integration.ID, err)
 			continue
 		}
 		for _, container := range containers {
+			if added >= autoAddMaxPerRun || ctx.Err() != nil {
+				return added, ctx.Err()
+			}
 			candidate := s.candidate(integration, container, "")
 			if _, isHandled := handled[candidate.Key]; isHandled || !candidate.Enabled || candidate.URLGuessed || candidate.URL == "" {
 				continue

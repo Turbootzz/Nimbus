@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"errors"
+	"net"
 	"net/url"
+	"regexp"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
@@ -39,18 +41,27 @@ func hostName(host string) string {
 	if err != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
 		return ""
 	}
-	return parsed.Hostname()
+	name := parsed.Hostname()
+	if net.ParseIP(name) == nil && !hostNamePattern.MatchString(name) {
+		return ""
+	}
+	return name
 }
 
+// Letters, digits, dots, hyphens and underscores: nothing that means
+// something in a URL or in HTML
+var hostNamePattern = regexp.MustCompile(`^[a-zA-Z0-9._-]{1,253}$`)
+
 // DiscoverDocker lists the containers of the admin's Docker integrations
-// that are not a service yet
+// that are not a service yet. ?refresh=true asks Docker again instead of
+// reusing a recent answer.
 func (h *DiscoveryHandler) DiscoverDocker(c *fiber.Ctx) error {
 	userID, err := requireAdmin(c)
 	if err != nil {
 		return err
 	}
 	// UserContext: outgoing requests must not hold on to fasthttp's recycled RequestCtx
-	result, err := h.service.Discover(c.UserContext(), userID, hostName(c.Hostname()))
+	result, err := h.service.Discover(c.UserContext(), userID, hostName(c.Hostname()), c.QueryBool("refresh"))
 	if err != nil {
 		return discoveryError(c, err, "discover containers")
 	}
