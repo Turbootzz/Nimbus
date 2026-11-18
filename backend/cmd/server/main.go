@@ -161,6 +161,7 @@ func main() {
 	authHandler := handlers.NewAuthHandler(userRepo, authService, settingsRepo, preferencesRepo)
 	oauthHandler := handlers.NewOAuthHandler(oauthService, authService, userRepo, settingsRepo)
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService, integrationRepo)
+	serviceHandler.SetPreferences(preferencesRepo)
 	serviceHandler.SetPoller(widgetPoller)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	preferencesHandler.SetPoller(widgetPoller)

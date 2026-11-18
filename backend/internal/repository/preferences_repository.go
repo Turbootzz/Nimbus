@@ -22,7 +22,8 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 	preferences := &models.UserPreferences{}
 	query := `
 		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
-			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, group_display, status_strip, created_at, updated_at
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, group_display, status_strip,
+			theme_preset, theme_font, kpi_mono, icon_source, custom_css, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -45,6 +46,11 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.LayoutMode,
 		&preferences.GroupDisplay,
 		&preferences.StatusStrip,
+		&preferences.ThemePreset,
+		&preferences.ThemeFont,
+		&preferences.KpiMono,
+		&preferences.IconSource,
+		&preferences.CustomCSS,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -126,6 +132,11 @@ func upsertPreferences(ctx context.Context, db execer, userID string, p *models.
 	if p.StatusStrip != nil {
 		add("status_strip", *p.StatusStrip, true)
 	}
+	add("theme_preset", p.ThemePreset, p.ThemePreset != nil)
+	add("theme_font", p.ThemeFont, p.ThemeFont != nil)
+	add("kpi_mono", p.KpiMono, p.KpiMono != nil)
+	add("icon_source", p.IconSource, p.IconSource != nil)
+	add("custom_css", p.CustomCSS, p.CustomCSS != nil)
 
 	placeholders := make([]string, len(columns))
 	updates := []string{"updated_at = CURRENT_TIMESTAMP"}

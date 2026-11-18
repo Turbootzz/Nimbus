@@ -92,6 +92,13 @@ func (s *StatusStrip) Scan(src any) error {
 	return nil
 }
 
+// The values a new user starts with; same as the column defaults
+const (
+	DefaultThemePreset = "default"
+	DefaultThemeFont   = "default"
+	DefaultIconSource  = "dashboard-icons-svg"
+)
+
 // UserPreferences represents a user's theme and UI preferences
 type UserPreferences struct {
 	ID                    string      `json:"id" db:"id"`
@@ -111,6 +118,11 @@ type UserPreferences struct {
 	LayoutMode            string      `json:"layout_mode" db:"layout_mode"`       // "classic" or "canvas"
 	GroupDisplay          *string     `json:"group_display" db:"group_display"`   // "tabs" or "sections"; nil follows the layout
 	StatusStrip           StatusStrip `json:"status_strip" db:"status_strip"`
+	ThemePreset           string      `json:"theme_preset" db:"theme_preset"` // see PreferencesUpdateRequest
+	ThemeFont             string      `json:"theme_font" db:"theme_font"`
+	KpiMono               bool        `json:"kpi_mono" db:"kpi_mono"`       // monospace KPI labels
+	IconSource            string      `json:"icon_source" db:"icon_source"` // where auto-fetch looks for icons
+	CustomCSS             string      `json:"custom_css" db:"custom_css"`   // passed utils.ValidateCustomCSS
 	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
 }
@@ -135,6 +147,13 @@ type PreferencesUpdateRequest struct {
 	// dashboard import only, never read from a request.
 	FollowLayout bool         `json:"-"`
 	StatusStrip  *StatusStrip `json:"status_strip"`
+	// The presets and fonts are those of the frontend (lib/theme-presets.ts)
+	ThemePreset *string `json:"theme_preset" validate:"omitempty,oneof=default catppuccin-mocha catppuccin-latte nord dracula gruvbox-dark gruvbox-light tokyo-night"`
+	ThemeFont   *string `json:"theme_font" validate:"omitempty,oneof=default system inter jetbrains-mono"`
+	KpiMono     *bool   `json:"kpi_mono"`
+	IconSource  *string `json:"icon_source" validate:"omitempty,oneof=dashboard-icons-svg dashboard-icons-png dashboard-icons-webp selfhst"`
+	// Checked with utils.ValidateCustomCSS by the handler; "" clears it
+	CustomCSS *string `json:"custom_css"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -154,6 +173,11 @@ type PreferencesResponse struct {
 	LayoutMode            string      `json:"layout_mode"`
 	GroupDisplay          *string     `json:"group_display"` // null: tabs in classic, sections in canvas
 	StatusStrip           StatusStrip `json:"status_strip"`
+	ThemePreset           string      `json:"theme_preset"`
+	ThemeFont             string      `json:"theme_font"`
+	KpiMono               bool        `json:"kpi_mono"`
+	IconSource            string      `json:"icon_source"`
+	CustomCSS             string      `json:"custom_css"`
 	UpdatedAt             time.Time   `json:"updated_at"`
 }
 
@@ -175,6 +199,11 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		LayoutMode:            p.LayoutMode,
 		GroupDisplay:          p.GroupDisplay,
 		StatusStrip:           p.StatusStrip,
+		ThemePreset:           p.ThemePreset,
+		ThemeFont:             p.ThemeFont,
+		KpiMono:               p.KpiMono,
+		IconSource:            p.IconSource,
+		CustomCSS:             p.CustomCSS,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }

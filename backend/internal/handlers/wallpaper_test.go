@@ -56,6 +56,11 @@ func setupPreferencesApp(t *testing.T) (*fiber.App, *sql.DB) {
 		layout_mode TEXT NOT NULL DEFAULT 'canvas',
 		group_display TEXT,
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
+		theme_preset TEXT NOT NULL DEFAULT 'default',
+		theme_font TEXT NOT NULL DEFAULT 'default',
+		kpi_mono BOOLEAN NOT NULL DEFAULT 0,
+		icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
+		custom_css TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)

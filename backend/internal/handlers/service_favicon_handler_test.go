@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -232,7 +233,7 @@ func TestBuildIconCandidates_TriesSlugVariants(t *testing.T) {
 	pinDefaultIconsBase(t)
 	// "My Plex Server" → full slug fails (no such file), then we should also
 	// have tried each token so "plex" can win.
-	got := buildIconCandidates(context.Background(), "My Plex Server", nil)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "My Plex Server", nil)
 	require.NotEmpty(t, got)
 
 	urls := make([]string, len(got))
@@ -253,7 +254,7 @@ func TestBuildIconCandidates_SingleTokenNameProducesOneCandidate(t *testing.T) {
 	pinDefaultIconsBase(t)
 	// Single-token name: the per-token slug equals the full slug, so dedup
 	// should leave us with exactly one curated candidate.
-	got := buildIconCandidates(context.Background(), "Plex", nil)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "Plex", nil)
 	require.Len(t, got, 1)
 	assert.Equal(t,
 		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
@@ -264,7 +265,7 @@ func TestBuildIconCandidates_SingleTokenNameProducesOneCandidate(t *testing.T) {
 func TestBuildIconCandidates_EnvOverrideBaseURL(t *testing.T) {
 	t.Setenv("DASHBOARD_ICONS_BASE_URL", "https://icons.mirror.example.com/svg/")
 
-	got := buildIconCandidates(context.Background(), "Plex", nil)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "Plex", nil)
 	require.Len(t, got, 1)
 	// Trailing slash in env should be stripped; result is well-formed.
 	assert.Equal(t, "https://icons.mirror.example.com/svg/plex.svg", got[0].String())
@@ -275,12 +276,12 @@ func TestBuildIconCandidates_EmptyEnvDisablesCuratedLookup(t *testing.T) {
 
 	// With a name but no URL, the result should be empty (curated lookup off,
 	// no origin to fall back to).
-	got := buildIconCandidates(context.Background(), "Plex", nil)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "Plex", nil)
 	assert.Empty(t, got, "empty env var must disable curated lookup")
 
 	// With a URL, only origin candidates remain — no dashboard-icons URLs.
 	pageURL, _ := url.Parse("https://example.com")
-	got = buildIconCandidates(context.Background(), "Plex", pageURL)
+	got = buildIconCandidates(context.Background(), models.DefaultIconSource, "Plex", pageURL)
 	for _, c := range got {
 		assert.NotContains(t, c.String(), "dashboard-icons",
 			"curated lookup must stay off when env is empty")
@@ -290,7 +291,7 @@ func TestBuildIconCandidates_EmptyEnvDisablesCuratedLookup(t *testing.T) {
 func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
 	pinDefaultIconsBase(t)
 	pageURL, _ := url.Parse("https://example.com")
-	got := buildIconCandidates(context.Background(), "Plex", pageURL)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "Plex", pageURL)
 	require.NotEmpty(t, got)
 	assert.Equal(t,
 		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
@@ -304,7 +305,7 @@ func TestBuildIconCandidates_NameFirstThenURL(t *testing.T) {
 
 func TestBuildIconCandidates_NameOnly_NoURLFallbacks(t *testing.T) {
 	pinDefaultIconsBase(t)
-	got := buildIconCandidates(context.Background(), "Sonarr", nil)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "Sonarr", nil)
 	require.Len(t, got, 1, "with no URL there should be only the curated lookup")
 	assert.Equal(t,
 		"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg",
@@ -314,7 +315,7 @@ func TestBuildIconCandidates_NameOnly_NoURLFallbacks(t *testing.T) {
 
 func TestBuildIconCandidates_BlankNameSkipsCuratedLookup(t *testing.T) {
 	pageURL, _ := url.Parse("https://example.com")
-	got := buildIconCandidates(context.Background(), "   ", pageURL)
+	got := buildIconCandidates(context.Background(), models.DefaultIconSource, "   ", pageURL)
 	require.NotEmpty(t, got)
 	// No dashboard-icons URL should appear; everything is origin-derived.
 	for _, c := range got {
@@ -663,4 +664,33 @@ func TestIsIconRel(t *testing.T) {
 	for rel, want := range cases {
 		assert.Equal(t, want, isIconRel(rel), "rel=%q", rel)
 	}
+}
+
+func TestBuildIconCandidates_IconSource(t *testing.T) {
+	// Registers the restore, then removes the variable for this test
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "")
+	require.NoError(t, os.Unsetenv("DASHBOARD_ICONS_BASE_URL"))
+
+	tests := map[string]string{
+		"dashboard-icons-svg":  "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
+		"dashboard-icons-png":  "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/plex.png",
+		"dashboard-icons-webp": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp/plex.webp",
+		"selfhst":              "https://cdn.jsdelivr.net/gh/selfhst/icons/svg/plex.svg",
+		"https://evil.example": "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/plex.svg",
+	}
+	for source, want := range tests {
+		got := buildIconCandidates(context.Background(), source, "Plex", nil)
+		require.Len(t, got, 1, source)
+		assert.Equal(t, want, got[0].String(), source)
+	}
+}
+
+func TestBuildIconCandidates_EnvWinsOverIconSource(t *testing.T) {
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "https://icons.mirror.example.com/svg")
+	got := buildIconCandidates(context.Background(), "selfhst", "Plex", nil)
+	require.Len(t, got, 1)
+	assert.Equal(t, "https://icons.mirror.example.com/svg/plex.svg", got[0].String())
+
+	t.Setenv("DASHBOARD_ICONS_BASE_URL", "")
+	assert.Empty(t, buildIconCandidates(context.Background(), "dashboard-icons-png", "Plex", nil))
 }
