@@ -56,7 +56,7 @@ import type {
   DiscoveryAddRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
-import { clearApiCache } from '@/lib/pwa'
+import { bindApiCacheTo, clearApiCache } from '@/lib/pwa'
 
 const getApiUrl = (): string | undefined => {
   const defaultPort = '8080'
@@ -222,7 +222,10 @@ class ApiClient {
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request<User>('/auth/me')
+    const response = await this.request<User>('/auth/me')
+    // The offline copy belongs to this user only
+    if (response.data?.id) await bindApiCacheTo(response.data.id)
+    return response
   }
 
   async forgotPassword(data: ForgotPasswordRequest): Promise<ApiResponse<{ message: string }>> {

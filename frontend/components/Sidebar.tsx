@@ -53,24 +53,9 @@ export default function Sidebar({
   )
 
   const handleLogout = useCallback(async () => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL
-    if (!apiUrl) {
-      console.error('NEXT_PUBLIC_API_URL is not configured')
-      router.push('/login')
-      return
-    }
-
-    try {
-      // Call backend logout endpoint to clear httpOnly cookie
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: 'POST',
-        credentials: 'include', // Required to send httpOnly cookie
-      })
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
-      router.push('/login')
-    }
+    // Clears the httpOnly cookie and the offline copy; never throws
+    await api.logout()
+    router.push('/login')
   }, [router])
 
   const isActive = useCallback(

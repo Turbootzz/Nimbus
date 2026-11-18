@@ -39,9 +39,11 @@ The app takes its name from `NEXT_PUBLIC_APP_NAME` (a build argument of the imag
 - Kept for offline use, on this device only: your services, groups, widgets, the latest widget
   data and your preferences. Never kept: sign-in requests, API tokens, webhooks, integrations,
   admin pages and anything that changes data.
-- **Shared devices:** the saved data is removed when you sign out and when anyone signs in or
-  registers. A session that expires on its own leaves the data in place until Nimbus is opened
-  online again, so sign out on a device you share.
+- **Shared devices:** the saved data is removed when you sign out, when the login page is
+  opened, when anyone signs in or registers, and when a different user turns out to be signed
+  in. A session that expires on its own leaves the data in place until Nimbus is opened online
+  again: offline, Nimbus cannot tell who is looking, so the offline page shows the last synced
+  list to whoever opens it. Sign out on a device you share.
 
 ## Updates
 

@@ -57,6 +57,11 @@ function LoginForm() {
     }
   }, [searchParams])
 
+  // Whoever sees the login form has no session: drop the last user's offline copy
+  useEffect(() => {
+    clearApiCache()
+  }, [])
+
   // Fetch available OAuth providers
   useEffect(() => {
     const fetchProviders = async () => {

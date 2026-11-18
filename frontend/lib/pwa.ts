@@ -22,6 +22,25 @@ export async function clearApiCache(): Promise<void> {
   }
 }
 
+// localStorage key: the user the offline copy was made for
+const CACHE_OWNER_KEY = 'offlineCacheOwner'
+
+/**
+ * Ties the offline copy to a user: when someone else turns out to be signed in
+ * (a session change no purge saw, such as a swapped cookie), it is dropped.
+ * Never throws.
+ */
+export async function bindApiCacheTo(userId: string): Promise<void> {
+  if (typeof window === 'undefined') return
+  try {
+    if (localStorage.getItem(CACHE_OWNER_KEY) === userId) return
+    await clearApiCache()
+    localStorage.setItem(CACHE_OWNER_KEY, userId)
+  } catch (error) {
+    console.warn('Could not bind the offline cache:', error)
+  }
+}
+
 // ============================================
 // Install prompt
 // ============================================
