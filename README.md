@@ -58,6 +58,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 **📈 Metrics & Integration**
 - Configurable check intervals
 - Prometheus metrics export
+- Dashboard export and import (JSON), for backups and moving between instances
 - Mobile responsive design
 
 </td>

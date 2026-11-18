@@ -19,6 +19,7 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
   - [GitHub OAuth](#github-oauth)
   - [Discord OAuth](#discord-oauth)
 - [Prometheus Integration](#prometheus-integration)
+- [Dashboard Export and Import](#dashboard-export-and-import)
 - [Production Deployment](#production-deployment)
 
 ---
@@ -263,6 +264,178 @@ docker run -d \
 | `nimbus_service_up` | Gauge | Service status (1=up, 0=down) |
 | `nimbus_service_response_time_ms` | Gauge | Response time in milliseconds |
 | `nimbus_service_last_check_timestamp` | Gauge | Unix timestamp of last check |
+
+---
+
+## Dashboard Export and Import
+
+**Settings → Export & Import** downloads your dashboard as one JSON file and loads such a file
+again: as a backup, to move to another Nimbus, or to share a layout. The same file is what
+`GET /api/v1/export` returns and `POST /api/v1/import` takes.
+
+### What is in the file
+
+| In the file | Not in the file |
+|---|---|
+| Groups, services, widgets, integrations | Integration credentials (API keys, passwords, tokens) |
+| Uploaded service icons and wallpaper, embedded as base64 | Secrets in widget configs: Custom API header values and calendar feed addresses are masked |
+| Preferences: theme, accent color, layout, wallpaper settings, status strip | Health history, metrics, webhooks, API tokens, your account |
+
+After an import, integrations that use credentials show **Needs credentials** under
+Settings → Integrations and are not polled until you enter them. Widgets with masked secrets
+show an error until you edit them and enter the value again.
+
+An export embeds at most 6 MB of images, so the file stays under the 10 MB upload limit. Images
+that are missing or do not fit are left out and counted in `omitted_images`; such a service
+falls back to its emoji, and an import keeps the wallpaper you have.
+
+### Merge or replace
+
+| Mode | What it does |
+|---|---|
+| `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
+| `replace` | Deletes **all** your groups, services, widgets and integrations (with their saved credentials) and creates the file's instead. Preferences in the file overwrite yours; fields the file leaves out keep their value. |
+
+An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
+touches the dashboard of the user who imports. Everything in the file is checked like a normal
+create, so a non-admin can not import admin-only things (Docker integrations, Custom API,
+Docker or System stats widgets), and the limits of 50 integrations and 200 widgets per user
+apply.
+
+### API
+
+Both endpoints need a browser session; API tokens are refused, as for the integrations API.
+
+```bash
+# Export
+GET /api/v1/export
+
+# Preview: validates and returns the counts, changes nothing
+POST /api/v1/import?mode=replace&dry_run=1
+
+# Import
+POST /api/v1/import?mode=merge
+```
+
+The import body is the document itself (`Content-Type: application/json`, at most 10 MB). The
+response of an import and of its dry run is the same summary:
+
+```json
+{
+  "mode": "replace",
+  "dry_run": true,
+  "groups": { "created": 2, "removed": 1 },
+  "services": { "created": 12, "removed": 9 },
+  "widgets": { "created": 4, "removed": 0 },
+  "integrations": { "created": 3, "removed": 2 },
+  "preferences": true,
+  "needs_credentials": 3,
+  "needs_secrets": 1
+}
+```
+
+A file that is not valid gives `400` with every problem and where it is:
+
+```json
+{
+  "error": "The dashboard document is not valid",
+  "details": [
+    { "path": "services[2].group_ref", "message": "no group has the ref \"media\"" },
+    { "path": "widgets[0]", "message": "Only admins can set up Custom API widgets" }
+  ]
+}
+```
+
+### Document shape (version 1)
+
+Entities point at each other with **refs**: strings that only mean something inside the file.
+There are no database IDs. A ref must be unique among entities of its kind and is only required
+on an entity that something points at. Unknown fields and any other `version` are refused.
+
+```json
+{
+  "version": 1,
+  "groups": [
+    { "ref": "media", "name": "Media", "color": "#0ea5e9", "default": true, "monitoring_enabled": true }
+  ],
+  "integrations": [
+    {
+      "ref": "sonarr",
+      "kind": "sonarr",
+      "name": "Sonarr",
+      "base_url": "http://192.168.1.10:8989",
+      "auth_type": "api_key",
+      "verify_tls": true,
+      "options": {},
+      "refresh_seconds": 60,
+      "needs_credentials": true
+    }
+  ],
+  "services": [
+    {
+      "ref": "sonarr",
+      "name": "Sonarr",
+      "url": "http://192.168.1.10:8989",
+      "description": "Series",
+      "icon": "📺",
+      "icon_type": "image_upload",
+      "icon_data": "iVBORw0KGgo...",
+      "card_size": "2x1",
+      "position": 0,
+      "group_ref": "media",
+      "integration_ref": "sonarr",
+      "monitoring_enabled": true
+    }
+  ],
+  "widgets": [
+    {
+      "ref": "upcoming",
+      "type": "calendar",
+      "title": "Upcoming",
+      "config": { "integrations": ["sonarr"], "ical_urls": ["https://calendar.example.com/********"], "days": 14 },
+      "card_size": "2x2",
+      "position": 1,
+      "refresh_seconds": 900,
+      "enabled": true,
+      "group_ref": "media",
+      "needs_secrets": true
+    }
+  ],
+  "preferences": {
+    "theme_mode": "dark",
+    "theme_accent_color": "#3B82F6",
+    "wallpaper_data": "/9j/4AAQSkZJRg...",
+    "wallpaper_blur": 4,
+    "wallpaper_dim": 20,
+    "card_opacity": 80,
+    "card_blur": 12,
+    "layout_mode": "canvas",
+    "card_scale": "medium",
+    "view_mode": "grid",
+    "open_in_new_tab": true,
+    "enable_card_resizing": true,
+    "enable_service_grouping": true,
+    "status_strip": {
+      "enabled": true,
+      "chips": [{ "source": "integration", "ref": "sonarr", "kpi": "queue" }]
+    }
+  }
+}
+```
+
+| Field | Notes |
+|---|---|
+| `groups` | Ordered as listed. At most one has `default: true`. `color` is `#RRGGBB`. |
+| `integrations[].kind` | A kind from [INTEGRATIONS.md](INTEGRATIONS.md). `auth_type` defaults to the kind's first one. `needs_credentials` is informational. |
+| `services[].icon_type` | `emoji` (uses `icon`), `image_url` (uses `icon_url`) or `image_upload` (uses `icon_data`: base64 of a JPEG, PNG, GIF, WebP, ICO or SVG up to 512 KB). The file can not name a file on the server. |
+| `services[].position`, `widgets[].position` | Services and widgets share one order. `replace` keeps the positions; `merge` keeps their order and puts them behind your tiles. |
+| `widgets[].type`, `config` | A type and its config from [WIDGETS.md](WIDGETS.md). Where a config lists integrations (the calendar), it lists their refs. `needs_secrets` is informational. |
+| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color: ""` selects the default accent. |
+| `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
+| `omitted_images` | Written by an export, ignored by an import. |
+
+Only `version` is required at the top level; a file with just services is a valid import. For
+the limits: 100 groups, 500 services, 200 widgets and 50 integrations per file.
 
 ---
 
