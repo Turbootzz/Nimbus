@@ -13,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -394,18 +393,35 @@ func slug(s string) string {
 // anything fails, the dashboard is as it was. A document that is not valid
 // gives a *dashdoc.ValidationError and changes nothing.
 func (s *DashboardTransferService) Apply(ctx context.Context, userID string, doc *dashdoc.Document, mode dashdoc.Mode) (*dashdoc.Summary, error) {
-	return s.run(ctx, userID, doc, mode, false)
+	return s.Import(ctx, userID, doc, ImportOptions{Mode: mode})
 }
 
 // Preview does everything Apply does except writing, and returns the
 // summary Apply would return
 func (s *DashboardTransferService) Preview(ctx context.Context, userID string, doc *dashdoc.Document, mode dashdoc.Mode) (*dashdoc.Summary, error) {
-	return s.run(ctx, userID, doc, mode, true)
+	return s.Import(ctx, userID, doc, ImportOptions{Mode: mode, DryRun: true})
+}
+
+// ImportOptions is how Import applies a document
+type ImportOptions struct {
+	Mode dashdoc.Mode
+	// DryRun writes nothing (Preview)
+	DryRun bool
+	// MatchGroups makes a merge put the tiles of a document group into the
+	// group the user already has with that name, instead of creating a
+	// second one. The import wizard maps groups with it.
+	MatchGroups bool
+}
+
+// Import is Apply or Preview with all options
+func (s *DashboardTransferService) Import(ctx context.Context, userID string, doc *dashdoc.Document, opts ImportOptions) (*dashdoc.Summary, error) {
+	return s.run(ctx, userID, doc, opts)
 }
 
 var dashboardLimits = repository.DashboardLimits{Integrations: maxIntegrationsPerUser, Widgets: maxWidgetsPerUser}
 
-func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *dashdoc.Document, mode dashdoc.Mode, dryRun bool) (*dashdoc.Summary, error) {
+func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *dashdoc.Document, opts ImportOptions) (*dashdoc.Summary, error) {
+	mode, dryRun := opts.Mode, opts.DryRun
 	if _, ok := dashdoc.ParseMode(string(mode)); !ok {
 		return nil, invalid("Mode must be merge or replace")
 	}
@@ -415,15 +431,26 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	if raw, err := json.Marshal(doc); err != nil || hasNUL(raw) {
 		return nil, (dashdoc.Issues{{Path: "document", Message: `must be valid JSON without the character \u0000, which can not be stored`}}).Err()
 	}
+	if err := refuseCredentials(doc); err != nil {
+		return nil, err
+	}
+	var stored *storedDashboard
+	if opts.MatchGroups && mode == dashdoc.ModeMerge {
+		var err error
+		if stored, err = s.matchGroupNames(ctx, userID, doc); err != nil {
+			return nil, err
+		}
+	}
 	user, err := s.Users.GetByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
 	// Planned before the transaction: validating URLs looks up their hosts
-	p, err := s.plan(ctx, user, doc, mode)
+	p, err := s.plan(ctx, user, doc, mode, stored)
 	if err != nil {
 		return nil, err
 	}
+	p.useStoredGroups(stored)
 	replace := mode == dashdoc.ModeReplace
 
 	if dryRun {
@@ -541,7 +568,9 @@ type importPlan struct {
 	// wallpaper is the embedded wallpaper to store, if any
 	wallpaper []byte
 	// hasDefaultGroup: a merge maps that group onto the user's own
-	hasDefaultGroup  bool
+	hasDefaultGroup bool
+	// credentials are the ones a config file gives, by integration ID
+	credentials      map[string]*models.IntegrationCredentials
 	created          dashdoc.Summary
 	needsCredentials int
 	needsSecrets     int
@@ -585,11 +614,12 @@ var preferencesValidator = validator.New()
 
 // plan turns a structurally valid document into rows with new IDs. Every
 // entity goes through the checks its normal create runs; all problems are
-// collected into one *dashdoc.ValidationError.
-func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, doc *dashdoc.Document, mode dashdoc.Mode) (*importPlan, error) {
+// collected into one *dashdoc.ValidationError. An entity that stored has a
+// row for gets the ID of that row (nil: none has).
+func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, doc *dashdoc.Document, mode dashdoc.Mode, stored *storedDashboard) (*importPlan, error) {
 	isAdmin := user.Role == "admin"
 	var issues dashdoc.Issues
-	p := &importPlan{icons: map[int][]byte{}}
+	p := &importPlan{icons: map[int][]byte{}, credentials: map[string]*models.IntegrationCredentials{}}
 
 	// report records a validation error at path; anything else is returned
 	report := func(path string, err error) error {
@@ -610,7 +640,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			}
 			continue
 		}
-		group.ID, group.UserID, group.IsDefault = uuid.New().String(), user.ID, in.Default
+		group.ID, group.UserID, group.IsDefault = stored.groupID(i), user.ID, in.Default
 		groups[group.ID], groupIDs[in.Ref] = group, group.ID
 		p.hasDefaultGroup = p.hasDefaultGroup || in.Default
 		p.rows.Groups = append(p.rows.Groups, group)
@@ -633,9 +663,19 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			}
 			continue
 		}
-		integration.ID, integration.UserID = uuid.New().String(), user.ID
+		integration.ID, integration.UserID = stored.integrationID(i), user.ID
 		integrationList[integration.ID], integrationIDs[in.Ref] = integration, integration.ID
-		if integration.AuthType != models.IntegrationAuthNone {
+		switch {
+		case in.Credentials != nil:
+			credentials, err := resolveCredentials(integration.AuthType, (*models.IntegrationCredentials)(in.Credentials), nil)
+			if err != nil {
+				if err := report(dashdoc.Path("integrations", i, "credentials"), err); err != nil {
+					return nil, err
+				}
+				continue
+			}
+			p.credentials[integration.ID] = credentials
+		case integration.AuthType != models.IntegrationAuthNone:
 			p.needsCredentials++
 		}
 		p.rows.Integrations = append(p.rows.Integrations, integration)
@@ -669,7 +709,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			}
 			continue
 		}
-		service.ID, service.UserID, service.Position = uuid.New().String(), user.ID, in.Position
+		service.ID, service.UserID, service.Position = stored.serviceID(i), user.ID, in.Position
 		service.GroupID = idOf(groupIDs, in.GroupRef)
 		service.IntegrationID = idOf(integrationIDs, in.IntegrationRef)
 		if icon != nil {
@@ -704,6 +744,12 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			}
 			req.Config = config
 		}
+		if current := stored.widgetRow(i); current != nil && hasConfig(req.Config) {
+			// A secret that is still masked keeps the value the widget has
+			if secret, ok := widgetType.(widgets.SecretConfig); ok {
+				req.Config = secret.Unredact(req.Config, current.Config)
+			}
+		}
 		widget, err := widgetService.apply(ctx, user.ID, isAdmin, req, nil)
 		if err != nil {
 			if err := report(dashdoc.Path("widgets", i, ""), err); err != nil {
@@ -711,7 +757,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			}
 			continue
 		}
-		widget.ID, widget.Position = uuid.New().String(), in.Position
+		widget.ID, widget.Position = stored.widgetID(i), in.Position
 		widgetIDs[in.Ref] = widget.ID
 		if masked, ok := widgetType.(widgets.MaskedConfig); ok && masked.HasMasks(widget.Config) {
 			p.needsSecrets++
