@@ -417,7 +417,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
     "enable_service_grouping": true,
     "status_strip": {
       "enabled": true,
-      "chips": [{ "source": "integration", "ref": "sonarr", "kpi": "queue" }]
+      "chips": [{ "source": "integration", "ref": "sonarr", "kpi": "queued" }]
     }
   }
 }
