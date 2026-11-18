@@ -56,8 +56,12 @@ export default function ThemeGallery() {
             <span className="text-text-primary mt-1.5 block truncate text-xs font-medium">
               {option.name}
             </span>
-            <span className="text-text-muted block text-[10px] capitalize">
-              {option.mode ?? 'Light or dark'}
+            <span className="text-text-muted block text-[10px]">
+              {option.mode === 'dark'
+                ? 'Dark'
+                : option.mode === 'light'
+                  ? 'Light'
+                  : 'Light or dark'}
             </span>
           </button>
         ))}
