@@ -62,7 +62,19 @@ func (panicKind) Fetch(context.Context, *integrations.Conn) (*integrations.Paylo
 	panic("boom")
 }
 
+// optionsKind declares options, to exercise their validation
+type optionsKind struct{ fakeKind }
+
+func (optionsKind) Kind() string { return "svc-options" }
+func (optionsKind) Meta() integrations.Meta {
+	return integrations.Meta{Name: "Options", AuthTypes: []string{models.IntegrationAuthNone}, Options: []integrations.Option{
+		{Key: "site", Label: "Site", Required: true, MaxLength: 5},
+		{Key: "entity", Label: "Entity", Placeholder: "sensor.temp", Pattern: `[a-z]+\.[a-z]+`},
+	}}
+}
+
 func init() {
+	integrations.Register(optionsKind{})
 	integrations.Register(fakeKind{})
 	integrations.Register(panicKind{})
 }
@@ -286,6 +298,58 @@ func TestIntegrationService_Validation(t *testing.T) {
 			assert.Contains(t, vErr.Message, tc.want)
 		})
 	}
+}
+
+func TestIntegrationService_Options(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+	request := func(options string) *models.IntegrationRequest {
+		return &models.IntegrationRequest{Kind: "svc-options", Name: "Options", BaseURL: "http://10.0.0.5", Options: json.RawMessage(options)}
+	}
+
+	for options, want := range map[string]string{
+		``:                               "Site is required",
+		`{"site":"  "}`:                  "Site is required",
+		`{"site":"toolong"}`:             "Site must be 5 characters or less",
+		`{"site":5}`:                     "Site must be text",
+		`{"site":"a","entity":"Sensor"}`: "Entity is not valid; it looks like sensor.temp",
+		`{"site":"a","zzz":"1","b":"1"}`: `Options has no option "b"`,
+	} {
+		_, err := svc.Create(ctx, "user-1", false, request(options))
+		var vErr *ValidationError
+		require.True(t, errors.As(err, &vErr), "%s: expected ValidationError, got %v", options, err)
+		assert.Equal(t, want, vErr.Message, options)
+	}
+
+	// Kinds without options take none
+	req := apiKeyRequest("http://nas.lan")
+	req.Options = json.RawMessage(`{"node":"pve"}`)
+	_, err := svc.Create(ctx, "user-1", false, req)
+	assert.ErrorContains(t, err, `Fake has no option "node"`)
+
+	// Stored trimmed, without the empty ones
+	created, err := svc.Create(ctx, "user-1", false, request(`{"site":" home ","entity":""}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(created.Options))
+
+	// The database hands JSON back in its own spacing and key order: that is no change
+	before := models.Integration{Options: json.RawMessage(`{"site": "home", "entity": "a.b"}`)}
+	after := models.Integration{Options: json.RawMessage(`{"entity":"a.b","site":"home"}`)}
+	assert.False(t, connectionChanged(&before, &after))
+	after.Options = json.RawMessage(`{"site":"work"}`)
+	assert.True(t, connectionChanged(&before, &after))
+
+	// Omitted options are kept
+	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(updated.Options))
+	updated, err = svc.Update(ctx, created.ID, "user-1", false, request(`{"site":"work","entity":"sensor.temp"}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"work","entity":"sensor.temp"}`, string(updated.Options))
+
+	// Clearing a required option on update is refused
+	_, err = svc.Update(ctx, created.ID, "user-1", false, request(`{}`))
+	assert.ErrorContains(t, err, "Site is required")
 }
 
 func TestIntegrationService_NullOptionsAreIgnored(t *testing.T) {

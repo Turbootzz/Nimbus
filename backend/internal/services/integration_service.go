@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -351,18 +353,13 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		return nil, invalid("Refresh interval must be between %d and %d seconds", minRefreshSeconds, maxRefreshSeconds)
 	}
 
-	if len(req.Options) > 0 && string(req.Options) != "null" {
-		if len(req.Options) > maxIntegrationOptionsBytes {
-			return nil, invalid("Options are too large")
+	// On update, omitted options keep the stored ones
+	if given := optionsGiven(req.Options); given || current == nil {
+		options, err := validateOptions(meta, req.Options)
+		if err != nil {
+			return nil, err
 		}
-		var obj map[string]any
-		if err := json.Unmarshal(req.Options, &obj); err != nil || obj == nil {
-			return nil, invalid("Options must be a JSON object")
-		}
-		in.Options = req.Options
-	}
-	if len(in.Options) == 0 {
-		in.Options = json.RawMessage(`{}`)
+		in.Options = options
 	}
 
 	creds, err := resolveCredentials(in.AuthType, req.Credentials, current)
@@ -372,12 +369,68 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 	return &integrationInput{impl: impl, integration: in, creds: creds}, nil
 }
 
+func optionsGiven(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
+// validateOptions checks submitted options against the ones the kind
+// declares and returns them trimmed, without the empty ones
+func validateOptions(meta integrations.Meta, raw json.RawMessage) (json.RawMessage, error) {
+	given := map[string]any{}
+	if optionsGiven(raw) {
+		if len(raw) > maxIntegrationOptionsBytes {
+			return nil, invalid("Options are too large")
+		}
+		if err := json.Unmarshal(raw, &given); err != nil || given == nil {
+			return nil, invalid("Options must be a JSON object")
+		}
+	}
+
+	clean := map[string]string{}
+	for _, option := range meta.Options {
+		value, isText := given[option.Key].(string)
+		if given[option.Key] != nil && !isText {
+			return nil, invalid("%s must be text", option.Label)
+		}
+		delete(given, option.Key)
+		value = strings.TrimSpace(value)
+		switch {
+		case value == "" && option.Required:
+			return nil, invalid("%s is required", option.Label)
+		case value == "":
+			continue
+		case utf8.RuneCountInString(value) > option.MaxLen():
+			return nil, invalid("%s must be %d characters or less", option.Label, option.MaxLen())
+		case !option.Matches(value):
+			if option.Placeholder != "" {
+				return nil, invalid("%s is not valid; it looks like %s", option.Label, option.Placeholder)
+			}
+			return nil, invalid("%s is not valid", option.Label)
+		}
+		clean[option.Key] = value
+	}
+	if len(given) > 0 {
+		return nil, invalid("%s has no option %q", meta.Name, slices.Min(slices.Collect(maps.Keys(given))))
+	}
+	return json.Marshal(clean)
+}
+
 // connectionChanged reports whether an update touches how Nimbus connects
 func connectionChanged(before, after *models.Integration) bool {
 	return before.BaseURL != after.BaseURL ||
 		before.AuthType != after.AuthType ||
 		before.VerifyTLS != after.VerifyTLS ||
-		!bytes.Equal(before.Options, after.Options)
+		!sameJSON(before.Options, after.Options)
+}
+
+// sameJSON compares decoded values: the database returns JSON with its
+// own spacing and key order
+func sameJSON(a, b json.RawMessage) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return bytes.Equal(a, b)
+	}
+	return reflect.DeepEqual(x, y)
 }
 
 // normalizeBaseURL validates a base URL and strips the trailing slash.

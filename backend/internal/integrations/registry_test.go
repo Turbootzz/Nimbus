@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"sync"
 	"testing"
@@ -77,10 +78,33 @@ func TestRegister_PanicsOnProgrammerErrors(t *testing.T) {
 		"duplicate kind":    stubKind{kind: "dup", meta: valid},
 		"no auth types":     stubKind{kind: "noauth", meta: Meta{Name: "No auth"}},
 		"unknown auth type": stubKind{kind: "badauth", meta: Meta{Name: "Bad", AuthTypes: []string{"oauth"}}},
+		"option without label": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			Options: []Option{{Key: "node"}}}},
+		"duplicate option": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			Options: []Option{{Key: "node", Label: "Node"}, {Key: "node", Label: "Node"}}}},
+		"bad option pattern": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			Options: []Option{{Key: "node", Label: "Node", Pattern: "("}}}},
+		"KPI for unknown option": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			KPIs: []KPI{{Key: "extra", Label: "Extra", Option: "node"}}}},
 	}
 	for name, i := range cases {
 		assert.Panics(t, func() { Register(i) }, name)
 	}
+}
+
+func TestOptions(t *testing.T) {
+	option := Option{Key: "node", Label: "Node", Pattern: `[a-z]+\d`}
+	assert.Equal(t, DefaultOptionMaxLength, option.MaxLen())
+	assert.Equal(t, 5, Option{MaxLength: 5}.MaxLen())
+	assert.True(t, option.Matches("pve1"))
+	assert.False(t, option.Matches("pve1 "), "the whole value must match")
+	assert.True(t, Option{}.Matches("anything"))
+
+	conn := &Conn{Options: json.RawMessage(`{"node":"pve1","count":3}`)}
+	assert.Equal(t, "pve1", conn.Option("node"))
+	assert.Empty(t, conn.Option("count"), "only text")
+	assert.Empty(t, conn.Option("missing"))
+	assert.Empty(t, (&Conn{}).Option("node"), "no options at all")
 }
 
 func TestState_ConcurrentUse(t *testing.T) {
