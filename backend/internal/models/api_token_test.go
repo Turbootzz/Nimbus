@@ -19,7 +19,8 @@ func TestAPIToken_Allows(t *testing.T) {
 		{"write implies read:services", []string{ScopeWriteServices}, ScopeReadServices, false, true},
 		{"write writes services", []string{ScopeWriteServices}, ScopeReadServices, true, true},
 		{"write does not imply read:widgets", []string{ScopeWriteServices}, ScopeReadWidgets, false, false},
-		{"write in another area needs its read scope", []string{ScopeWriteServices, ScopeReadWidgets}, ScopeReadWidgets, true, true},
+		{"write never reaches widgets", []string{ScopeWriteServices, ScopeReadWidgets}, ScopeReadWidgets, true, false},
+		{"write never reaches metrics", APITokenScopes, ScopeReadMetrics, true, false},
 		{"mcp grants no REST access", []string{ScopeMCP}, ScopeReadServices, false, false},
 		{"closed area", APITokenScopes, "", false, false},
 	}

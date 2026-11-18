@@ -254,8 +254,15 @@ func main() {
 	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
 	// API tokens reach a route group only through the read scope passed to
-	// AuthMiddleware: safe requests need that scope, all others also need
-	// write:services. Groups without a scope are closed to tokens.
+	// AuthMiddleware: safe requests need that scope. Tokens can only write
+	// in read:services groups, with write:services. Groups without a scope
+	// are closed to tokens.
+	sessionAuth := middleware.AuthMiddleware(authService, userRepo, apiTokenRepo)
+	sessionOnly := middleware.RequireSessionAuth()
+
+	// The favicon lookup makes the server fetch a URL and store the result,
+	// so it is not a read a token may do. Registered before the services group.
+	v1.Get("/services/favicon", sessionAuth, sessionOnly, serviceHandler.FetchServiceFavicon)
 
 	// Status logs are metrics, so they are registered before the services
 	// group to get their own scope
@@ -268,8 +275,7 @@ func main() {
 	// Sets service positions exactly as given. Services share their position
 	// space with widgets, so callers must not reuse a widget's position; the
 	// dashboard uses PUT /dashboard/reorder instead.
-	services.Put("/reorder", serviceHandler.ReorderServices)     // Must be before /:id routes
-	services.Get("/favicon", serviceHandler.FetchServiceFavicon) // Must be before /:id routes
+	services.Put("/reorder", serviceHandler.ReorderServices) // Must be before /:id routes
 	// <guid> constraint rejects non-UUID :id at the router level (404)
 	// so reserved-word paths like /favicon never crash through to SQL.
 	services.Get("/:id<guid>", serviceHandler.GetService)
@@ -286,8 +292,9 @@ func main() {
 	groups.Put("/:id<guid>", groupHandler.UpdateGroup)
 	groups.Delete("/:id<guid>", groupHandler.DeleteGroup)
 
-	// Webhook routes (all protected)
-	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
+	// Webhook routes (protected; session only: webhook URLs are secrets and
+	// a webhook makes the server send requests)
+	webhooks := v1.Group("/webhooks", sessionAuth, sessionOnly)
 	webhooks.Post("/", webhookHandler.CreateWebhook)
 	webhooks.Get("/", webhookHandler.GetWebhooks)
 	webhooks.Get("/:id<guid>", webhookHandler.GetWebhook)
@@ -302,12 +309,12 @@ func main() {
 	v1.Get("/uploads/avatars/:filename", staticHandler.ServeAvatar)
 	v1.Get("/uploads/wallpapers/:filename", staticHandler.ServeWallpaper)
 
-	// Upload routes (protected)
-	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
+	// Upload routes (protected, session only)
+	uploads := v1.Group("/uploads", sessionAuth, sessionOnly)
 	uploads.Post("/service-icon", uploadHandler.UploadServiceIcon)
 
-	// User avatar route (protected)
-	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
+	// Avatar, wallpaper and preferences (protected, session only)
+	users := v1.Group("/users/me", sessionAuth, sessionOnly)
 	users.Put("/avatar", uploadHandler.UploadAvatar)
 	users.Put("/wallpaper", preferencesHandler.UploadWallpaper)
 
@@ -322,14 +329,14 @@ func main() {
 
 	// API token routes (protected; session auth only so a leaked token
 	// can never create or revoke tokens)
-	apiTokens := v1.Group("/tokens", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	apiTokens := v1.Group("/tokens", sessionAuth, sessionOnly)
 	apiTokens.Post("/", apiTokenHandler.CreateToken)
 	apiTokens.Get("/", apiTokenHandler.ListTokens)
 	apiTokens.Delete("/:id<guid>", apiTokenHandler.DeleteToken)
 
 	// Integration routes (protected; session auth only so a leaked API token
 	// can't point an integration elsewhere and exfiltrate its credentials)
-	integrationRoutes := v1.Group("/integrations", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth())
+	integrationRoutes := v1.Group("/integrations", sessionAuth, sessionOnly)
 	integrationRoutes.Get("/kinds", integrationHandler.ListKinds)
 	integrationRoutes.Post("/test", integrationHandler.TestUnsavedIntegration)
 	integrationRoutes.Post("/", integrationHandler.CreateIntegration)
@@ -353,18 +360,17 @@ func main() {
 	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
 	dashboard.Get("/data", dashboardHandler.Data)
-	dashboard.Get("/stream", dashboardHandler.Stream)
+	// Session only: an open stream would outlive the token's revocation,
+	// expiry and rate limit
+	dashboard.Get("/stream", sessionOnly, dashboardHandler.Stream)
+
+	users.Get("/preferences", preferencesHandler.GetPreferences)
+	users.Put("/preferences", preferencesHandler.UpdatePreferences)
 
 	// Dashboard export/import (session only, like the integrations it reads
 	// and replaces)
-	transferAuth := []fiber.Handler{middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth()}
-	v1.Get("/export", append(transferAuth, transferHandler.Export)...)
-	v1.Post("/import", append(transferAuth, transferHandler.Import)...)
-
-	// User preferences routes (protected)
-	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
-	preferences.Get("/", preferencesHandler.GetPreferences)
-	preferences.Put("/", preferencesHandler.UpdatePreferences)
+	v1.Get("/export", sessionAuth, sessionOnly, transferHandler.Export)
+	v1.Post("/import", sessionAuth, sessionOnly, transferHandler.Import)
 
 	// Setup routes (public - for first-time setup)
 	setup := v1.Group("/setup")
@@ -374,7 +380,7 @@ func main() {
 
 	// Admin routes (protected, admin only, session only — API tokens can't
 	// reach admin surfaces like SMTP settings)
-	admin := v1.Group("/admin", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
+	admin := v1.Group("/admin", sessionAuth, sessionOnly, middleware.AdminOnly())
 	admin.Get("/users", adminHandler.GetAllUsers)
 	admin.Get("/users/stats", adminHandler.GetUserStats)
 	admin.Put("/users/:id<guid>/role", adminHandler.UpdateUserRole)

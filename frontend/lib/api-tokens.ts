@@ -11,7 +11,7 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
   {
     scope: 'read:services',
     label: 'Read services',
-    description: 'Services, groups and webhooks',
+    description: 'Services and groups',
   },
   {
     scope: 'read:metrics',
@@ -21,12 +21,12 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
   {
     scope: 'read:widgets',
     label: 'Read widgets',
-    description: 'Widgets, live dashboard data and preferences',
+    description: 'Widgets and dashboard data',
   },
   {
     scope: 'write:services',
-    label: 'Write',
-    description: 'Change anything the read scopes of this token cover',
+    label: 'Write services',
+    description: 'Create, change, delete and recheck services and groups',
   },
   {
     scope: 'mcp',

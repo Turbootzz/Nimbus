@@ -231,19 +231,22 @@ Each token only gets the scopes you select.
 
 | Scope | Grants |
 |-------|--------|
-| `read:services` | Read services, groups and webhooks |
+| `read:services` | Read services and groups |
 | `read:metrics` | Read uptime metrics, status history and the Prometheus export |
-| `read:widgets` | Read widgets, live dashboard data and dashboard preferences |
-| `write:services` | Change things. Includes `read:services` |
+| `read:widgets` | Read widgets (secrets masked) and the dashboard data |
+| `write:services` | Create, change, delete, reorder and recheck services and groups. Includes `read:services` |
 | `mcp` | Use the [MCP endpoint](MCP.md) at `/mcp` |
 
 - `GET` requests need the read scope of what they read.
-- All other requests need that read scope **and** `write:services`. A token with
-  `write:services` and `read:widgets` can edit widgets; a token with only `write:services`
-  can edit services, groups and webhooks.
+- A token can only change services and groups, and needs `write:services` for that. Widgets
+  and the dashboard layout are read-only for tokens.
 - A request outside the token's scopes gets `403`.
-- Account settings, token management, integrations and the admin pages never accept a token,
-  whatever its scopes. A leaked token cannot create tokens or read integration credentials.
+- Everything else never accepts a token, whatever its scopes: account settings, preferences,
+  uploads, the icon lookup, webhooks, integrations, token management, the live dashboard
+  stream and the admin pages. A leaked token cannot create tokens, read webhook URLs or
+  integration credentials, or make Nimbus send requests to an address of its choosing other
+  than the health check of a service.
+- A token never has admin rights, also when its owner is an admin.
 - `mcp` only opens `/mcp`. It gives no access to the REST API.
 
 ### Expiry and revocation
@@ -260,8 +263,10 @@ Browser sessions are not limited.
 
 ### Tokens created before scopes
 
-Tokens made before scopes existed keep working with the same access: a read-only token has the three
-read scopes, a full-access token also has `write:services`. None of them has `mcp`; create a
+Tokens made before scopes existed keep working: a read-only token has the three read scopes,
+a full-access token also has `write:services`. They are bound by the rules above, so they
+no longer reach webhooks, preferences or uploads, a full-access token no longer edits
+widgets, and an admin's token no longer has admin rights. None of them has `mcp`; create a
 new token for that.
 
 ---
@@ -314,9 +319,10 @@ docker run -d \
 
 `PROMETHEUS_API_KEY` is one key for the whole instance and can read every user's metrics. An
 [API token](#api-tokens) with the `read:metrics` scope is the safer choice: it only reads your
-own metrics (an admin's token reads any user's), can expire and can be revoked on its own.
+own metrics (also when you are an admin), can expire and can be revoked on its own.
 Put the token in `credentials` and leave `PROMETHEUS_API_KEY` unset. Both keep working, so
-you can switch whenever you like.
+you can switch whenever you like. To scrape several users with one credential, keep
+`PROMETHEUS_API_KEY`.
 
 ### Available Metrics
 

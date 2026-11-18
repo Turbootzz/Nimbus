@@ -6,12 +6,13 @@ import (
 )
 
 // API token scopes. Safe requests (GET, HEAD) need the read scope of the
-// area they touch; every other request needs that scope plus write:services.
+// area they touch. Tokens can only change services and groups, with
+// write:services; everything else is read-only or closed to them.
 const (
-	ScopeReadServices  = "read:services"  // services, groups, webhooks
+	ScopeReadServices  = "read:services"  // services, groups
 	ScopeReadMetrics   = "read:metrics"   // uptime metrics, status logs, Prometheus export
-	ScopeReadWidgets   = "read:widgets"   // widgets, dashboard data, preferences
-	ScopeWriteServices = "write:services" // any change; implies read:services
+	ScopeReadWidgets   = "read:widgets"   // widgets, dashboard data
+	ScopeWriteServices = "write:services" // change services and groups; implies read:services
 	ScopeMCP           = "mcp"            // the /mcp endpoint
 )
 
@@ -57,12 +58,14 @@ func (t *APIToken) HasScope(scope string) bool {
 }
 
 // Allows reports whether the token may make a request in the area guarded by
-// readScope. An empty readScope means the area is closed to tokens.
+// readScope. An empty readScope means the area is closed to tokens. Writes
+// are only possible in the read:services area: write:services must not reach
+// widgets, which can make the server send requests with stored secrets.
 func (t *APIToken) Allows(readScope string, write bool) bool {
 	if readScope == "" || !t.HasScope(readScope) {
 		return false
 	}
-	return !write || t.HasScope(ScopeWriteServices)
+	return !write || (readScope == ScopeReadServices && t.HasScope(ScopeWriteServices))
 }
 
 // Expired reports whether the token's expiry has passed

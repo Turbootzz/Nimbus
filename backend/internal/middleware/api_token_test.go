@@ -88,7 +88,8 @@ func TestAuthMiddleware_APIToken_Scopes(t *testing.T) {
 		{"write:services writes services", []string{models.ScopeWriteServices}, "POST", "/services", ok},
 		{"write:services implies read:services", []string{models.ScopeWriteServices}, "GET", "/services", ok},
 		{"write:services alone cannot write widgets", []string{models.ScopeWriteServices}, "PUT", "/widgets", forbidden},
-		{"write plus read:widgets writes widgets", []string{models.ScopeReadWidgets, models.ScopeWriteServices}, "PUT", "/widgets", ok},
+		{"write plus read:widgets still cannot write widgets", []string{models.ScopeReadWidgets, models.ScopeWriteServices}, "PUT", "/widgets", forbidden},
+		{"write plus read:widgets reads widgets", []string{models.ScopeReadWidgets, models.ScopeWriteServices}, "GET", "/widgets", ok},
 		{"mcp alone reads nothing", []string{models.ScopeMCP}, "GET", "/services", forbidden},
 		{"mcp alone reads no metrics", []string{models.ScopeMCP}, "GET", "/metrics", forbidden},
 		{"mcp alone reads no widgets", []string{models.ScopeMCP}, "GET", "/widgets", forbidden},
@@ -119,8 +120,26 @@ func TestAuthMiddleware_APIToken_LegacyScopes(t *testing.T) {
 		assert.Equal(t, fiber.StatusOK, statusFor(t, app, "GET", path, readOnly), "read-only GET %s", path)
 		assert.Equal(t, fiber.StatusForbidden, statusFor(t, app, "POST", path, readOnly), "read-only POST %s", path)
 		assert.Equal(t, fiber.StatusOK, statusFor(t, app, "GET", path, fullAccess), "full GET %s", path)
-		assert.Equal(t, fiber.StatusOK, statusFor(t, app, "POST", path, fullAccess), "full POST %s", path)
 	}
+	// Full access now means services and groups; other areas are read-only
+	assert.Equal(t, fiber.StatusOK, statusFor(t, app, "POST", "/services", fullAccess))
+	assert.Equal(t, fiber.StatusForbidden, statusFor(t, app, "POST", "/widgets", fullAccess))
+}
+
+// An admin's token must not act as an admin: admin surfaces are session-only
+func TestAuthMiddleware_APIToken_NeverAdmin(t *testing.T) {
+	setupTestEnv()
+	db := setupMiddlewareTestDB(t)
+	defer db.Close()
+	admin := createTestUser(t, db, "admin")
+
+	app := fiber.New()
+	app.Get("/services", AuthMiddleware(services.NewAuthService(), repository.NewUserRepository(db), repository.NewAPITokenRepository(db), models.ScopeReadServices), AdminOnly(), func(c *fiber.Ctx) error {
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	token, _ := insertScopedToken(t, db, admin.ID, models.APITokenScopes, nil)
+	assert.Equal(t, fiber.StatusForbidden, statusFor(t, app, "GET", "/services", token))
 }
 
 func TestAuthMiddleware_APIToken_Expiry(t *testing.T) {
@@ -204,8 +223,7 @@ func TestOptionalAuthMiddleware_APIToken_Scope(t *testing.T) {
 	assert.Equal(t, fiber.StatusTooManyRequests, statusFor(t, app, "GET", "/prometheus", limited))
 }
 
-// /users/me and /users/me/preferences are both guarded groups, so the
-// middleware runs twice for one request
+// When guarded groups are nested, the middleware runs twice for one request
 func TestAuthMiddleware_APIToken_NestedGroupsCountOnce(t *testing.T) {
 	setupTestEnv()
 	db := setupMiddlewareTestDB(t)

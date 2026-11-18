@@ -39,9 +39,9 @@ func extractToken(c *fiber.Ctx) string {
 // SECURITY: Uses httpOnly cookies for browser sessions to prevent XSS attacks
 //
 // scope is the read scope (models.ScopeRead*) of the routes behind it: a token
-// needs it for safe requests and also write:services for all others. Without
-// a scope the routes are closed to tokens, so new routes are session-only
-// until someone decides otherwise.
+// needs it for safe requests. Other requests are only open to tokens behind
+// read:services, with write:services. Without a scope the routes are closed
+// to tokens, so new routes are session-only until someone decides otherwise.
 func AuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository, scope ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := extractToken(c)
@@ -137,7 +137,8 @@ func authorizeAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepo
 
 	c.Locals("user_id", user.ID)
 	c.Locals("email", user.Email)
-	c.Locals("role", user.Role)
+	// Never the owner's role: an admin's token is not an admin
+	c.Locals("role", "user")
 	c.Locals("auth_method", AuthMethodAPIToken)
 	return nil
 }
