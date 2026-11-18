@@ -21,7 +21,8 @@ import { tileKey } from '@/lib/tiles'
 import { snapshotKey, type SnapshotMap } from '@/hooks/useDashboardStream'
 
 // Grid classes for different card scales
-// Mobile always uses large layout (grid-cols-2) to avoid clutter
+// Mobile always uses large layout (grid-cols-2) to avoid clutter; the canvas
+// layout makes that one column (globals.css, data-tile-grid)
 // Scale-specific columns apply from sm breakpoint and up
 // The minimum row height is about a 2x1 service card's own height, so a row of
 // only widgets matches a row of services. Widget content never grows a row.
@@ -176,7 +177,11 @@ export default function ServicesGrid({
   }
 
   const renderGrid = (gridTiles: Tile[]) => (
-    <div className={`grid ${gridClasses[cardScale]}`} style={{ gridAutoFlow: 'dense' }}>
+    <div
+      data-tile-grid
+      className={`grid ${gridClasses[cardScale]}`}
+      style={{ gridAutoFlow: 'dense' }}
+    >
       {gridTiles.map(renderTile)}
     </div>
   )

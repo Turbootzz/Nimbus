@@ -190,3 +190,22 @@ html[data-layout='canvas'] header[data-classic-chrome] {
 html[data-layout='canvas'] [data-main-content] {
   padding-left: 0;
 }
+
+/* Layout not known yet: a new user or browser has nothing stored, and the
+   default differs per user. The dashboard stays hidden until the preferences
+   are in, so it never shows one layout and then switches to the other. */
+html[data-layout='pending'] [data-sidebar='desktop'],
+html[data-layout='pending'] [data-main-content] {
+  visibility: hidden;
+}
+
+/* Canvas on a phone: one column. Tiles two columns wide would add a second
+   one, so they lose their column span. Below Tailwind's sm breakpoint. */
+@media (width < 40rem) {
+  html[data-layout='canvas'] [data-tile-grid] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-layout='canvas'] [data-tile-grid] > * {
+    grid-column: auto;
+  }
+}

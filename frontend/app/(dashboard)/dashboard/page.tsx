@@ -27,11 +27,13 @@ import type {
   ServiceStatusEvent,
   Tile,
   TileStyle,
+  WeatherPayload,
   Widget,
   WidgetTypeMeta,
 } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
+import { setEditMode, setTopBarWeather, toggleEditMode, useEditMode } from '@/lib/dashboard-store'
 import StatusStrip from '@/components/StatusStrip'
 import ServiceCard from '@/components/ServiceCard'
 import ServiceChip from '@/components/ServiceChip'
@@ -84,7 +86,8 @@ export default function DashboardPage() {
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isEditMode, setIsEditMode] = useState(false)
+  // Shared with the canvas top bar, whose user menu also toggles it
+  const isEditMode = useEditMode()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -286,6 +289,30 @@ export default function DashboardPage() {
     onServiceStatus: applyServiceStatus,
     onResync: resyncServices,
   })
+
+  // The canvas top bar shows the weather of the first weather widget
+  const weatherWidget = useMemo(
+    () => widgets.find((w) => w.type === 'weather' && w.enabled),
+    [widgets]
+  )
+  const weatherSnapshot = weatherWidget && snapshots[snapshotKey('widget', weatherWidget.id)]
+  useEffect(() => {
+    const weather = weatherSnapshot?.payload as WeatherPayload | null | undefined
+    setTopBarWeather(
+      weatherWidget && weather
+        ? { location: String(weatherWidget.config.location ?? ''), weather }
+        : null
+    )
+  }, [weatherWidget, weatherSnapshot])
+
+  // Leaving the dashboard ends what it shared with the top bar
+  useEffect(
+    () => () => {
+      setEditMode(false)
+      setTopBarWeather(null)
+    },
+    []
+  )
 
   // Auto-select default group when groups load
   useEffect(() => {
@@ -580,10 +607,6 @@ export default function DashboardPage() {
     setDeletingGroup(group)
   }, [])
 
-  const handleToggleEditMode = useCallback(() => {
-    setIsEditMode((prev) => !prev)
-  }, [])
-
   // Widget handlers
   const handleAddWidget = useCallback(() => {
     setEditingWidget(null)
@@ -757,7 +780,7 @@ export default function DashboardPage() {
       onEditGroup={handleEditGroup}
       onDeleteGroup={handleDeleteGroup}
       isEditMode={isEditMode}
-      onToggleEditMode={handleToggleEditMode}
+      onToggleEditMode={toggleEditMode}
       enableServiceGrouping={tabbed}
       activeId={activeId}
       isDraggingTab={isDraggingTab}

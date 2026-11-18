@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { api } from '@/lib/api'
+import { getLayoutPendingSnapshot, getLayoutSnapshot } from '@/lib/layout-store'
 
 vi.mock('@/lib/api', () => ({
   api: { getPreferences: vi.fn(), updatePreferences: vi.fn(() => Promise.resolve({ data: {} })) },
@@ -37,6 +38,34 @@ async function loadTheme() {
   await waitFor(() => expect(result.current.loading).toBe(false))
   return result
 }
+
+// First: once the wait for the layout has ended it stays ended
+describe('ThemeContext layout of a new browser', () => {
+  beforeEach(() => {
+    Object.keys(store).forEach((key) => delete store[key])
+    vi.clearAllMocks()
+  })
+
+  it('waits for the preferences, then knows the layout', async () => {
+    let answer: (response: never) => void = () => {}
+    vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTheme(), { wrapper })
+    await waitFor(() => expect(api.getPreferences).toHaveBeenCalled())
+    expect(getLayoutPendingSnapshot()).toBe(true)
+
+    await act(async () => answer({ data: { theme_mode: 'auto', layout_mode: 'canvas' } } as never))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(getLayoutPendingSnapshot()).toBe(false)
+    expect(getLayoutSnapshot()).toBe('canvas')
+  })
+
+  it('stops waiting when the preferences cannot be loaded', async () => {
+    vi.mocked(api.getPreferences).mockResolvedValue({ error: { message: 'offline' } })
+    await loadTheme()
+    expect(store['nimbus-layout']).toBeUndefined()
+    expect(getLayoutPendingSnapshot()).toBe(false)
+  })
+})
 
 describe('ThemeContext group display', () => {
   beforeEach(() => {

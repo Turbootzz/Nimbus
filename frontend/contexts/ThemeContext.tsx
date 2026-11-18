@@ -20,7 +20,7 @@ import type {
   StatusStrip,
   ViewMode,
 } from '@/types'
-import { setLayoutMode as storeLayoutMode } from '@/lib/layout-store'
+import { setLayoutMode as storeLayoutMode, settleLayout } from '@/lib/layout-store'
 import {
   type Glass,
   defaultGlass,
@@ -280,6 +280,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           if (process.env.NODE_ENV === 'development') throw error
         }
       } finally {
+        // Known now, or not coming: stop hiding the dashboard
+        settleLayout()
         setLoading(false)
       }
     }
