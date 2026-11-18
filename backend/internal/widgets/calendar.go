@@ -75,7 +75,27 @@ func (calendar) Meta() Meta {
 	}
 }
 
-func (calendar) Validate(config json.RawMessage) (json.RawMessage, error) {
+func (w calendar) Validate(config json.RawMessage) (json.RawMessage, error) {
+	return w.validate(config, false)
+}
+
+// ValidateMasked accepts feed URLs that are still masked (MaskedConfig)
+func (w calendar) ValidateMasked(config json.RawMessage) (json.RawMessage, error) {
+	return w.validate(config, true)
+}
+
+// HasMasks reports a feed URL that is still masked
+func (calendar) HasMasks(config json.RawMessage) bool {
+	cfg, _ := decodeConfig[calendarConfig](config)
+	return slices.ContainsFunc(cfg.ICalURLs, isMaskedFeedURL)
+}
+
+// isMaskedFeedURL reports a feed URL as Redact shows it
+func isMaskedFeedURL(feedURL string) bool {
+	return strings.HasSuffix(feedURL, "/"+redactedHeaderValue)
+}
+
+func (calendar) validate(config json.RawMessage, allowMasked bool) (json.RawMessage, error) {
 	cfg, err := decodeConfig[calendarConfig](config)
 	if err != nil {
 		return nil, err
@@ -105,7 +125,10 @@ func (calendar) Validate(config json.RawMessage) (json.RawMessage, error) {
 		return nil, fmt.Errorf("at most %d calendar feeds are allowed", maxCalendarFeeds)
 	}
 	for i, u := range urls {
-		if strings.HasSuffix(u, "/"+redactedHeaderValue) {
+		if isMaskedFeedURL(u) {
+			if allowMasked {
+				continue
+			}
 			return nil, fmt.Errorf("enter calendar URL %d again", i+1)
 		}
 		if err := utils.ValidateWebhookURL(u); err != nil {
@@ -241,6 +264,11 @@ func (calendar) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 		results[i].source = calendarSource{Name: hostOf(feedURL), Kind: "ical"}
 		wg.Go(func() {
 			defer recoverInto(&results[i].err)
+			if isMaskedFeedURL(feedURL) {
+				// An imported widget: the address behind the mask is unknown
+				results[i].err = errors.New("edit this widget and enter the calendar URL again; an import does not carry it")
+				return
+			}
 			results[i].events, results[i].err = fetchICal(ctx, req.Client, feedURL)
 		})
 	}
