@@ -17,6 +17,7 @@ import (
 	"github.com/nimbus/backend/internal/config"
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/handlers"
+	"github.com/nimbus/backend/internal/mcpserver"
 	"github.com/nimbus/backend/internal/middleware"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
@@ -384,6 +385,20 @@ func main() {
 	admin.Post("/settings/smtp/test", settingsHandler.TestSMTPConnection)
 	admin.Get("/settings/:key", settingsHandler.GetSetting)
 	admin.Put("/settings/:key", settingsHandler.UpdateSetting)
+
+	// MCP endpoint for AI assistants. Not under /api: clients are configured
+	// with this URL. Needs an API token with the mcp scope.
+	app.All("/mcp", mcpserver.NewHandler(mcpserver.Deps{
+		Services:     serviceRepo,
+		Groups:       groupRepo,
+		StatusLogs:   statusLogRepo,
+		Widgets:      widgetService,
+		Snapshots:    liveDataService,
+		Integrations: integrationService,
+		Health:       healthCheckService,
+		Users:        userRepo,
+		Tokens:       apiTokenRepo,
+	}))
 
 	// Start health check monitor
 	healthCheckInterval := getEnvDuration("HEALTH_CHECK_INTERVAL", 60*time.Second)
