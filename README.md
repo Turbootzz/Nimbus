@@ -4,10 +4,12 @@
 
 ### Your Homelab, Beautifully Organized
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
+[![Release](https://img.shields.io/github/v/release/Turbootzz/Nimbus?logo=github)](https://github.com/Turbootzz/Nimbus/releases/latest)
+[![Docker Pulls](https://img.shields.io/docker/pulls/turboot/nimbus?logo=docker&logoColor=white)](https://hub.docker.com/r/turboot/nimbus)
+[![CI](https://img.shields.io/github/actions/workflow/status/Turbootzz/Nimbus/ci.yml?branch=main&label=CI)](https://github.com/Turbootzz/Nimbus/actions/workflows/ci.yml)
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.26+-00ADD8?logo=go&logoColor=white)](https://go.dev/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
 A modern, self-hosted dashboard for monitoring and managing your homelab services.
 Multi-user support, real-time health checks, beautiful themes, and Prometheus metrics.
@@ -19,6 +21,8 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 <br />
 
 [Quick Start](#-quick-start) · [Features](#-features) · [Configuration](docs/CONFIGURATION.md) · [Contributing](#-contributing)
+
+[Roadmap](ROADMAP.md) · [Changelog](CHANGELOG.md) · [Discussions](https://github.com/Turbootzz/Nimbus/discussions)
 
 </div>
 
@@ -63,7 +67,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 </tr>
 </table>
 
-### 🧩 Widgets & integrations (2.0, `dev` image)
+### 🧩 Widgets & integrations
 
 Add widgets next to your services with **Add Widget** on the dashboard: Clock, Note (Markdown), Bookmarks, Embed, Weather, RSS, Calendar, Custom API, System stats and Docker containers. Widget data is fetched by the server and pushed to the dashboard live. See [docs/WIDGETS.md](docs/WIDGETS.md).
 
@@ -247,26 +251,18 @@ Run `make help` for all available commands.
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
 | [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
+| [ROADMAP.md](ROADMAP.md) | What is planned |
+| [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
+| [charts/nimbus](charts/nimbus) | Helm chart for Kubernetes |
+| [distribution/](distribution/README.md) | Portainer template and app store listings |
 
 ---
 
 ## 📋 Roadmap
 
-- [x] JWT & OAuth2 authentication
-- [x] Real-time health monitoring
-- [x] User themes & customization
-- [x] Admin panel & RBAC
-- [x] Prometheus metrics export
-- [x] Mobile responsive design
-- [x] Service groups
-- [x] Card resizing & dashboard scaling
-- [x] List view mode
-- [x] Custom service icons (image uploads)
-- [x] Uptime webhook notifications
-- [x] Optional landing page
-- [x] Zero-config Docker deployment
-- [ ] Widgets and app integrations (in progress on `dev`)
-- [ ] PWA support
+What is planned and what is being built is in [ROADMAP.md](ROADMAP.md). What shipped in each release is in [CHANGELOG.md](CHANGELOG.md).
+
+Ideas, questions and dashboards to show off are welcome in [Discussions](https://github.com/Turbootzz/Nimbus/discussions).
 
 ---
 
