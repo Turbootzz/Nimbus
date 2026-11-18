@@ -302,9 +302,12 @@ create, so a non-admin can not import admin-only things (Docker integrations, Cu
 Docker or System stats widgets), and the limits of 50 integrations and 200 widgets per user
 apply.
 
-An export of a dashboard that is itself broken can be refused on import, for example a widget
-whose integration was deleted. The error names the entry (`widgets[3]`); remove or fix it in
-the file and import again.
+An export leaves out widgets that no import would take: a widget whose integration was deleted,
+or a calendar left without any source. If an import still refuses an entry, the error names it
+(`widgets[3]`); remove or fix it in the file and import again.
+
+URLs are exported as you entered them. A key in a service, Custom API, RSS or embed URL is in
+the file; check for those before you share it.
 
 ### API
 
@@ -321,8 +324,8 @@ POST /api/v1/import?mode=replace&dry_run=1
 POST /api/v1/import?mode=merge
 ```
 
-The import body is the document itself (`Content-Type: application/json`, at most 10 MB). The
-response of an import and of its dry run is the same summary:
+The import body is the document itself (`Content-Type: application/json` is required, at most
+10 MB). The response of an import and of its dry run is the same summary:
 
 ```json
 {

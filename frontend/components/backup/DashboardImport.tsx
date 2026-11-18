@@ -13,7 +13,8 @@ const modes: { value: ImportMode; label: string; description: string }[] = [
   {
     value: 'merge',
     label: 'Merge',
-    description: 'Add the file to what you have. Your preferences stay as they are.',
+    description:
+      'Add the file to what you have. Your preferences stay as they are. Importing the same file twice adds everything twice.',
   },
   {
     value: 'replace',
@@ -137,6 +138,8 @@ export default function DashboardImport() {
 
   const chooseFile = async (chosen?: File) => {
     if (!chosen) return
+    // So choosing the same file again, after fixing it, is noticed
+    if (fileInput.current) fileInput.current.value = ''
     if (chosen.size > MAX_FILE_BYTES) {
       request.current++
       setFile(null)
@@ -303,7 +306,7 @@ export default function DashboardImport() {
       {confirming && preview && (
         <ConfirmDialog
           title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'} and their saved credentials, then imports the file. It cannot be undone.`}
+          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.`}
           confirmLabel="Replace"
           onConfirm={apply}
           onCancel={() => setConfirming(false)}

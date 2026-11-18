@@ -41,7 +41,8 @@ export default function DashboardExport() {
       <h2 className="text-text-primary mb-1 text-lg font-semibold">Export</h2>
       <p className="text-text-secondary mb-4 text-sm">
         Download your groups, services, widgets, integrations and preferences as one JSON file, with
-        uploaded icons and wallpaper inside. Credentials and other secrets are never included.
+        uploaded icons and wallpaper inside. Integration credentials, Custom API header values and
+        calendar feed addresses are never included; other URLs are exported as you entered them.
       </p>
       <button
         type="button"

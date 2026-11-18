@@ -89,6 +89,7 @@ describe('DashboardImport', () => {
     const user = userEvent.setup()
     vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })
     render(<DashboardImport />)
+    expect(screen.getByText(/same file twice adds everything twice/)).toBeVisible()
 
     await user.upload(screen.getByLabelText('Dashboard file'), documentFile())
 
@@ -135,6 +136,8 @@ describe('DashboardImport', () => {
     await user.click(screen.getByRole('button', { name: 'Replace my dashboard' }))
     const dialog = screen.getByRole('alertdialog')
     expect(within(dialog).getByText(/deletes 10 existing items/)).toBeVisible()
+    // The confirmation itself names what is lost
+    expect(within(dialog).getByText(/status history.*overwrites your preferences/)).toBeVisible()
 
     // Escape backs out without importing
     await user.keyboard('{Escape}')
