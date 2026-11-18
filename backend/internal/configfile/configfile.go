@@ -24,16 +24,37 @@ type File struct {
 	// Owner is the email address of an existing admin
 	Owner string `json:"owner"`
 	dashdoc.Document
-	// variables are the values ${VAR} was replaced by: the secrets
-	variables []string
+	// values are the string values of the file and what its variables held:
+	// what the log must not repeat
+	values map[string]bool
 }
 
-// Mask returns text without what the file's variables hold, for the log.
-// ponytail: only the value as it is; one that an error shows escaped
-// (a quote, a backslash) is not recognised
-func (f *File) Mask(text string) string {
-	for _, value := range f.variables {
-		text = strings.ReplaceAll(text, value, "***")
+// minLoggedSecret is the length from which a value of the file counts as
+// something the log must not repeat; shorter ones ("1x1", a unit) are in
+// half the messages and are no secrets
+const minLoggedSecret = 4
+
+// Reason describes why applying the file failed, for the log, without
+// repeating a value of the file: a message that quotes one (a URL that is
+// not valid, say) is left out and only where it is wrong remains.
+func (f *File) Reason(err error) string {
+	var invalid *dashdoc.ValidationError
+	if !errors.As(err, &invalid) {
+		return f.safe(err.Error())
+	}
+	parts := make([]string, len(invalid.Issues))
+	for i, issue := range invalid.Issues {
+		parts[i] = issue.Path + ": " + f.safe(issue.Message)
+	}
+	return "invalid: " + strings.Join(parts, "; ")
+}
+
+// safe returns text, unless it holds a value of the file
+func (f *File) safe(text string) string {
+	for value := range f.values {
+		if strings.Contains(text, value) {
+			return "(not shown: the message quotes a value of the file)"
+		}
 	}
 	return text
 }
@@ -58,7 +79,7 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 		return nil, errors.New("the file must hold a mapping with owner, version and the dashboard")
 	}
 
-	values := &interpolation{lookup: lookup, missing: map[string]bool{}, used: map[string]bool{}}
+	values := &interpolation{lookup: lookup, missing: map[string]bool{}, seen: map[string]bool{}}
 	tree = values.apply(tree)
 	if len(values.missing) > 0 {
 		names := make([]string, 0, len(values.missing))
@@ -87,11 +108,7 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 	if file.Owner = strings.TrimSpace(file.Owner); file.Owner == "" {
 		return nil, errors.New("owner is required: the email address of the admin the dashboard belongs to")
 	}
-	// The longest first, so a value that holds another is masked whole
-	for value := range values.used {
-		file.variables = append(file.variables, value)
-	}
-	sort.Slice(file.variables, func(i, j int) bool { return len(file.variables[i]) > len(file.variables[j]) })
+	file.values = values.seen
 	return &file, nil
 }
 
@@ -105,8 +122,8 @@ type interpolation struct {
 	// missing are the variables that are not set. An empty one counts too:
 	// a secret must never silently become empty.
 	missing map[string]bool
-	// used are the values the variables were replaced by
-	used map[string]bool
+	// seen are the string values and what the variables held (File.values)
+	seen map[string]bool
 	// nul: a value holds the character the database can't store
 	nul bool
 }
@@ -125,9 +142,12 @@ func (in *interpolation) apply(value any) any {
 				in.missing[name] = true
 				return ""
 			}
-			in.used[replacement] = true
+			in.seen[replacement] = true
 			return replacement
 		})
+		if len(replaced) >= minLoggedSecret {
+			in.seen[replaced] = true
+		}
 		in.nul = in.nul || strings.ContainsRune(replaced, 0)
 		return replaced
 	case map[string]any:

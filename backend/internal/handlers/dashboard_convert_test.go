@@ -96,7 +96,7 @@ func TestConvert_NeverResolvesVariables(t *testing.T) {
 func TestTransfer_ImportRefusesCredentials(t *testing.T) {
 	app, db := setupTransferTestApp(t, integrationOwnerID)
 	doc := `{"version": 1, "integrations": [{"kind": "handler-fake", "name": "Sonarr", "base_url": "http://192.168.1.10:8989", "credentials": {"api_key": "k"}}]}`
-	for _, query := range []string{"mode=merge", "mode=merge&dry_run=1", "mode=replace"} {
+	for _, query := range []string{"mode=merge", "mode=merge&dry_run=1", "mode=replace", "mode=replace&dry_run=1", "mode=merge&match_groups=1", "mode=merge&match_groups=1&dry_run=1"} {
 		status, _, body := transferRequest(t, app, http.MethodPost, "/import?"+query, doc)
 		assert.Equal(t, http.StatusBadRequest, status, string(body))
 		assert.Contains(t, string(body), "integrations[0].credentials")

@@ -3,6 +3,7 @@ package configfile
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"log"
 	"os"
@@ -319,33 +320,31 @@ func TestWatcherLetsGoOfAnOwnerWhoIsNoLongerThatAdmin(t *testing.T) {
 }
 
 func TestWatcherWaitsForAFileThatIsStillBeingWritten(t *testing.T) {
-	ctx := context.Background()
-	w, syncer, _, write := newTestWatcher(t, goodFile, Options{Settle: 20 * time.Millisecond})
-	go func() {
-		time.Sleep(5 * time.Millisecond)
-		write(goodFile + "services: []\n")
-	}()
-	w.Check(ctx)
-	assert.Empty(t, syncer.calls, "the file changed while it was read")
-	w.Check(ctx)
-	assert.Len(t, syncer.calls, 1, "applied once it stays the same")
+	w, syncer, _, write := newTestWatcher(t, goodFile, Options{Settle: time.Millisecond})
+	assert.True(t, w.settled(sha256.Sum256([]byte(goodFile))))
+	assert.False(t, w.settled(sha256.Sum256([]byte("owner: half"))), "the file changed since it was read")
+
+	// A file that keeps its content is applied, also after a change
+	w.Check(context.Background())
+	write(goodFile + "services: []\n")
+	w.Check(context.Background())
+	assert.Len(t, syncer.calls, 2)
+
+	// Stopping does not wait for the file
+	w.opts.Settle = time.Hour
+	close(w.stop)
+	assert.False(t, w.settled(sha256.Sum256([]byte(goodFile+"services: []\n"))))
 }
 
-func TestWatcherLogsNoSecrets(t *testing.T) {
+func TestWatcherLogsNoValuesOfTheFile(t *testing.T) {
 	var logged bytes.Buffer
 	log.SetOutput(&logged)
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
-	lookup := env(map[string]string{"FEED": "https://feeds.example.com/?token=SENTINEL-secret", "KEY": "SENTINEL"})
-
-	// What a validation quotes from the file
-	content := "owner: admin@example.com\nversion: 1\nwidgets:\n  - type: rss\n    config:\n      feeds: [\"${FEED}\"]\n"
-	w, syncer, _, write := newTestWatcher(t, content, Options{Lookup: lookup})
-	syncer.err = &dashdoc.ValidationError{Issues: []dashdoc.Issue{{Path: "widgets[0]", Message: `Invalid config: invalid feed URL "https://feeds.example.com/?token=SENTINEL-secret": no such host`}}}
-	w.Check(context.Background())
-	assert.Contains(t, logged.String(), "widgets[0]: Invalid config: invalid feed URL")
+	lookup := env(map[string]string{"KEY": "SENTINEL"})
 
 	// A file that can't be parsed, in every way a value can be misplaced
-	for _, broken := range []string{
+	w, _, _, write := newTestWatcher(t, "", Options{Lookup: lookup})
+	broken := []string{
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret\n   bad: [\n",
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret: x\n",
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials: SENTINEL-secret\n",
@@ -353,10 +352,28 @@ func TestWatcherLogsNoSecrets(t *testing.T) {
 		"owner: admin@example.com\nversion: SENTINEL-secret\n",
 		`{"owner": "admin@example.com", "version": 1, "integrations": [{"credentials": {"api_key": "SENTINEL-secret"}]}`,
 		`{"owner": "admin@example.com", "version": 1, "preferences": {"theme_background": ["${KEY}"]}}`,
-	} {
-		write(broken)
+	}
+	for _, content := range broken {
+		write(content)
 		w.Check(context.Background())
 	}
-	assert.Equal(t, 8, strings.Count(logged.String(), "not applied"), logged.String())
+	assert.Equal(t, len(broken), strings.Count(logged.String(), "not applied"), logged.String())
 	assert.NotContains(t, logged.String(), "SENTINEL")
+}
+
+func TestReasonLeavesOutWhatQuotesTheFile(t *testing.T) {
+	file, err := Parse([]byte("owner: a@b.c\nversion: 1\nwidgets:\n  - type: rss\n    title: W\n    config:\n      feeds: [\"https://feeds.example.com/private\", \"https://x.lan/?key=${KEY}\"]\n"),
+		env(map[string]string{"KEY": "abc"}))
+	require.NoError(t, err)
+	reason := file.Reason(&dashdoc.ValidationError{Issues: []dashdoc.Issue{
+		{Path: "services[0]", Message: "Name and URL are required"},
+		{Path: "widgets[0]", Message: `Invalid config: invalid feed URL "https://feeds.example.com/private": no such host`},
+		{Path: "widgets[1]", Message: "the key abc is not valid"},
+	}})
+	assert.Equal(t, "invalid: services[0]: Name and URL are required; "+
+		"widgets[0]: (not shown: the message quotes a value of the file); "+
+		"widgets[1]: (not shown: the message quotes a value of the file)", reason,
+		"what a variable held is never shown, however short; a short literal like the title W is no secret")
+	assert.Equal(t, "database is down", file.Reason(errors.New("database is down")))
+	assert.NotContains(t, file.Reason(errors.New(`pq: invalid input: "https://feeds.example.com/private"`)), "feeds.example.com")
 }

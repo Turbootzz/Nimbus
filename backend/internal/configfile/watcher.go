@@ -40,8 +40,9 @@ type Users interface {
 type Options struct {
 	// Path is the config file (NIMBUS_CONFIG_FILE)
 	Path string
-	// Prune removes what the file doesn't have and applies its preferences
-	// (NIMBUS_CONFIG_MODE=replace); otherwise the file only adds and updates
+	// Prune removes what the lists of the file don't have and applies its
+	// preferences (NIMBUS_CONFIG_MODE=replace); otherwise the file only adds
+	// and updates
 	Prune bool
 	// ReadOnly locks the owner's dashboard against edits (NIMBUS_CONFIG_READONLY)
 	ReadOnly bool
@@ -186,6 +187,11 @@ func (w *Watcher) Check(ctx context.Context) {
 		return
 	}
 	owner, err := w.users.GetByEmail(file.Owner)
+	if err != nil && !errors.Is(err, repository.ErrUserNotFound) {
+		w.say("not applied, the dashboard stays as it is: the owner could not be looked up")
+		finish(true)
+		return
+	}
 	if err != nil || owner.Role != "admin" {
 		// On a fresh volume the admin is only created by the setup
 		w.say("waiting for an admin with the email address %s to exist; users are never created from the file", file.Owner)
@@ -201,8 +207,7 @@ func (w *Watcher) Check(ctx context.Context) {
 
 	summary, err := w.syncer.Sync(ctx, owner.ID, &file.Document, w.opts.Prune)
 	if err != nil {
-		// An error can quote a value of the file
-		w.say("not applied, the dashboard stays as it is: %s", file.Mask(err.Error()))
+		w.say("not applied, the dashboard stays as it is: %s", file.Reason(err))
 		// A file that is not valid stays that way; anything else may pass
 		var invalid *dashdoc.ValidationError
 		finish(!errors.As(err, &invalid))

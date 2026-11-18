@@ -1,16 +1,20 @@
 package services
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/nimbus/backend/internal/configfile"
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -487,4 +491,73 @@ func TestSyncOnlyPrunesTheListsTheDocumentHas(t *testing.T) {
 	summary := env.sync(t, transferAdmin, &dashdoc.Document{Version: dashdoc.Version, Services: []dashdoc.Service{}}, true)
 	assert.Equal(t, 3, summary.Services.Removed)
 	assert.Zero(t, changed(summary.Groups)+changed(summary.Integrations)+changed(summary.Widgets), "%+v", summary)
+}
+
+type usersByEmail map[string]*models.User
+
+func (u usersByEmail) GetByEmail(email string) (*models.User, error) {
+	if user, ok := u[email]; ok {
+		return user, nil
+	}
+	return nil, repository.ErrUserNotFound
+}
+
+// Whatever a file holds that the real checks refuse, written out or taken
+// from a variable, is not repeated in the log
+func TestAConfigFileThatIsRefusedLogsNoneOfItsValues(t *testing.T) {
+	const file = `
+owner: admin@example.com
+version: 1
+integrations:
+  - kind: sonarr
+    name: Sonarr
+    base_url: ftp://SENTINEL-user:${SECRET}@sonarr.lan
+    credentials:
+      api_key: ${SECRET}
+services:
+  - name: Feed
+    url: ftp://files.lan/SENTINEL-literal
+    position: 0
+  - name: Icon
+    url: http://192.168.1.1
+    icon_type: image_url
+    icon_url: ftp://icons.lan/${SECRET}.png
+    position: 1
+widgets:
+  - type: rss
+    position: 2
+    config:
+      feeds: ["ftp://feeds.lan/?token=${SECRET}"]
+  - type: calendar
+    position: 3
+    config:
+      ical_urls: ["ftp://calendar.lan/SENTINEL-private.ics"]
+  - type: custom_api
+    position: 4
+    config:
+      url: ftp://meter.lan/${SECRET}
+      headers:
+        - name: Authorization
+          value: Bearer ${SECRET}
+      fields:
+        - label: Now
+          path: power
+`
+	env := newTransferEnv(t)
+	path := filepath.Join(t.TempDir(), "nimbus.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(file), 0o600))
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	watcher := configfile.NewWatcher(configfile.Options{
+		Path: path, Prune: true,
+		Lookup: func(string) (string, bool) { return "SENTINEL-from-env", true },
+	}, env.svc, usersByEmail{"admin@example.com": {ID: transferFresh, Role: "admin"}})
+	watcher.Check(context.Background())
+
+	for _, where := range []string{"integrations[0]", "services[0]", "services[1]", "widgets[0]", "widgets[1]", "widgets[2]"} {
+		assert.Contains(t, logged.String(), where, "the log tells where the file is wrong")
+	}
+	assert.NotContains(t, logged.String(), "SENTINEL", "and nothing of what it holds there")
 }

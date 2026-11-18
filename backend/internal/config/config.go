@@ -185,8 +185,9 @@ func GetOIDCConfig() models.OAuthConfig {
 type ConfigFile struct {
 	// Path is NIMBUS_CONFIG_FILE; empty means the mode is off
 	Path string
-	// Prune is true for NIMBUS_CONFIG_MODE=replace, the default: the file is
-	// the whole dashboard. With merge, the file only adds and updates.
+	// Prune is true for NIMBUS_CONFIG_MODE=replace, the default: each list in
+	// the file is all there is of that kind. With merge, the file only adds
+	// and updates.
 	Prune bool
 	// ReadOnly is NIMBUS_CONFIG_READONLY
 	ReadOnly bool
