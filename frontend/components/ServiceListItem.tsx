@@ -1,15 +1,18 @@
 'use client'
 
-import { ClockIcon } from '@heroicons/react/24/outline'
+import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service } from '@/types'
 import { getStatusBgColor, getResponseTimeColor } from '@/lib/status-utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import { overlayActionClass } from '@/components/EditOverlay'
 
 interface ServiceListItemProps {
   service: Service
   openInNewTab: boolean
   isEditMode?: boolean
+  // Shows a pencil in edit mode
+  onEdit?: (service: Service) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   // Effective monitoring state (accounts for the group's monitoring flag too).
@@ -21,6 +24,7 @@ export default function ServiceListItem({
   service,
   openInNewTab,
   isEditMode = false,
+  onEdit,
   dragHandleProps,
   isDragging = false,
   isMonitored,
@@ -98,6 +102,17 @@ export default function ServiceListItem({
             <span className="sm:hidden">{service.response_time}</span>
           </div>
         )}
+
+      {isEditMode && onEdit && (
+        <button
+          type="button"
+          onClick={() => onEdit(service)}
+          className={`${overlayActionClass} shrink-0`}
+          aria-label={`Edit ${service.name}`}
+        >
+          <PencilIcon className="h-4 w-4" />
+        </button>
+      )}
     </>
   )
 

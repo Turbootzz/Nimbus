@@ -49,6 +49,23 @@ describe('ServiceListItem', () => {
     ...overrides,
   })
 
+  describe('Edit button', () => {
+    it('opens the editor in edit mode only', () => {
+      const service = createMockService({ name: 'Plex' })
+      const onEdit = vi.fn()
+      const { rerender } = render(
+        <ServiceListItem service={service} openInNewTab={false} onEdit={onEdit} />
+      )
+      expect(screen.queryByLabelText('Edit Plex')).not.toBeInTheDocument()
+
+      rerender(
+        <ServiceListItem service={service} openInNewTab={false} isEditMode onEdit={onEdit} />
+      )
+      screen.getByLabelText('Edit Plex').click()
+      expect(onEdit).toHaveBeenCalledWith(service)
+    })
+  })
+
   describe('Basic rendering', () => {
     it('should render service name', () => {
       const service = createMockService({ name: 'My Service' })

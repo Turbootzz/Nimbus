@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import type { CardScale, CardSize, Snapshot, Widget, WidgetTypeMeta } from '@/types'
 import { getNextAllowedSize, sizeToGridSpan } from '@/lib/card-utils'
-import EditOverlay from '@/components/EditOverlay'
+import EditOverlay, { overlayActionClass as actionClass } from '@/components/EditOverlay'
 import { getWidgetDefinition, widgetConfig } from '@/components/widgets/registry'
 
 interface WidgetCardProps {
@@ -28,9 +28,6 @@ interface WidgetCardProps {
   onDelete?: (widget: Widget) => void
   onRefresh?: (widget: Widget) => void
 }
-
-const actionClass =
-  'bg-card/90 text-text-muted hover:text-text-primary rounded p-1 transition-colors'
 
 export default function WidgetCard({
   widget,

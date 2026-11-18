@@ -46,6 +46,7 @@ import DashboardHeader from '@/components/DashboardHeader'
 import ServicesGrid from '@/components/ServicesGrid'
 import WidgetCard from '@/components/widgets/WidgetCard'
 import WidgetModal from '@/components/widgets/WidgetModal'
+import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import {
@@ -122,6 +123,9 @@ export default function DashboardPage() {
   const [showWidgetModal, setShowWidgetModal] = useState(false)
   const [editingWidget, setEditingWidget] = useState<Widget | null>(null)
   const [deletingWidget, setDeletingWidget] = useState<Widget | null>(null)
+
+  // Service being edited in the modal
+  const [editingService, setEditingService] = useState<Service | null>(null)
 
   // Services and widgets in one grid, ordered by their shared positions
   const tiles = useMemo(() => mergeTiles(services, widgets), [services, widgets])
@@ -578,6 +582,14 @@ export default function DashboardPage() {
     setEditingWidget(null)
   }
 
+  const closeServiceModal = useCallback(() => setEditingService(null), [])
+
+  // The response is the whole service, health included
+  const handleServiceSaved = useCallback((saved: Service) => {
+    setServices((prev) => prev.map((s) => (s.id === saved.id ? saved : s)))
+    setEditingService(null)
+  }, [])
+
   const handleWidgetSizeChange = async (widget: Widget, size: CardSize) => {
     if (resizingId) return
     const previousWidgets = widgets
@@ -812,6 +824,7 @@ export default function DashboardPage() {
               viewMode={viewMode}
               isEditMode={isEditMode}
               onSizeChange={handleSizeChange}
+              onEditService={setEditingService}
               groupMonitoringMap={groupMonitoringMap}
               widgetTypes={widgetTypeMap}
               onWidgetSizeChange={handleWidgetSizeChange}
@@ -937,6 +950,15 @@ export default function DashboardPage() {
             setEditingWidget(null)
           }}
           onSaved={handleWidgetSaved}
+        />
+      )}
+
+      {/* Service edit modal */}
+      {editingService && (
+        <ServiceModal
+          service={editingService}
+          onClose={closeServiceModal}
+          onSaved={handleServiceSaved}
         />
       )}
 
