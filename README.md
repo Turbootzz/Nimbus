@@ -94,7 +94,7 @@ What each app shows and how it signs in is in [docs/INTEGRATIONS.md](docs/INTEGR
 Already have a dashboard? Bring it along:
 
 1. Open **Settings → Export & Import → Import from another dashboard**.
-2. Paste your config or choose the file: Homepage `services.yaml`, a Homarr 0.x board JSON, Homer `config.yml`, Dashy `conf.yml`, or a `docker-compose.yml`.
+2. Paste your config or choose the file: Homepage `services.yaml`, a Homarr 0.x board JSON (Homarr 1.x is not supported yet), Homer `config.yml`, Dashy `conf.yml`, or a `docker-compose.yml`.
 3. Check the preview, choose which groups it goes into, and press **Import**.
 
 Groups, links, descriptions and icons come along, and apps Nimbus has an integration for (Sonarr, Radarr, Pi-hole, ...) get one. API keys and passwords are never copied: enter them under **Settings → Integrations** afterwards. Anything that can't be taken over is listed before you import, and nothing you already have is changed. Details per dashboard are in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#import-from-another-dashboard).

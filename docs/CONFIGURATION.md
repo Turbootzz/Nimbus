@@ -439,6 +439,11 @@ name instead of becoming a second one:
 POST /api/v1/import?mode=merge&match_groups=1&dry_run=1
 ```
 
+`match_groups` only looks at your own groups and only applies to a `merge`. A name matches when
+it is the same apart from spaces around it; upper and lower case count, so `media` does not go
+into `Media`. Your default group is not matched by its name: a document group goes into it when
+it has `default: true`, with or without `match_groups`.
+
 ### API
 
 Both endpoints need a browser session; API tokens are refused, as for the integrations API.
@@ -627,9 +632,13 @@ the dashboard of its **owner**, everyone else is untouched.
 The file is a [dashboard document](#document-shape-version-1), the same shape an export
 downloads, with two additions:
 
-- `owner`: the email address of an existing **admin**. Nimbus never creates users from the file.
+- `owner`: the email address of an existing **admin**, written exactly as that admin signs in
+  with it (upper and lower case count). Nimbus never creates users from the file.
   On a fresh volume it waits (and logs that it does) until that admin exists, for example after
-  the setup page or through `INITIAL_ADMIN_EMAIL`, and applies the file then.
+  the setup page or through `INITIAL_ADMIN_EMAIL`, and applies the file within a minute of that;
+  what the admin added by hand in that minute is removed again in `replace` mode. The owner is
+  looked up again at every check: when the account is deleted or is no longer an admin, the file
+  is no longer applied and a read-only lock lifts, until an admin with that address exists again.
 - `credentials` on an integration: `api_key`, `token`, or `username` and `password`, depending
   on its auth type. Only a config file may carry them; the import in the UI and API refuses
   them, and an export never contains them. An integration without `credentials` keeps the ones
@@ -638,7 +647,13 @@ downloads, with two additions:
 A string value may use `${VAR}` to take a value from the environment, so secrets stay out of
 Git. A variable that is unset or empty is an error that names the variable; a secret never
 silently becomes empty. Write `$${VAR}` for a literal `${VAR}`. Values are replaced after the
-file is parsed, so the content of a variable can never change the structure of the file.
+file is parsed, so the content of a variable can never change the structure of the file, and a
+value is not looked at again: a variable that holds `${OTHER}` gives that text.
+
+Any variable of the Nimbus process can be used, also `JWT_SECRET` or the database password, and
+its value ends up wherever the file puts it, a service description included. Whoever can write
+the file is trusted like whoever sets the environment. Nothing else resolves variables: not the
+import in the UI or API, and not the converters for other dashboards.
 
 ```yaml
 # nimbus.yaml
@@ -741,7 +756,8 @@ back as `${VAR}`. A YAML file works the same as the exported JSON.
 ### How the file is applied
 
 The file is read at start and checked for changes every 60 seconds; it is applied when its
-content changed. Applying is a **sync**, not an import: Nimbus recognises the entries it
+content changed and has stayed the same for two seconds, so a file that is still being written
+is not applied half. Applying is a **sync**, not an import: Nimbus recognises the entries it
 already has and updates them in place, so they keep their status history, widget data and
 credentials.
 
@@ -752,10 +768,20 @@ credentials.
 | Service | `name` and `url`, otherwise `name` alone (so a new URL keeps the history) |
 | Widget | `type` and `title` |
 
-Entries that share a key are matched in order. Changing what an entry is recognised by, for
-example renaming a service **and** giving it a new URL at once, removes the old one and creates
-a new one, so its history starts over. `ref`s are only used inside the file and can be renamed
-freely.
+Names, titles and URLs must be the same apart from spaces around them; upper and lower case
+count, so `sonarr` is not `Sonarr`. Entries that share a key are matched in order: the first
+one in the file is the first one you have. Changing what an entry is recognised by (renaming a
+service, group, integration or widget) removes the old one and creates a new one, so a renamed
+service starts its history over. Anything else is an update in place: a new URL for a service,
+moving it to another group, another icon or position. `ref`s are only used inside the file and
+can be renamed freely.
+
+In `replace` mode, what the file doesn't list is **deleted**, with its status history. That
+goes per list: a list that is in the file (`services:` with entries, or an explicit
+`services: []`) is everything there is of that kind, and a list that is left out or left empty
+(`services:` with nothing behind it) is not touched at all. So a file that lost a section, or
+one with only `preferences`, never empties the dashboard; write `[]` when you really want none.
+Taking single entries out of a list does delete them: keep the file in Git.
 
 Only what differs is written. Applying a file that describes the dashboard as it is changes
 nothing, so a restart is free. Your default group is never removed, even when the file doesn't
@@ -764,8 +790,9 @@ list it.
 What you change in the UI between two applies stays until the file changes or the server
 restarts; then the file wins for everything it describes. Set `NIMBUS_CONFIG_READONLY=true` to
 rule that out: edits by the owner are then refused with `409` and the message that the
-dashboard is managed by a config file, and the UI shows a banner and hides its edit controls
-(edit mode, add buttons, the discovered-containers tray).
+dashboard is managed by a config file, and the UI shows a banner and hides or disables its
+edit controls (edit mode, add buttons, the discovered-containers tray, editing integrations,
+saving a service, importing).
 Health checks, widget refreshes, connection tests and the import preview keep working. The lock
 applies once the owner is known, so not while Nimbus waits for that admin or when the very
 first read of the file fails.
@@ -787,17 +814,20 @@ first read of the file fails.
 
 ### When something is wrong
 
-A mistake in the file never stops the server and never empties the dashboard. The error is
-logged with what is wrong (the entry and field, or the missing variable), the dashboard stays
-as the last good file left it, and the file is applied again as soon as you fix it:
+A file that can't be read, parsed or validated never stops the server and changes nothing. The
+error is logged with what is wrong (the entry and field, or the missing variable), the
+dashboard stays as the last good file left it, and the file is applied again as soon as you
+fix it:
 
 ```
 Config file: not applied, the dashboard stays as it is: environment variable not set or empty: SONARR_API_KEY
 Config file: applied for admin@example.com: groups +0 ~0 -0, services +1 ~1 -0, widgets +0 ~0 -0, integrations +0 ~1 -0 (created, updated, removed)
 ```
 
-The log holds counts only, never values from the file. Unknown fields are refused, like in an
-import, so a typo is reported instead of ignored.
+The line about an applied file holds counts only. An error can quote the value it is about
+(a URL that is not valid, for example); what came from a `${VAR}` is replaced by `***` there,
+so keep secrets in variables instead of writing them in the file. Unknown fields are refused,
+like in an import, so a typo is reported instead of ignored.
 
 ---
 
