@@ -609,6 +609,48 @@ func TestTelegramTokenNeverLeaks(t *testing.T) {
 	}
 }
 
+// Generic, Discord and Slack webhooks keep their secret in the URL. A
+// receiver that echoes it must not get it into the logs or the test result.
+func TestPlainWebhookURLNeverLeaks(t *testing.T) {
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"invalid webhook ` + r.URL.RequestURI() + `"}`))
+	}))
+	t.Cleanup(server.Close)
+	ctx := context.Background()
+
+	for _, format := range []string{models.WebhookFormatGeneric, models.WebhookFormatDiscord, models.WebhookFormatSlack} {
+		notifier := newTargetNotifier(t, nil)
+		webhook := saveTarget(t, notifier, &models.Webhook{
+			Format: format, URL: server.URL + "/hook/secret123?key=secret456",
+		}, models.WebhookCredentials{})
+
+		notifier.sendWebhook(ctx, webhook, targetEvent(models.StatusOffline))
+		result, err := notifier.TestWebhook(ctx, webhook.ID, "user-1")
+		if err != nil {
+			t.Fatalf("TestWebhook: %v", err)
+		}
+		logs, err := notifier.webhookRepo.GetLogsByWebhookID(ctx, webhook.ID, 10)
+		if err != nil || len(logs) != 1 || logs[0].ErrorMessage == nil {
+			t.Fatalf("logs = %v, err = %v", logs, err)
+		}
+		if *logs[0].ErrorMessage != "HTTP 404" || result.Error != "HTTP 404" {
+			t.Errorf("%s: delivery log = %q, test result = %q, want HTTP 404", format, *logs[0].ErrorMessage, result.Error)
+		}
+	}
+
+	// Stop logging into the buffer before reading it: goroutines of earlier
+	// tests may still log
+	log.SetOutput(os.Stderr)
+	if strings.Contains(logged.String(), "secret") {
+		t.Errorf("server log leaks the webhook URL: %s", logged.String())
+	}
+}
+
 func TestResponseError_ScrubsEchoedSecrets(t *testing.T) {
 	server, _ := targetServer(t, http.StatusBadRequest, `{"errors":["token `+testPushoverToken+` is invalid"]}`)
 	notifier := newTargetNotifier(t, nil)

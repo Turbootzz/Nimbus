@@ -322,7 +322,13 @@ func (w *WebhookNotifier) deliver(ctx context.Context, webhook *models.Webhook, 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return resp.StatusCode, ""
 	}
-	return resp.StatusCode, responseError(resp, creds)
+	switch webhook.Format {
+	case models.WebhookFormatNtfy, models.WebhookFormatGotify, models.WebhookFormatTelegram, models.WebhookFormatPushover:
+		return resp.StatusCode, responseError(resp, creds)
+	}
+	// A plain webhook's secret is its URL, which can't be scrubbed from
+	// what the receiver answers: only the status is kept
+	return resp.StatusCode, fmt.Sprintf("HTTP %d", resp.StatusCode)
 }
 
 // sendWebhook sends a single webhook notification
