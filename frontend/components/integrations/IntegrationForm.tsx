@@ -240,10 +240,9 @@ export default function IntegrationForm({
                 disabled={busy}
                 required
               />
-              <p className="text-text-muted mt-1 text-xs">
+              <p className="text-text-muted mt-1 text-xs break-words">
                 The address Nimbus uses to reach the app, including any sub path.
-                {meta?.docker_socket &&
-                  ' Use unix:// with the socket the server allows in DOCKER_SOCKET, or the http:// address of a socket proxy.'}
+                {meta?.hint && ` ${meta.hint}`}
               </p>
             </div>
 

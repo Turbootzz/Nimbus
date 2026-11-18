@@ -69,6 +69,54 @@ func TestDockerOverHTTP(t *testing.T) {
 	}, containers, "running first, then by name, ignoring case")
 }
 
+// portainer serves the Docker API the way Portainer proxies it: under the
+// environment's path and only with the access token in X-API-Key
+func portainer(t *testing.T) *httptest.Server {
+	t.Helper()
+	docker := http.StripPrefix("/api/endpoints/1/docker", dockerRoutes(t))
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.NotContains(t, r.URL.String(), "portainer-token", "the key must never be in the URL")
+		if r.Header.Get("X-API-Key") != "portainer-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		docker.ServeHTTP(w, r)
+	}))
+	t.Cleanup(server.Close)
+	return server
+}
+
+func TestDockerThroughPortainer(t *testing.T) {
+	impl := registered(t, "docker")
+	assert.Equal(t, []string{models.IntegrationAuthNone, models.IntegrationAuthAPIKey}, impl.Meta().AuthTypes)
+	baseURL := portainer(t).URL + "/api/endpoints/1/docker"
+	ctx := context.Background()
+	conn := newTestConn(baseURL, models.IntegrationCredentials{APIKey: "portainer-token"})
+
+	require.NoError(t, impl.Test(ctx, conn))
+	payload, err := impl.Fetch(ctx, conn)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"running": 2, "stopped": 1, "total": 4}, payload.KPIs)
+
+	containers, err := DockerContainers(ctx, conn)
+	require.NoError(t, err)
+	require.Len(t, containers, 4)
+	assert.Equal(t, "db", containers[0].Name)
+
+	// A wrong or missing key is rejected (401)
+	for _, creds := range []models.IntegrationCredentials{{APIKey: "wrong"}, {}} {
+		rejected := newTestConn(baseURL, creds)
+		assert.ErrorIs(t, impl.Test(ctx, rejected), errRejected)
+		_, err = impl.Fetch(ctx, rejected)
+		assert.ErrorIs(t, err, errRejected)
+		_, err = DockerContainers(ctx, rejected)
+		assert.ErrorIs(t, err, errRejected)
+	}
+	// Without a key the error says one may be needed
+	assert.ErrorContains(t, impl.Test(ctx, newTestConn(baseURL, models.IntegrationCredentials{})), "may need an API key")
+	assert.NotContains(t, impl.Test(ctx, newTestConn(baseURL, models.IntegrationCredentials{APIKey: "wrong"})).Error(), "may need")
+}
+
 func TestDockerOverUnixSocket(t *testing.T) {
 	impl := registered(t, "docker")
 	dir, err := os.MkdirTemp("", "nimbus")

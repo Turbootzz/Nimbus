@@ -4,6 +4,8 @@ import (
 	"cmp"
 	"context"
 	"errors"
+	"fmt"
+	"net/http"
 	"slices"
 	"strings"
 
@@ -11,7 +13,8 @@ import (
 )
 
 // Docker reads the Docker Engine API, through the socket the server allows
-// in DOCKER_SOCKET or a socket proxy over HTTP. It only ever sends GETs.
+// in DOCKER_SOCKET, a socket proxy over HTTP, or Portainer's proxy for one
+// environment (with an access token). It only ever sends GETs.
 // Admin only: the container list shows what runs on the host.
 type docker struct{}
 
@@ -24,16 +27,38 @@ func (docker) Meta() Meta {
 		Name:        "Docker",
 		Icon:        "docker",
 		DefaultPort: 2375,
-		AuthTypes:   []string{models.IntegrationAuthNone},
+		AuthTypes:   []string{models.IntegrationAuthNone, models.IntegrationAuthAPIKey},
 		KPIs: []KPI{
 			{Key: "running", Label: "Running"},
 			{Key: "stopped", Label: "Stopped"},
 			{Key: "total", Label: "Total"},
 		},
-		URLHint:      "unix:///var/run/docker.sock",
+		URLHint: "unix:///var/run/docker.sock",
+		Hint: "Use unix:// with the socket the server allows in DOCKER_SOCKET, or the http:// address of a socket proxy. " +
+			"Through Portainer: https://portainer:9443/api/endpoints/<id>/docker and sign in with an API key. " +
+			"<id> is the number in the Portainer address (#!/<id>/docker/...); create the key under My account, Access tokens.",
 		AdminOnly:    true,
 		DockerSocket: true,
 	}
+}
+
+// dockerAuth sends a Portainer access token in the X-API-Key header (never
+// in the URL, so it can't end up in errors). Without a key it adds nothing.
+func dockerAuth(conn *Conn) authFunc {
+	return func(r *http.Request) {
+		if conn.Creds.APIKey != "" {
+			r.Header.Set("X-API-Key", conn.Creds.APIKey)
+		}
+	}
+}
+
+// dockerErr explains a refusal when no key was sent: "credentials were
+// rejected" says little when there are none
+func dockerErr(conn *Conn, err error) error {
+	if conn.Creds.APIKey == "" && errors.Is(err, errRejected) {
+		return fmt.Errorf("%w: none were sent, this address may need an API key (Portainer)", errRejected)
+	}
+	return err
 }
 
 // DockerContainer is one container, for the containers widget
@@ -61,7 +86,7 @@ func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error
 		Status string
 	}
 	containers := []DockerContainer{}
-	err := eachJSON(ctx, conn, "/containers/json?all=1", nil, func(c apiContainer) {
+	err := eachJSON(ctx, conn, "/containers/json?all=1", dockerAuth(conn), func(c apiContainer) {
 		name := ""
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
@@ -69,7 +94,7 @@ func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error
 		containers = append(containers, DockerContainer{ID: shortID(c.ID), Name: name, Image: c.Image, State: c.State, Status: c.Status})
 	})
 	if err != nil {
-		return nil, err
+		return nil, dockerErr(conn, err)
 	}
 	notRunning := func(c DockerContainer) int {
 		if c.State == "running" {
@@ -85,8 +110,8 @@ func DockerContainers(ctx context.Context, conn *Conn) ([]DockerContainer, error
 
 func (docker) Test(ctx context.Context, conn *Conn) error {
 	var version struct{ APIVersion string }
-	if err := getJSON(ctx, conn, "/version", nil, &version); err != nil {
-		return err
+	if err := getJSON(ctx, conn, "/version", dockerAuth(conn), &version); err != nil {
+		return dockerErr(conn, err)
 	}
 	if version.APIVersion == "" {
 		return errors.New("/version did not answer like the Docker API")

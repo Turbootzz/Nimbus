@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nimbus/backend/internal/integrations"
+	"github.com/nimbus/backend/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,4 +48,36 @@ func TestDockerContainersFetch(t *testing.T) {
 
 	_, err = w.(Fetcher).Fetch(context.Background(), &FetchRequest{Config: json.RawMessage(`{}`)})
 	assert.EqualError(t, err, "this widget has no Docker integration")
+}
+
+// Portainer proxies the Docker API under a sub path and wants an access token
+func TestDockerContainersFetchThroughPortainer(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/endpoints/1/docker/containers/json", r.URL.Path)
+		if r.Header.Get("X-API-Key") != "portainer-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(`[{"Id":"0123456789abcdef","Names":["/web"],"Image":"nginx","State":"running","Status":"Up 2 days"}]`))
+	}))
+	t.Cleanup(server.Close)
+	conn := &integrations.Conn{
+		BaseURL: server.URL + "/api/endpoints/1/docker",
+		Creds:   models.IntegrationCredentials{APIKey: "portainer-token"},
+		Client:  http.DefaultClient,
+		State:   &integrations.State{},
+	}
+	w, _ := Get("docker_containers")
+
+	got, err := w.(Fetcher).Fetch(context.Background(), &FetchRequest{Config: json.RawMessage(`{}`), Integration: conn})
+	require.NoError(t, err)
+	assert.Equal(t, dockerContainersPayload{
+		Containers: []integrations.DockerContainer{{ID: "0123456789ab", Name: "web", Image: "nginx", State: "running", Status: "Up 2 days"}},
+		Running:    1,
+		Total:      1,
+	}, got)
+
+	conn.Creds.APIKey = "wrong"
+	_, err = w.(Fetcher).Fetch(context.Background(), &FetchRequest{Config: json.RawMessage(`{}`), Integration: conn})
+	assert.ErrorContains(t, err, "credentials were rejected")
 }

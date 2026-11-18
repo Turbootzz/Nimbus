@@ -336,6 +336,10 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 	if !slices.Contains(meta.AuthTypes, in.AuthType) {
 		return nil, invalid("Auth type %q is not supported by %s", in.AuthType, meta.Name)
 	}
+	// Checked on the merged values, so changing only the URL is caught too
+	if strings.HasPrefix(in.BaseURL, unixScheme) && in.AuthType != models.IntegrationAuthNone {
+		return nil, invalid("A unix socket takes no credentials; sign in with none")
+	}
 
 	if req.VerifyTLS != nil {
 		in.VerifyTLS = *req.VerifyTLS

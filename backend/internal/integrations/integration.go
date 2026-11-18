@@ -42,6 +42,8 @@ type Meta struct {
 	KPIs        []KPI    `json:"kpis,omitempty"`
 	// URLHint replaces the example address in the form
 	URLHint string `json:"url_hint,omitempty"`
+	// Hint is extra help shown under the URL in the form
+	Hint string `json:"hint,omitempty"`
 	// AdminOnly kinds can only be set up by admins, e.g. because they
 	// expose the host
 	AdminOnly bool `json:"admin_only,omitempty"`

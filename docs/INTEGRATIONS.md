@@ -9,7 +9,7 @@ Add integrations under **Settings, Integrations**, then pick one under **Live nu
 | App | Numbers on the tile | Sign in with | Notes |
 |---|---|---|---|
 | AdGuard Home | queries, blocked, blocked %, latency | username and password | |
-| Docker | running, stopped, total containers | none | Admins only. The URL is `unix:///var/run/docker.sock` (needs `DOCKER_SOCKET`, see [CONFIGURATION.md](CONFIGURATION.md#docker-socket)) or a socket proxy like `http://docker-socket-proxy:2375`. Also feeds the Docker containers widget. |
+| Docker | running, stopped, total containers | none, or API key (Portainer) | Admins only. The URL is `unix:///var/run/docker.sock` (needs `DOCKER_SOCKET`, see [CONFIGURATION.md](CONFIGURATION.md#docker-socket)), a socket proxy like `http://docker-socket-proxy:2375`, or [Portainer](#docker-through-portainer). Also feeds the Docker containers widget. |
 | Home Assistant | people home, lights on, switches on | long-lived access token | Create the token on your Home Assistant profile page. |
 | Jellyfin | movies, series, episodes, streams | API key | Dashboard, API Keys. |
 | Pi-hole | queries, blocked, blocked %, blocklist size | app password, or none | Pi-hole v6 only. v5 used a different API. |
@@ -21,13 +21,25 @@ Add integrations under **Settings, Integrations**, then pick one under **Live nu
 
 The URL is the address the Nimbus server uses to reach the app, including a sub path if the app runs behind a reverse proxy (for example `https://proxy.lan/sonarr`).
 
+### Docker through Portainer
+
+If you already run Portainer, Nimbus can read Docker through it: no socket proxy and no socket mount on the Nimbus host.
+
+1. In Portainer, open **My account, Access tokens** and add a token. Copy it; Portainer shows it once.
+2. Open the environment and read its id from the address bar: `#!/<id>/docker/...`.
+3. In Nimbus, add a Docker integration with the URL `https://<portainer>:9443/api/endpoints/<id>/docker`, choose **Sign in with: API key** and paste the token.
+
+Turn off **Verify TLS certificate** if Portainer still has its self-signed certificate. Nimbus sends the token in the `X-API-Key` header, never in the URL. Each Portainer environment is its own integration.
+
+The token can do everything its Portainer user can. Nimbus only sends `GET` requests, but a token of a separate, non-admin user with access to only that environment limits it further; Nimbus then shows the containers that user may see. Prefer Portainer's `https://` port: over `http://` the token travels unencrypted.
+
 ## Adding an integration
 
 Each app is one Go file in `backend/internal/integrations/` that registers itself. Nothing else needs to change: the settings page, the service form and the tile all read the app's metadata.
 
 1. Copy `backend/internal/integrations/_template.go.txt` to `<app>.go` and `_template_test.go.txt` to `<app>_test.go`. The template is a working kind with a test. Then make the type implement `Integration` for your app:
    - `Kind()`: a stable id, stored in the database (`"pihole"`). Never change it later.
-   - `Meta()`: the name, the [dashboard-icons](https://github.com/walkxcode/dashboard-icons) slug, the default port, the auth types it accepts (the first is the default) and its KPIs. The KPIs are the numbers on the tile, in display order, at most four.
+   - `Meta()`: the name, the [dashboard-icons](https://github.com/walkxcode/dashboard-icons) slug, the default port, the auth types it accepts (the first is the default) and its KPIs. The KPIs are the numbers on the tile, in display order, at most four. Optional: `URLHint` (the example address in the form) and `Hint` (a line of help under the URL field).
    - `Test(ctx, conn)`: a cheap call that proves the URL and the credentials work.
    - `Fetch(ctx, conn)`: returns a `Payload` whose `KPIs` map has one value per KPI key. Values can be numbers or short text like `"3/5"`.
 2. Register it in `init()`: `func init() { Register(myApp{}) }`.
