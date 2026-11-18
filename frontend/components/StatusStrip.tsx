@@ -36,8 +36,8 @@ export default function StatusStrip({
   down,
 }: StatusStripProps) {
   const options = useMemo(
-    () => chipOptions(integrations, kinds, widgets),
-    [integrations, kinds, widgets]
+    () => chipOptions(integrations, kinds, widgets, snapshots),
+    [integrations, kinds, widgets, snapshots]
   )
 
   const chips = strip.chips.flatMap((chip) => {

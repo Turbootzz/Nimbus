@@ -11,7 +11,9 @@ export const kpiColumns: Record<number, string> = {
 }
 
 export interface ServiceKpis {
-  kpis: Kpi[] // from the integration kind, in display order
+  // From the integration kind, in display order. A snapshot can bring its
+  // own list (kpi_defs), which then wins.
+  kpis: Kpi[]
   snapshot?: Snapshot
 }
 
@@ -23,10 +25,11 @@ export function formatKpiValue(value: unknown, unit?: string): string {
 
 // Up to four numbers from a linked integration, shown on a service tile
 export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
-  const shown = kpis.slice(0, 4)
+  const payload = snapshot?.payload as IntegrationPayload | null | undefined
+  const shown = (Array.isArray(payload?.kpi_defs) ? payload.kpi_defs : kpis).slice(0, 4)
   if (shown.length === 0) return null
 
-  const values = (snapshot?.payload as IntegrationPayload | null | undefined)?.kpis
+  const values = payload?.kpis
   const loading = !snapshot
   const problem = snapshot?.error
     ? `Last update failed: ${snapshot.error}`

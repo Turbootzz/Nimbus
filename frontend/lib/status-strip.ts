@@ -1,18 +1,32 @@
-import type { ChipOption, Integration, IntegrationKindMeta, StatusChip, Widget } from '@/types'
+import type {
+  ChipOption,
+  Integration,
+  IntegrationKindMeta,
+  IntegrationPayload,
+  StatusChip,
+  Widget,
+} from '@/types'
+import type { SnapshotMap } from '@/hooks/useDashboardStream'
+import { snapshotKey } from '@/hooks/useDashboardStream'
+import { kpisForIntegration } from '@/lib/kpis'
 
 export const chipKey = (chip: StatusChip) => `${chip.source}:${chip.id}:${chip.kpi}`
 
 // chipOptions lists every KPI of the user's integrations and every value of
-// their enabled custom API widgets, keyed by chipKey
+// their enabled custom API widgets, keyed by chipKey. With snapshots, a
+// KPI takes the label and unit its integration last reported (kpi_defs).
 export function chipOptions(
   integrations: Integration[],
   kinds: IntegrationKindMeta[],
-  widgets: Widget[]
+  widgets: Widget[],
+  snapshots?: SnapshotMap
 ): Map<string, ChipOption> {
   const options: ChipOption[] = []
   for (const integration of integrations) {
-    const kpis = kinds.find((k) => k.kind === integration.kind)?.kpis ?? []
-    for (const kpi of kpis) {
+    const payload = snapshots?.[snapshotKey('integration', integration.id)]?.payload
+    const live = (payload as IntegrationPayload | null | undefined)?.kpi_defs
+    for (const kindKpi of kpisForIntegration(integration, kinds)) {
+      const kpi = (Array.isArray(live) && live.find((d) => d.key === kindKpi.key)) || kindKpi
       options.push({
         chip: { source: 'integration', id: integration.id, kpi: kpi.key },
         label: `${integration.name} · ${kpi.label}`,

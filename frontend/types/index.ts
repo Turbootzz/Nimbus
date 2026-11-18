@@ -97,6 +97,18 @@ export interface Kpi {
   key: string
   label: string
   unit?: string
+  option?: string // only applies when the integration has this option set
+}
+
+// A setting of a kind, shown as a text field in the integration form
+export interface IntegrationOption {
+  key: string
+  label: string
+  help?: string
+  placeholder?: string
+  required?: boolean
+  max_length?: number
+  pattern?: string // the whole value must match
 }
 
 // A kind of app Nimbus can connect to, from GET /integrations/kinds
@@ -107,6 +119,7 @@ export interface IntegrationKindMeta {
   default_port?: number
   auth_types: IntegrationAuthType[] // first one is the default
   kpis?: Kpi[]
+  options?: IntegrationOption[]
   url_hint?: string // example URL for the form
   hint?: string // extra help under the URL
   admin_only?: boolean // only listed for admins
@@ -145,6 +158,7 @@ export interface IntegrationRequest {
   auth_type?: IntegrationAuthType
   credentials?: IntegrationCredentials
   verify_tls?: boolean
+  options?: Record<string, string>
   refresh_seconds?: number
 }
 
@@ -157,6 +171,8 @@ export interface IntegrationTestResult {
 // Payload of an integration snapshot
 export interface IntegrationPayload {
   kpis?: Record<string, number | string>
+  // Replaces the kind's KPIs on the tile (labels from live data)
+  kpi_defs?: Kpi[]
 }
 
 // Widget types (dashboard tiles that are not links)

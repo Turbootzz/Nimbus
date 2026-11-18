@@ -57,4 +57,18 @@ describe('KpiRow', () => {
     const { container } = render(<KpiRow kpis={[]} />)
     expect(container).toBeEmptyDOMElement()
   })
+
+  it("prefers the snapshot's own KPI list, with its labels", () => {
+    const payload = {
+      kpis: { wanted: 3, entity_1: 21.5 },
+      kpi_defs: [
+        { key: 'wanted', label: 'Wanted' },
+        { key: 'entity_1', label: 'Living room', unit: '°C' },
+      ],
+    }
+    render(<KpiRow kpis={kpis} snapshot={snapshot({ payload })} />)
+    expect(screen.getByText('Living room')).toBeInTheDocument()
+    expect(screen.getByText(`${(21.5).toLocaleString()} °C`)).toBeInTheDocument()
+    expect(screen.queryByText('Queued')).not.toBeInTheDocument()
+  })
 })
