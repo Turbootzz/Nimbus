@@ -702,7 +702,7 @@ export default function DashboardPage() {
   if (isLoading) {
     return (
       <div className="flex min-h-96 items-center justify-center">
-        <div className="text-center">
+        <div className="wallpaper-panel text-center">
           <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
           <p className="text-text-secondary">Loading dashboard...</p>
         </div>
@@ -772,7 +772,7 @@ export default function DashboardPage() {
       )}
 
       {!widgetsLoaded && (
-        <p className="text-error mb-4 text-sm">
+        <p className="text-error wallpaper-panel mb-4 text-sm">
           Widgets could not be loaded. Reload the page to see them; until then the order cannot be
           changed.
         </p>

@@ -422,6 +422,24 @@ describe('ThemeContext', () => {
       )
     })
 
+    it('marks the page while a wallpaper is shown', async () => {
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await waitFor(() => expect(result.current.loading).toBe(false))
+      const root = document.documentElement
+      expect(root.hasAttribute('data-wallpaper')).toBe(false)
+
+      act(() => {
+        result.current.setBackground('https://example.com/bg.jpg')
+      })
+      expect(root.hasAttribute('data-wallpaper')).toBe(true)
+
+      // A value that is not an http(s) URL shows no wallpaper
+      act(() => {
+        result.current.setBackground('javascript:alert(1)')
+      })
+      expect(root.hasAttribute('data-wallpaper')).toBe(false)
+    })
+
     it('keeps see-through cards readable by raising the dim', async () => {
       const { result } = renderHook(() => useTheme(), { wrapper })
       await waitFor(() => expect(result.current.loading).toBe(false))

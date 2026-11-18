@@ -97,11 +97,13 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Admin Settings</h1>
-      <p className="text-text-secondary mb-2 text-sm sm:text-base">
-        Configure system-wide settings for Nimbus
-      </p>
-      <p className="text-text-muted mb-8 text-xs sm:text-sm">Changes take effect immediately</p>
+      <div className="wallpaper-panel mb-8">
+        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Admin Settings</h1>
+        <p className="text-text-secondary mb-2 text-sm sm:text-base">
+          Configure system-wide settings for Nimbus
+        </p>
+        <p className="text-text-muted text-xs sm:text-sm">Changes take effect immediately</p>
+      </div>
 
       {error && (
         <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500">

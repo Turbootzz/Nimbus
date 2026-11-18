@@ -102,7 +102,7 @@ export default function ApiTokensPage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <div className="mb-8">
+      <div className="wallpaper-panel mb-8">
         <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">API Tokens</h1>
         <p className="text-text-secondary text-sm sm:text-base">
           Create personal access tokens for programmatic access. Send them as{' '}
@@ -119,7 +119,7 @@ export default function ApiTokensPage() {
       )}
 
       {createdToken && (
-        <div className="border-primary/40 bg-primary/5 mb-6 rounded-lg border p-4">
+        <div className="border-primary/40 bg-primary/5 wallpaper:glass-card mb-6 rounded-lg border p-4">
           <p className="text-text-primary mb-2 text-sm font-semibold">
             Token created. You won&apos;t be able to see this token again — copy it now.
           </p>

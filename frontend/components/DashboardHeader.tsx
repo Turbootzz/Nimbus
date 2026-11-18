@@ -66,7 +66,7 @@ export default function DashboardHeader({
         ) : (
           <button
             onClick={onToggleEditMode}
-            className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
+            className="border-card-border text-text-primary hover:bg-card-hover wallpaper:glass-card inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
           >
             <PencilIcon className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Edit</span>
@@ -74,7 +74,7 @@ export default function DashboardHeader({
         )}
         <button
           onClick={onAddWidget}
-          className="border-card-border text-text-primary hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
+          className="border-card-border text-text-primary hover:bg-card-hover wallpaper:glass-card inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
         >
           <Squares2X2Icon className="h-4 w-4 sm:mr-2" />
           <span className="hidden sm:inline">Add Widget</span>

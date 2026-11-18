@@ -301,7 +301,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     // Wallpaper and glass cards go through CSS variables (globals.css).
     // wallpaperUrl only lets http(s) through, so a stored value can't inject
     // another kind of URL. ThemeScript applies the cached copy before React.
-    const variables = glassVariables(glass, wallpaperUrl(background))
+    const imageUrl = wallpaperUrl(background)
+    const variables = glassVariables(glass, imageUrl)
+    // Lets CSS give text on the wallpaper a surface (globals.css)
+    root.toggleAttribute('data-wallpaper', !!imageUrl)
     for (const [name, value] of Object.entries(variables)) {
       root.style.setProperty(name, value)
     }

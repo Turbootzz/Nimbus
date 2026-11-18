@@ -52,6 +52,11 @@ function applyThemeBeforeHydration() {
       for (const name of names) {
         if (typeof vars[name] === 'string') root.style.setProperty(name, vars[name])
       }
+      // Lets CSS give text on the wallpaper a surface (globals.css)
+      const image = vars['--wallpaper-image']
+      if (typeof image === 'string' && image !== 'none') {
+        root.setAttribute('data-wallpaper', '')
+      }
     }
 
     // Canvas layout replaces the sidebar on the dashboard; CSS hides the

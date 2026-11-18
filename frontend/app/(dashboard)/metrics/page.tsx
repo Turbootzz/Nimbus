@@ -52,18 +52,20 @@ export default function MetricsPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-text-secondary">Loading metrics...</div>
+        <div className="text-text-secondary wallpaper-panel">Loading metrics...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center">
-        <div className="text-error mb-4">{error}</div>
-        <Link href="/dashboard" className="text-primary hover:text-primary-hover">
-          Back to Dashboard
-        </Link>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="wallpaper-panel flex flex-col items-center">
+          <div className="text-error mb-4">{error}</div>
+          <Link href="/dashboard" className="text-primary hover:text-primary-hover">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     )
   }
@@ -86,7 +88,7 @@ export default function MetricsPage() {
   return (
     <div className="mx-auto max-w-7xl">
       {/* Header */}
-      <div className="mb-6">
+      <div className="wallpaper-panel mb-6">
         <h1 className="text-text-primary text-3xl font-bold">Metrics Overview</h1>
         <p className="text-text-secondary mt-2">
           Monitor the health and performance of all your services
