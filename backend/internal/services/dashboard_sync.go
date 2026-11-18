@@ -258,7 +258,10 @@ func byID[R any](rows []*R, id func(*R) string) map[string]*R {
 //
 // With prune, rows the document doesn't have are removed and its preferences
 // are applied: the document is the whole dashboard. Without it, the document
-// only adds and updates. The user's default group is never removed.
+// only adds and updates. The user's default group is never removed, and a
+// list the document leaves out (or leaves null) is not pruned: only an
+// explicit empty list removes everything of a kind, so a file that lost a
+// section does not empty the dashboard.
 //
 // Unlike Apply, Sync takes integration credentials from the document; an
 // integration without them keeps the ones it has. It is how a config file is
@@ -287,8 +290,10 @@ func (s *DashboardTransferService) Sync(ctx context.Context, userID string, doc 
 		return nil, err
 	}
 
-	run := &syncRun{service: s, ctx: ctx, userID: userID, prune: prune, plan: p, summary: dashdoc.Summary{Mode: dashdoc.ModeSync, NeedsSecrets: p.needsSecrets}}
+	run := &syncRun{service: s, ctx: ctx, userID: userID, plan: p, summary: dashdoc.Summary{Mode: dashdoc.ModeSync, NeedsSecrets: p.needsSecrets}}
 	run.changes.Credentials = map[string][]byte{}
+	run.prune.groups, run.prune.integrations = prune && doc.Groups != nil, prune && doc.Integrations != nil
+	run.prune.services, run.prune.widgets = prune && doc.Services != nil, prune && doc.Widgets != nil
 	summary, err := run.apply(stored)
 	if err != nil {
 		// Images went to disk first; nothing points at them now
@@ -308,7 +313,9 @@ type syncRun struct {
 	service *DashboardTransferService
 	ctx     context.Context
 	userID  string
-	prune   bool
+	// prune tells which kinds of rows are removed when the document doesn't
+	// have them
+	prune   struct{ groups, integrations, services, widgets bool }
 	plan    *importPlan
 	changes repository.DashboardChanges
 	summary dashdoc.Summary
@@ -334,8 +341,10 @@ func (r *syncRun) apply(stored *storedDashboard) (*dashdoc.Summary, error) {
 
 	// Without prune, the rows the document doesn't have stay
 	kept := repository.DashboardState{}
-	if !r.prune {
+	if !r.prune.integrations {
 		kept.Integrations = len(stored.integrations) - (len(r.plan.rows.Integrations) - r.summary.Integrations.Created)
+	}
+	if !r.prune.widgets {
 		kept.Widgets = len(stored.widgets) - (len(r.plan.rows.Widgets) - r.summary.Widgets.Created)
 	}
 	if err := r.plan.rows.CheckLimits(kept, dashboardLimits); err != nil {
@@ -395,7 +404,7 @@ func (r *syncRun) groups(stored *storedDashboard) {
 			// A replace orders the groups as the document does; otherwise
 			// new groups go behind the ones the user has
 			group.Position = i
-			if !r.prune {
+			if !r.prune.groups {
 				group.Position, next = next, next+1
 			}
 			r.changes.Create.Groups = append(r.changes.Create.Groups, group)
@@ -405,7 +414,7 @@ func (r *syncRun) groups(stored *storedDashboard) {
 		updated := *old
 		updated.Name, updated.Color, updated.MonitoringEnabled, updated.IsDefault = group.Name, group.Color, group.MonitoringEnabled, group.IsDefault
 		updated.TileStyle = group.TileStyle
-		if r.prune {
+		if r.prune.groups {
 			updated.Position = i
 		}
 		if updated != *old {
@@ -415,7 +424,7 @@ func (r *syncRun) groups(stored *storedDashboard) {
 		}
 	}
 	for _, group := range stored.groups {
-		if r.prune && !planned[group.ID] && !group.IsDefault {
+		if r.prune.groups && !planned[group.ID] && !group.IsDefault {
 			r.changes.Delete.Groups = append(r.changes.Delete.Groups, group.ID)
 			r.summary.Groups.Removed++
 		}
@@ -494,7 +503,7 @@ func (r *syncRun) integrations(stored *storedDashboard) error {
 		}
 	}
 	for _, integration := range stored.integrations {
-		if r.prune && !planned[integration.ID] {
+		if r.prune.integrations && !planned[integration.ID] {
 			r.changes.Delete.Integrations = append(r.changes.Delete.Integrations, integration.ID)
 			r.reconnect = append(r.reconnect, integration)
 			r.summary.Integrations.Removed++
@@ -546,7 +555,7 @@ func (r *syncRun) services(stored *storedDashboard) error {
 		}
 	}
 	for _, service := range stored.services {
-		if r.prune && !planned[service.ID] {
+		if r.prune.services && !planned[service.ID] {
 			r.changes.Delete.Services = append(r.changes.Delete.Services, service.ID)
 			r.summary.Services.Removed++
 			if uploaded(service) {
@@ -586,7 +595,7 @@ func (r *syncRun) widgets(stored *storedDashboard) {
 		}
 	}
 	for _, widget := range stored.widgets {
-		if r.prune && !planned[widget.ID] {
+		if r.prune.widgets && !planned[widget.ID] {
 			r.changes.Delete.Widgets = append(r.changes.Delete.Widgets, widget.ID)
 			r.summary.Widgets.Removed++
 		}

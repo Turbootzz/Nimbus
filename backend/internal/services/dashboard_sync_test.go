@@ -473,3 +473,18 @@ func TestSyncCarriesTileStyleAndGroupDisplay(t *testing.T) {
 	assert.Nil(t, display)
 	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
 }
+
+func TestSyncOnlyPrunesTheListsTheDocumentHas(t *testing.T) {
+	env := newTransferEnv(t)
+	env.seedDashboard(t)
+	before := env.dump(t, transferAdmin)
+
+	// A file that lost its sections (or has a bare `services:`) removes nothing
+	assertNothingChanged(t, env.sync(t, transferAdmin, &dashdoc.Document{Version: dashdoc.Version}, true))
+	assert.Equal(t, before, env.dump(t, transferAdmin))
+
+	// An explicit empty list is the way to have none; the other kinds stay
+	summary := env.sync(t, transferAdmin, &dashdoc.Document{Version: dashdoc.Version, Services: []dashdoc.Service{}}, true)
+	assert.Equal(t, 3, summary.Services.Removed)
+	assert.Zero(t, changed(summary.Groups)+changed(summary.Integrations)+changed(summary.Widgets), "%+v", summary)
+}
