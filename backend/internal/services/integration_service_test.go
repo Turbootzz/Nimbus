@@ -33,7 +33,7 @@ func (fakeKind) Kind() string { return "svc-fake" }
 func (fakeKind) Meta() integrations.Meta {
 	return integrations.Meta{Name: "Fake", AuthTypes: []string{
 		models.IntegrationAuthAPIKey, models.IntegrationAuthBasic, models.IntegrationAuthNone,
-	}}
+	}, Options: []integrations.Option{{Key: "node", Label: "Node"}}}
 }
 func (fakeKind) Test(ctx context.Context, conn *integrations.Conn) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, conn.BaseURL+"/ping?apikey="+url.QueryEscape(conn.Creds.APIKey), nil)
@@ -250,10 +250,10 @@ func TestIntegrationService_OptionsAreStoredAsParsed(t *testing.T) {
 
 	integration, err := svc.Create(context.Background(), "user-1", false, &models.IntegrationRequest{
 		Kind: "svc-fake", Name: "Open", BaseURL: "http://10.0.0.5", AuthType: models.IntegrationAuthNone,
-		Options: json.RawMessage(`{"node": "pve", "bad": "\ud800"}`),
+		Options: json.RawMessage(`{"node": "pve\ud800"}`),
 	})
 	require.NoError(t, err)
-	assert.JSONEq(t, `{"node":"pve","bad":"\ufffd"}`, string(integration.Options))
+	assert.JSONEq(t, `{"node":"pve\ufffd"}`, string(integration.Options))
 	assert.NotContains(t, string(integration.Options), `\ud800`)
 }
 
@@ -341,11 +341,11 @@ func TestIntegrationService_Options(t *testing.T) {
 		assert.Equal(t, want, vErr.Message, options)
 	}
 
-	// Kinds without options take none
+	// An option the kind does not declare is refused
 	req := apiKeyRequest("http://nas.lan")
-	req.Options = json.RawMessage(`{"node":"pve"}`)
+	req.Options = json.RawMessage(`{"site":"home"}`)
 	_, err := svc.Create(ctx, "user-1", false, req)
-	assert.ErrorContains(t, err, `Fake has no option "node"`)
+	assert.ErrorContains(t, err, `Fake has no option "site"`)
 
 	// Stored trimmed, without the empty ones
 	created, err := svc.Create(ctx, "user-1", false, request(`{"site":" home ","entity":""}`))
