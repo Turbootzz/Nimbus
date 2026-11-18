@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/nimbus/backend/internal/configfile"
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/stretchr/testify/assert"
@@ -293,4 +294,125 @@ func TestMergeMatchingGroupsUsesTheGroupsTheUserHas(t *testing.T) {
 	_, err = env.svc.Apply(context.Background(), transferAdmin, doc, dashdoc.ModeMerge)
 	require.NoError(t, err)
 	assert.Equal(t, 4, env.count(t, "groups", transferAdmin))
+}
+
+// A config file kept in Git plus the secrets in the environment are all a
+// fresh volume needs to get the same dashboard again
+func TestConfigFileReproducesTheDashboardOnAFreshVolume(t *testing.T) {
+	const file = `
+owner: admin@example.com
+version: 1
+groups:
+  - ref: main
+    name: Home
+    default: true
+  - ref: media
+    name: Media
+    color: "#ff8800"
+integrations:
+  - ref: sonarr
+    kind: sonarr
+    name: Sonarr
+    base_url: http://192.168.1.10:8989
+    credentials:
+      api_key: ${SONARR_API_KEY}
+services:
+  - name: Sonarr
+    url: http://192.168.1.10:8989
+    icon_type: image_url
+    icon_url: https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/svg/sonarr.svg
+    position: 0
+    group_ref: media
+    integration_ref: sonarr
+  - name: Router
+    url: http://192.168.1.1
+    icon: "🌐"
+    position: 1
+    group_ref: main
+    monitoring_enabled: false
+widgets:
+  - ref: power
+    type: custom_api
+    title: Power
+    position: 2
+    config:
+      url: http://192.168.1.30/api
+      headers:
+        - name: Authorization
+          value: Bearer ${METER_TOKEN}
+      fields:
+        - label: Now
+          path: power
+          unit: W
+  - type: calendar
+    title: Upcoming
+    position: 3
+    config:
+      integrations: [sonarr]
+      days: 7
+preferences:
+  theme_mode: dark
+  layout_mode: classic
+  status_strip:
+    enabled: true
+    chips:
+      - source: integration
+        ref: sonarr
+        kpi: queue
+      - source: widget
+        ref: power
+        kpi: Now
+`
+	lookup := func(name string) (string, bool) {
+		value, ok := map[string]string{"SONARR_API_KEY": "key-from-env", "METER_TOKEN": "token-from-env"}[name]
+		return value, ok
+	}
+
+	// boot is a server starting on an empty database with the file mounted
+	boot := func() (*transferEnv, *dashdoc.Summary) {
+		env := newTransferEnv(t)
+		parsed, err := configfile.Parse([]byte(file), lookup)
+		require.NoError(t, err)
+		summary, err := env.svc.Sync(context.Background(), transferFresh, &parsed.Document, true)
+		require.NoError(t, err)
+		return env, summary
+	}
+
+	first, summary := boot()
+	assert.Equal(t, dashdoc.Count{Created: 2}, summary.Groups)
+	assert.Equal(t, dashdoc.Count{Created: 2}, summary.Services)
+	assert.Equal(t, dashdoc.Count{Created: 2}, summary.Widgets)
+	assert.Equal(t, dashdoc.Count{Created: 1}, summary.Integrations)
+	assert.True(t, summary.Preferences)
+	assert.Zero(t, summary.NeedsCredentials, "the credentials came from the environment")
+	assert.Zero(t, summary.NeedsSecrets, "and so did the widget's secret")
+
+	// The integration can connect and the widget has its header
+	var id, config string
+	require.NoError(t, first.db.QueryRow(`SELECT id FROM integrations`).Scan(&id))
+	integration, err := first.svc.Integrations.GetByID(context.Background(), id, transferFresh)
+	require.NoError(t, err)
+	conn, err := first.integrations.Conn(context.Background(), integration)
+	require.NoError(t, err)
+	assert.Equal(t, "key-from-env", conn.Creds.APIKey)
+	require.NoError(t, first.db.QueryRow(`SELECT config FROM widgets WHERE type = 'custom_api'`).Scan(&config))
+	assert.Contains(t, config, "Bearer token-from-env")
+
+	// A second fresh volume gives the same dashboard, and a restart on the
+	// first changes nothing
+	second, _ := boot()
+	assert.Equal(t, toJSON(t, first.export(t, transferFresh)), toJSON(t, second.export(t, transferFresh)))
+
+	before := first.dump(t, transferFresh)
+	parsed, err := configfile.Parse([]byte(file), lookup)
+	require.NoError(t, err)
+	restart, err := first.svc.Sync(context.Background(), transferFresh, &parsed.Document, true)
+	require.NoError(t, err)
+	assertNothingChanged(t, restart)
+	assert.Equal(t, before, first.dump(t, transferFresh))
+
+	// The export of it holds neither secret
+	exported := toJSON(t, first.export(t, transferFresh))
+	assert.NotContains(t, exported, "key-from-env")
+	assert.NotContains(t, exported, "token-from-env")
 }

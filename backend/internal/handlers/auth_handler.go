@@ -19,6 +19,20 @@ type AuthHandler struct {
 	settingsRepo    *repository.SettingsRepository
 	preferencesRepo *repository.PreferencesRepository
 	cookieConfig    utils.CookieConfig
+	configFile      ConfigFile
+}
+
+// ConfigFile tells which dashboard a config file manages and locks
+// (configfile.Watcher)
+type ConfigFile interface {
+	Manages(userID string) bool
+	Locks(userID string) bool
+	LocksPreferences(userID string) bool
+}
+
+// SetConfigFile makes GetMe tell the owner of the config file about it
+func (h *AuthHandler) SetConfigFile(configFile ConfigFile) {
+	h.configFile = configFile
 }
 
 func NewAuthHandler(userRepo *repository.UserRepository, authService *services.AuthService, settingsRepo *repository.SettingsRepository, preferencesRepo *repository.PreferencesRepository) *AuthHandler {
@@ -243,7 +257,14 @@ func (h *AuthHandler) GetMe(c *fiber.Ctx) error {
 		}
 	}
 
-	return c.JSON(user.ToResponse())
+	response := user.ToResponse()
+	if h.configFile != nil && h.configFile.Manages(user.ID) {
+		response.ConfigFile = &models.ConfigFileStatus{
+			ReadOnly:    h.configFile.Locks(user.ID),
+			Preferences: h.configFile.LocksPreferences(user.ID),
+		}
+	}
+	return c.JSON(response)
 }
 
 // DeleteAccount allows the authenticated user to delete their own account.
