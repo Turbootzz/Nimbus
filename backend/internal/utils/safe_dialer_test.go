@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -94,4 +95,66 @@ func TestNewSafeClient_VerifyTLS(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	assert.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestNewSafeClient_RedirectsKeepCredentialsOnTheSameHostOnly(t *testing.T) {
+	type seen struct{ apiKey, auth, accept string }
+	got := make(chan seen, 1)
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got <- seen{r.Header.Get("X-API-Key"), r.Header.Get("Authorization"), r.Header.Get("Accept")}
+	}))
+	defer target.Close()
+	// httptest servers all listen on 127.0.0.1; "localhost" makes the
+	// target another host
+	otherHost := strings.Replace(target.URL, "127.0.0.1", "localhost", 1)
+
+	location := ""
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, location, http.StatusTemporaryRedirect)
+	}))
+	defer origin.Close()
+
+	do := func(method string) error {
+		req, err := http.NewRequest(method, origin.URL, strings.NewReader("password=hunter2"))
+		require.NoError(t, err)
+		req.Header.Set("X-API-Key", "secret")
+		req.Header.Set("Authorization", "PVEAPIToken=secret")
+		req.Header.Set("Accept", "application/json")
+		resp, err := NewSafeClient(true, 2*time.Second).Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+		return err
+	}
+
+	// Another port on the same host is still the same app
+	location = target.URL + "/same-host"
+	require.NoError(t, do(http.MethodGet))
+	assert.Equal(t, seen{"secret", "PVEAPIToken=secret", "application/json"}, <-got)
+
+	location = otherHost + "/other-host"
+	require.NoError(t, do(http.MethodGet))
+	assert.Equal(t, seen{"", "", "application/json"}, <-got, "credentials stay behind, harmless headers go along")
+
+	// A 307 would resend the login form
+	err := do(http.MethodPost)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refused a redirect")
+	assert.Empty(t, got, "the other host was never called")
+}
+
+func TestDropCredentialsOnRedirect_HTTPSDowngrade(t *testing.T) {
+	first := httptest.NewRequest(http.MethodGet, "https://app.lan/api", nil)
+	upgrade := httptest.NewRequest(http.MethodGet, "http://app.lan/api", nil)
+	upgrade.Header.Set("X-API-Key", "secret")
+
+	// http to https on the same host keeps the key
+	next := httptest.NewRequest(http.MethodGet, "https://APP.lan:8443/api", nil)
+	next.Header.Set("X-API-Key", "secret")
+	require.NoError(t, dropCredentialsOnRedirect(next, upgrade))
+	assert.Equal(t, "secret", next.Header.Get("X-API-Key"))
+
+	// https to http never does
+	require.NoError(t, dropCredentialsOnRedirect(upgrade, first))
+	assert.Empty(t, upgrade.Header.Get("X-API-Key"))
 }

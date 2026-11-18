@@ -81,9 +81,43 @@ func IsBlockedIP(addr string) bool {
 // host. net/http wraps it in url.Error, so callers should use errors.Is.
 var ErrBlockedHost = errors.New("blocked host")
 
+// redirectSafeHeaders may follow a redirect to another host. Credentials
+// travel in headers of any name (X-API-Key, X-Api-Key, ...), so everything
+// else is dropped.
+var redirectSafeHeaders = map[string]bool{
+	"Accept":          true,
+	"Accept-Language": true,
+	"User-Agent":      true,
+}
+
+// dropCredentialsOnRedirect keeps a redirect from carrying the first
+// request's credentials to another host, or from https to plain http.
+// Go only strips Authorization and Cookie itself, and re-adds the first
+// request's headers on every hop, hence the compare with the first request.
+// Another port on the same host keeps them, so http://app:80 can still
+// upgrade to https://app:443.
+func dropCredentialsOnRedirect(req, first *http.Request) error {
+	sameHost := strings.EqualFold(req.URL.Hostname(), first.URL.Hostname())
+	downgrade := first.URL.Scheme == "https" && req.URL.Scheme != "https"
+	if sameHost && !downgrade {
+		return nil
+	}
+	// A 307 or 308 would send the body (a login form) along
+	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+		return errors.New("refused a redirect that sends the request body to another host")
+	}
+	for name := range req.Header {
+		if !redirectSafeHeaders[name] {
+			req.Header.Del(name)
+		}
+	}
+	return nil
+}
+
 // NewSafeClient returns an HTTP client for fetching user-supplied URLs.
 // Defense in depth: CheckRedirect blocks by hostname, the dialer's Control
-// blocks by resolved IP (so DNS rebinding can't sneak through).
+// blocks by resolved IP (so DNS rebinding can't sneak through). A redirect
+// to another host never gets the request's credentials.
 // verifyTLS=false skips certificate checks for this client only.
 func NewSafeClient(verifyTLS bool, timeout time.Duration) *http.Client {
 	dialer := &net.Dialer{
@@ -120,7 +154,7 @@ func NewSafeClient(verifyTLS bool, timeout time.Duration) *http.Client {
 			if IsBlockedHost(req.URL.Hostname()) {
 				return ErrBlockedHost
 			}
-			return nil
+			return dropCredentialsOnRedirect(req, via[0])
 		},
 		Transport: transport,
 	}
