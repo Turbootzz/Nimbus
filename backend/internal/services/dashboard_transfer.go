@@ -1,10 +1,12 @@
 package services
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"database/sql"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -202,10 +204,13 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 	})
 	widgetRefs, names := map[string]string{}, refNames{}
 	for _, widget := range widgetList {
-		ref := names.next(widget.Title, widget.Type)
-		widgetRefs[widget.ID] = ref
+		widgetType, known := widgets.Get(widget.Type)
+		// A widget that lost its integration shows nothing and no import
+		// would take it; leaving it out keeps the export importable
+		if !known || (len(widgetType.Meta().IntegrationKinds) > 0 && refOf(integrationRefs, widget.IntegrationID) == "") {
+			continue
+		}
 		out := dashdoc.Widget{
-			Ref:            ref,
 			Type:           widget.Type,
 			Title:          widget.Title,
 			Config:         widget.Config,
@@ -216,26 +221,34 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 			GroupRef:       refOf(groupRefs, widget.GroupID),
 			IntegrationRef: refOf(integrationRefs, widget.IntegrationID),
 		}
-		if widgetType, ok := widgets.Get(widget.Type); ok {
-			if secret, ok := widgetType.(widgets.SecretConfig); ok {
-				out.Config = secret.Redact(out.Config)
-			}
-			if masked, ok := widgetType.(widgets.MaskedConfig); ok {
-				out.NeedsSecrets = masked.HasMasks(out.Config)
-			}
-			if lister, ok := widgetType.(widgets.ConfigIntegrations); ok {
-				// A config lists integration IDs; the document lists refs
-				refs := []string{}
-				for _, id := range lister.IntegrationIDs(out.Config) {
-					if ref, ok := integrationRefs[id]; ok {
-						refs = append(refs, ref)
-					}
+		validate := widgetType.Validate
+		if secret, ok := widgetType.(widgets.SecretConfig); ok {
+			out.Config = secret.Redact(out.Config)
+		}
+		if masked, ok := widgetType.(widgets.MaskedConfig); ok {
+			out.NeedsSecrets = masked.HasMasks(out.Config)
+			validate = masked.ValidateMasked
+		}
+		if lister, ok := widgetType.(widgets.ConfigIntegrations); ok {
+			// A config lists integration IDs; the document lists refs
+			ids, refs := lister.IntegrationIDs(out.Config), []string{}
+			for _, id := range ids {
+				if ref, ok := integrationRefs[id]; ok {
+					refs = append(refs, ref)
 				}
-				if out.Config, err = lister.SetIntegrationIDs(out.Config, refs); err != nil {
-					return nil, fmt.Errorf("failed to export widget %s: %w", widget.ID, err)
+			}
+			if out.Config, err = lister.SetIntegrationIDs(out.Config, refs); err != nil {
+				return nil, fmt.Errorf("failed to export widget %s: %w", widget.ID, err)
+			}
+			// All of them deleted: left out too when nothing else is shown
+			if len(ids) > 0 && len(refs) == 0 {
+				if _, err := validate(out.Config); err != nil {
+					continue
 				}
 			}
 		}
+		out.Ref = names.next(widget.Title, widget.Type)
+		widgetRefs[widget.ID] = out.Ref
 		doc.Widgets = append(doc.Widgets, out)
 	}
 
@@ -392,6 +405,9 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	if err := dashdoc.Validate(doc); err != nil {
 		return nil, err
 	}
+	if raw, err := json.Marshal(doc); err != nil || hasNUL(raw) {
+		return nil, (dashdoc.Issues{{Path: "document", Message: `must be valid JSON without the character \u0000, which can not be stored`}}).Err()
+	}
 	user, err := s.Users.GetByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
@@ -473,6 +489,27 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	}
 	kick(s.poller)
 	return p.summary(mode, false, applied.Before), nil
+}
+
+// hasNUL reports a \u0000 escape in JSON that is not itself escaped.
+// Postgres stores that character in neither text nor JSONB.
+func hasNUL(raw []byte) bool {
+	const escape = `\u0000`
+	for from := 0; ; {
+		at := bytes.Index(raw[from:], []byte(escape))
+		if at < 0 {
+			return false
+		}
+		at += from
+		backslashes := 0
+		for at-backslashes > 0 && raw[at-backslashes-1] == '\\' {
+			backslashes++
+		}
+		if backslashes%2 == 0 {
+			return true
+		}
+		from = at + 1
+	}
 }
 
 // limitIssue turns a per-user limit error into a validation error
@@ -803,7 +840,8 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 	case *in.ThemeAccentColor == "":
 		req.ThemeAccentColor = models.NullableString{Set: true}
 	default:
-		if err := preferencesValidator.Var(*in.ThemeAccentColor, "hexcolor"); err != nil {
+		// #RRGGBB only: the column holds 7 characters
+		if !models.IsValidHexColor(*in.ThemeAccentColor) {
 			issues.Add("preferences.theme_accent_color", "must be a valid hex color (e.g., #3B82F6)")
 		}
 		req.ThemeAccentColor = models.NullableString{Value: in.ThemeAccentColor, Set: true}

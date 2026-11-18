@@ -51,6 +51,10 @@ func (h *DashboardTransferHandler) Import(c *fiber.Ctx) error {
 	if !ok {
 		return BadRequest(c, "mode must be merge or replace")
 	}
+	// Like every other write: a form posted from another site is not JSON
+	if !c.Is("json") {
+		return c.Status(fiber.StatusUnsupportedMediaType).JSON(fiber.Map{"error": "Content-Type must be application/json"})
+	}
 	if len(c.Body()) > MaxImportSize {
 		return c.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{
 			"error": fmt.Sprintf("The document exceeds the maximum size of %d MB", MaxImportSize/(1024*1024)),

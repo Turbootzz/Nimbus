@@ -248,6 +248,21 @@ func TestTransfer_ImportRejects(t *testing.T) {
 	assert.Zero(t, count)
 }
 
+// A form posted from another site can't set this content type
+func TestTransfer_ImportNeedsJSONContentType(t *testing.T) {
+	app, db := setupTransferTestApp(t, integrationOwnerID)
+	req := httptest.NewRequest(http.MethodPost, "/import?mode=replace", strings.NewReader(`{"version":1,"services":[{"name":"A","url":"http://a.lan"}]}`))
+	req.Header.Set("Content-Type", "text/plain")
+	resp, err := app.Test(req, -1)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode)
+
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM services`).Scan(&count))
+	assert.Zero(t, count)
+}
+
 func TestTransfer_ValidationErrorsNameEntityAndField(t *testing.T) {
 	app, _ := setupTransferTestApp(t, integrationOwnerID)
 	doc := `{"version":1,

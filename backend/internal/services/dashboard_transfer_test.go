@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 	"testing"
 	"time"
 
@@ -420,6 +421,56 @@ func TestExportLeavesOutMissingImages(t *testing.T) {
 	assert.Empty(t, doc.Preferences.WallpaperData)
 }
 
+// A widget that lost its integration can't be imported; an export that held
+// it could never be restored
+func TestExportLeavesOutWidgetsWithoutTheirIntegration(t *testing.T) {
+	env := newTransferEnv(t)
+	ctx := context.Background()
+	app, err := env.integrations.Create(ctx, transferAdmin, true, &models.IntegrationRequest{
+		Kind: "svc-fake", Name: "App", BaseURL: "http://192.168.1.11", AuthType: models.IntegrationAuthNone,
+	})
+	require.NoError(t, err)
+	sonarr, err := env.integrations.Create(ctx, transferAdmin, true, &models.IntegrationRequest{
+		Kind: "sonarr", Name: "Sonarr", BaseURL: "http://192.168.1.10:8989",
+		Credentials: &models.IntegrationCredentials{APIKey: "key"},
+	})
+	require.NoError(t, err)
+	env.addWidget(t, transferAdmin, models.WidgetRequest{Type: "svc-queue", IntegrationID: &app.ID})
+	env.addWidget(t, transferAdmin, models.WidgetRequest{
+		Type: "calendar", Config: json.RawMessage(fmt.Sprintf(`{"integrations":[%q]}`, sonarr.ID)),
+	})
+	env.addWidget(t, transferAdmin, models.WidgetRequest{
+		Type: "calendar", Title: new("Feeds"),
+		Config: json.RawMessage(fmt.Sprintf(`{"integrations":[%q],"ical_urls":["https://192.168.1.20/a.ics"]}`, sonarr.ID)),
+	})
+	env.addWidget(t, transferAdmin, models.WidgetRequest{Type: "markdown", Title: new("Notes")})
+	require.Len(t, env.export(t, transferAdmin).Widgets, 4)
+
+	// SQLite has no ON DELETE SET NULL here; do what Postgres does
+	require.NoError(t, env.integrations.Delete(ctx, app.ID, transferAdmin))
+	require.NoError(t, env.integrations.Delete(ctx, sonarr.ID, transferAdmin))
+	_, err = env.db.Exec(`UPDATE widgets SET integration_id = NULL`)
+	require.NoError(t, err)
+
+	doc := env.export(t, transferAdmin)
+
+	titles := []string{}
+	for _, widget := range doc.Widgets {
+		titles = append(titles, widget.Title)
+	}
+	assert.ElementsMatch(t, []string{"Feeds", "Notes"}, titles)
+	_, err = env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+}
+
+func TestHasNUL(t *testing.T) {
+	assert.True(t, hasNUL([]byte(`{"a":"x\u0000"}`)))
+	assert.True(t, hasNUL([]byte(`{"a":"\\\u0000"}`)))
+	// An escaped backslash followed by the text u0000
+	assert.False(t, hasNUL([]byte(`{"a":"\\u0000"}`)))
+	assert.False(t, hasNUL([]byte(`{"a":"\u0001"}`)))
+}
+
 func TestExportRenumbersPositionsADocumentCannotHold(t *testing.T) {
 	env := newTransferEnv(t)
 	env.addService(t, transferUser, models.Service{Name: "First", URL: "http://first.lan"})
@@ -707,6 +758,10 @@ func TestInvalidDocuments(t *testing.T) {
 		{"service card size", service(func(s *dashdoc.Service) { s.CardSize = "9x9" }), "services[0]"},
 		{"service dangling group", service(func(s *dashdoc.Service) { s.GroupRef = "nope" }), "services[0].group_ref"},
 		{"service dangling integration", service(func(s *dashdoc.Service) { s.IntegrationRef = "nope" }), "services[0].integration_ref"},
+		{"service name too long", service(func(s *dashdoc.Service) { s.Name = strings.Repeat("a", models.MaxServiceNameLen+1) }), "services[0]"},
+		{"service icon too long", service(func(s *dashdoc.Service) { s.Icon = strings.Repeat("a", models.MaxServiceIconLen+1) }), "services[0]"},
+		{"NUL character", service(func(s *dashdoc.Service) { s.Description = "a\x00b" }), "document"},
+		{"NUL character in a config", widget(dashdoc.Widget{Type: "markdown", Config: json.RawMessage(`{"content":"a\u0000b"}`)}), "document"},
 		{"service position", service(func(s *dashdoc.Service) { s.Position = -1 }), "services[0].position"},
 		{"icon not base64", service(func(s *dashdoc.Service) { s.IconData = "not base64!" }), "services[0].icon_data"},
 		{"icon not an image", service(func(s *dashdoc.Service) { s.IconData = base64.StdEncoding.EncodeToString([]byte("<html>")) }), "services[0].icon_data"},
@@ -724,6 +779,7 @@ func TestInvalidDocuments(t *testing.T) {
 		{"uploaded wallpaper path", prefs(dashdoc.Preferences{ThemeBackground: new("/uploads/wallpapers/0123456789abcdef0123456789abcdef.png")}), "preferences.theme_background"},
 		{"wallpaper not an image", prefs(dashdoc.Preferences{WallpaperData: base64.StdEncoding.EncodeToString([]byte("nope"))}), "preferences.wallpaper_data"},
 		{"accent color", prefs(dashdoc.Preferences{ThemeAccentColor: new("blue")}), "preferences.theme_accent_color"},
+		{"accent color with alpha", prefs(dashdoc.Preferences{ThemeAccentColor: new("#11223344")}), "preferences.theme_accent_color"},
 		{"theme mode", prefs(dashdoc.Preferences{ThemeMode: new("neon")}), "preferences"},
 		{"wallpaper blur", prefs(dashdoc.Preferences{WallpaperBlur: new(99)}), "preferences"},
 		{"chip without a target", prefs(dashdoc.Preferences{StatusStrip: &dashdoc.StatusStrip{Chips: []dashdoc.Chip{{Source: "integration", Ref: "nope", KPI: "queue"}}}}), "preferences.status_strip.chips[0].ref"},
