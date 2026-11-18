@@ -11,7 +11,8 @@ import (
 )
 
 // Requests one visitor may make to the public status page per
-// rateLimitWindow (15 minutes); an open page refreshes once a minute
+// rateLimitWindow (15 minutes). An open page refreshes once a minute, and
+// each load asks twice: the frontend first checks that the page is on.
 const statusPageRateLimit = 300
 
 type StatusPageHandler struct {
@@ -35,6 +36,7 @@ func (h *StatusPageHandler) GetPublic(c *fiber.Ctx) error {
 	}
 	// Turning the page off must not leave copies in caches
 	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set("X-Robots-Tag", "noindex")
 	return c.JSON(page)
 }
 
@@ -46,7 +48,7 @@ func (h *StatusPageHandler) RateLimit() fiber.Handler {
 		if page, err := h.service.Public(c.Context()); err == nil && page == nil {
 			return c.Next()
 		}
-		if isRateLimited("status-page:"+visitorIP(c), statusPageRateLimit) {
+		if isRateLimited("status-page:"+rateLimitNetwork(visitorIP(c)), statusPageRateLimit) {
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Too many requests"})
 		}
 		return c.Next()
@@ -72,6 +74,17 @@ func visitorIP(c *fiber.Ctx) string {
 		return realIP.String()
 	}
 	return c.IP()
+}
+
+// rateLimitNetwork widens an IPv6 address to its /64, which is what one
+// visitor gets: per address they would have a fresh budget, and a new entry
+// in the limiter, for every request
+func rateLimitNetwork(address string) string {
+	ip := net.ParseIP(address)
+	if ip == nil || ip.To4() != nil {
+		return address
+	}
+	return ip.Mask(net.CIDRMask(64, 128)).String()
 }
 
 func isInternalIP(ip net.IP) bool {

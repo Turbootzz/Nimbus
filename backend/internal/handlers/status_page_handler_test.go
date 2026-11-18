@@ -268,6 +268,7 @@ func TestStatusPage_SaveValidation(t *testing.T) {
 		{"group that is no ID", models.StatusPageSettings{GroupID: "1 OR 1=1"}, http.StatusBadRequest},
 		{"enabled without group", models.StatusPageSettings{Enabled: true}, http.StatusBadRequest},
 		{"title too long", models.StatusPageSettings{Title: strings.Repeat("x", models.MaxStatusPageTitleLen+1)}, http.StatusBadRequest},
+		{"title with control characters", models.StatusPageSettings{Title: "Lab\u0000\u001b[31m"}, http.StatusBadRequest},
 		{"logo path traversal", models.StatusPageSettings{Logo: "../../etc/passwd"}, http.StatusBadRequest},
 		{"logo that was never uploaded", models.StatusPageSettings{Logo: strings.Repeat("b", 32) + ".png"}, http.StatusBadRequest},
 		{"remote logo", models.StatusPageSettings{Logo: "https://example.com/logo.png"}, http.StatusBadRequest},
@@ -409,6 +410,56 @@ func TestVisitorIP(t *testing.T) {
 			assert.Equal(t, tt.want, string(got))
 		})
 	}
+}
+
+func TestRateLimitNetwork(t *testing.T) {
+	assert.Equal(t, "198.51.100.4", rateLimitNetwork("198.51.100.4"))
+	assert.Equal(t, "2001:db8:1:2::", rateLimitNetwork("2001:db8:1:2:aaaa:bbbb:cccc:dddd"))
+	assert.Equal(t, rateLimitNetwork("2001:db8:1:2::1"), rateLimitNetwork("2001:db8:1:2:ffff::9"))
+	assert.NotEqual(t, rateLimitNetwork("2001:db8:1:2::1"), rateLimitNetwork("2001:db8:1:3::1"))
+	assert.Equal(t, "nonsense", rateLimitNetwork("nonsense"))
+}
+
+// With every optional setting on, the response still has no key outside the
+// documented set; a new field has to be added here on purpose
+func TestStatusPage_PublicKeySetWithEverythingOn(t *testing.T) {
+	f := newStatusPageFixture(t)
+	logo := strings.Repeat("a", 32) + ".png"
+	require.NoError(t, os.WriteFile(filepath.Join(f.logoDir, logo), []byte("png"), 0o644))
+
+	service := f.createService(t, f.group, "jellyfin", models.StatusOnline)
+	_, err := f.db.Exec(
+		`UPDATE services SET url = ?, icon_type = ?, icon_image_path = ? WHERE id = ?`,
+		"https://admin:hunter2@jellyfin.example.com/web", models.IconTypeImageUpload, strings.Repeat("c", 32)+".png", service.ID,
+	)
+	require.NoError(t, err)
+	odd := f.createService(t, f.group, "odd", models.StatusOnline)
+	_, err = f.db.Exec(`UPDATE services SET url = ? WHERE id = ?`, "javascript://x/%0aalert(1)", odd.ID)
+	require.NoError(t, err)
+
+	f.enable(t, models.StatusPageSettings{ShowLinks: true, Logo: logo, Title: "Lab"})
+	req := httptest.NewRequest(http.MethodGet, "/public/status", nil)
+	resp, err := f.app.Test(req, -1)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, "no-store", resp.Header.Get("Cache-Control"))
+	assert.Equal(t, "noindex", resp.Header.Get("X-Robots-Tag"))
+
+	var raw map[string]any
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&raw))
+	assert.ElementsMatch(t, []string{"title", "logo", "overall", "updated_at", "services"}, keysOf(raw))
+
+	byName := map[string]map[string]any{}
+	for _, row := range raw["services"].([]any) {
+		row := row.(map[string]any)
+		byName[row["name"].(string)] = row
+	}
+	assert.ElementsMatch(t,
+		[]string{"name", "icon", "icon_type", "icon_image_path", "status", "url", "uptime_24h", "uptime_7d", "bars_24h", "bars_7d"},
+		keysOf(byName["jellyfin"]))
+	assert.Equal(t, "https://jellyfin.example.com/web", byName["jellyfin"]["url"], "credentials in a URL stay private")
+	assert.NotContains(t, keysOf(byName["odd"]), "url", "only http(s) links are shown")
 }
 
 func keysOf(m map[string]any) []string {

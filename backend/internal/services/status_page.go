@@ -5,12 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"math"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -30,8 +32,12 @@ const (
 
 const (
 	statusPageCacheTTL = 30 * time.Second
-	uptimeHours        = 7 * 24
-	hoursPer7dBar      = 6
+	// A failed build is kept this long, so a database that is down or slow
+	// gets one attempt per period instead of one per visitor
+	statusPageErrorTTL     = 5 * time.Second
+	statusPageBuildTimeout = 10 * time.Second
+	uptimeHours            = 7 * 24
+	hoursPer7dBar          = 6
 )
 
 // Names the upload handler generates for uploaded images
@@ -49,12 +55,13 @@ type StatusPageService struct {
 	now           func() time.Time
 
 	// The page is the same for every visitor, so one cached copy keeps
-	// anonymous traffic away from the database. A disabled page (nil) is
-	// cached too.
-	mu       sync.Mutex
-	cached   *models.PublicStatusPage
-	cachedAt time.Time
-	hasCache bool
+	// anonymous traffic away from the database. A disabled page (nil) and a
+	// failed build are cached too.
+	mu        sync.Mutex
+	cached    *models.PublicStatusPage
+	cachedErr error
+	cachedAt  time.Time
+	hasCache  bool
 }
 
 // NewStatusPageService creates the service; logoDir is where uploaded logos live
@@ -101,6 +108,9 @@ func (s *StatusPageService) Save(ctx context.Context, userID string, settings mo
 	settings.Title = strings.TrimSpace(settings.Title)
 	if utf8.RuneCountInString(settings.Title) > models.MaxStatusPageTitleLen {
 		return settings, invalid("Title must be at most %d characters", models.MaxStatusPageTitleLen)
+	}
+	if strings.ContainsFunc(settings.Title, unicode.IsControl) {
+		return settings, invalid("Title must not contain control characters")
 	}
 
 	if settings.GroupID == "" {
@@ -177,16 +187,19 @@ func (s *StatusPageService) Public(ctx context.Context) (*models.PublicStatusPag
 	defer s.mu.Unlock()
 
 	now := s.now()
-	if s.hasCache && now.Sub(s.cachedAt) < statusPageCacheTTL {
-		return s.cached, nil
+	ttl := statusPageCacheTTL
+	if s.cachedErr != nil {
+		ttl = statusPageErrorTTL
+	}
+	if s.hasCache && now.Sub(s.cachedAt) < ttl {
+		return s.cached, s.cachedErr
 	}
 
+	ctx, cancel := context.WithTimeout(ctx, statusPageBuildTimeout)
+	defer cancel()
 	page, err := s.build(ctx, now)
-	if err != nil {
-		return nil, err
-	}
-	s.cached, s.cachedAt, s.hasCache = page, now, true
-	return page, nil
+	s.cached, s.cachedErr, s.cachedAt, s.hasCache = page, err, now, true
+	return page, err
 }
 
 // build reads everything from the database; nil means the page is off
@@ -301,14 +314,31 @@ func publicStatusService(service *models.Service, hours *[uptimeHours]uptimeCoun
 		out.Icon = models.DefaultIcon
 	}
 	if showLinks {
-		out.URL = service.URL
-	} else if service.IconType == models.IconTypeImageURL {
+		out.URL = publicURL(service.URL)
+	}
+	if service.IconType == models.IconTypeImageURL {
 		// A remote icon often lives on the service itself, so its URL would
-		// give the address away; fall back to the emoji
-		out.IconType = models.IconTypeEmoji
+		// give the address away; without links fall back to the emoji
 		out.IconImagePath = ""
+		if showLinks {
+			out.IconImagePath = publicURL(service.IconImagePath)
+		}
+		if out.IconImagePath == "" {
+			out.IconType = models.IconTypeEmoji
+		}
 	}
 	return out
+}
+
+// publicURL is a stored URL as visitors may get it: http(s) only and without
+// the credentials it may carry (https://user:password@host); otherwise empty
+func publicURL(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ""
+	}
+	u.User = nil
+	return u.String()
 }
 
 type uptimeCount struct{ total, online int }

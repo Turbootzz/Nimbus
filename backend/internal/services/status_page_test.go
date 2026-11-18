@@ -60,6 +60,7 @@ func TestPublicStatusService_Whitelist(t *testing.T) {
 
 	shown := publicStatusService(service, nil, true)
 	assert.Equal(t, service.URL, shown.URL)
+	assert.Equal(t, models.IconTypeImageURL, shown.IconType)
 	assert.Equal(t, service.IconImagePath, shown.IconImagePath)
 
 	service.IconType, service.IconImagePath = models.IconTypeImageUpload, "abc.png"
@@ -92,8 +93,25 @@ func TestStatusPageService_CacheExpiresAfter30Seconds(t *testing.T) {
 
 	now = now.Add(time.Second)
 	_, err = service.Public(context.Background())
-	assert.Error(t, err, "rebuilt once the copy is 30 seconds old")
+	require.Error(t, err, "rebuilt once the copy is 30 seconds old")
 
+	// A failed build is kept for a moment, so a broken database gets one
+	// attempt per period and not one per visitor
+	_, err = db.Exec(`CREATE TABLE system_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMP, updated_by TEXT)`)
+	require.NoError(t, err)
+	now = now.Add(statusPageErrorTTL - time.Second)
 	_, err = service.Public(context.Background())
-	assert.Error(t, err, "a failed build is not cached")
+	assert.Error(t, err, "the failure is still cached")
+
+	now = now.Add(time.Second)
+	_, err = service.Public(context.Background())
+	assert.NoError(t, err, "and retried after 5 seconds")
+}
+
+func TestPublicURL(t *testing.T) {
+	assert.Equal(t, "https://example.com/a?b=c", publicURL("https://example.com/a?b=c"))
+	assert.Equal(t, "http://10.0.0.5:8096", publicURL("http://user:secret@10.0.0.5:8096"))
+	for _, hidden := range []string{"", "javascript://x/%0aalert(1)", "ssh://host", "http://", "::"} {
+		assert.Empty(t, publicURL(hidden), hidden)
+	}
 }
