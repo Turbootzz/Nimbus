@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,23 +64,63 @@ func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo r
 	}
 }
 
+// errCrossOriginRedirect has no URL in it: both ends of a redirect can hold a secret
+var errCrossOriginRedirect = errors.New("refused a redirect to another address")
+
 // newWebhookClient allows private addresses (ntfy and Gotify usually live on
 // the LAN) and blocks cloud metadata endpoints, also after a redirect.
+// A redirect to another scheme, host or port is refused: a delivery carries
+// its secret in a header (Gotify, ntfy), the body (Pushover) or the URL, and
+// net/http would send the header, and on a 307 or 308 the body, along.
 func newWebhookClient(verifyTLS bool) *http.Client {
 	client := utils.NewSafeClient(verifyTLS, 10*time.Second)
 	client.Transport.(*http.Transport).Proxy = webhookProxy
+	inherited := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := inherited(req, via); err != nil {
+			return err
+		}
+		first := via[0].URL
+		if req.URL.Scheme != first.Scheme || !strings.EqualFold(req.URL.Host, first.Host) {
+			return errCrossOriginRedirect
+		}
+		return nil
+	}
 	return client
 }
 
+// Replaced in tests
+var (
+	proxyFromEnvironment = http.ProxyFromEnvironment
+	lookupHost           = net.DefaultResolver.LookupHost
+)
+
 // webhookProxy honours HTTP_PROXY, HTTPS_PROXY and NO_PROXY, for servers that
 // only reach Discord and the like through a proxy. Behind a proxy the dialer
-// sees the proxy's address, so the target is checked here.
+// sees the proxy's address, so the target is checked here: by name, and by
+// the addresses the name resolves to. That last check is best effort. The
+// proxy resolves the name again, so it does not stop DNS rebinding or a name
+// that only the proxy's DNS maps to a metadata address; and a name that does
+// not resolve here (or not within the timeout) still goes to the proxy, since
+// hosts behind a proxy often have no outside DNS.
 func webhookProxy(req *http.Request) (*url.URL, error) {
 	host := req.URL.Hostname()
 	if utils.IsBlockedHost(host) || utils.IsBlockedIP(host) {
 		return nil, utils.ErrBlockedHost
 	}
-	return http.ProxyFromEnvironment(req)
+	proxy, err := proxyFromEnvironment(req)
+	if err != nil || proxy == nil || net.ParseIP(host) != nil {
+		return proxy, err
+	}
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+	addrs, _ := lookupHost(ctx, host)
+	for _, addr := range addrs {
+		if utils.IsBlockedIP(addr) {
+			return nil, utils.ErrBlockedHost
+		}
+	}
+	return proxy, nil
 }
 
 // encryptCredentials returns the blob to store, bound to the webhook ID;
@@ -281,7 +322,13 @@ func (w *WebhookNotifier) deliver(ctx context.Context, webhook *models.Webhook, 
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return resp.StatusCode, ""
 	}
-	return resp.StatusCode, responseError(resp, creds)
+	switch webhook.Format {
+	case models.WebhookFormatNtfy, models.WebhookFormatGotify, models.WebhookFormatTelegram, models.WebhookFormatPushover:
+		return resp.StatusCode, responseError(resp, creds)
+	}
+	// A plain webhook's secret is its URL, which can't be scrubbed from
+	// what the receiver answers: only the status is kept
+	return resp.StatusCode, fmt.Sprintf("HTTP %d", resp.StatusCode)
 }
 
 // sendWebhook sends a single webhook notification
