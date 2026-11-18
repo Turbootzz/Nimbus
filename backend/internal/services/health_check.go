@@ -14,6 +14,7 @@ import (
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Max bytes to drain from response body for connection reuse (1MB)
@@ -232,9 +233,11 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 	}
 
 	// Use standard dialer for connection
+	// Private addresses are fine (homelab), cloud metadata endpoints are not
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
+		Control:   utils.BlockedIPControl,
 	}
 
 	return dialer.DialContext(ctx, network, addr)

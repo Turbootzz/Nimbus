@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -266,10 +265,10 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	}
 
 	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+	// http(s) only: the URL becomes a link on the tile and a health check target
+	if err := utils.ValidateServiceURL(req.URL); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
+			"error": "Invalid URL. It must start with http:// or https:// and have a host",
 		})
 	}
 

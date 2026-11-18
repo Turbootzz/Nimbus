@@ -137,25 +137,26 @@ func dropCredentialsOnRedirect(req, first *http.Request) error {
 	return nil
 }
 
+// BlockedIPControl is a net.Dialer Control that refuses to connect to a cloud
+// metadata address. It sees the resolved IP, so DNS rebinding can't get past it.
+func BlockedIPControl(_, address string, _ syscall.RawConn) error {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		host = address
+	}
+	if IsBlockedIP(host) {
+		return ErrBlockedHost
+	}
+	return nil
+}
+
 // NewSafeClient returns an HTTP client for fetching user-supplied URLs.
 // Defense in depth: CheckRedirect blocks by hostname, the dialer's Control
 // blocks by resolved IP (so DNS rebinding can't sneak through). A redirect
 // to another host or port never gets the request's credentials.
 // verifyTLS=false skips certificate checks for this client only.
 func NewSafeClient(verifyTLS bool, timeout time.Duration) *http.Client {
-	dialer := &net.Dialer{
-		Timeout: timeout,
-		Control: func(_, address string, _ syscall.RawConn) error {
-			host, _, err := net.SplitHostPort(address)
-			if err != nil {
-				host = address
-			}
-			if IsBlockedIP(host) {
-				return ErrBlockedHost
-			}
-			return nil
-		},
-	}
+	dialer := &net.Dialer{Timeout: timeout, Control: BlockedIPControl}
 
 	transport := &http.Transport{
 		DialContext:           dialer.DialContext,

@@ -146,6 +146,21 @@ func ValidateIconURL(urlStr string) error {
 	return nil
 }
 
+// ValidateServiceURL validates the address of a service: an http(s) URL with
+// a host. It is rendered as a link (so no javascript: or data:) and requested
+// by the health checker (so no cloud metadata endpoint; the health checker's
+// dialer refuses those by resolved IP too).
+func ValidateServiceURL(urlStr string) error {
+	if err := ValidateIconURL(urlStr); err != nil {
+		return err
+	}
+	parsedURL, _ := url.ParseRequestURI(urlStr) // parsed without error just above
+	if host := parsedURL.Hostname(); IsBlockedHost(host) || IsBlockedIP(host) {
+		return fmt.Errorf("cloud metadata endpoints are not allowed")
+	}
+	return nil
+}
+
 // ValidateWebhookURL validates that a URL is safe for webhook delivery
 // Allows internal URLs (for self-hosted notification services) but blocks cloud metadata
 func ValidateWebhookURL(urlStr string) error {
