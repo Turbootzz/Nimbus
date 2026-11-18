@@ -80,6 +80,8 @@ Integrations show live numbers from your apps on a service tile. Add one under *
 | AdGuard Home, Docker, Home Assistant, Jellyfin, Pi-hole v6, Proxmox VE, qBittorrent, Radarr, Sonarr, Uptime Kuma | native |
 | Portainer, Prowlarr, SABnzbd, Immich, Tautulli, Jellyseerr / Overseerr, TrueNAS SCALE, Nextcloud, Speedtest Tracker, Beszel, Nginx Proxy Manager, Kavita, Mealie, Gotify, Gluetun, Traefik, Paperless-ngx, Navidrome, Grafana | planned, [up for grabs](https://github.com/Turbootzz/Nimbus/issues/196) |
 
+With a Docker integration, admins get a **Discovered** tray on the Services page that turns containers into services in one click, using `nimbus.*` (or Homepage's `homepage.*`) labels where present. See [Docker discovery](docs/INTEGRATIONS.md#docker-discovery).
+
 What each app shows and how it signs in is in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md). Adding one is a single Go file plus a test; the same page explains how.
 
 ---
