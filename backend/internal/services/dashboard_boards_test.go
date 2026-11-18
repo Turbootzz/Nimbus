@@ -2,10 +2,13 @@ package services
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"os"
 	"testing"
 
 	"github.com/nimbus/backend/internal/dashdoc"
+	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/stretchr/testify/assert"
@@ -289,4 +292,93 @@ func TestSyncOnlyWorksOnTheBoardsOfTheDocument(t *testing.T) {
 	unshared, err := boards.GetByID(ctx, family.ID)
 	require.NoError(t, err)
 	assert.False(t, unshared.IsShared)
+}
+
+// TestBoardsTransferOnPostgres syncs, exports and imports a dashboard with
+// boards on a real PostgreSQL: the SQL with board lists, the per-board
+// default group index and the foreign keys. See TestSyncOnPostgres for how
+// to run it (NIMBUS_TEST_POSTGRES_DSN, an EMPTY throwaway database).
+func TestBoardsTransferOnPostgres(t *testing.T) {
+	dsn := os.Getenv("NIMBUS_TEST_POSTGRES_DSN")
+	if dsn == "" {
+		t.Skip("NIMBUS_TEST_POSTGRES_DSN is not set")
+	}
+	database, err := sql.Open("postgres", dsn)
+	require.NoError(t, err)
+	t.Cleanup(func() { database.Close() })
+	t.Chdir("../..")
+	require.NoError(t, db.RunMigrations(database))
+	_, err = database.Exec(`INSERT INTO users (id, email, name, password, role) VALUES ($1, 'boards-admin@example.com', 'Admin', 'x', 'admin')`, transferFresh)
+	require.NoError(t, err)
+
+	env := newTransferEnvOn(t, database)
+	boards := repository.NewBoardRepository(database)
+	env.svc.Boards = boards
+	ctx := context.Background()
+	count := func(query string, args ...any) int {
+		t.Helper()
+		var n int
+		require.NoError(t, database.QueryRow(query, args...).Scan(&n))
+		return n
+	}
+
+	doc := &dashdoc.Document{
+		Version: 1,
+		Boards:  []dashdoc.Board{{Ref: "fam", Name: "Family", Shared: true}, {Ref: "lab", Name: "Lab"}},
+		Groups: []dashdoc.Group{
+			{Ref: "main", Name: "Services", Default: true},
+			{Ref: "fam-main", Name: "Everyone", Default: true, BoardRef: "fam"},
+			{Ref: "fam-media", Name: "Media", BoardRef: "fam", TileStyle: "chips"},
+		},
+		Integrations: []dashdoc.Integration{{Ref: "sonarr", Kind: "sonarr", Name: "Sonarr", BaseURL: "http://192.168.1.10:8989"}},
+		Services: []dashdoc.Service{
+			{Name: "Router", URL: "http://192.168.1.1", GroupRef: "main"},
+			{Name: "Sonarr", URL: "http://192.168.1.10:8989", BoardRef: "fam", GroupRef: "fam-media", IntegrationRef: "sonarr", Position: 1},
+			{Name: "Proxmox", URL: "https://192.168.1.20:8006", BoardRef: "lab", Position: 2},
+		},
+		Widgets: []dashdoc.Widget{{Type: "clock", Title: "Clock", BoardRef: "fam", Position: 3}},
+	}
+	first, err := env.svc.Sync(ctx, transferFresh, reparse(t, doc), true)
+	require.NoError(t, err)
+	assert.Equal(t, 3, first.Services.Created)
+	own, err := boards.ListByUserID(ctx, transferFresh)
+	require.NoError(t, err)
+	require.Len(t, own, 3)
+	family, lab := own[1], own[2]
+	assert.True(t, family.IsShared)
+	assert.Equal(t, 2, count(`SELECT COUNT(*) FROM groups WHERE board_id = $1`, family.ID))
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM groups WHERE board_id = $1 AND is_default`, lab.ID), "a board the file gives no default group gets one")
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM widgets WHERE board_id = $1`, family.ID))
+
+	second, err := env.svc.Sync(ctx, transferFresh, reparse(t, doc), true)
+	require.NoError(t, err)
+	assertNothingChanged(t, second)
+
+	// The lab board leaves the file: it stays as it is, and so does what it shows
+	withoutLab := reparse(t, doc)
+	withoutLab.Boards, withoutLab.Services = withoutLab.Boards[:1], withoutLab.Services[:2]
+	_, err = env.svc.Sync(ctx, transferFresh, withoutLab, true)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM services WHERE board_id = $1`, lab.ID))
+
+	// Export, replace with it, export again: the same document
+	exported := env.export(t, transferFresh)
+	require.Len(t, exported.Boards, 2)
+	summary, err := env.svc.Apply(ctx, transferFresh, reparse(t, exported), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, dashdoc.Count{Created: 3, Removed: 3}, summary.Services)
+	assert.Equal(t, toJSON(t, exported), toJSON(t, env.export(t, transferFresh)))
+	assert.Equal(t, 3, count(`SELECT COUNT(*) FROM boards WHERE user_id = $1`, transferFresh))
+
+	// A document from before boards replaces the default board only
+	plain := &dashdoc.Document{Version: 1, Services: []dashdoc.Service{{Name: "NAS", URL: "http://192.168.1.30"}}}
+	summary, err = env.svc.Apply(ctx, transferFresh, plain, dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, dashdoc.Count{Created: 1, Removed: 1}, summary.Services)
+	assert.Zero(t, summary.Integrations.Removed, "Sonarr is shown on the family board")
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM services WHERE board_id = $1 AND integration_id IS NOT NULL`, family.ID))
+	_, err = env.svc.Apply(ctx, transferFresh, reparse(t, exported), dashdoc.ModeMerge)
+	require.NoError(t, err)
+	assert.Equal(t, 2, count(`SELECT COUNT(*) FROM services WHERE board_id = $1`, family.ID))
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM groups WHERE board_id = $1 AND is_default`, family.ID))
 }
