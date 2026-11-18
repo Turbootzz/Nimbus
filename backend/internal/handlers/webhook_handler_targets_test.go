@@ -398,4 +398,12 @@ func TestWebhookHandler_VerifyTLS(t *testing.T) {
 	if !decodeWebhook(t, raw).VerifyTLS {
 		t.Errorf("Telegram must always verify TLS: %s", raw)
 	}
+
+	_, raw = targetRequest(t, app, http.MethodPost, "/webhooks", map[string]any{
+		"name": "discord", "format": "discord", "verify_tls": false,
+		"url": "https://discord.com/api/webhooks/1/abc",
+	})
+	if !decodeWebhook(t, raw).VerifyTLS {
+		t.Errorf("Discord must always verify TLS: %s", raw)
+	}
 }
