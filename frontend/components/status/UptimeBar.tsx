@@ -1,10 +1,11 @@
 import { type BarTone, barLabel, barTone, formatUptime } from '@/lib/status-page'
 
+// Height tells the bars apart as well, for who cannot go by colour
 const toneClasses: Record<BarTone, string> = {
-  up: 'bg-success',
-  partial: 'bg-warning',
-  down: 'bg-error',
-  none: 'bg-card-border',
+  up: 'h-full bg-success',
+  partial: 'h-3/4 bg-warning',
+  down: 'h-1/2 bg-error',
+  none: 'h-1/4 bg-card-border',
 }
 
 interface UptimeBarProps {
@@ -27,7 +28,7 @@ export default function UptimeBar({ label, bars, hoursPerBar, uptime }: UptimeBa
         <span className="text-text-secondary">{label}</span>
         <span className="text-text-primary font-medium tabular-nums">{formatUptime(uptime)}</span>
       </div>
-      <div role="img" aria-label={summary} className="flex h-7 gap-px sm:gap-0.5">
+      <div role="img" aria-label={summary} className="flex h-7 items-end gap-px sm:gap-0.5">
         {bars.map((bar, index) => (
           <span
             key={index}

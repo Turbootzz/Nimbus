@@ -96,6 +96,7 @@ describe('fetchPublicStatus', () => {
     expect(init).toEqual({
       cache: 'no-store',
       headers: { 'x-forwarded-for': '198.51.100.4, 172.18.0.2', 'x-real-ip': '172.18.0.2' },
+      signal: expect.any(AbortSignal), // a hanging backend must not hang the page
     })
   })
 

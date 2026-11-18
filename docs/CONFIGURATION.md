@@ -532,7 +532,7 @@ Turn it on under **Settings → Admin → Public status page**:
 | Group to show | One of **your own** groups (groups are personal). Only services with monitoring on appear |
 | Title | Heading and browser title of the page; `Status` when empty |
 | Logo | Optional image next to the title (JPG, PNG, GIF or WEBP, up to 512 KB) |
-| Show links | Off by default. When on, each service name links to its URL and icons loaded from a URL are shown |
+| Show links | Off by default. When on, each service name links to its URL and icons loaded from a URL are shown. Only `http(s)` URLs are shown, and without the user name and password a URL may carry |
 
 What visitors can see is deliberately little: the title and logo, and per service its name, icon, current status and uptime over the last 24 hours and 7 days. Service URLs, descriptions, response times, error messages, integration data and everything outside the chosen group stay private. An icon that is loaded from a URL would give away where it lives, so without **Show links** such a service shows its emoji instead; uploaded icons are always shown.
 
@@ -540,7 +540,9 @@ Good to know:
 
 - The bars come from the stored status logs: 24 bars of one hour and 28 bars of six hours. Grey means there were no checks in that period.
 - The page data is cached for 30 seconds and the page refreshes itself every minute. Saving the settings takes effect at once.
-- Each visitor address may make 300 requests per 15 minutes. Behind your own reverse proxy, let it send `X-Forwarded-For` (most do by default); without it all visitors share one address, and with it one limit.
+- Each visitor address (for IPv6: each /64 network) may make 300 requests per 15 minutes; a page load or refresh counts as two. Behind your own reverse proxy, let it send `X-Forwarded-For` (most do by default); without it all visitors share one address, and with it one limit. Forwarding headers are only believed from a loopback or private address, so whoever reaches Nimbus from such an address (somebody on your own network, or everybody when your Docker setup hides visitor addresses) can pose as another address.
+- The page always follows the visitor's light or dark system setting. Your own theme, accent colour and wallpaper are not used on it.
+- With separate containers and no bundled nginx, a switched off `/status` carries an `x-middleware-rewrite` response header that other missing pages do not have. Let your reverse proxy remove it if that matters to you; the unified image does.
 - Search engines are asked not to index the page (`noindex`).
 - The page turns itself off when the chosen group is deleted or its owner is no longer an admin.
 

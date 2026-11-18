@@ -44,8 +44,16 @@ export function StatusPageImage({
 
 const iconBox = 'flex h-8 w-8 shrink-0 items-center justify-center'
 
-/** Service icon of a status row: emoji, uploaded image or (with links on) a remote image */
-export default function StatusPageIcon({ service }: { service: PublicStatusService }) {
+/**
+ * Service icon of a status row: emoji, uploaded image or (with links on) a
+ * remote image. Takes the icon fields only: props of a client component end
+ * up in the page source.
+ */
+export default function StatusPageIcon({
+  service,
+}: {
+  service: Pick<PublicStatusService, 'icon' | 'icon_type' | 'icon_image_path'>
+}) {
   const [failed, setFailed] = useState(false)
   const emoji = (
     <span aria-hidden="true" className={`${iconBox} text-2xl leading-none`}>

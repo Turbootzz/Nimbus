@@ -11,6 +11,7 @@ import {
   ReactNode,
 } from 'react'
 import { api } from '@/lib/api'
+import { isStatusPagePath } from '@/lib/status-page'
 import type {
   PreferencesUpdateRequest,
   CardScale,
@@ -179,6 +180,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
+    // Visitors of the public status page have no preferences: nothing is
+    // read, requested or applied there
+    if (isStatusPagePath(window.location.pathname)) return
+
     const loadPreferences = async () => {
       // Step 1: Load from localStorage immediately (fast, prevents flash)
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null

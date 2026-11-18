@@ -62,8 +62,14 @@ function ServiceRow({ service }: { service: PublicStatusService }) {
   return (
     <li className="p-4 sm:p-5">
       <div className="flex items-center gap-3">
-        <StatusPageIcon service={service} />
-        <h2 className="text-text-primary min-w-0 flex-1 truncate font-medium">
+        <StatusPageIcon
+          service={{
+            icon: service.icon,
+            icon_type: service.icon_type,
+            icon_image_path: service.icon_image_path,
+          }}
+        />
+        <h2 className="text-text-primary min-w-0 flex-1 font-medium break-words">
           {service.url ? (
             <a
               href={service.url}

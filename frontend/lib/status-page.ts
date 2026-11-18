@@ -3,6 +3,17 @@ import { getApiUrl } from '@/lib/utils/api-url'
 
 export const STATUS_REFRESH_SECONDS = 60
 
+/**
+ * The status page is for visitors: the theme, accent colour and wallpaper
+ * this browser remembers from a signed-in user stay off it.
+ */
+export const isStatusPagePath = (pathname: string) =>
+  pathname === '/status' || pathname.startsWith('/status/')
+
+// How long to wait for the backend before the page shows "unavailable". A
+// page load asks twice (proxy.ts, then the page), so it waits twice at most.
+const FETCH_TIMEOUT_MS = 3000
+
 export const overallLabels: Record<StatusPageOverall, string> = {
   operational: 'All systems operational',
   degraded: 'Some systems are down',
@@ -81,7 +92,11 @@ export async function fetchPublicStatus(visitor?: {
   }
 
   try {
-    const response = await fetch(`${serverApiUrl()}/public/status`, { cache: 'no-store', headers })
+    const response = await fetch(`${serverApiUrl()}/public/status`, {
+      cache: 'no-store',
+      headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
     if (response.status === 404) return { state: 'disabled' }
     if (!response.ok) return { state: 'unavailable' }
     return { state: 'ok', page: (await response.json()) as PublicStatusPage }

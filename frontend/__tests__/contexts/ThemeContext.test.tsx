@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react'
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext'
 import { ReactNode } from 'react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { api } from '@/lib/api'
 
 // Mock the API module
 vi.mock('@/lib/api', () => ({
@@ -612,6 +613,30 @@ describe('ThemeContext', () => {
       // Manual theme should remain unchanged
       expect(result.current.theme).toBe('dark')
       expect(result.current.effectiveTheme).toBe('dark')
+    })
+  })
+
+  describe('Public status page', () => {
+    it("leaves a signed-in user's theme, accent and wallpaper off /status", async () => {
+      localStorageMock.setItem('theme', 'dark')
+      localStorageMock.setItem('accentColor', '#ff0000')
+      localStorageMock.setItem('background', 'https://example.com/wallpaper.jpg')
+      window.history.pushState({}, '', '/status')
+      const root = document.documentElement
+      root.className = ''
+      root.removeAttribute('style')
+
+      try {
+        renderHook(() => useTheme(), { wrapper })
+        await act(async () => {})
+
+        expect(api.getPreferences).not.toHaveBeenCalled()
+        expect(root.classList.contains('dark')).toBe(false)
+        expect(root.style.getPropertyValue('--color-primary')).toBe('')
+        expect(root.style.getPropertyValue('--wallpaper-image')).toBe('')
+      } finally {
+        window.history.pushState({}, '', '/')
+      }
     })
   })
 })
