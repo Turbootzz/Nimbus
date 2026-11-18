@@ -63,11 +63,28 @@ func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo r
 	}
 }
 
+// errCrossOriginRedirect has no URL in it: both ends of a redirect can hold a secret
+var errCrossOriginRedirect = errors.New("refused a redirect to another address")
+
 // newWebhookClient allows private addresses (ntfy and Gotify usually live on
 // the LAN) and blocks cloud metadata endpoints, also after a redirect.
+// A redirect to another scheme, host or port is refused: a delivery carries
+// its secret in a header (Gotify, ntfy), the body (Pushover) or the URL, and
+// net/http would send the header, and on a 307 or 308 the body, along.
 func newWebhookClient(verifyTLS bool) *http.Client {
 	client := utils.NewSafeClient(verifyTLS, 10*time.Second)
 	client.Transport.(*http.Transport).Proxy = webhookProxy
+	inherited := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := inherited(req, via); err != nil {
+			return err
+		}
+		first := via[0].URL
+		if req.URL.Scheme != first.Scheme || !strings.EqualFold(req.URL.Host, first.Host) {
+			return errCrossOriginRedirect
+		}
+		return nil
+	}
 	return client
 }
 

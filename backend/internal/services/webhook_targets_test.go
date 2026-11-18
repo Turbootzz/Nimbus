@@ -756,6 +756,48 @@ func TestWebhookProxy_BlocksMetadata(t *testing.T) {
 	}
 }
 
+// A redirect to another origin must not receive the token, in a header or
+// in a body that a 307 resends; a redirect on the same origin still delivers
+func TestDeliver_RefusesCrossOriginRedirect(t *testing.T) {
+	other, otherRequests := targetServer(t, http.StatusOK, `{}`)
+	var redirectTo string
+	var code int
+	var delivered []string
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/message" {
+			http.Redirect(w, r, redirectTo, code)
+			return
+		}
+		delivered = append(delivered, r.Method+" "+r.Header.Get("X-Gotify-Key"))
+	}))
+	t.Cleanup(first.Close)
+
+	notifier := newTargetNotifier(t, nil)
+	webhook := saveTarget(t, notifier, &models.Webhook{
+		Format: models.WebhookFormatGotify, URL: first.URL, VerifyTLS: true,
+	}, models.WebhookCredentials{Token: "gotify-secret"})
+
+	for _, code = range []int{http.StatusFound, http.StatusTemporaryRedirect} {
+		redirectTo = other.URL + "/login"
+		status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
+		if status != 0 || errMsg != errCrossOriginRedirect.Error() {
+			t.Errorf("%d to another origin: status = %d, error = %q", code, status, errMsg)
+		}
+	}
+	if got := otherRequests(); len(got) != 0 {
+		t.Errorf("the other origin received %d requests, want none: %+v", len(got), got)
+	}
+
+	redirectTo = first.URL + "/moved"
+	status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
+	if status != http.StatusOK || errMsg != "" {
+		t.Errorf("same origin: status = %d, error = %q", status, errMsg)
+	}
+	if len(delivered) != 1 || delivered[0] != "POST gotify-secret" {
+		t.Errorf("same-origin redirect delivered %v, want one POST with the token", delivered)
+	}
+}
+
 // A self-signed server only works with verify_tls off
 func TestDeliver_VerifyTLS(t *testing.T) {
 	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
