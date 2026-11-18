@@ -124,8 +124,10 @@ func dropCredentialsOnRedirect(req, first *http.Request) error {
 	if sameService(first.URL, req.URL) {
 		return nil
 	}
-	// A 307 or 308 would send the body (a login form) along
-	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+	// A 307 or 308 would send the body (a login form) along, also on a GET:
+	// net/http has put it on req by now
+	hasBody := req.Body != nil && req.Body != http.NoBody
+	if hasBody || (req.Method != http.MethodGet && req.Method != http.MethodHead) {
 		return errors.New("refused a redirect that sends the request body to another address")
 	}
 	for name := range req.Header {
