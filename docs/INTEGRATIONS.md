@@ -31,7 +31,7 @@ If you already run Portainer, Nimbus can read Docker through it: no socket proxy
 
 Turn off **Verify TLS certificate** if Portainer still has its self-signed certificate. Nimbus sends the token in the `X-API-Key` header, never in the URL. Each Portainer environment is its own integration.
 
-The token can do everything its Portainer user can. Nimbus only sends `GET` requests, but a token of a separate user with read-only access to that environment limits it further.
+The token can do everything its Portainer user can. Nimbus only sends `GET` requests, but a token of a separate, non-admin user with access to only that environment limits it further; Nimbus then shows the containers that user may see. Prefer Portainer's `https://` port: over `http://` the token travels unencrypted.
 
 ## Adding an integration
 
