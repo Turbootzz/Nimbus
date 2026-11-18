@@ -539,6 +539,73 @@ func TestIntegrationService_DockerSocket(t *testing.T) {
 	assert.ErrorContains(t, err, "allows no socket")
 }
 
+// Portainer proxies the Docker API under a sub path, wants an access token
+// and often has a self-signed certificate
+func TestIntegrationService_DockerThroughPortainer(t *testing.T) {
+	svc, repo := newTestIntegrationService(t)
+	ctx := context.Background()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method != http.MethodGet:
+			t.Errorf("unexpected method %s", r.Method)
+		case r.Header.Get("X-API-Key") != testSecret:
+			w.WriteHeader(http.StatusUnauthorized)
+		case r.URL.Path == "/api/endpoints/1/docker/version":
+			fmt.Fprint(w, `{"ApiVersion":"1.47"}`)
+		case r.URL.Path == "/api/endpoints/1/docker/containers/json":
+			fmt.Fprint(w, `[{"Id":"1","Names":["/web"],"State":"running"}]`)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	skipTLS := false
+	request := func(apiKey string) *models.IntegrationRequest {
+		return &models.IntegrationRequest{
+			Kind:        "docker",
+			Name:        "Portainer",
+			BaseURL:     server.URL + "/api/endpoints/1/docker/", // trailing slash is dropped
+			AuthType:    models.IntegrationAuthAPIKey,
+			Credentials: &models.IntegrationCredentials{APIKey: apiKey},
+			VerifyTLS:   &skipTLS,
+		}
+	}
+
+	_, err := svc.Create(ctx, "user-1", false, request(testSecret))
+	assert.ErrorContains(t, err, "Only admins")
+	noKey := request(testSecret)
+	noKey.Credentials = nil
+	_, err = svc.Create(ctx, "user-1", true, noKey)
+	assert.ErrorContains(t, err, "Credentials are required")
+
+	created, err := svc.Create(ctx, "user-1", true, request(testSecret))
+	require.NoError(t, err)
+	assert.Equal(t, server.URL+"/api/endpoints/1/docker", created.BaseURL)
+	assert.Equal(t, testSecret, decryptStored(t, svc, repo, created.ID).APIKey)
+
+	result, err := svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+	assert.True(t, result.OK, "expected success, got %q", result.Error)
+	payload, err := svc.Fetch(ctx, created)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"running": 1, "stopped": 0, "total": 1}, payload.KPIs)
+
+	result, err = svc.TestUnsaved(ctx, true, request("wrong"))
+	require.NoError(t, err)
+	assert.False(t, result.OK)
+	assert.Contains(t, result.Error, "credentials were rejected")
+
+	// The self-signed certificate is only accepted with verify_tls off
+	verify := request(testSecret)
+	verify.VerifyTLS = nil
+	result, err = svc.TestUnsaved(ctx, true, verify)
+	require.NoError(t, err)
+	assert.False(t, result.OK)
+	assert.Contains(t, result.Error, "certificate")
+	assert.NotContains(t, result.Error, testSecret)
+}
+
 // sessionKind keeps a session and reports when it is closed
 type sessionKind struct{ fakeKind }
 

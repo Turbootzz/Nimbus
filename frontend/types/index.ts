@@ -108,6 +108,7 @@ export interface IntegrationKindMeta {
   auth_types: IntegrationAuthType[] // first one is the default
   kpis?: Kpi[]
   url_hint?: string // example URL for the form
+  hint?: string // extra help under the URL
   admin_only?: boolean // only listed for admins
   docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
 }
