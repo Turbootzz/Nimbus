@@ -34,7 +34,8 @@ func TestProxmox(t *testing.T) {
 				{"type":"node","node":"pve1","status":"online","cpu":0.5,"maxcpu":4,"mem":4,"maxmem":16},
 				{"type":"node","node":"pve2","status":"online","cpu":0.25,"maxcpu":4,"mem":4,"maxmem":16},
 				{"type":"node","node":"pve3","status":"offline","cpu":0,"maxcpu":8,"mem":0,"maxmem":32},
-				{"type":"storage","node":"pve1","status":"available"}
+				{"type":"storage","node":"pve1","status":"available"},
+				{"type":"storage","node":"pve4","status":"available"}
 			]}`)
 		}),
 	})
@@ -63,6 +64,9 @@ func TestProxmox(t *testing.T) {
 	payload, err = impl.Fetch(ctx, conn)
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"vms": "0/0", "containers": "0/0", "cpu": 0, "memory": 0}, payload.KPIs)
+	// A token that may not see a node itself still sees what runs on it
+	conn.Options = json.RawMessage(`{"node":"pve4"}`)
+	require.NoError(t, impl.Test(ctx, conn))
 	conn.Options = json.RawMessage(`{"node":"pve9"}`)
 	assert.EqualError(t, impl.Test(ctx, conn), `node "pve9" was not found in the cluster`)
 

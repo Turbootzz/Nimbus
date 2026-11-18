@@ -86,7 +86,9 @@ func (proxmox) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 		if node != "" && !strings.EqualFold(r.Node, node) {
 			continue
 		}
-		nodeFound = nodeFound || r.Type == "node"
+		// Any resource on the node proves it exists: a token without
+		// Sys.Audit sees the guests but not the node itself
+		nodeFound = true
 		switch {
 		case r.Type == "qemu" && r.Template == 0:
 			vms++
