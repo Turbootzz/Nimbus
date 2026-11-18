@@ -178,7 +178,9 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, isAd
 	}
 
 	integration := in.integration
-	reconnect := in.creds != nil || connectionChanged(current, &integration)
+	// Auth type none always resolves to (empty) credentials, which is no change
+	newCreds := in.creds != nil && integration.AuthType != models.IntegrationAuthNone
+	reconnect := newCreds || connectionChanged(current, &integration)
 	var closeSession func()
 	if reconnect {
 		integration.LastTestAt, integration.LastTestOK, integration.LastError = nil, nil, nil

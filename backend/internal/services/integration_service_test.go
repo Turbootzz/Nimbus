@@ -417,6 +417,19 @@ func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
 	assert.Nil(t, moved.LastTestOK, "a new URL invalidates the test result")
 	assert.Nil(t, moved.LastTestAt)
 	assert.Nil(t, repo.items[created.ID].LastTestOK)
+
+	// Without credentials (auth type none) the same holds
+	open, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: server.URL, AuthType: models.IntegrationAuthNone})
+	require.NoError(t, err)
+	assert.Nil(t, open.LastTestOK, "another auth type invalidates the test result")
+	_, err = svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+	renamed, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Open"})
+	require.NoError(t, err)
+	assert.NotNil(t, renamed.LastTestOK, "a rename keeps the test result")
+	moved, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: "http://10.0.0.98"})
+	require.NoError(t, err)
+	assert.Nil(t, moved.LastTestOK)
 }
 
 func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) {
