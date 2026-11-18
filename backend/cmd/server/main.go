@@ -393,6 +393,8 @@ func main() {
 	// and replaces)
 	v1.Get("/export", sessionAuth, sessionOnly, transferHandler.Export)
 	v1.Post("/import", sessionAuth, sessionOnly, transferHandler.Import)
+	// Turns another dashboard's config into a document; it writes nothing
+	v1.Post("/import/convert", sessionAuth, sessionOnly, transferHandler.Convert)
 
 	// Setup routes (public - for first-time setup)
 	setup := v1.Group("/setup")

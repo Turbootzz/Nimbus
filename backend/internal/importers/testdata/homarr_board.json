@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "configProperties": { "name": "homelab" },
+  "categories": [
+    { "id": "cat-network", "position": 1, "name": "Network" },
+    { "id": "cat-media", "position": 0, "name": "Media" }
+  ],
+  "wrappers": [{ "id": "default", "position": 0 }],
+  "apps": [
+    {
+      "id": "app-pihole",
+      "name": "Pi-hole",
+      "url": "http://192.168.1.2",
+      "behaviour": { "onClickUrl": "http://192.168.1.2/admin", "externalUrl": "http://192.168.1.2/admin", "isOpeningNewTab": true },
+      "network": { "enabledStatusChecker": true, "statusCodes": ["200"] },
+      "appearance": { "iconUrl": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/pi-hole.png", "appNameStatus": "normal", "positionAppName": "column", "lineClampAppName": 1 },
+      "integration": { "type": "pihole", "properties": [{ "type": "private", "field": "apiKey", "value": "0123456789abcdef" }] },
+      "area": { "type": "category", "properties": { "id": "cat-network" } },
+      "shape": { "lg": { "location": { "x": 0, "y": 0 }, "size": { "width": 1, "height": 1 } } }
+    },
+    {
+      "id": "app-radarr",
+      "name": "Radarr",
+      "url": "http://192.168.1.10:7878",
+      "behaviour": { "onClickUrl": "", "externalUrl": "", "isOpeningNewTab": true },
+      "network": { "enabledStatusChecker": true, "statusCodes": ["200"] },
+      "appearance": { "iconUrl": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/radarr.png", "appNameStatus": "normal", "positionAppName": "column", "lineClampAppName": 1 },
+      "integration": { "type": "radarr", "properties": [{ "type": "private", "field": "apiKey", "value": "fedcba9876543210" }] },
+      "area": { "type": "category", "properties": { "id": "cat-media" } },
+      "shape": { "lg": { "location": { "x": 1, "y": 0 }, "size": { "width": 1, "height": 1 } } }
+    },
+    {
+      "id": "app-sonarr",
+      "name": "Sonarr",
+      "url": "http://192.168.1.10:8989",
+      "behaviour": { "onClickUrl": "", "externalUrl": "https://sonarr.example.com", "isOpeningNewTab": true },
+      "network": { "enabledStatusChecker": true, "statusCodes": ["200"] },
+      "appearance": { "iconUrl": "/imgs/logo/logo.png", "appNameStatus": "normal", "positionAppName": "column", "lineClampAppName": 1 },
+      "integration": { "type": "sonarr", "properties": [{ "type": "private", "field": "apiKey", "value": "aaaabbbbccccdddd" }] },
+      "area": { "type": "category", "properties": { "id": "cat-media" } },
+      "shape": { "lg": { "location": { "x": 0, "y": 0 }, "size": { "width": 1, "height": 1 } } }
+    },
+    {
+      "id": "app-plex",
+      "name": "Plex",
+      "url": "http://192.168.1.10:32400",
+      "behaviour": { "onClickUrl": "", "externalUrl": "", "isOpeningNewTab": true },
+      "network": { "enabledStatusChecker": false, "statusCodes": ["200"] },
+      "appearance": { "iconUrl": "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/plex.png", "appNameStatus": "normal", "positionAppName": "column", "lineClampAppName": 1 },
+      "integration": { "type": "plex", "properties": [] },
+      "area": { "type": "wrapper", "properties": { "id": "default" } },
+      "shape": { "lg": { "location": { "x": 0, "y": 2 }, "size": { "width": 1, "height": 1 } } }
+    }
+  ],
+  "widgets": [
+    { "id": "w-cal", "type": "calendar", "properties": {}, "area": { "type": "wrapper", "properties": { "id": "default" } }, "shape": {} },
+    { "id": "w-dl", "type": "torrents-status", "properties": {}, "area": { "type": "wrapper", "properties": { "id": "default" } }, "shape": {} }
+  ],
+  "settings": { "common": {}, "customization": {}, "access": { "allowGuests": false } }
+}
