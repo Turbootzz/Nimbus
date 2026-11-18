@@ -126,13 +126,19 @@ export default function ApiTokensPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500">
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500"
+        >
           {error}
         </div>
       )}
 
       {createdToken && (
-        <div className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4">
+        <div
+          role="status"
+          className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4"
+        >
           <p className="text-text-primary mb-2 text-sm font-semibold">
             Token created. You won&apos;t be able to see this token again — copy it now.
           </p>
@@ -270,6 +276,7 @@ export default function ApiTokensPage() {
               <button
                 onClick={() => handleRevoke(token)}
                 disabled={revokingId !== null}
+                aria-label={`Revoke ${token.name}`}
                 className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {revokingId === token.id ? 'Revoking…' : 'Revoke'}
