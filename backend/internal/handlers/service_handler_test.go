@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -62,6 +63,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("Failed to create test table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	return db
 }

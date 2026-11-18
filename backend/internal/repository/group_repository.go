@@ -62,9 +62,13 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 		group.Position = 0
 	}
 
+	if group.BoardID, err = boardOr(ctx, tx, group.UserID, group.BoardID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO groups (user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO groups (user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id
 	`
 
@@ -80,6 +84,7 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 		group.TileStyle,
 		group.CreatedAt,
 		group.UpdatedAt,
+		group.BoardID,
 	).Scan(&group.ID)
 	if err != nil {
 		return err
@@ -88,16 +93,12 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 	return tx.Commit()
 }
 
-// GetByID retrieves a group by ID
-func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group, error) {
-	group := &models.Group{}
-	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
-		FROM groups
-		WHERE id = $1
-	`
+// groupColumns is the column list every group query scans with scanGroup
+const groupColumns = `id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at, board_id`
 
-	err := r.db.QueryRowContext(ctx, query, id).Scan(
+func scanGroup(row rowScanner) (*models.Group, error) {
+	group := &models.Group{}
+	err := row.Scan(
 		&group.ID,
 		&group.UserID,
 		&group.Name,
@@ -108,13 +109,36 @@ func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group
 		&group.TileStyle,
 		&group.CreatedAt,
 		&group.UpdatedAt,
+		&group.BoardID,
 	)
-
-	if err == sql.ErrNoRows {
-		return nil, sql.ErrNoRows
+	if err != nil {
+		return nil, err
 	}
+	return group, nil
+}
 
-	return group, err
+// queryGroups runs a query selecting groupColumns and scans every row
+func (r *GroupRepository) queryGroups(ctx context.Context, query string, args ...any) ([]*models.Group, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var groups []*models.Group
+	for rows.Next() {
+		group, err := scanGroup(rows)
+		if err != nil {
+			return nil, err
+		}
+		groups = append(groups, group)
+	}
+	return groups, rows.Err()
+}
+
+// GetByID retrieves a group by ID
+func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group, error) {
+	return scanGroup(r.db.QueryRowContext(ctx, `SELECT `+groupColumns+` FROM groups WHERE id = $1`, id))
 }
 
 // CountByUserID returns the number of groups for a specific user (efficient for validation)
@@ -125,80 +149,53 @@ func (r *GroupRepository) CountByUserID(ctx context.Context, userID string) (int
 	return count, err
 }
 
-// GetAllByUserID retrieves all groups for a specific user ordered by position
+// GetAllByUserID retrieves all groups for a specific user, on all their
+// boards, ordered by position
 func (r *GroupRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Group, error) {
-	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
-		FROM groups
-		WHERE user_id = $1
-		ORDER BY position ASC, created_at ASC
-	`
+	query := `SELECT ` + groupColumns + ` FROM groups WHERE user_id = $1 ORDER BY position ASC, created_at ASC`
+	return r.queryGroups(ctx, query, userID)
+}
 
-	rows, err := r.db.QueryContext(ctx, query, userID)
+// GetAllByBoardID retrieves the groups of one board ordered by position
+func (r *GroupRepository) GetAllByBoardID(ctx context.Context, boardID string) ([]*models.Group, error) {
+	query := `SELECT ` + groupColumns + ` FROM groups WHERE board_id = $1 ORDER BY position ASC, created_at ASC`
+	return r.queryGroups(ctx, query, boardID)
+}
+
+// GetDefaultByUserID retrieves the default group of the user's default board
+func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string) (*models.Group, error) {
+	query := `
+		SELECT ` + groupColumns + ` FROM groups
+		WHERE user_id = $1 AND is_default = TRUE
+		  AND board_id = (SELECT id FROM boards WHERE user_id = $1 AND is_default = TRUE)
+	`
+	return scanGroup(r.db.QueryRowContext(ctx, query, userID))
+}
+
+// getDefaultByBoardID retrieves the default group of a board
+func (r *GroupRepository) getDefaultByBoardID(ctx context.Context, boardID string) (*models.Group, error) {
+	query := `SELECT ` + groupColumns + ` FROM groups WHERE board_id = $1 AND is_default = TRUE`
+	return scanGroup(r.db.QueryRowContext(ctx, query, boardID))
+}
+
+// EnsureDefaultGroup creates the default group of the user's default board
+// if it doesn't exist (atomic)
+func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string) (*models.Group, error) {
+	return r.EnsureDefaultGroupOn(ctx, userID, "")
+}
+
+// EnsureDefaultGroupOn creates the default group of one of the user's boards
+// if it doesn't exist (atomic); "" is the default board
+func (r *GroupRepository) EnsureDefaultGroupOn(ctx context.Context, userID, boardID string) (*models.Group, error) {
+	boardID, err := boardOr(ctx, r.db, userID, boardID)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-
-	var groups []*models.Group
-	for rows.Next() {
-		group := &models.Group{}
-		err := rows.Scan(
-			&group.ID,
-			&group.UserID,
-			&group.Name,
-			&group.Color,
-			&group.Position,
-			&group.IsDefault,
-			&group.MonitoringEnabled,
-			&group.TileStyle,
-			&group.CreatedAt,
-			&group.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-		groups = append(groups, group)
-	}
-
-	return groups, rows.Err()
-}
-
-// GetDefaultByUserID retrieves the default group for a user
-func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string) (*models.Group, error) {
-	group := &models.Group{}
-	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
-		FROM groups
-		WHERE user_id = $1 AND is_default = TRUE
-	`
-
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(
-		&group.ID,
-		&group.UserID,
-		&group.Name,
-		&group.Color,
-		&group.Position,
-		&group.IsDefault,
-		&group.MonitoringEnabled,
-		&group.TileStyle,
-		&group.CreatedAt,
-		&group.UpdatedAt,
-	)
-
-	if err == sql.ErrNoRows {
-		return nil, sql.ErrNoRows
-	}
-
-	return group, err
-}
-
-// EnsureDefaultGroup creates a default group for the user if one doesn't exist (atomic)
-func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string) (*models.Group, error) {
 	now := time.Now()
 	group := &models.Group{
 		ID:                uuid.New().String(),
 		UserID:            userID,
+		BoardID:           boardID,
 		Name:              models.DefaultGroupName,
 		Color:             models.DefaultGroupColor,
 		Position:          0,
@@ -212,14 +209,14 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 	if r.isPostgreSQL {
 		// Use INSERT ... ON CONFLICT for atomic upsert
 		query := `
-			INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-			ON CONFLICT (user_id) WHERE is_default = TRUE
+			INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at, board_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			ON CONFLICT (board_id) WHERE is_default = TRUE
 			DO NOTHING
 		`
 		result, err := r.db.ExecContext(ctx, query,
 			group.ID, group.UserID, group.Name, group.Color,
-			group.Position, group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt,
+			group.Position, group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt, group.BoardID,
 		)
 		if err != nil {
 			return nil, err
@@ -232,13 +229,13 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 
 		if rowsAffected == 0 {
 			// ON CONFLICT DO NOTHING means a default already exists
-			return r.GetDefaultByUserID(ctx, userID)
+			return r.getDefaultByBoardID(ctx, boardID)
 		}
 		return group, nil
 	}
 
 	// SQLite fallback - use check-then-create pattern
-	existing, err := r.GetDefaultByUserID(ctx, userID)
+	existing, err := r.getDefaultByBoardID(ctx, boardID)
 	if err == nil {
 		return existing, nil
 	}
@@ -248,7 +245,7 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 
 	if err := r.Create(ctx, group); err != nil {
 		// Check if another goroutine created it (race condition)
-		existing, checkErr := r.GetDefaultByUserID(ctx, userID)
+		existing, checkErr := r.getDefaultByBoardID(ctx, boardID)
 		if checkErr == nil {
 			return existing, nil
 		}

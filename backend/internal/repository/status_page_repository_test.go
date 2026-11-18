@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -48,6 +49,7 @@ func setupStatusPageTestDB(t *testing.T) *sql.DB {
 		);
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

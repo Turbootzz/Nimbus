@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -108,6 +109,7 @@ func setupWidgetTestDB(t *testing.T) *sql.DB {
 	`
 	_, err := db.Exec(schema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

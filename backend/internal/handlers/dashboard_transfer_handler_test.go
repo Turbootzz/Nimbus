@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -91,6 +92,7 @@ func setupTransferTestApp(t *testing.T, userID string) (*fiber.App, *sql.DB) {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(transferTestSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 
 	cleanUploadDir(t)
 	oldDir := WallpaperUploadDir

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -32,6 +33,7 @@ func setupSnapshotTestDB(t *testing.T) *sql.DB {
 	db := setupWidgetTestDB(t)
 	_, err := db.Exec(snapshotTestSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

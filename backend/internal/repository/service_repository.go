@@ -39,10 +39,13 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 	if service.Position, err = nextTilePosition(ctx, tx, service.UserID); err != nil {
 		return err
 	}
+	if service.BoardID, err = boardOr(ctx, tx, service.UserID, service.BoardID); err != nil {
+		return err
+	}
 
 	query := `
-		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id
 	`
 
@@ -64,6 +67,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.MonitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
+		service.BoardID,
 	).Scan(&service.ID)
 	if err != nil {
 		return err
@@ -76,14 +80,14 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 const serviceColumns = `
 	id, user_id, name, url, icon, icon_type, icon_image_path, description, status,
 	response_time, position, card_size, group_id, integration_id, monitoring_enabled,
-	created_at, updated_at
+	created_at, updated_at, board_id
 `
 
 // monitoredServiceColumns is serviceColumns for queries that join groups as g
 const monitoredServiceColumns = `
 	s.id, s.user_id, s.name, s.url, s.icon, s.icon_type, s.icon_image_path, s.description, s.status,
 	s.response_time, s.position, s.card_size, s.group_id, s.integration_id, s.monitoring_enabled,
-	s.created_at, s.updated_at
+	s.created_at, s.updated_at, s.board_id
 `
 
 func scanService(row rowScanner) (*models.Service, error) {
@@ -106,6 +110,7 @@ func scanService(row rowScanner) (*models.Service, error) {
 		&service.MonitoringEnabled,
 		&service.CreatedAt,
 		&service.UpdatedAt,
+		&service.BoardID,
 	)
 	if err != nil {
 		return nil, err
@@ -138,10 +143,16 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 	return scanService(r.db.QueryRowContext(ctx, query, id))
 }
 
-// GetAllByUserID retrieves all services for a specific user
+// GetAllByUserID retrieves all services for a specific user, on all their boards
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `SELECT ` + serviceColumns + ` FROM services WHERE user_id = $1 ORDER BY position ASC, created_at DESC`
 	return r.queryServices(ctx, query, userID)
+}
+
+// GetAllByBoardID retrieves the services on one board
+func (r *ServiceRepository) GetAllByBoardID(ctx context.Context, boardID string) ([]*models.Service, error) {
+	query := `SELECT ` + serviceColumns + ` FROM services WHERE board_id = $1 ORDER BY position ASC, created_at DESC`
+	return r.queryServices(ctx, query, boardID)
 }
 
 // GetAll retrieves all services across all users

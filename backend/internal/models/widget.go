@@ -10,6 +10,7 @@ import (
 type Widget struct {
 	ID             string          `json:"id"`
 	UserID         string          `json:"user_id"`
+	BoardID        string          `json:"board_id"` // "" on create means the default board
 	Type           string          `json:"type"`
 	Title          string          `json:"title"`
 	GroupID        *string         `json:"group_id"`
@@ -27,9 +28,12 @@ type Widget struct {
 // keep their stored value, an empty group_id or integration_id clears it, and
 // a given config replaces the stored one. Type can't change after create.
 type WidgetRequest struct {
-	Type           string          `json:"type"`
-	Title          *string         `json:"title"`
-	GroupID        *string         `json:"group_id"`
+	Type    string  `json:"type"`
+	Title   *string `json:"title"`
+	GroupID *string `json:"group_id"`
+	// BoardID picks the board on create; on update another board moves the
+	// widget there, ungrouped
+	BoardID        *string         `json:"board_id"`
 	IntegrationID  *string         `json:"integration_id"`
 	Config         json.RawMessage `json:"config"`
 	CardSize       *string         `json:"card_size"`

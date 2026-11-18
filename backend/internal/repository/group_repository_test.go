@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("Failed to create test table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	return db
 }
@@ -932,6 +934,7 @@ func TestGroupRepository_DeleteWithServicesAlsoDeletesWidgets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create tiles: %v", err)
 	}
+	testutil.AddBoards(t, db)
 	createGroupDirectly(t, db, &models.Group{ID: "group-1", UserID: "user-1", Name: "Media", CreatedAt: time.Now(), UpdatedAt: time.Now()})
 
 	if err := repo.Delete(ctx, "group-1", "user-1", true); err != nil {

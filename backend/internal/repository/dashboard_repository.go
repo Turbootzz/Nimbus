@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
@@ -69,7 +70,8 @@ func dashboardState(ctx context.Context, db rowQuerier, userID string) (Dashboar
 			(SELECT COUNT(*) FROM services WHERE user_id = $1),
 			(SELECT COUNT(*) FROM widgets WHERE user_id = $1),
 			(SELECT COUNT(*) FROM integrations WHERE user_id = $1),
-			COALESCE((SELECT CAST(id AS TEXT) FROM groups WHERE user_id = $1 AND is_default = TRUE LIMIT 1), '')
+			COALESCE((SELECT CAST(g.id AS TEXT) FROM groups g JOIN boards b ON b.id = g.board_id
+				WHERE g.user_id = $1 AND g.is_default = TRUE AND b.is_default = TRUE LIMIT 1), '')
 	`
 	var state DashboardState
 	err := db.QueryRowContext(ctx, query, userID).Scan(
@@ -139,26 +141,28 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 		rows.useDefaultGroup(kept.DefaultGroupID)
 	}
 
+	if err := rows.own(ctx, tx, userID); err != nil {
+		return nil, err
+	}
 	for i, group := range rows.Groups {
-		group.UserID, group.Position = userID, groupOffset+i
+		group.Position = groupOffset + i
 		if err := insertGroup(ctx, tx, group); err != nil {
 			return nil, err
 		}
 	}
 	for _, integration := range rows.Integrations {
-		integration.UserID = userID
 		if err := insertIntegration(ctx, tx, integration); err != nil {
 			return nil, err
 		}
 	}
 	for _, service := range rows.Services {
-		service.UserID, service.Position = userID, service.Position+tileOffset
+		service.Position += tileOffset
 		if err := insertService(ctx, tx, service); err != nil {
 			return nil, err
 		}
 	}
 	for _, widget := range rows.Widgets {
-		widget.UserID, widget.Position = userID, widget.Position+tileOffset
+		widget.Position += tileOffset
 		if err := insertWidget(ctx, tx, widget); err != nil {
 			return nil, err
 		}
@@ -173,6 +177,28 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 		return nil, fmt.Errorf("failed to commit dashboard: %w", err)
 	}
 	return applied, nil
+}
+
+// own makes the user the owner of every row, and puts groups and tiles
+// without a board on the user's default board
+func (rows *DashboardRows) own(ctx context.Context, tx *sql.Tx, userID string) error {
+	defaultBoard, err := defaultBoardID(ctx, tx, userID)
+	if err != nil {
+		return err
+	}
+	for _, group := range rows.Groups {
+		group.UserID, group.BoardID = userID, cmp.Or(group.BoardID, defaultBoard)
+	}
+	for _, integration := range rows.Integrations {
+		integration.UserID = userID
+	}
+	for _, service := range rows.Services {
+		service.UserID, service.BoardID = userID, cmp.Or(service.BoardID, defaultBoard)
+	}
+	for _, widget := range rows.Widgets {
+		widget.UserID, widget.BoardID = userID, cmp.Or(widget.BoardID, defaultBoard)
+	}
+	return nil
 }
 
 // useDefaultGroup drops the default group from rows when the user already
@@ -235,12 +261,12 @@ func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, er
 
 func insertGroup(ctx context.Context, tx *sql.Tx, group *models.Group) error {
 	query := `
-		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err := tx.ExecContext(ctx, query,
 		group.ID, group.UserID, group.Name, group.Color, group.Position,
-		group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt,
+		group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt, group.BoardID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create group: %w", err)
@@ -269,13 +295,13 @@ func insertIntegration(ctx context.Context, tx *sql.Tx, integration *models.Inte
 func insertService(ctx context.Context, tx *sql.Tx, service *models.Service) error {
 	query := `
 		INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status,
-			position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+			position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
 	_, err := tx.ExecContext(ctx, query,
 		service.ID, service.UserID, service.Name, service.URL, service.Icon, service.IconType,
 		service.IconImagePath, service.Description, service.Status, service.Position, service.CardSize,
-		service.GroupID, service.IntegrationID, service.MonitoringEnabled, service.CreatedAt, service.UpdatedAt,
+		service.GroupID, service.IntegrationID, service.MonitoringEnabled, service.CreatedAt, service.UpdatedAt, service.BoardID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create service: %w", err)
@@ -286,12 +312,12 @@ func insertService(ctx context.Context, tx *sql.Tx, service *models.Service) err
 func insertWidget(ctx context.Context, tx *sql.Tx, widget *models.Widget) error {
 	query := `
 		INSERT INTO widgets (id, user_id, type, title, group_id, integration_id,
-			config, card_size, position, refresh_seconds, enabled)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			config, card_size, position, refresh_seconds, enabled, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := tx.ExecContext(ctx, query,
 		widget.ID, widget.UserID, widget.Type, widget.Title, widget.GroupID, widget.IntegrationID,
-		string(widget.Config), widget.CardSize, widget.Position, widget.RefreshSeconds, widget.Enabled,
+		string(widget.Config), widget.CardSize, widget.Position, widget.RefreshSeconds, widget.Enabled, widget.BoardID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create widget: %w", err)

@@ -56,6 +56,7 @@ func IsValidCardSize(size string) bool {
 type Service struct {
 	ID                string    `json:"id" db:"id"`
 	UserID            string    `json:"user_id" db:"user_id"`
+	BoardID           string    `json:"board_id" db:"board_id"` // The board the tile is on; "" on create means the default board
 	Name              string    `json:"name" db:"name"`
 	URL               string    `json:"url" db:"url"`
 	Icon              string    `json:"icon" db:"icon"`                       // Emoji text (used when IconType is 'emoji')
@@ -83,6 +84,7 @@ type ServiceCreateRequest struct {
 	Description       string  `json:"description"`
 	CardSize          string  `json:"card_size"`          // '1x1', '2x1', or '2x2' (defaults to '2x1')
 	GroupID           *string `json:"group_id"`           // Optional group ID
+	BoardID           *string `json:"board_id"`           // Optional board; the default board when omitted
 	IntegrationID     *string `json:"integration_id"`     // Optional integration for the KPI row
 	MonitoringEnabled *bool   `json:"monitoring_enabled"` // Optional, defaults to true
 }
@@ -97,6 +99,7 @@ type ServiceUpdateRequest struct {
 	Description       string  `json:"description"`
 	CardSize          string  `json:"card_size"`          // '1x1', '2x1', or '2x2' (preserves existing if empty)
 	GroupID           *string `json:"group_id"`           // Omit to preserve existing; empty string clears the group
+	BoardID           *string `json:"board_id"`           // Omit to stay; another board moves the tile there, ungrouped
 	IntegrationID     *string `json:"integration_id"`     // Omit to preserve existing; empty string unlinks
 	MonitoringEnabled *bool   `json:"monitoring_enabled"` // Optional, preserves existing if nil
 }
@@ -104,6 +107,7 @@ type ServiceUpdateRequest struct {
 // ServiceResponse is the safe service data to return to clients
 type ServiceResponse struct {
 	ID                string    `json:"id"`
+	BoardID           string    `json:"board_id"`
 	Name              string    `json:"name"`
 	URL               string    `json:"url"`
 	Icon              string    `json:"icon"`
@@ -125,6 +129,7 @@ type ServiceResponse struct {
 func (s *Service) ToResponse() ServiceResponse {
 	return ServiceResponse{
 		ID:                s.ID,
+		BoardID:           s.BoardID,
 		Name:              s.Name,
 		URL:               s.URL,
 		Icon:              s.Icon,

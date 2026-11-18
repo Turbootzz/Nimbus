@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/nimbus/backend/internal/testutil"
 	"regexp"
 	"strings"
 	"testing"
@@ -200,6 +201,7 @@ func newTransferEnv(t *testing.T) *transferEnv {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(transferSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return newTransferEnvOn(t, db)
 }
 

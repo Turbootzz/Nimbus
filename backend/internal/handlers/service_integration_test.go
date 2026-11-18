@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -51,6 +52,7 @@ func setupServiceIntegrationDB(t *testing.T) *sql.DB {
 			('abababab-abab-abab-abab-ababababab02', 'dddddddd-dddd-dddd-dddd-ddddddddddd2', 'sonarr', 'Sonarr', 'http://sonarr.lan');
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

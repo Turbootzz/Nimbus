@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/nimbus/backend/internal/testutil"
 	"io"
 	"net"
 	"net/http"
@@ -140,6 +141,7 @@ func setupDiscoveryDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(discoverySchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

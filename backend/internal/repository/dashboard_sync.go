@@ -55,9 +55,11 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		return nil
 	}
 
+	if err := changes.Create.own(ctx, tx, userID); err != nil {
+		return err
+	}
 	// Groups and integrations first: tiles point at them
 	for _, group := range changes.Create.Groups {
-		group.UserID = userID
 		if err := insertGroup(ctx, tx, group); err != nil {
 			return err
 		}
@@ -74,7 +76,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		}
 	}
 	for _, integration := range changes.Create.Integrations {
-		integration.UserID = userID
 		if err := insertIntegration(ctx, tx, integration); err != nil {
 			return err
 		}
@@ -99,7 +100,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 	}
 
 	for _, service := range changes.Create.Services {
-		service.UserID = userID
 		if err := insertService(ctx, tx, service); err != nil {
 			return err
 		}
@@ -117,7 +117,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		}
 	}
 	for _, widget := range changes.Create.Widgets {
-		widget.UserID = userID
 		if err := insertWidget(ctx, tx, widget); err != nil {
 			return err
 		}

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -44,6 +45,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("Failed to create test table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	return db
 }
@@ -418,6 +420,7 @@ func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
 	if _, err := db.Exec(servicesSchema); err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create groups table (needed for LEFT JOIN)
 	groupsSchema := `
@@ -436,6 +439,7 @@ func TestServiceRepository_GetAllForMonitoring(t *testing.T) {
 	if _, err := db.Exec(groupsSchema); err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	repo := NewServiceRepository(db)
 	ctx := context.Background()
@@ -516,6 +520,7 @@ func TestServiceRepository_GetAllForMonitoring_GroupMonitoring(t *testing.T) {
 	if _, err := db.Exec(servicesSchema); err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create groups table
 	groupsSchema := `
@@ -534,6 +539,7 @@ func TestServiceRepository_GetAllForMonitoring_GroupMonitoring(t *testing.T) {
 	if _, err := db.Exec(groupsSchema); err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Insert test groups
 	now := time.Now()
