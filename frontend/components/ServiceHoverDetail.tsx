@@ -58,6 +58,7 @@ export function useServiceDetail(service: Service, monitored: boolean, enabled =
   const [detail, setDetail] = useState<Detail>(undefined)
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const lastTouch = useRef(0)
+  const touching = useRef(false)
   const longPressed = useRef(false)
   const id = useId()
   const open = anchor !== null
@@ -99,6 +100,14 @@ export function useServiceDetail(service: Service, monitored: boolean, enabled =
 
   if (!enabled) return { triggerProps: {}, popover: null } satisfies ServiceDetail
 
+  // Lifting the finger early is not a long press; neither is a touch the
+  // browser took over
+  const endTouch = () => {
+    lastTouch.current = Date.now()
+    touching.current = false
+    clearTimeout(timer.current)
+  }
+
   const triggerProps: HTMLAttributes<HTMLElement> = {
     'aria-describedby': open ? id : undefined,
     // iOS would open its own link preview on a long press
@@ -114,22 +123,23 @@ export function useServiceDetail(service: Service, monitored: boolean, enabled =
     onBlur: hide,
     onTouchStart: (event) => {
       lastTouch.current = Date.now()
+      touching.current = true
       longPressed.current = false
       showAfter(event.currentTarget, LONG_PRESS_MS, () => (longPressed.current = true))
     },
-    // Scrolling or lifting the finger early is not a long press
+    // Scrolling is not a long press
     onTouchMove: () => clearTimeout(timer.current),
-    onTouchEnd: () => {
-      lastTouch.current = Date.now()
-      clearTimeout(timer.current)
-    },
+    onTouchEnd: endTouch,
+    onTouchCancel: endTouch,
     // The long press opened the popover; it must not follow the link too
     onClick: (event) => {
       if (longPressed.current) event.preventDefault()
       longPressed.current = false
     },
+    // Android opens its link menu on a long press, often just before the
+    // popover is due; a right click keeps its menu
     onContextMenu: (event) => {
-      if (longPressed.current) event.preventDefault()
+      if (touching.current || longPressed.current) event.preventDefault()
     },
   }
 
@@ -175,7 +185,11 @@ function DetailPopover({ id, anchor, service, monitored, detail }: DetailPopover
       style={{ left, width: WIDTH_PX, ...position }}
       className="bg-card border-card-border pointer-events-none fixed z-50 rounded-lg border p-3 text-sm shadow-lg"
     >
-      <p className="text-text-primary truncate font-semibold">{service.name}</p>
+      <p className="flex items-baseline justify-between gap-2">
+        <span className="text-text-primary truncate font-semibold">{service.name}</span>
+        {/* In words too: a chip only has its coloured dot */}
+        {monitored && <span className="text-text-muted shrink-0 text-xs">{service.status}</span>}
+      </p>
       <p className="text-text-muted truncate text-xs">{service.url}</p>
 
       <div className="border-card-border mt-2 border-t pt-2">

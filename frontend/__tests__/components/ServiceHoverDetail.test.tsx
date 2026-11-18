@@ -200,6 +200,30 @@ describe('service hover detail', () => {
     expect(fireEvent.click(link)).toBe(true)
   })
 
+  it('keeps the browser menu away during a touch, not on a right click', async () => {
+    render(card)
+    const link = screen.getByRole('link', { name: /Plex/ })
+    expect(fireEvent.contextMenu(link)).toBe(true)
+
+    // Android asks for its menu before the long press is due
+    fireEvent.touchStart(link)
+    await act(() => vi.advanceTimersByTimeAsync(400))
+    expect(fireEvent.contextMenu(link)).toBe(false)
+    await act(() => vi.advanceTimersByTimeAsync(100))
+    expect(screen.getByRole('tooltip')).toHaveTextContent('online')
+    fireEvent.touchEnd(link)
+  })
+
+  it('does not open after a touch the browser cancelled', async () => {
+    render(card)
+    const link = screen.getByRole('link', { name: /Plex/ })
+    fireEvent.touchStart(link)
+    fireEvent.touchCancel(link)
+    await act(() => vi.advanceTimersByTimeAsync(600))
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+    expect(fireEvent.contextMenu(link)).toBe(true)
+  })
+
   it('closes when the page scrolls', async () => {
     render(card)
     await hover(screen.getByRole('link', { name: /Plex/ }))
