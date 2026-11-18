@@ -193,7 +193,16 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                   key={option.value}
                   type="button"
                   onClick={() => {
-                    set('format', option.value)
+                    if (option.value === values.format) return
+                    // Secrets belong to one type: what was typed for the
+                    // previous one must not count for, or be sent as, this one
+                    setValues((current) => ({
+                      ...current,
+                      format: option.value,
+                      token: '',
+                      userKey: '',
+                      removeToken: false,
+                    }))
                     setErrors({})
                   }}
                   disabled={isLoading}

@@ -133,6 +133,39 @@ describe('WebhookForm', () => {
     expect(screen.getByLabelText('App token')).toHaveAccessibleDescription('App token is required')
   })
 
+  it('forgets a user key typed for another type', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(null)
+    render(<WebhookForm webhook={saved({})} onSubmit={onSubmit} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Pushover' }))
+    type('User key', 'u'.repeat(30))
+    fireEvent.click(screen.getByRole('button', { name: 'Telegram' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+
+    // The saved bot token is kept, as the placeholder says
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect('credentials' in onSubmit.mock.calls[0][0]).toBe(false)
+  })
+
+  it('does not carry a typed token over to another type', () => {
+    render(<WebhookForm onSubmit={vi.fn()} onClose={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Gotify' }))
+    type('App token', 'gotify-token')
+    fireEvent.click(screen.getByRole('button', { name: 'Telegram' }))
+    expect(screen.getByLabelText('Bot token')).toHaveValue('')
+  })
+
+  it('leaves the token field of another type usable after ticking remove for ntfy', () => {
+    const ntfy = saved({ format: 'ntfy', url: 'https://ntfy.sh/alerts', options: { priority: 4 } })
+    render(<WebhookForm webhook={ntfy} onSubmit={vi.fn()} onClose={() => {}} />)
+    fireEvent.click(screen.getByLabelText('Remove the saved access token'))
+    expect(screen.getByLabelText('Access token (optional)')).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gotify' }))
+    expect(screen.getByLabelText('App token')).toBeEnabled()
+    fireEvent.click(screen.getByRole('button', { name: 'ntfy' }))
+    expect(screen.getByLabelText('Remove the saved access token')).not.toBeChecked()
+  })
+
   it('can remove a saved ntfy token', async () => {
     const onSubmit = vi.fn().mockResolvedValue(null)
     const ntfy = saved({ format: 'ntfy', url: 'https://ntfy.sh/alerts', options: { priority: 4 } })

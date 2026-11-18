@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/url"
@@ -258,21 +259,6 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.Name == "" || req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name and URL are required",
-		})
-	}
-
-	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
-		})
-	}
-
 	// Get existing service to verify ownership
 	existingService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
@@ -290,6 +276,36 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	if existingService.UserID != userID {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
+		})
+	}
+
+	// A field the body leaves out keeps its stored value, so a resize or a
+	// group move sends only its own field; one sent empty is still rejected
+	var sent map[string]json.RawMessage
+	if json.Unmarshal(c.Body(), &sent) == nil {
+		if _, ok := sent["name"]; !ok {
+			req.Name = existingService.Name
+		}
+		if _, ok := sent["url"]; !ok {
+			req.URL = existingService.URL
+		}
+		if _, ok := sent["description"]; !ok {
+			req.Description = existingService.Description
+		}
+	}
+
+	// Validate required fields
+	if req.Name == "" || req.URL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Name and URL are required",
+		})
+	}
+
+	// Validate URL format
+	parsedURL, err := url.ParseRequestURI(req.URL)
+	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid URL format. URL must include scheme (http/https) and host",
 		})
 	}
 
