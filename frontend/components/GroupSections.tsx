@@ -26,7 +26,7 @@ function readCollapsed(): string[] {
 }
 
 const actionClass =
-  'text-text-muted hover:text-primary wallpaper:glass-card rounded p-1 transition-colors disabled:opacity-40 disabled:hover:text-text-muted'
+  'text-text-muted hover:text-primary wallpaper-surface rounded p-1 transition-colors disabled:opacity-40 disabled:hover:text-text-muted'
 
 interface GroupSectionsProps {
   sections: TileSection[]
@@ -88,7 +88,7 @@ export default function GroupSections({
         <button
           type="button"
           onClick={onCreateGroup}
-          className="text-text-muted hover:text-primary border-card-border wallpaper:glass-card mb-6 flex items-center gap-1 rounded-md border border-dashed px-3 py-2 text-sm transition-colors"
+          className="text-text-muted hover:text-primary border-card-border wallpaper-surface mb-6 flex items-center gap-1 rounded-md border border-dashed px-3 py-2 text-sm transition-colors"
         >
           <PlusIcon className="h-4 w-4" />
           Add group
@@ -144,7 +144,7 @@ function GroupSection({
             onClick={onToggle}
             aria-expanded={!collapsed}
             aria-controls={bodyId}
-            className="wallpaper:glass-card hover:bg-card-hover flex max-w-full items-center gap-2 rounded-md px-2 py-1 transition-colors"
+            className="wallpaper-surface hover:bg-card-hover wallpaper:hover:bg-card-hover flex max-w-full items-center gap-2 rounded-md px-2 py-1 transition-colors"
           >
             <ChevronDownIcon
               className={`text-text-muted h-4 w-4 shrink-0 transition-transform ${collapsed ? '-rotate-90' : ''}`}
@@ -214,7 +214,7 @@ function GroupSection({
           {tiles.length > 0 ? (
             children
           ) : (
-            <p className="text-text-muted border-card-border wallpaper:glass-card rounded-lg border border-dashed px-4 py-3 text-sm">
+            <p className="text-text-muted border-card-border wallpaper-surface rounded-lg border border-dashed px-4 py-3 text-sm">
               {isEditMode ? 'Drop a tile here.' : 'Nothing in this group yet.'}
             </p>
           )}
