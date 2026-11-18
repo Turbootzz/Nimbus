@@ -7,6 +7,7 @@ import type {
   Tile,
   TilePosition,
   TileStyle,
+  ViewMode,
   Widget,
 } from '@/types'
 
@@ -125,6 +126,18 @@ export function tileStyleOf(tile: Tile, groups: Group[]): TileStyle {
   const groupId = tileGroupId(tile)
   const group = groups.find((g) => g.id === groupId) ?? groups.find((g) => g.is_default)
   return group?.tile_style ?? 'cards'
+}
+
+/**
+ * The tiles of one grid that can be dragged, in the order they render, which
+ * is what dnd-kit's SortableContext needs: list view has no widgets, and
+ * chips put the widgets after the services.
+ */
+export function sortableOrder(tiles: Tile[], viewMode: ViewMode, tileStyle?: TileStyle): Tile[] {
+  const services = tiles.filter((tile) => tile.kind === 'service')
+  if (viewMode === 'list') return services
+  if (tileStyle !== 'chips') return tiles
+  return [...services, ...tiles.filter((tile) => tile.kind === 'widget')]
 }
 
 export interface TileSection {

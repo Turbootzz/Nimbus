@@ -4,6 +4,7 @@ import {
   mergeTiles,
   moveTile,
   resolveGroupDisplay,
+  sortableOrder,
   tileGroupId,
   tileKey,
   toTilePositions,
@@ -186,5 +187,22 @@ describe('moveTile', () => {
     expect(moveTile(all, sections, 'service:nope', 'service:a')).toBeNull()
     expect(moveTile(all, sections, 'service:a', 'service:nope')).toBeNull()
     expect(moveTile(all, sections, 'service:a', 'group-nope')).toBeNull()
+  })
+})
+
+describe('sortableOrder', () => {
+  const tiles = mergeTiles([service('a', 0), service('b', 2)], [widget('w', 1)])
+  const keys = (list: Tile[]) => list.map(tileKey)
+
+  it('follows the render order of each view', () => {
+    expect(keys(sortableOrder(tiles, 'grid'))).toEqual(['service:a', 'widget:w', 'service:b'])
+    expect(keys(sortableOrder(tiles, 'list'))).toEqual(['service:a', 'service:b'])
+    // Chips come first, the widgets are cards below them
+    expect(keys(sortableOrder(tiles, 'grid', 'chips'))).toEqual([
+      'service:a',
+      'service:b',
+      'widget:w',
+    ])
+    expect(keys(sortableOrder(tiles, 'list', 'chips'))).toEqual(['service:a', 'service:b'])
   })
 })

@@ -57,6 +57,7 @@ import {
   moveTile,
   reorderTiles,
   resolveGroupDisplay,
+  sortableOrder,
   splitTiles,
   tileKey,
   tileStyleOf,
@@ -818,7 +819,7 @@ export default function DashboardPage() {
       />
     )
     if (!isEditMode) return grid
-    const sortable = viewMode === 'list' ? gridTiles.filter((t) => t.kind === 'service') : gridTiles
+    const sortable = sortableOrder(gridTiles, viewMode, tileStyle)
     return (
       <SortableContext items={sortable.map(tileKey)} strategy={rectSortingStrategy}>
         {grid}

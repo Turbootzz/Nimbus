@@ -65,6 +65,12 @@ describe('createCollisionDetection with sections', () => {
     expect(hit(detect, drag('service:a', 205, 190))).toBe('service:b')
   })
 
+  it('stays with its own tiles in the empty space of its own section', () => {
+    // Bottom right of home, with tile b gone: widget w below is nearer than a
+    const ids = Object.keys(boxes).filter((id) => id !== 'service:b')
+    expect(hit(detect, drag('service:a', 300, 290, ids))).toBe('service:a')
+  })
+
   it('falls back to the nearest tile outside every section', () => {
     expect(hit(detect, drag('service:m', 100, 60))).toBe('service:a')
   })

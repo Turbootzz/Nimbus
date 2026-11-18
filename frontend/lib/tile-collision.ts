@@ -7,7 +7,8 @@ const isGroupDrop = (id: string | number) => String(id).startsWith(GROUP_DROP_PR
  * Collision detection for the dashboard. Group tabs only collide with other
  * tabs. A dragged tile prefers what is under the pointer: with tabs that is
  * a group tab, with sections (`sectionOfTile`: tile key to group id) a tile,
- * and a section itself only when the tile comes from another one.
+ * and a section itself only when the tile comes from another one. In the
+ * empty space of its own section the tile stays with that section's tiles.
  */
 export function createCollisionDetection(
   isDraggingTab: boolean,
@@ -28,12 +29,16 @@ export function createCollisionDetection(
     if (sectionOfTile) {
       const tileCollision = pointerCollisions.find((c) => !isGroupDrop(c.id))
       if (tileCollision) return [tileCollision]
-      const ownSection = GROUP_DROP_PREFIX + sectionOfTile.get(activeId)
-      if (groupCollision && groupCollision.id !== ownSection) return [groupCollision]
-      // Between tiles: the nearest tile
+      const own = sectionOfTile.get(activeId)
+      const inOwnSection = groupCollision?.id === GROUP_DROP_PREFIX + own
+      if (groupCollision && !inOwnSection) return [groupCollision]
+      // Between tiles: the nearest tile, of its own section while the pointer
+      // is in it, or a tile of the next section could be nearer
       return closestCenter({
         ...args,
-        droppableContainers: args.droppableContainers.filter((c) => !isGroupDrop(c.id)),
+        droppableContainers: args.droppableContainers.filter(
+          (c) => !isGroupDrop(c.id) && (!inOwnSection || sectionOfTile.get(String(c.id)) === own)
+        ),
       })
     }
 
