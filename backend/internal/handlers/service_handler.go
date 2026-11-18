@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -258,21 +259,6 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.Name == "" || req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name and URL are required",
-		})
-	}
-
-	// Validate URL format
-	// http(s) only: the URL becomes a link on the tile and a health check target
-	if err := utils.ValidateServiceURL(req.URL); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL. It must start with http:// or https:// and have a host",
-		})
-	}
-
 	// Get existing service to verify ownership
 	existingService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
@@ -291,6 +277,39 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"error": "Access denied",
 		})
+	}
+
+	// A field the body leaves out keeps its stored value, so a resize or a
+	// group move sends only its own field; one sent empty is still rejected
+	var sent map[string]json.RawMessage
+	if json.Unmarshal(c.Body(), &sent) == nil {
+		if _, ok := sent["name"]; !ok {
+			req.Name = existingService.Name
+		}
+		if _, ok := sent["url"]; !ok {
+			req.URL = existingService.URL
+		}
+		if _, ok := sent["description"]; !ok {
+			req.Description = existingService.Description
+		}
+	}
+
+	// Validate required fields
+	if req.Name == "" || req.URL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Name and URL are required",
+		})
+	}
+
+	// http(s) only: the URL becomes a link on the tile and a health check
+	// target. A stored URL the request leaves alone is not checked again, so
+	// a service from before this rule can still be resized or moved.
+	if req.URL != existingService.URL {
+		if err := utils.ValidateServiceURL(req.URL); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid URL. It must start with http:// or https:// and have a host",
+			})
+		}
 	}
 
 	// Validate group_id belongs to user if provided

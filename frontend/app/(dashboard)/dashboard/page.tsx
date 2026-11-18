@@ -506,15 +506,8 @@ export default function DashboardPage() {
     const response =
       tile.kind === 'widget'
         ? await api.updateWidget(tile.id, { group_id: groupId })
-        : await api.updateService(tile.id, {
-            name: tile.service.name,
-            url: tile.service.url,
-            description: tile.service.description || '',
-            icon: tile.service.icon || '',
-            icon_type: tile.service.icon_type || 'emoji',
-            icon_image_path: tile.service.icon_image_path || '',
-            group_id: groupId,
-          })
+        : // Only the group: other fields keep what is stored
+          await api.updateService(tile.id, { group_id: groupId })
     if (response.error) throw new Error(response.error.message)
   }
 
@@ -562,26 +555,9 @@ export default function DashboardPage() {
     setResizingId(id)
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
 
-    // Fetch fresh service data to avoid overwriting concurrent updates
+    // Only the size: an edit saved meanwhile keeps its other fields
     try {
-      const response = await api.getService(id)
-      if (response.error || !response.data) {
-        console.error('Failed to fetch service:', response.error?.message)
-        setServices(previousServices)
-        return
-      }
-
-      const freshService = response.data
-      const updated = await api.updateService(id, {
-        name: freshService.name,
-        url: freshService.url,
-        description: freshService.description || '',
-        icon: freshService.icon || '',
-        icon_type: freshService.icon_type || 'emoji',
-        icon_image_path: freshService.icon_image_path || '',
-        group_id: freshService.group_id ?? '',
-        card_size: newSize,
-      })
+      const updated = await api.updateService(id, { card_size: newSize })
       if (updated.error) throw new Error(updated.error.message)
     } catch (error) {
       console.error('Failed to update card size:', error)
