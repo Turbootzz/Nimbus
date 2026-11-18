@@ -539,6 +539,31 @@ func TestIntegrationService_DockerSocket(t *testing.T) {
 	assert.ErrorContains(t, err, "allows no socket")
 }
 
+// A key is never sent over the socket: not on create, and not when only
+// the URL of an API key integration changes
+func TestIntegrationService_DockerSocketTakesNoKey(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	svc.dockerSocket = "/var/run/docker.sock"
+	ctx := context.Background()
+	withKey := dockerRequest("https://portainer.lan:9443/api/endpoints/1/docker")
+	withKey.AuthType = models.IntegrationAuthAPIKey
+	withKey.Credentials = &models.IntegrationCredentials{APIKey: testSecret}
+
+	created, err := svc.Create(ctx, "user-1", true, withKey)
+	require.NoError(t, err)
+	_, err = svc.Update(ctx, created.ID, "user-1", true, &models.IntegrationRequest{BaseURL: "unix:///var/run/docker.sock"})
+	assert.ErrorContains(t, err, "takes no credentials")
+
+	withKey.BaseURL = "unix:///var/run/docker.sock"
+	_, err = svc.Create(ctx, "user-1", true, withKey)
+	assert.ErrorContains(t, err, "takes no credentials")
+
+	// Switching to none in the same update is fine and drops the key
+	updated, err := svc.Update(ctx, created.ID, "user-1", true, &models.IntegrationRequest{BaseURL: "unix:///var/run/docker.sock", AuthType: models.IntegrationAuthNone})
+	require.NoError(t, err)
+	assert.False(t, updated.HasCredentials)
+}
+
 // Portainer proxies the Docker API under a sub path, wants an access token
 // and often has a self-signed certificate
 func TestIntegrationService_DockerThroughPortainer(t *testing.T) {
@@ -560,7 +585,7 @@ func TestIntegrationService_DockerThroughPortainer(t *testing.T) {
 		}
 	}))
 	t.Cleanup(server.Close)
-	skipTLS := false
+	verifyTLS := false
 	request := func(apiKey string) *models.IntegrationRequest {
 		return &models.IntegrationRequest{
 			Kind:        "docker",
@@ -568,7 +593,7 @@ func TestIntegrationService_DockerThroughPortainer(t *testing.T) {
 			BaseURL:     server.URL + "/api/endpoints/1/docker/", // trailing slash is dropped
 			AuthType:    models.IntegrationAuthAPIKey,
 			Credentials: &models.IntegrationCredentials{APIKey: apiKey},
-			VerifyTLS:   &skipTLS,
+			VerifyTLS:   &verifyTLS,
 		}
 	}
 

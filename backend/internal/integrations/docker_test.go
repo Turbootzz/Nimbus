@@ -112,6 +112,9 @@ func TestDockerThroughPortainer(t *testing.T) {
 		_, err = DockerContainers(ctx, rejected)
 		assert.ErrorIs(t, err, errRejected)
 	}
+	// Without a key the error says one may be needed
+	assert.ErrorContains(t, impl.Test(ctx, newTestConn(baseURL, models.IntegrationCredentials{})), "may need an API key")
+	assert.NotContains(t, impl.Test(ctx, newTestConn(baseURL, models.IntegrationCredentials{APIKey: "wrong"})).Error(), "may need")
 }
 
 func TestDockerOverUnixSocket(t *testing.T) {
