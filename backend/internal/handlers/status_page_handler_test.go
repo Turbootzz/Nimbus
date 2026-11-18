@@ -380,18 +380,24 @@ func TestVisitorIP(t *testing.T) {
 	app.Get("/", func(c *fiber.Ctx) error { return c.SendString(visitorIP(c)) })
 
 	tests := []struct {
-		name, peer, realIP, want string
+		name, peer, forwardedFor, realIP, want string
 	}{
-		{"nginx on loopback passes the visitor on", "127.0.0.1", "198.51.100.4", "198.51.100.4"},
-		{"frontend container on a private network", "172.18.0.3", "198.51.100.4", "198.51.100.4"},
-		{"proxy without the header", "127.0.0.1", "", "127.0.0.1"},
-		{"proxy with a garbage header", "127.0.0.1", "not-an-ip", "127.0.0.1"},
-		{"public peer cannot pick its own key", "203.0.113.9", "198.51.100.4", "203.0.113.9"},
+		{"nginx on loopback passes the visitor on", "127.0.0.1", "", "198.51.100.4", "198.51.100.4"},
+		{"frontend container on a private network", "172.18.0.3", "", "198.51.100.4", "198.51.100.4"},
+		{"visitor behind the user's own reverse proxy", "127.0.0.1", "198.51.100.4, 172.18.0.2", "172.18.0.2", "198.51.100.4"},
+		{"hops the visitor made up are skipped", "127.0.0.1", "8.8.8.8, 198.51.100.4, 10.0.0.2", "10.0.0.2", "198.51.100.4"},
+		{"visitor on the local network", "127.0.0.1", "192.168.1.20", "192.168.1.20", "192.168.1.20"},
+		{"proxy without headers", "127.0.0.1", "", "", "127.0.0.1"},
+		{"proxy with garbage headers", "127.0.0.1", "nonsense, ", "not-an-ip", "127.0.0.1"},
+		{"public peer cannot pick its own key", "203.0.113.9", "198.51.100.4", "198.51.100.4", "203.0.113.9"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/", nil)
 			req.Header.Set("X-Test-Peer", tt.peer)
+			if tt.forwardedFor != "" {
+				req.Header.Set("X-Forwarded-For", tt.forwardedFor)
+			}
 			if tt.realIP != "" {
 				req.Header.Set("X-Real-IP", tt.realIP)
 			}

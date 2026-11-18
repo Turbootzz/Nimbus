@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { STATUS_REFRESH_SECONDS } from '@/lib/status-page'
+
+const noSubscription = () => () => {}
 
 /**
  * Shows when the page was last updated and reloads its data every minute
@@ -23,14 +25,18 @@ export default function StatusRefresh({ updatedAt }: { updatedAt?: string }) {
     }
   }, [router])
 
+  // The server would format the time in its own zone, so only the browser does
+  const inBrowser = useSyncExternalStore(
+    noSubscription,
+    () => true,
+    () => false
+  )
+
   return (
     <p>
-      {updatedAt && (
+      {updatedAt && inBrowser && (
         <>
-          Updated {/* The server formats in its own time zone; the browser's wins */}
-          <time dateTime={updatedAt} suppressHydrationWarning>
-            {new Date(updatedAt).toLocaleTimeString()}
-          </time>
+          Updated <time dateTime={updatedAt}>{new Date(updatedAt).toLocaleTimeString()}</time>
           {' · '}
         </>
       )}

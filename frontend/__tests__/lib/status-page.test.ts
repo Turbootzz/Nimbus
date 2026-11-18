@@ -81,14 +81,22 @@ describe('serverApiUrl', () => {
 describe('fetchPublicStatus', () => {
   const page = { title: 'Lab', overall: 'operational', updated_at: '', services: [] }
 
-  it('returns the page and passes the visitor address on, uncached', async () => {
+  it('returns the page and passes the forwarding headers on, uncached', async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(page)))
     vi.stubGlobal('fetch', fetchMock)
+    const visitor = new Headers({
+      'x-forwarded-for': '198.51.100.4, 172.18.0.2',
+      'x-real-ip': '172.18.0.2',
+      cookie: 'auth_token=secret',
+    })
 
-    expect(await fetchPublicStatus('198.51.100.4')).toEqual({ state: 'ok', page })
+    expect(await fetchPublicStatus(visitor)).toEqual({ state: 'ok', page })
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toMatch(/\/api\/v1\/public\/status$/)
-    expect(init).toMatchObject({ cache: 'no-store', headers: { 'X-Real-IP': '198.51.100.4' } })
+    expect(init).toEqual({
+      cache: 'no-store',
+      headers: { 'x-forwarded-for': '198.51.100.4, 172.18.0.2', 'x-real-ip': '172.18.0.2' },
+    })
   })
 
   it('reports a 404 as disabled', async () => {

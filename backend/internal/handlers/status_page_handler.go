@@ -3,6 +3,7 @@ package handlers
 import (
 	"log"
 	"net"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
@@ -52,17 +53,29 @@ func (h *StatusPageHandler) RateLimit() fiber.Handler {
 	}
 }
 
-// visitorIP is the address to rate limit on. Behind the bundled nginx or the
-// frontend every request comes from a loopback or private address, which
-// passes the visitor on in X-Real-IP; from anyone else the header is ignored.
+// visitorIP is the address to rate limit on. Requests arrive through the
+// bundled nginx or the frontend, so the peer is a loopback or private
+// address and the visitor is in the forwarding headers: the last public hop
+// of X-Forwarded-For (earlier ones can be made up by the visitor), else
+// X-Real-IP. From a public peer the headers are ignored.
 func visitorIP(c *fiber.Ctx) string {
-	peer := net.ParseIP(c.IP())
-	if peer != nil && (peer.IsLoopback() || peer.IsPrivate()) {
-		if forwarded := net.ParseIP(c.Get("X-Real-IP")); forwarded != nil {
-			return forwarded.String()
+	if !isInternalIP(net.ParseIP(c.IP())) {
+		return c.IP()
+	}
+	hops := strings.Split(c.Get(fiber.HeaderXForwardedFor), ",")
+	for i := len(hops) - 1; i >= 0; i-- {
+		if hop := net.ParseIP(strings.TrimSpace(hops[i])); hop != nil && !isInternalIP(hop) {
+			return hop.String()
 		}
 	}
+	if realIP := net.ParseIP(c.Get("X-Real-IP")); realIP != nil {
+		return realIP.String()
+	}
 	return c.IP()
+}
+
+func isInternalIP(ip net.IP) bool {
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate())
 }
 
 // GetSettings returns the status page configuration (admin only)

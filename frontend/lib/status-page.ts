@@ -68,14 +68,20 @@ export type PublicStatusResult =
 /**
  * Loads the public status page on the server. Not cached here: the backend
  * caches it for 30 seconds, and a copy kept by Next.js would outlive an admin
- * turning the page off. visitorIP lets the backend rate limit per visitor.
+ * turning the page off. The visitor's forwarding headers go along, so the
+ * backend rate limits per visitor and not the frontend as a whole.
  */
-export async function fetchPublicStatus(visitorIP?: string | null): Promise<PublicStatusResult> {
+export async function fetchPublicStatus(visitor?: {
+  get(name: string): string | null
+}): Promise<PublicStatusResult> {
+  const headers: Record<string, string> = {}
+  for (const name of ['x-forwarded-for', 'x-real-ip']) {
+    const value = visitor?.get(name)
+    if (value) headers[name] = value
+  }
+
   try {
-    const response = await fetch(`${serverApiUrl()}/public/status`, {
-      cache: 'no-store',
-      headers: visitorIP ? { 'X-Real-IP': visitorIP } : undefined,
-    })
+    const response = await fetch(`${serverApiUrl()}/public/status`, { cache: 'no-store', headers })
     if (response.status === 404) return { state: 'disabled' }
     if (!response.ok) return { state: 'unavailable' }
     return { state: 'ok', page: (await response.json()) as PublicStatusPage }

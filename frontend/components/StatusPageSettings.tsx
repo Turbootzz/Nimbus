@@ -47,6 +47,10 @@ export default function StatusPageSettings() {
     }
   }, [])
 
+  // The stored group is not selectable when it was deleted, or when another
+  // admin chose one of theirs
+  const groupMissing = form.group_id !== '' && !groups.some((group) => group.id === form.group_id)
+
   const update = (changes: Partial<Settings>) => {
     setForm((current) => ({ ...current, ...changes }))
     setMessage(null)
@@ -74,7 +78,10 @@ export default function StatusPageSettings() {
     setError(null)
     setMessage(null)
     setIsSaving(true)
-    const response = await api.updateStatusPageSettings(form)
+    const response = await api.updateStatusPageSettings({
+      ...form,
+      group_id: groupMissing ? '' : form.group_id,
+    })
     setIsSaving(false)
     if (response.data) {
       setForm(response.data)
@@ -88,9 +95,6 @@ export default function StatusPageSettings() {
   if (isLoading) {
     return <p className="text-text-muted text-sm">Loading...</p>
   }
-
-  // The stored group is gone when it was deleted after it was chosen
-  const groupMissing = form.group_id !== '' && !groups.some((group) => group.id === form.group_id)
 
   return (
     <div className="space-y-4">
@@ -120,6 +124,12 @@ export default function StatusPageSettings() {
               </option>
             ))}
           </select>
+          {groupMissing && (
+            <p className="text-warning mt-1 text-xs">
+              The group that was chosen is not one of yours, or no longer exists. Choose one of your
+              groups to show the page.
+            </p>
+          )}
         </div>
         <div>
           <label htmlFor="status-page-title" className={labelClass}>

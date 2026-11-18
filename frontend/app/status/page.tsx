@@ -11,7 +11,7 @@ import StatusRefresh from '@/components/status/StatusRefresh'
 
 // One fetch per request, shared by the metadata and the page. Reading the
 // headers also keeps this page out of the build-time prerender.
-const loadStatus = cache(async () => fetchPublicStatus((await headers()).get('x-real-ip')))
+const loadStatus = cache(async () => fetchPublicStatus(await headers()))
 
 export async function generateMetadata(): Promise<Metadata> {
   const result = await loadStatus()

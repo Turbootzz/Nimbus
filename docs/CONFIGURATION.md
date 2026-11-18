@@ -540,7 +540,7 @@ Good to know:
 
 - The bars come from the stored status logs: 24 bars of one hour and 28 bars of six hours. Grey means there were no checks in that period.
 - The page data is cached for 30 seconds and the page refreshes itself every minute. Saving the settings takes effect at once.
-- Each visitor address may make 300 requests per 15 minutes. Behind your own reverse proxy all visitors can share one address, and with it one limit.
+- Each visitor address may make 300 requests per 15 minutes. Behind your own reverse proxy, let it send `X-Forwarded-For` (most do by default); without it all visitors share one address, and with it one limit.
 - Search engines are asked not to index the page (`noindex`).
 - The page turns itself off when the chosen group is deleted or its owner is no longer an admin.
 
