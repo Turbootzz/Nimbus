@@ -124,8 +124,9 @@ func NewHandler(deps Deps) fiber.Handler {
 	})
 	handler := adaptor.HTTPHandler(bearer(rateLimit(streamable)))
 	return func(c *fiber.Ctx) error {
-		// The app-wide limit is sized for wallpaper uploads
-		if len(c.Body()) > maxBodyBytes {
+		// The app-wide limit is sized for wallpaper uploads. BodyRaw: never
+		// decompress anything for a caller that is not authenticated yet.
+		if len(c.BodyRaw()) > maxBodyBytes {
 			return c.SendStatus(fiber.StatusRequestEntityTooLarge)
 		}
 		return handler(c)

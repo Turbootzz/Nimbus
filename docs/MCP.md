@@ -56,7 +56,7 @@ curl -s http://localhost:3000/mcp \
 
 The examples use `http://localhost:3000/mcp` and `nimbus_your_token`. Replace both.
 
-The snippets follow the documentation of each client as of November 2026. The Open WebUI and Home Assistant setups are **untested** against a running Nimbus: please open an issue if a step is off.
+Only the `curl` check above has been run against a real Nimbus. The Claude Code and Claude Desktop (`mcp-remote`) snippets follow the documentation of those tools as of November 2026 but are **untested** end to end, and so are the Open WebUI and Home Assistant setups. Please open an issue if a step is off.
 
 ### Claude Code
 
@@ -114,7 +114,7 @@ Open the Claude menu, then **Settings… → Developer → Edit Config**. That o
 - `--allow-http` lets `mcp-remote` use a plain `http://` URL. Only use that on a network you trust, and remove the line when the URL is `https://`.
 - The header has no space after the colon on purpose: Claude Desktop on Windows breaks arguments that contain spaces. The space lives in `NIMBUS_AUTH` instead.
 
-Custom connectors in Claude are a different mechanism from this config file. They are not reached over your local network, so they do not fit a Nimbus on your LAN.
+Custom connectors in Claude are a different mechanism from this config file. As far as we know they connect from Anthropic's servers and not from your computer, so they do not fit a Nimbus on your LAN (untested).
 
 ### Open WebUI
 
@@ -124,7 +124,7 @@ Open WebUI 0.6.31 or newer talks to the endpoint directly. Only an administrator
 2. Under **External Tool Servers**, select **+ Add Connection**.
 3. Set **Type** to **MCP (Streamable HTTP)**. Do not leave it on OpenAPI.
 4. Enter the URL. From an Open WebUI container, `localhost` is the container itself: use the address of the Nimbus host or its container name, for example `http://nimbus:3000/mcp`.
-5. Set **Auth** to **Bearer** and paste the token as the key.
+5. Set **Auth** to **Bearer** and paste the token as the key (the name of this option is not confirmed against the Open WebUI documentation).
 6. Save. Restart Open WebUI if it asks for it.
 
 ### Home Assistant
