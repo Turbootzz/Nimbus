@@ -86,6 +86,11 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, "Failed to retrieve metrics")
 	}
+	// What a check ran into may quote the owner's network
+	if service.UserID != userID && metrics.LastError != nil {
+		message := services.ViewerCheckError
+		metrics.LastError = &message
+	}
 
 	return Success(c, metrics)
 }
@@ -131,6 +136,10 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	// Convert to response format
 	responses := make([]interface{}, len(logs))
 	for i, log := range logs {
+		if service.UserID != userID && log.ErrorMessage != nil {
+			message := services.ViewerCheckError
+			log.ErrorMessage = &message
+		}
 		responses[i] = log.ToResponse()
 	}
 

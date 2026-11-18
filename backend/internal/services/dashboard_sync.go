@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,6 +30,15 @@ type storedDashboard struct {
 	integration map[int]*models.Integration
 	service     map[int]*models.Service
 	widget      map[int]*models.Widget
+
+	// boards are the document's boards: a row only matches an entity on
+	// its own board (nil without boards)
+	boards *docBoards
+	// otherWidgets counts the user's widgets on boards the document
+	// doesn't work on, and usedElsewhere holds the integrations tiles there
+	// use: both stay whatever the document says
+	otherWidgets  int
+	usedElsewhere map[string]bool
 }
 
 // The ID of the row entity i of the document was matched to, or a new one.
@@ -103,35 +113,39 @@ func key(fields ...string) string {
 func (d *storedDashboard) matchGroups(doc *dashdoc.Document, byDefault bool) {
 	d.group = map[int]*models.Group{}
 	taken := map[*models.Group]bool{}
-	flag := func(isDefault bool) string {
+	// Every key starts with the board: each board has its own groups
+	flag := func(isDefault bool, board string) string {
 		if isDefault {
-			return "default"
+			return key("default", board)
 		}
 		return ""
 	}
-	name := func(isDefault bool, name string) string {
+	name := func(isDefault bool, board, name string) string {
 		if isDefault {
 			return ""
 		}
-		return key(name)
+		return key(board, name)
 	}
+	b := d.boards
 	if byDefault {
 		pair(d.group, taken, doc.Groups, d.groups,
-			func(g dashdoc.Group) string { return flag(g.Default) },
-			func(g *models.Group) string { return flag(g.IsDefault) })
+			func(g dashdoc.Group) string { return flag(g.Default, b.id(g.BoardRef)) },
+			func(g *models.Group) string { return flag(g.IsDefault, b.of(g.BoardID)) })
 	}
 	pair(d.group, taken, doc.Groups, d.groups,
 		// Without a default group to match, a sync may make a group the default
-		func(g dashdoc.Group) string { return name(g.Default && !byDefault, g.Name) },
-		func(g *models.Group) string { return name(g.IsDefault, g.Name) })
+		func(g dashdoc.Group) string { return name(g.Default && !byDefault, b.id(g.BoardRef), g.Name) },
+		func(g *models.Group) string { return name(g.IsDefault, b.of(g.BoardID), g.Name) })
 }
 
 // match finds the rows the document's entities already have. They are
 // recognised by what a user would call them: an integration by its kind and
 // name, a service by its name and URL (or its name alone, so changing the
-// URL keeps its history), a widget by its type and title.
+// URL keeps its history), a widget by its type and title; groups and tiles
+// only on the board they are on.
 func (d *storedDashboard) match(doc *dashdoc.Document) {
 	d.matchGroups(doc, true)
+	b := d.boards
 
 	d.integration = map[int]*models.Integration{}
 	pair(d.integration, map[*models.Integration]bool{}, doc.Integrations, d.integrations,
@@ -141,30 +155,44 @@ func (d *storedDashboard) match(doc *dashdoc.Document) {
 	d.service = map[int]*models.Service{}
 	takenServices := map[*models.Service]bool{}
 	pair(d.service, takenServices, doc.Services, d.services,
-		func(s dashdoc.Service) string { return key(s.Name, s.URL) },
-		func(s *models.Service) string { return key(s.Name, s.URL) })
+		func(s dashdoc.Service) string { return key(b.id(s.BoardRef), s.Name, s.URL) },
+		func(s *models.Service) string { return key(b.of(s.BoardID), s.Name, s.URL) })
 	pair(d.service, takenServices, doc.Services, d.services,
-		func(s dashdoc.Service) string { return key(s.Name) },
-		func(s *models.Service) string { return key(s.Name) })
+		func(s dashdoc.Service) string { return key(b.id(s.BoardRef), s.Name) },
+		func(s *models.Service) string { return key(b.of(s.BoardID), s.Name) })
 
 	d.widget = map[int]*models.Widget{}
 	pair(d.widget, map[*models.Widget]bool{}, doc.Widgets, d.widgets,
-		func(w dashdoc.Widget) string { return key(w.Type, w.Title) },
-		func(w *models.Widget) string { return key(w.Type, w.Title) })
+		func(w dashdoc.Widget) string { return key(b.id(w.BoardRef), w.Type, w.Title) },
+		func(w *models.Widget) string { return key(b.of(w.BoardID), w.Type, w.Title) })
 }
 
-func (s *DashboardTransferService) loadGroups(ctx context.Context, userID string) (*storedDashboard, error) {
+// loadGroups loads the user's groups on the boards the document works on
+func (s *DashboardTransferService) loadGroups(ctx context.Context, userID string, boards *docBoards) (*storedDashboard, error) {
 	groups, err := s.Groups.GetAllByUserID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groups: %w", err)
 	}
-	return &storedDashboard{groups: groups}, nil
+	groups = slices.DeleteFunc(groups, func(g *models.Group) bool { return !boards.manages(g.BoardID) })
+	return &storedDashboard{groups: groups, boards: boards, usedElsewhere: map[string]bool{}}, nil
 }
 
-func (s *DashboardTransferService) loadStored(ctx context.Context, userID string) (*storedDashboard, error) {
-	stored, err := s.loadGroups(ctx, userID)
+// loadStored loads what the user has on the boards the document works on,
+// and all their integrations. What is on their other boards is left out, so
+// a sync neither matches nor prunes it.
+func (s *DashboardTransferService) loadStored(ctx context.Context, userID string, boards *docBoards) (*storedDashboard, error) {
+	stored, err := s.loadGroups(ctx, userID, boards)
 	if err != nil {
 		return nil, err
+	}
+	elsewhere := func(boardID string, integrationID *string) bool {
+		if boards.manages(boardID) {
+			return false
+		}
+		if integrationID != nil {
+			stored.usedElsewhere[*integrationID] = true
+		}
+		return true
 	}
 	integrations, err := s.Integrations.ListByUserID(ctx, userID)
 	if err != nil {
@@ -176,11 +204,18 @@ func (s *DashboardTransferService) loadStored(ctx context.Context, userID string
 	if stored.services, err = s.Services.GetAllByUserID(ctx, userID); err != nil {
 		return nil, fmt.Errorf("failed to list services: %w", err)
 	}
+	stored.services = slices.DeleteFunc(stored.services, func(service *models.Service) bool {
+		return elsewhere(service.BoardID, service.IntegrationID)
+	})
 	widgets, err := s.Widgets.ListByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	for i := range widgets {
+		if elsewhere(widgets[i].BoardID, widgets[i].IntegrationID) {
+			stored.otherWidgets++
+			continue
+		}
 		stored.widgets = append(stored.widgets, &widgets[i])
 	}
 	return stored, nil
@@ -188,8 +223,8 @@ func (s *DashboardTransferService) loadStored(ctx context.Context, userID string
 
 // matchGroupNames is the matching of a merge with ImportOptions.MatchGroups.
 // The default group is left to the merge itself, which maps it already.
-func (s *DashboardTransferService) matchGroupNames(ctx context.Context, userID string, doc *dashdoc.Document) (*storedDashboard, error) {
-	stored, err := s.loadGroups(ctx, userID)
+func (s *DashboardTransferService) matchGroupNames(ctx context.Context, userID string, doc *dashdoc.Document, boards *docBoards) (*storedDashboard, error) {
+	stored, err := s.loadGroups(ctx, userID, boards)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +309,11 @@ func (s *DashboardTransferService) Sync(ctx context.Context, userID string, doc 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
-	stored, err := s.loadStored(ctx, userID)
+	boards, err := s.resolveBoards(ctx, user, doc)
+	if err != nil {
+		return nil, err
+	}
+	stored, err := s.loadStored(ctx, userID, boards)
 	if err != nil {
 		return nil, err
 	}
@@ -285,13 +324,14 @@ func (s *DashboardTransferService) Sync(ctx context.Context, userID string, doc 
 	if prune {
 		mode = dashdoc.ModeReplace
 	}
-	p, err := s.plan(ctx, user, doc, mode, stored)
+	p, err := s.plan(ctx, user, doc, mode, stored, boards)
 	if err != nil {
 		return nil, err
 	}
 
 	run := &syncRun{service: s, ctx: ctx, userID: userID, plan: p, summary: dashdoc.Summary{Mode: dashdoc.ModeSync, NeedsSecrets: p.needsSecrets}}
 	run.changes.Credentials = map[string][]byte{}
+	run.changes.Create.Boards = boards.changed()
 	run.prune.groups, run.prune.integrations = prune && doc.Groups != nil, prune && doc.Integrations != nil
 	run.prune.services, run.prune.widgets = prune && doc.Services != nil, prune && doc.Widgets != nil
 	summary, err := run.apply(stored)
@@ -339,13 +379,14 @@ func (r *syncRun) apply(stored *storedDashboard) (*dashdoc.Summary, error) {
 	}
 	r.widgets(stored)
 
-	// Without prune, the rows the document doesn't have stay
-	kept := repository.DashboardState{}
+	// Without prune, the rows the document doesn't have stay; widgets on
+	// boards it doesn't work on always do
+	kept := repository.DashboardState{Widgets: stored.otherWidgets}
 	if !r.prune.integrations {
 		kept.Integrations = len(stored.integrations) - (len(r.plan.rows.Integrations) - r.summary.Integrations.Created)
 	}
 	if !r.prune.widgets {
-		kept.Widgets = len(stored.widgets) - (len(r.plan.rows.Widgets) - r.summary.Widgets.Created)
+		kept.Widgets += len(stored.widgets) - (len(r.plan.rows.Widgets) - r.summary.Widgets.Created)
 	}
 	if err := r.plan.rows.CheckLimits(kept, dashboardLimits); err != nil {
 		return nil, err
@@ -503,7 +544,8 @@ func (r *syncRun) integrations(stored *storedDashboard) error {
 		}
 	}
 	for _, integration := range stored.integrations {
-		if r.prune.integrations && !planned[integration.ID] {
+		// An integration a tile on another board uses is not the document's to remove
+		if r.prune.integrations && !planned[integration.ID] && !stored.usedElsewhere[integration.ID] {
 			r.changes.Delete.Integrations = append(r.changes.Delete.Integrations, integration.ID)
 			r.reconnect = append(r.reconnect, integration)
 			r.summary.Integrations.Removed++

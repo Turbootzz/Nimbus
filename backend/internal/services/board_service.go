@@ -78,8 +78,8 @@ func (s *BoardService) ResolveOwned(ctx context.Context, userID, boardID string)
 	return access, nil
 }
 
-// ResolveRef is Resolve by ID or slug, for callers a person types a board
-// to (the MCP tools). A slug means the user's own board first.
+// ResolveRef is Resolve by ID, slug or name, for callers a person types a
+// board to (the MCP tools). The user's own boards are looked at first.
 func (s *BoardService) ResolveRef(ctx context.Context, userID, ref string) (*BoardAccess, error) {
 	ref = strings.TrimSpace(ref)
 	if s == nil || ref == "" {
@@ -92,9 +92,14 @@ func (s *BoardService) ResolveRef(ctx context.Context, userID, ref string) (*Boa
 	if err != nil {
 		return nil, err
 	}
-	for _, board := range boards {
-		if board.Slug == strings.ToLower(ref) {
-			return &BoardAccess{Board: board, CanEdit: board.UserID == userID}, nil
+	for _, matches := range []func(*models.Board) bool{
+		func(b *models.Board) bool { return b.Slug == strings.ToLower(ref) },
+		func(b *models.Board) bool { return strings.EqualFold(b.Name, ref) },
+	} {
+		for _, board := range boards {
+			if matches(board) {
+				return &BoardAccess{Board: board, CanEdit: board.UserID == userID}, nil
+			}
 		}
 	}
 	return nil, repository.ErrBoardNotFound

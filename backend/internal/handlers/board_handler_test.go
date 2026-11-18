@@ -3,6 +3,7 @@ package handlers
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/middleware"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
@@ -634,4 +636,82 @@ func TestBoards_ViewerStream(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("the stream stayed open after the board was unshared")
 	}
+}
+
+// Board routes behind the real auth middleware, guarded as in main.go
+func TestBoards_TokenScopes(t *testing.T) {
+	_, db := setupScopeTestApp(t)
+	auth := middleware.AuthMiddleware(services.NewAuthService(), repository.NewUserRepository(db), repository.NewAPITokenRepository(db), models.ScopeReadServices)
+	sessionOnly := middleware.RequireSessionAuth()
+	handler := NewBoardHandler(services.NewBoardService(repository.NewBoardRepository(db)))
+	app := fiber.New()
+	boards := app.Group("/boards", auth)
+	boards.Get("/", handler.ListBoards)
+	boards.Post("/", sessionOnly, handler.CreateBoard)
+	boards.Put("/reorder", sessionOnly, handler.ReorderBoards)
+	boards.Put("/:id", sessionOnly, handler.UpdateBoard)
+	boards.Delete("/:id", sessionOnly, handler.DeleteBoard)
+	boards.Get("/:id/integrations", sessionOnly, handler.ListBoardIntegrations)
+
+	read := insertScopeTestToken(t, db, []string{models.ScopeReadServices}, nil)
+	resp := scopeRequest(t, app, http.MethodGet, "/boards", read, "")
+	require.Equal(t, fiber.StatusOK, resp.StatusCode)
+	var list []models.BoardResponse
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&list))
+	require.Len(t, list, 1)
+	id := list[0].ID
+
+	// Managing boards is for a logged-in person, whatever the token may write
+	write := insertScopeTestToken(t, db, []string{models.ScopeWriteServices}, nil)
+	for _, token := range []string{read, write} {
+		assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodPost, "/boards", token, `{"name":"Media"}`).StatusCode)
+		assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodPut, "/boards/reorder", token, `{"boards":["`+id+`"]}`).StatusCode)
+		assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodPut, "/boards/"+id, token, `{"name":"Mine"}`).StatusCode)
+		assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodDelete, "/boards/"+id, token, "").StatusCode)
+		assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodGet, "/boards/"+id+"/integrations", token, "").StatusCode)
+	}
+	other := insertScopeTestToken(t, db, []string{models.ScopeReadMetrics, models.ScopeReadWidgets, models.ScopeMCP}, nil)
+	assert.Equal(t, fiber.StatusForbidden, scopeRequest(t, app, http.MethodGet, "/boards", other, "").StatusCode)
+	var count int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM boards`).Scan(&count))
+	assert.Equal(t, 1, count)
+}
+
+// The MCP tools read a board through services.BoardReader
+func TestBoards_ReaderGivesAViewerTheViewerVersion(t *testing.T) {
+	f := newBoardFixture(t, time.Minute)
+	ctx := context.Background()
+	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceWidget, ID: sharedWidgetID, UserID: boardAdminID}, map[string]int{"n": 1}, nil)
+	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceWidget, ID: privateWidgetID, UserID: boardAdminID}, map[string]int{"n": 2}, nil)
+	groupRepo := repository.NewGroupRepository(f.db)
+	widgets := services.NewWidgetService(repository.NewWidgetRepository(f.db), groupRepo, repository.NewIntegrationRepository(f.db))
+	reader := &services.BoardReader{
+		Boards:   services.NewBoardService(repository.NewBoardRepository(f.db)),
+		Services: repository.NewServiceRepository(f.db), Groups: groupRepo, Widgets: widgets, Live: f.live,
+	}
+
+	for _, ref := range []string{sharedBoardID, "family", "Family"} {
+		content, err := reader.Read(ctx, boardUserID, ref)
+		require.NoError(t, err, ref)
+		assert.False(t, content.CanEdit)
+		require.Len(t, content.Services, 1)
+		assert.Equal(t, "Jellyfin", content.Services[0].Name)
+		require.Len(t, content.Widgets, 1)
+		assert.NotContains(t, string(content.Widgets[0].Config), "s3cret")
+		require.Len(t, content.Snapshots, 1)
+		assert.Equal(t, sharedWidgetID, content.Snapshots[0].SourceID)
+	}
+	for _, ref := range []string{privateBoardID, "lab", "Lab", "nope"} {
+		_, err := reader.Read(ctx, boardUserID, ref)
+		assert.ErrorIs(t, err, repository.ErrBoardNotFound, ref)
+	}
+
+	own, err := reader.Read(ctx, boardAdminID, "lab")
+	require.NoError(t, err)
+	assert.True(t, own.CanEdit)
+	assert.Len(t, own.Snapshots, 2, "the owner gets all their data")
+	mine, err := reader.Read(ctx, boardUserID, "")
+	require.NoError(t, err)
+	assert.True(t, mine.Board.IsDefault && mine.CanEdit)
+	assert.Empty(t, mine.Services)
 }

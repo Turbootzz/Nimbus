@@ -12,6 +12,8 @@ import (
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
+	svc "github.com/nimbus/backend/internal/services"
 	widgettypes "github.com/nimbus/backend/internal/widgets"
 )
 
@@ -97,27 +99,33 @@ type IntegrationList struct {
 
 type listServicesInput struct {
 	Group string `json:"group,omitempty" jsonschema:"only services in this group (name or ID)"`
+	Board string `json:"board,omitempty" jsonschema:"board to read (name, slug or ID); default: the default board"`
 }
 
 type serviceInput struct {
 	Service string `json:"service" jsonschema:"service ID or name"`
+	Board   string `json:"board,omitempty" jsonschema:"board the service is on (name, slug or ID); default: the default board"`
 }
 
 type uptimeInput struct {
 	Service string `json:"service" jsonschema:"service ID or name"`
 	Range   string `json:"range,omitempty" jsonschema:"1h, 24h, 7d or 30d (default 24h)"`
+	Board   string `json:"board,omitempty" jsonschema:"board the service is on (name, slug or ID); default: the default board"`
 }
 
 type searchInput struct {
-	Q string `json:"q" jsonschema:"text to look for in the name, description, URL or group"`
+	Q     string `json:"q" jsonschema:"text to look for in the name, description, URL or group"`
+	Board string `json:"board,omitempty" jsonschema:"board to search (name, slug or ID); default: the default board"`
 }
 
 type idInput struct {
-	ID string `json:"id" jsonschema:"ID from the nimbus://dashboard resource"`
+	ID    string `json:"id" jsonschema:"ID from the nimbus://dashboard resource"`
+	Board string `json:"board,omitempty" jsonschema:"board the widget is on (name, slug or ID); default: the default board"`
 }
 
 type recheckInput struct {
-	ID string `json:"id" jsonschema:"service ID or name"`
+	ID    string `json:"id" jsonschema:"service ID or name"`
+	Board string `json:"board,omitempty" jsonschema:"board the service is on (name, slug or ID); default: the default board"`
 }
 
 type noInput struct{}
@@ -185,22 +193,89 @@ func (t *tools) register(server *mcp.Server) {
 	}, t.readDashboard)
 }
 
-// userServices loads the caller's services and the names of their groups.
-// Services are always loaded by owner, never by ID alone.
-func (t *tools) userServices(ctx context.Context, userID string) ([]*models.Service, map[string]string, error) {
-	services, err := t.deps.Services.GetAllByUserID(ctx, userID)
-	if err != nil {
-		return nil, nil, internalError("load services", err)
-	}
-	groups, err := t.deps.Groups.GetAllByUserID(ctx, userID)
-	if err != nil {
-		return nil, nil, internalError("load groups", err)
+// userServices loads the services of one of the caller's boards (board: a
+// name, slug or ID; "" is the default board) and the names of its groups.
+// Services are always loaded by owner or by a board the caller may see,
+// never by ID alone.
+func (t *tools) userServices(ctx context.Context, userID, board string) ([]*models.Service, map[string]string, error) {
+	var list []*models.Service
+	var groups []*models.Group
+	content, err := t.board(ctx, userID, board)
+	switch {
+	case err != nil:
+		return nil, nil, err
+	case content != nil:
+		list, groups = content.Services, content.Groups
+	default:
+		if list, err = t.deps.Services.GetAllByUserID(ctx, userID); err != nil {
+			return nil, nil, internalError("load services", err)
+		}
+		if groups, err = t.deps.Groups.GetAllByUserID(ctx, userID); err != nil {
+			return nil, nil, internalError("load groups", err)
+		}
 	}
 	groupNames := make(map[string]string, len(groups))
 	for _, group := range groups {
 		groupNames[group.ID] = group.Name
 	}
-	return services, groupNames, nil
+	return list, groupNames, nil
+}
+
+// userWidgets loads the widgets of one of the caller's boards, with the
+// secrets in their config masked, and the latest data of what it shows
+func (t *tools) userWidgets(ctx context.Context, userID, board string) ([]models.Widget, []models.Snapshot, error) {
+	content, err := t.board(ctx, userID, board)
+	if err != nil {
+		return nil, nil, err
+	}
+	if content != nil {
+		return content.Widgets, content.Snapshots, nil
+	}
+	widgets, err := t.deps.Widgets.List(ctx, userID)
+	if err != nil {
+		return nil, nil, internalError("load widgets", err)
+	}
+	return widgets, t.deps.Snapshots.Snapshots(userID), nil
+}
+
+// board reads the board ref means. It returns nil without boards (Deps.
+// Boards unset): the caller then has one dashboard.
+func (t *tools) board(ctx context.Context, userID, ref string) (*svc.BoardContent, error) {
+	if t.deps.Boards == nil {
+		if strings.TrimSpace(ref) != "" {
+			return nil, errors.New("this server has no boards")
+		}
+		return nil, nil
+	}
+	content, err := t.deps.Boards.Read(ctx, userID, ref)
+	if errors.Is(err, repository.ErrBoardNotFound) {
+		boards, listErr := t.deps.Boards.List(ctx, userID)
+		if listErr != nil {
+			return nil, internalError("load boards", listErr)
+		}
+		return nil, fmt.Errorf("no board %q; boards: %s", ref, strings.Join(boardLines(boards, userID), "; "))
+	}
+	if err != nil {
+		return nil, internalError("load the board", err)
+	}
+	return content, nil
+}
+
+// boardLines describes boards as "<name> (<slug>)"
+func boardLines(boards []*models.Board, userID string) []string {
+	lines := make([]string, len(boards))
+	for i, board := range boards {
+		lines[i] = fmt.Sprintf("%s (%s)", board.Name, board.Slug)
+		switch {
+		case board.UserID != userID:
+			lines[i] += ", shared with you, read-only"
+		case board.IsDefault:
+			lines[i] += ", default"
+		case board.IsShared:
+			lines[i] += ", shared with everyone"
+		}
+	}
+	return lines
 }
 
 // internalError logs the cause and returns a message that is safe to show
@@ -274,7 +349,7 @@ func (t *tools) listServices(ctx context.Context, req *mcp.CallToolRequest, in l
 	if err != nil {
 		return nil, ServiceList{}, err
 	}
-	services, groupNames, err := t.userServices(ctx, who.userID)
+	services, groupNames, err := t.userServices(ctx, who.userID, in.Board)
 	if err != nil {
 		return nil, ServiceList{}, err
 	}
@@ -311,7 +386,7 @@ func (t *tools) searchServices(ctx context.Context, req *mcp.CallToolRequest, in
 	if q == "" {
 		return nil, ServiceList{}, errors.New("q is required")
 	}
-	services, groupNames, err := t.userServices(ctx, who.userID)
+	services, groupNames, err := t.userServices(ctx, who.userID, in.Board)
 	if err != nil {
 		return nil, ServiceList{}, err
 	}
@@ -336,7 +411,7 @@ func (t *tools) getServiceStatus(ctx context.Context, req *mcp.CallToolRequest, 
 	if err != nil {
 		return nil, ServiceStatus{}, err
 	}
-	services, groupNames, err := t.userServices(ctx, who.userID)
+	services, groupNames, err := t.userServices(ctx, who.userID, in.Board)
 	if err != nil {
 		return nil, ServiceStatus{}, err
 	}
@@ -352,7 +427,12 @@ func (t *tools) getServiceStatus(ctx context.Context, req *mcp.CallToolRequest, 
 	status := ServiceStatus{Service: serviceInfo(service, groupNames), RecentChecks: make([]CheckInfo, 0, len(logs))}
 	for _, entry := range logs {
 		check := CheckInfo{Status: entry.Status, ResponseTimeMs: entry.ResponseTime, CheckedAt: entry.CheckedAt}
-		if entry.ErrorMessage != nil {
+		switch {
+		case entry.ErrorMessage == nil:
+		case service.UserID != who.userID:
+			// A board shared with the caller: the error may quote the owner's network
+			check.Error = svc.ViewerCheckError
+		default:
 			check.Error = *entry.ErrorMessage
 		}
 		status.RecentChecks = append(status.RecentChecks, check)
@@ -372,7 +452,7 @@ func (t *tools) getUptime(ctx context.Context, req *mcp.CallToolRequest, in upti
 	if !ok {
 		return nil, Uptime{}, fmt.Errorf("range must be 1h, 24h, 7d or 30d, not %q", in.Range)
 	}
-	services, groupNames, err := t.userServices(ctx, who.userID)
+	services, groupNames, err := t.userServices(ctx, who.userID, in.Board)
 	if err != nil {
 		return nil, Uptime{}, err
 	}
@@ -407,9 +487,9 @@ func (t *tools) getWidgetData(ctx context.Context, req *mcp.CallToolRequest, in 
 	if err != nil {
 		return nil, WidgetData{}, err
 	}
-	widgets, err := t.deps.Widgets.List(ctx, who.userID)
+	widgets, snapshots, err := t.userWidgets(ctx, who.userID, in.Board)
 	if err != nil {
-		return nil, WidgetData{}, internalError("load widgets", err)
+		return nil, WidgetData{}, err
 	}
 	index := slices.IndexFunc(widgets, func(w models.Widget) bool { return w.ID == strings.TrimSpace(in.ID) })
 	if index < 0 {
@@ -422,7 +502,7 @@ func (t *tools) getWidgetData(ctx context.Context, req *mcp.CallToolRequest, in 
 
 	data := WidgetData{ID: widget.ID, Type: widget.Type, Title: widget.Title, Enabled: widget.Enabled, Config: widgettypes.StripURLSecrets(decodeJSON(widget.Config))}
 	key := models.SnapshotKey(models.SnapshotSourceWidget, widget.ID)
-	for _, snap := range t.deps.Snapshots.Snapshots(who.userID) {
+	for _, snap := range snapshots {
 		if snap.Key() != key {
 			continue
 		}
@@ -500,13 +580,16 @@ func (t *tools) recheckService(ctx context.Context, req *mcp.CallToolRequest, in
 	if !slices.Contains(who.scopes, models.ScopeWriteServices) {
 		return nil, ServiceStatus{}, errors.New("this API token is read-only; recheck_service needs the write:services scope")
 	}
-	services, _, err := t.userServices(ctx, who.userID)
+	services, _, err := t.userServices(ctx, who.userID, in.Board)
 	if err != nil {
 		return nil, ServiceStatus{}, err
 	}
 	service, err := findService(services, in.ID)
 	if err != nil {
 		return nil, ServiceStatus{}, err
+	}
+	if service.UserID != who.userID {
+		return nil, ServiceStatus{}, fmt.Errorf("%q is on a board that is shared with you; only its owner can run a check", service.Name)
 	}
 	if !service.MonitoringEnabled {
 		return nil, ServiceStatus{}, fmt.Errorf("monitoring is disabled for %q, so it cannot be checked", service.Name)
@@ -516,7 +599,7 @@ func (t *tools) recheckService(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, ServiceStatus{}, internalError("run the health check", err)
 	}
 	// Read the result back like any other status request
-	return t.getServiceStatus(ctx, req, serviceInput{Service: service.ID})
+	return t.getServiceStatus(ctx, req, serviceInput{Service: service.ID, Board: in.Board})
 }
 
 func (t *tools) readDashboard(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
@@ -524,13 +607,13 @@ func (t *tools) readDashboard(ctx context.Context, req *mcp.ReadResourceRequest)
 	if err != nil {
 		return nil, err
 	}
-	services, groupNames, err := t.userServices(ctx, who.userID)
+	services, groupNames, err := t.userServices(ctx, who.userID, "")
 	if err != nil {
 		return nil, err
 	}
-	widgets, err := t.deps.Widgets.List(ctx, who.userID)
+	widgets, _, err := t.userWidgets(ctx, who.userID, "")
 	if err != nil {
-		return nil, internalError("load widgets", err)
+		return nil, err
 	}
 	integrations, err := t.deps.Integrations.List(ctx, who.userID)
 	if err != nil {
@@ -574,6 +657,20 @@ func (t *tools) readDashboard(ctx context.Context, req *mcp.ReadResourceRequest)
 		b.WriteString("\n## Widgets\n")
 		for _, line := range widgetLines(widgets) {
 			fmt.Fprintf(&b, "- %s\n", line)
+		}
+	}
+
+	// Only worth a section when there is more than the board above
+	if t.deps.Boards != nil {
+		boards, err := t.deps.Boards.List(ctx, who.userID)
+		if err != nil {
+			return nil, internalError("load boards", err)
+		}
+		if len(boards) > 1 {
+			b.WriteString("\n## Boards\nThe above is the default board. Pass \"board\" to a tool to read another one.\n")
+			for _, line := range boardLines(boards, who.userID) {
+				fmt.Fprintf(&b, "- %s\n", line)
+			}
 		}
 	}
 

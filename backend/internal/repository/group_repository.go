@@ -162,6 +162,17 @@ func (r *GroupRepository) GetAllByBoardID(ctx context.Context, boardID string) (
 	return r.queryGroups(ctx, query, boardID)
 }
 
+// GetAllOnDefaultBoard retrieves the groups of the user's default board,
+// for callers that know no boards (discovery)
+func (r *GroupRepository) GetAllOnDefaultBoard(ctx context.Context, userID string) ([]*models.Group, error) {
+	query := `
+		SELECT ` + groupColumns + ` FROM groups
+		WHERE user_id = $1 AND board_id = (SELECT id FROM boards WHERE user_id = $1 AND is_default = TRUE)
+		ORDER BY position ASC, created_at ASC
+	`
+	return r.queryGroups(ctx, query, userID)
+}
+
 // GetDefaultByUserID retrieves the default group of the user's default board
 func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string) (*models.Group, error) {
 	query := `

@@ -60,7 +60,9 @@ type UserGetter interface {
 
 // DashboardTransferDeps is what a DashboardTransferService works with
 type DashboardTransferDeps struct {
-	Dashboard          *repository.DashboardRepository
+	Dashboard *repository.DashboardRepository
+	// Boards is nil for one dashboard per user: documents then have no boards
+	Boards             *repository.BoardRepository
 	Groups             *repository.GroupRepository
 	Services           repository.ServiceRepositoryInterface
 	Widgets            repository.WidgetRepositoryInterface
@@ -127,6 +129,12 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 		Widgets:      make([]dashdoc.Widget, 0, len(widgetList)),
 	}
 	budget := maxEmbeddedBytes
+	// Everything is on the default board unless it says otherwise, so a
+	// dashboard with one board exports as it did before boards existed
+	boardRefs, err := s.exportBoards(ctx, userID, doc)
+	if err != nil {
+		return nil, err
+	}
 
 	// Sorted by content: the order the database returns ties in changes
 	// with every import
@@ -141,6 +149,7 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 			Ref:               ref,
 			Name:              group.Name,
 			Color:             group.Color,
+			BoardRef:          boardRefs[group.BoardID],
 			Default:           group.IsDefault,
 			MonitoringEnabled: &group.MonitoringEnabled,
 			TileStyle:         group.TileStyle,
@@ -184,6 +193,7 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 			GroupRef:          refOf(groupRefs, service.GroupID),
 			IntegrationRef:    refOf(integrationRefs, service.IntegrationID),
 			MonitoringEnabled: &service.MonitoringEnabled,
+			BoardRef:          boardRefs[service.BoardID],
 		}
 		switch service.IconType {
 		case models.IconTypeImageURL:
@@ -220,6 +230,7 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 			Enabled:        &widget.Enabled,
 			GroupRef:       refOf(groupRefs, widget.GroupID),
 			IntegrationRef: refOf(integrationRefs, widget.IntegrationID),
+			BoardRef:       boardRefs[widget.BoardID],
 		}
 		validate := widgetType.Validate
 		if secret, ok := widgetType.(widgets.SecretConfig); ok {
@@ -434,19 +445,22 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	if err := refuseCredentials(doc); err != nil {
 		return nil, err
 	}
-	var stored *storedDashboard
-	if opts.MatchGroups && mode == dashdoc.ModeMerge {
-		var err error
-		if stored, err = s.matchGroupNames(ctx, userID, doc); err != nil {
-			return nil, err
-		}
-	}
 	user, err := s.Users.GetByID(userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user: %w", err)
 	}
+	boards, err := s.resolveBoards(ctx, user, doc)
+	if err != nil {
+		return nil, err
+	}
+	var stored *storedDashboard
+	if opts.MatchGroups && mode == dashdoc.ModeMerge {
+		if stored, err = s.matchGroupNames(ctx, userID, doc, boards); err != nil {
+			return nil, err
+		}
+	}
 	// Planned before the transaction: validating URLs looks up their hosts
-	p, err := s.plan(ctx, user, doc, mode, stored)
+	p, err := s.plan(ctx, user, doc, mode, stored, boards)
 	if err != nil {
 		return nil, err
 	}
@@ -454,13 +468,14 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	replace := mode == dashdoc.ModeReplace
 
 	if dryRun {
-		before, err := s.Dashboard.State(ctx, userID)
+		before, err := s.Dashboard.Scope(ctx, userID, boards.listed())
 		if err != nil {
 			return nil, err
 		}
-		kept := before
+		kept := before.State
+		kept.Widgets += before.Kept.Widgets
 		if replace {
-			kept = repository.DashboardState{}
+			kept = before.Kept
 		}
 		if err := limitIssue(p.rows.CheckLimits(kept, dashboardLimits)); err != nil {
 			return nil, err
@@ -522,7 +537,7 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 		s.Images.PruneWallpapers(ctx)
 	}
 	kick(s.poller)
-	return p.summary(mode, false, applied.Before), nil
+	return p.summary(mode, false, applied.Scope), nil
 }
 
 // hasNUL reports a \u0000 escape in JSON that is not itself escaped.
@@ -554,6 +569,8 @@ func limitIssue(err error) error {
 		issues.Add("integrations", "the import would go over the limit of %d integrations", maxIntegrationsPerUser)
 	case errors.Is(err, repository.ErrWidgetLimitReached):
 		issues.Add("widgets", "the import would go over the limit of %d widgets", maxWidgetsPerUser)
+	case errors.Is(err, repository.ErrBoardLimitReached):
+		issues.Add("boards", "the import would go over the limit of %d boards", models.MaxBoardsPerUser)
 	default:
 		return err
 	}
@@ -567,8 +584,9 @@ type importPlan struct {
 	icons map[int][]byte
 	// wallpaper is the embedded wallpaper to store, if any
 	wallpaper []byte
-	// hasDefaultGroup: a merge maps that group onto the user's own
-	hasDefaultGroup bool
+	// defaultGroupBoards are the boards the document has a default group
+	// for: a merge maps each onto the default group its board has
+	defaultGroupBoards []string
 	// credentials are the ones a config file gives, by integration ID
 	credentials      map[string]*models.IntegrationCredentials
 	created          dashdoc.Summary
@@ -576,16 +594,20 @@ type importPlan struct {
 	needsSecrets     int
 }
 
-func (p *importPlan) summary(mode dashdoc.Mode, dryRun bool, before repository.DashboardState) *dashdoc.Summary {
+func (p *importPlan) summary(mode dashdoc.Mode, dryRun bool, before *repository.DashboardScope) *dashdoc.Summary {
 	summary := p.created
 	summary.Mode, summary.DryRun = mode, dryRun
 	if mode == dashdoc.ModeReplace {
-		summary.Groups.Removed = before.Groups
-		summary.Services.Removed = before.Services
-		summary.Widgets.Removed = before.Widgets
-		summary.Integrations.Removed = before.Integrations
-	} else if p.hasDefaultGroup && before.DefaultGroupID != "" {
-		summary.Groups.Created--
+		summary.Groups.Removed = before.State.Groups
+		summary.Services.Removed = before.State.Services
+		summary.Widgets.Removed = before.State.Widgets
+		summary.Integrations.Removed = before.State.Integrations - before.Kept.Integrations
+		return &summary
+	}
+	for _, board := range p.defaultGroupBoards {
+		if before.DefaultGroups[cmp.Or(board, before.DefaultBoardID)] != "" {
+			summary.Groups.Created--
+		}
 	}
 	return &summary
 }
@@ -616,10 +638,15 @@ var preferencesValidator = validator.New()
 // entity goes through the checks its normal create runs; all problems are
 // collected into one *dashdoc.ValidationError. An entity that stored has a
 // row for gets the ID of that row (nil: none has).
-func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, doc *dashdoc.Document, mode dashdoc.Mode, stored *storedDashboard) (*importPlan, error) {
+//
+// boards are the document's boards (resolveBoards); nil without boards.
+func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, doc *dashdoc.Document, mode dashdoc.Mode, stored *storedDashboard, boards *docBoards) (*importPlan, error) {
 	isAdmin := user.Role == "admin"
 	var issues dashdoc.Issues
 	p := &importPlan{icons: map[int][]byte{}, credentials: map[string]*models.IntegrationCredentials{}}
+	if boards != nil {
+		p.rows.Boards = boards.rows
+	}
 
 	// report records a validation error at path; anything else is returned
 	report := func(path string, err error) error {
@@ -641,8 +668,11 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			continue
 		}
 		group.ID, group.UserID, group.IsDefault = stored.groupID(i), user.ID, in.Default
+		group.BoardID = boards.id(in.BoardRef)
 		groups[group.ID], groupIDs[in.Ref] = group, group.ID
-		p.hasDefaultGroup = p.hasDefaultGroup || in.Default
+		if in.Default {
+			p.defaultGroupBoards = append(p.defaultGroupBoards, group.BoardID)
+		}
 		p.rows.Groups = append(p.rows.Groups, group)
 	}
 
@@ -710,6 +740,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			continue
 		}
 		service.ID, service.UserID, service.Position = stored.serviceID(i), user.ID, in.Position
+		service.BoardID = boards.id(in.BoardRef)
 		service.GroupID = idOf(groupIDs, in.GroupRef)
 		service.IntegrationID = idOf(integrationIDs, in.IntegrationRef)
 		if icon != nil {
@@ -758,6 +789,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 			continue
 		}
 		widget.ID, widget.Position = stored.widgetID(i), in.Position
+		widget.BoardID = boards.id(in.BoardRef)
 		widgetIDs[in.Ref] = widget.ID
 		if masked, ok := widgetType.(widgets.MaskedConfig); ok && masked.HasMasks(widget.Config) {
 			p.needsSecrets++

@@ -9,7 +9,8 @@ import (
 // DashboardChanges is what a dashboard sync writes: only the rows that are
 // new, changed or gone
 type DashboardChanges struct {
-	// Create holds the new rows, and the preferences to save (nil: none)
+	// Create holds the new rows, the boards to create or update, and the
+	// preferences to save (nil: none)
 	Create DashboardRows
 	// Update holds changed rows in full; they keep their ID
 	Update DashboardRows
@@ -26,7 +27,7 @@ func (c *DashboardChanges) Empty() bool {
 	rows := func(r *DashboardRows) int {
 		return len(r.Groups) + len(r.Integrations) + len(r.Services) + len(r.Widgets)
 	}
-	return rows(&c.Create)+rows(&c.Update)+len(c.Credentials) == 0 && c.Create.Preferences == nil &&
+	return rows(&c.Create)+rows(&c.Update)+len(c.Credentials)+len(c.Create.Boards) == 0 && c.Create.Preferences == nil &&
 		len(c.Delete.Groups)+len(c.Delete.Integrations)+len(c.Delete.Services)+len(c.Delete.Widgets) == 0
 }
 
@@ -55,7 +56,13 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		return nil
 	}
 
-	if err := changes.Create.own(ctx, tx, userID); err != nil {
+	defaultBoard, err := defaultBoardID(ctx, tx, userID)
+	if err != nil {
+		return err
+	}
+	changes.Create.own(userID, defaultBoard)
+	// New boards, and the ones whose name or shared flag the document changes
+	if err := upsertBoards(ctx, tx, &changes.Create, true); err != nil {
 		return err
 	}
 	// Groups and integrations first: tiles point at them

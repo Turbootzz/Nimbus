@@ -406,6 +406,10 @@ func (s *LiveDataService) Snapshots(userID string) []models.Snapshot {
 // its owner sees: the real one may quote a host or a path of the owner's apps
 const ViewerErrorMessage = "This data could not be refreshed"
 
+// ViewerCheckError replaces the error of a health check someone other than
+// the service's owner reads, for the same reason
+const ViewerCheckError = "The check failed"
+
 // ServiceKey is the key of a service in the set BoardService.ViewerKeys
 // returns; widgets and integrations are in it by their snapshot key
 func ServiceKey(id string) string {

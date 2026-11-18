@@ -156,8 +156,10 @@ func main() {
 	widgetPoller := workers.NewWidgetPoller(liveDataService)
 	widgetService.SetPoller(widgetPoller)
 	// Boards: who may see which one is decided in boardService only
-	boardService := services.NewBoardService(repository.NewBoardRepository(database))
+	boardRepo := repository.NewBoardRepository(database)
+	boardService := services.NewBoardService(boardRepo)
 	widgetService.SetBoards(boardService)
+	boardReader := &services.BoardReader{Boards: boardService, Services: serviceRepo, Groups: groupRepo, Widgets: widgetService, Live: liveDataService}
 	integrationService.SetPoller(widgetPoller)
 	healthCheckService.SetStatusPublisher(liveDataService)
 
@@ -199,6 +201,7 @@ func main() {
 	// Dashboard export/import
 	transferService := services.NewDashboardTransferService(services.DashboardTransferDeps{
 		Dashboard:          repository.NewDashboardRepository(database),
+		Boards:             boardRepo,
 		Groups:             groupRepo,
 		Services:           serviceRepo,
 		Widgets:            widgetRepo,
@@ -474,6 +477,7 @@ func main() {
 		Snapshots:    liveDataService,
 		Integrations: integrationService,
 		Health:       healthCheckService,
+		Boards:       boardReader,
 		Users:        userRepo,
 		Tokens:       apiTokenRepo,
 	}))

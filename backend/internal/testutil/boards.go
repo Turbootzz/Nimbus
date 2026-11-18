@@ -66,5 +66,12 @@ func AddBoards(t testing.TB, db *sql.DB) {
 				UPDATE ` + table + ` SET board_id = ` + defaultBoard + ` WHERE rowid = NEW.rowid;
 			END;
 		`)
+		if table == "groups" {
+			// Every board has its own default group
+			exec(`
+				DROP INDEX IF EXISTS idx_groups_default_per_user;
+				CREATE UNIQUE INDEX idx_groups_default_per_board ON groups(board_id) WHERE is_default = 1;
+			`)
+		}
 	}
 }

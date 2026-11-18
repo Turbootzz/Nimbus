@@ -5,6 +5,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"slices"
+	"strconv"
+	"strings"
 
 	"github.com/nimbus/backend/internal/models"
 )
@@ -12,6 +15,10 @@ import (
 // DashboardRows is what a dashboard import writes. All IDs are set by the
 // caller, so rows can point at each other before they exist.
 type DashboardRows struct {
+	// Boards are the boards the document lists: created when the user has
+	// no board with that ID yet. Groups and tiles without a BoardID go to
+	// the user's default board.
+	Boards       []*models.Board
 	Groups       []*models.Group
 	Integrations []*models.Integration
 	Services     []*models.Service
@@ -26,20 +33,37 @@ type DashboardLimits struct {
 	Widgets      int
 }
 
-// DashboardState is what a user's dashboard holds
+// DashboardState is what a user's dashboard holds: the groups, services and
+// widgets on the boards an import works on (the default board, and the boards
+// its document lists), and all the user's integrations
 type DashboardState struct {
 	Groups       int
 	Services     int
 	Widgets      int
 	Integrations int
-	// DefaultGroupID is "" when the user has no default group yet
+	// DefaultGroupID is the default group of the default board, "" when the
+	// user has none yet
 	DefaultGroupID string
+}
+
+// DashboardScope is a user's dashboard as an import of one document sees it
+type DashboardScope struct {
+	State DashboardState
+	// Kept is what a replace leaves: the widgets on the user's other
+	// boards, and the integrations tiles there use
+	Kept DashboardState
+	// DefaultBoardID is the user's default board
+	DefaultBoardID string
+	// DefaultGroups is the default group of every board that has one
+	DefaultGroups map[string]string
 }
 
 // DashboardApplied is the result of DashboardRepository.Apply
 type DashboardApplied struct {
 	// Before is the dashboard as it was
 	Before DashboardState
+	// Scope is Before with what Apply left alone
+	Scope *DashboardScope
 	// RemovedIcons are the uploaded icon files of services a replace deleted
 	RemovedIcons []string
 }
@@ -58,29 +82,89 @@ type rowQuerier interface {
 	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
 }
 
-// State counts the user's dashboard, for an import's dry run
-func (r *DashboardRepository) State(ctx context.Context, userID string) (DashboardState, error) {
-	return dashboardState(ctx, r.db, userID)
+// querier is rowQuerier plus what a scope needs to read and create
+type querier interface {
+	execQuerier
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-func dashboardState(ctx context.Context, db rowQuerier, userID string) (DashboardState, error) {
+// State counts the user's dashboard on the default board and the given
+// boards, for an import's dry run
+func (r *DashboardRepository) State(ctx context.Context, userID string, boards ...string) (DashboardState, error) {
+	scope, err := r.Scope(ctx, userID, boards)
+	if err != nil {
+		return DashboardState{}, err
+	}
+	return scope.State, nil
+}
+
+// Scope describes the user's dashboard for an import that works on the
+// default board and the given boards
+func (r *DashboardRepository) Scope(ctx context.Context, userID string, boards []string) (*DashboardScope, error) {
+	return dashboardScope(ctx, r.db, userID, boards)
+}
+
+// inBoards returns "board_id IN ($from, ...)" and its arguments
+func inBoards(from int, boards []string) (string, []any) {
+	marks, args := make([]string, len(boards)), make([]any, len(boards))
+	for i, board := range boards {
+		marks[i], args[i] = "$"+strconv.Itoa(from+i), board
+	}
+	return "board_id IN (" + strings.Join(marks, ", ") + ")", args
+}
+
+// usedIntegrations selects the integrations (of user $1) that tiles outside
+// the boards in onBoards (see inBoards) use: what a replace must keep
+func usedIntegrations(onBoards string) string {
+	return `(
+		SELECT integration_id FROM services WHERE user_id = $1 AND integration_id IS NOT NULL AND NOT ` + onBoards + `
+		UNION
+		SELECT integration_id FROM widgets WHERE user_id = $1 AND integration_id IS NOT NULL AND NOT ` + onBoards + `
+	)`
+}
+
+func dashboardScope(ctx context.Context, db querier, userID string, boards []string) (*DashboardScope, error) {
+	defaultBoard, err := defaultBoardID(ctx, db, userID)
+	if err != nil {
+		return nil, err
+	}
+	scope := &DashboardScope{DefaultBoardID: defaultBoard, DefaultGroups: map[string]string{}}
+	onBoards, boardArgs := inBoards(2, append([]string{defaultBoard}, boards...))
 	query := `
 		SELECT
-			(SELECT COUNT(*) FROM groups WHERE user_id = $1),
-			(SELECT COUNT(*) FROM services WHERE user_id = $1),
-			(SELECT COUNT(*) FROM widgets WHERE user_id = $1),
+			(SELECT COUNT(*) FROM groups WHERE user_id = $1 AND ` + onBoards + `),
+			(SELECT COUNT(*) FROM services WHERE user_id = $1 AND ` + onBoards + `),
+			(SELECT COUNT(*) FROM widgets WHERE user_id = $1 AND ` + onBoards + `),
 			(SELECT COUNT(*) FROM integrations WHERE user_id = $1),
-			COALESCE((SELECT CAST(g.id AS TEXT) FROM groups g JOIN boards b ON b.id = g.board_id
-				WHERE g.user_id = $1 AND g.is_default = TRUE AND b.is_default = TRUE LIMIT 1), '')
+			(SELECT COUNT(*) FROM widgets WHERE user_id = $1 AND NOT ` + onBoards + `),
+			(SELECT COUNT(*) FROM integrations WHERE user_id = $1 AND id IN ` + usedIntegrations(onBoards) + `)
 	`
-	var state DashboardState
-	err := db.QueryRowContext(ctx, query, userID).Scan(
-		&state.Groups, &state.Services, &state.Widgets, &state.Integrations, &state.DefaultGroupID,
+	state := &scope.State
+	err = db.QueryRowContext(ctx, query, append([]any{userID}, boardArgs...)...).Scan(
+		&state.Groups, &state.Services, &state.Widgets, &state.Integrations, &scope.Kept.Widgets, &scope.Kept.Integrations,
 	)
 	if err != nil {
-		return state, fmt.Errorf("failed to read dashboard state: %w", err)
+		return nil, fmt.Errorf("failed to read dashboard state: %w", err)
 	}
-	return state, nil
+
+	rows, err := db.QueryContext(ctx,
+		`SELECT CAST(board_id AS TEXT), CAST(id AS TEXT) FROM groups WHERE user_id = $1 AND is_default = TRUE`, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list default groups: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var board, group string
+		if err := rows.Scan(&board, &group); err != nil {
+			return nil, fmt.Errorf("failed to scan default group: %w", err)
+		}
+		scope.DefaultGroups[board] = group
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to iterate default groups: %w", err)
+	}
+	state.DefaultGroupID = scope.DefaultGroups[defaultBoard]
+	return scope, nil
 }
 
 // CheckLimits reports ErrIntegrationLimitReached or ErrWidgetLimitReached
@@ -97,11 +181,13 @@ func (rows *DashboardRows) CheckLimits(kept DashboardState, limits DashboardLimi
 
 // Apply writes rows for the user in one transaction: all of it, or nothing.
 //
-// With replace, the user's groups, services, widgets and integrations are
-// deleted first; rows of other users are never touched. Without it, the rows
+// It works on the user's default board and the boards in rows.Boards; their
+// other boards, and the rows of other users, are never touched. With
+// replace, the groups, services and widgets on those boards are deleted
+// first, and the integrations no tile elsewhere uses. Without it, the rows
 // are added: groups go after the existing ones, tile positions are moved
 // behind the user's last tile, and a default group in rows becomes the
-// default group the user already has. Apply changes rows accordingly.
+// default group its board already has. Apply changes rows accordingly.
 // Integrations are stored without credentials.
 func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace bool, rows *DashboardRows, limits DashboardLimits) (*DashboardApplied, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -113,18 +199,24 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 	if err := lockUser(ctx, tx, userID); err != nil {
 		return nil, err
 	}
-	before, err := dashboardState(ctx, tx, userID)
+	boards := make([]string, len(rows.Boards))
+	for i, board := range rows.Boards {
+		boards[i] = board.ID
+	}
+	scope, err := dashboardScope(ctx, tx, userID, boards)
 	if err != nil {
 		return nil, err
 	}
-	applied := &DashboardApplied{Before: before}
+	applied := &DashboardApplied{Before: scope.State, Scope: scope}
 
-	kept := before
+	kept := scope.State
 	if replace {
-		if applied.RemovedIcons, err = wipeDashboard(ctx, tx, userID); err != nil {
+		if applied.RemovedIcons, err = wipeDashboard(ctx, tx, userID, append(boards, scope.DefaultBoardID)); err != nil {
 			return nil, err
 		}
-		kept = DashboardState{}
+		kept = scope.Kept
+	} else {
+		kept.Widgets += scope.Kept.Widgets
 	}
 	if err := rows.CheckLimits(kept, limits); err != nil {
 		return nil, err
@@ -138,10 +230,14 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 		if tileOffset, err = nextTilePosition(ctx, tx, userID); err != nil {
 			return nil, err
 		}
-		rows.useDefaultGroup(kept.DefaultGroupID)
+	}
+	rows.own(userID, scope.DefaultBoardID)
+	if !replace {
+		rows.useDefaultGroups(scope.DefaultGroups)
 	}
 
-	if err := rows.own(ctx, tx, userID); err != nil {
+	// A replace makes the boards what the document says; a merge only adds
+	if err := upsertBoards(ctx, tx, rows, replace); err != nil {
 		return nil, err
 	}
 	for i, group := range rows.Groups {
@@ -179,12 +275,48 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 	return applied, nil
 }
 
+// upsertBoards creates the boards of rows the user doesn't have yet, each
+// with a default group unless rows brings one. With update, the boards the
+// user has get the name and shared flag of rows; the default board is never
+// shared. Call it after own, in the transaction that holds the user lock.
+func upsertBoards(ctx context.Context, tx *sql.Tx, rows *DashboardRows, update bool) error {
+	for _, board := range rows.Boards {
+		var exists int
+		err := tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM boards WHERE id = $1 AND user_id = $2`, board.ID, board.UserID).Scan(&exists)
+		if err != nil {
+			return fmt.Errorf("failed to look up board: %w", err)
+		}
+		if exists > 0 {
+			if !update {
+				continue
+			}
+			_, err := tx.ExecContext(ctx, `
+				UPDATE boards SET name = $1, is_shared = ($2 AND NOT is_default), updated_at = CURRENT_TIMESTAMP
+				WHERE id = $3 AND user_id = $4`,
+				board.Name, board.IsShared, board.ID, board.UserID)
+			if err != nil {
+				return fmt.Errorf("failed to update board: %w", err)
+			}
+			continue
+		}
+		if err := insertBoard(ctx, tx, board, false); err != nil {
+			return err
+		}
+		hasDefault := slices.ContainsFunc(rows.Groups, func(g *models.Group) bool { return g.IsDefault && g.BoardID == board.ID })
+		if !hasDefault {
+			if err := insertDefaultGroup(ctx, tx, board.UserID, board.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // own makes the user the owner of every row, and puts groups and tiles
 // without a board on the user's default board
-func (rows *DashboardRows) own(ctx context.Context, tx *sql.Tx, userID string) error {
-	defaultBoard, err := defaultBoardID(ctx, tx, userID)
-	if err != nil {
-		return err
+func (rows *DashboardRows) own(userID, defaultBoard string) {
+	for _, board := range rows.Boards {
+		board.UserID = userID
 	}
 	for _, group := range rows.Groups {
 		group.UserID, group.BoardID = userID, cmp.Or(group.BoardID, defaultBoard)
@@ -198,18 +330,17 @@ func (rows *DashboardRows) own(ctx context.Context, tx *sql.Tx, userID string) e
 	for _, widget := range rows.Widgets {
 		widget.UserID, widget.BoardID = userID, cmp.Or(widget.BoardID, defaultBoard)
 	}
-	return nil
 }
 
-// useDefaultGroup drops the default group from rows when the user already
-// has one (existingID), and points its tiles at that one: a user has exactly
-// one default group
-func (rows *DashboardRows) useDefaultGroup(existingID string) {
-	if existingID == "" {
-		return
-	}
-	for i, group := range rows.Groups {
-		if !group.IsDefault {
+// useDefaultGroups drops the default groups from rows whose board already
+// has one (existing, by board ID), and points their tiles at that one: a
+// board has exactly one default group. Call it after own.
+func (rows *DashboardRows) useDefaultGroups(existing map[string]string) {
+	kept := make([]*models.Group, 0, len(rows.Groups))
+	for _, group := range rows.Groups {
+		existingID := existing[group.BoardID]
+		if !group.IsDefault || existingID == "" {
+			kept = append(kept, group)
 			continue
 		}
 		for _, service := range rows.Services {
@@ -222,17 +353,19 @@ func (rows *DashboardRows) useDefaultGroup(existingID string) {
 				widget.GroupID = &existingID
 			}
 		}
-		rows.Groups = append(rows.Groups[:i:i], rows.Groups[i+1:]...)
-		return
 	}
+	rows.Groups = kept
 }
 
-// wipeDashboard deletes the user's tiles, integrations and groups, and
-// returns the uploaded icon files the services used
-func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, error) {
+// wipeDashboard deletes the user's tiles and groups on the given boards and
+// the integrations no tile elsewhere uses, and returns the uploaded icon
+// files the deleted services used
+func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string, boards []string) ([]string, error) {
+	onBoards, boardArgs := inBoards(2, boards)
+	args := append([]any{userID}, boardArgs...)
 	rows, err := tx.QueryContext(ctx,
-		`SELECT icon_image_path FROM services WHERE user_id = $1 AND icon_type = $2 AND icon_image_path <> ''`,
-		userID, models.IconTypeImageUpload)
+		`SELECT icon_image_path FROM services WHERE user_id = $1 AND `+onBoards+` AND icon_type = '`+models.IconTypeImageUpload+`' AND icon_image_path <> ''`,
+		args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list service icons: %w", err)
 	}
@@ -251,9 +384,16 @@ func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, er
 	}
 
 	// Tiles first: they point at groups and integrations
-	for _, table := range []string{"widgets", "services", "integrations", "groups"} {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE user_id = $1`, userID); err != nil {
-			return nil, fmt.Errorf("failed to delete %s: %w", table, err)
+	deletes := []struct{ table, where string }{
+		{"widgets", onBoards},
+		{"services", onBoards},
+		// By now only tiles on other boards are left to use one
+		{"integrations", `id NOT IN ` + usedIntegrations(onBoards)},
+		{"groups", onBoards},
+	}
+	for _, del := range deletes {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+del.table+` WHERE user_id = $1 AND `+del.where, args...); err != nil {
+			return nil, fmt.Errorf("failed to delete %s: %w", del.table, err)
 		}
 	}
 	return icons, nil
