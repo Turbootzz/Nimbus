@@ -29,6 +29,10 @@ func NewGroupRepository(sqlDB *sql.DB) *GroupRepository {
 
 // Create creates a new group with auto-assigned position
 func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error {
+	// The column only takes a known style
+	if group.TileStyle == "" {
+		group.TileStyle = models.TileStyleCards
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
