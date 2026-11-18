@@ -297,6 +297,11 @@ func (s *DashboardTransferService) exportPreferences(p *models.UserPreferences, 
 		LayoutMode:            &p.LayoutMode,
 		GroupDisplay:          p.GroupDisplay,
 		StatusStrip:           &dashdoc.StatusStrip{Enabled: p.StatusStrip.Enabled, Chips: []dashdoc.Chip{}},
+		ThemePreset:           &p.ThemePreset,
+		ThemeFont:             &p.ThemeFont,
+		KpiMono:               &p.KpiMono,
+		IconSource:            &p.IconSource,
+		CustomCSS:             &p.CustomCSS,
 	}
 	if p.ThemeAccentColor != nil {
 		out.ThemeAccentColor = p.ThemeAccentColor
@@ -742,6 +747,9 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 		NeedsCredentials: p.needsCredentials,
 		NeedsSecrets:     p.needsSecrets,
 	}
+	if prefs := p.rows.Preferences; prefs != nil && prefs.CustomCSS != nil {
+		p.created.CustomCSS = *prefs.CustomCSS
+	}
 	return p, nil
 }
 
@@ -819,6 +827,18 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 		LayoutMode:            in.LayoutMode,
 		GroupDisplay:          in.GroupDisplay,
 		FollowLayout:          in.GroupDisplay == nil,
+		ThemePreset:           in.ThemePreset,
+		ThemeFont:             in.ThemeFont,
+		KpiMono:               in.KpiMono,
+		IconSource:            in.IconSource,
+		CustomCSS:             in.CustomCSS,
+	}
+	// A file can come from someone else: its CSS gets the same check as
+	// CSS saved in the theme settings
+	if in.CustomCSS != nil {
+		if err := utils.ValidateCustomCSS(*in.CustomCSS); err != nil {
+			issues.Add("preferences.custom_css", "%s", err.Error())
+		}
 	}
 
 	var wallpaper []byte

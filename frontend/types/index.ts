@@ -842,6 +842,7 @@ export interface ImportSummary {
   preferences: boolean
   needs_credentials: number
   needs_secrets: number
+  custom_css?: string // the custom CSS a replace applies
 }
 
 // One problem in an imported document, e.g. path "services[2].url"

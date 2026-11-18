@@ -116,6 +116,11 @@ const transferSchema = `
 		layout_mode TEXT NOT NULL DEFAULT 'canvas',
 		group_display TEXT CHECK (group_display IN ('tabs', 'sections')),
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
+		theme_preset TEXT NOT NULL DEFAULT 'default',
+		theme_font TEXT NOT NULL DEFAULT 'default',
+		kpi_mono BOOLEAN NOT NULL DEFAULT 0,
+		icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
+		custom_css TEXT NOT NULL DEFAULT '',
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -311,12 +316,19 @@ func (e *transferEnv) seedDashboard(t *testing.T) {
 		CardOpacity:      new(80),
 		LayoutMode:       new("classic"),
 		GroupDisplay:     new("sections"),
+		ThemePreset:      new("nord"),
+		ThemeFont:        new("inter"),
+		KpiMono:          new(true),
+		IconSource:       new("selfhst"),
+		CustomCSS:        new(seededCSS),
 		StatusStrip: &models.StatusStrip{Enabled: true, Chips: []models.StatusChip{
 			{Source: "integration", ID: sonarr.ID, KPI: "queue"},
 			{Source: "widget", ID: api.ID, KPI: "Temp"},
 		}},
 	}))
 }
+
+const seededCSS = `.glass-card { border-radius: 0 }`
 
 func (e *transferEnv) export(t *testing.T, userID string) *dashdoc.Document {
 	t.Helper()
@@ -376,6 +388,11 @@ func TestExportUsesRefsAndCarriesNoSecrets(t *testing.T) {
 	assert.Equal(t, "media", doc.Groups[1].Ref)
 	assert.Equal(t, "chips", doc.Groups[1].TileStyle)
 	assert.Equal(t, new("sections"), doc.Preferences.GroupDisplay)
+	assert.Equal(t, new("nord"), doc.Preferences.ThemePreset)
+	assert.Equal(t, new("inter"), doc.Preferences.ThemeFont)
+	assert.Equal(t, new(true), doc.Preferences.KpiMono)
+	assert.Equal(t, new("selfhst"), doc.Preferences.IconSource)
+	assert.Equal(t, new(seededCSS), doc.Preferences.CustomCSS)
 
 	require.Len(t, doc.Integrations, 2)
 	assert.Equal(t, "plain", doc.Integrations[0].Ref)
@@ -513,6 +530,7 @@ func TestRoundTripReplaceGivesIdenticalDashboard(t *testing.T) {
 		Preferences:      true,
 		NeedsCredentials: 1,
 		NeedsSecrets:     2,
+		CustomCSS:        seededCSS,
 	}, summary)
 	assert.Equal(t, toJSON(t, first), toJSON(t, env.export(t, transferAdmin)))
 
@@ -566,6 +584,56 @@ func TestImportWithoutTileStyleAndGroupDisplay(t *testing.T) {
 	exported := env.export(t, transferAdmin)
 	assert.Nil(t, exported.Preferences.GroupDisplay)
 	assert.NotContains(t, toJSON(t, exported), "group_display")
+}
+
+// An export from before the theme settings has none of them: they keep
+// their values, and a file can still clear the CSS with ""
+func TestImportWithoutThemeSettings(t *testing.T) {
+	env := newTransferEnv(t)
+	env.seedDashboard(t)
+	ctx := context.Background()
+	apply := func(raw string) (*models.UserPreferences, error) {
+		var doc dashdoc.Document
+		require.NoError(t, json.Unmarshal([]byte(raw), &doc))
+		_, applyErr := env.svc.Apply(ctx, transferAdmin, &doc, dashdoc.ModeReplace)
+		prefs, err := env.preferences.GetByUserID(ctx, transferAdmin)
+		require.NoError(t, err)
+		return prefs, applyErr
+	}
+
+	prefs, err := apply(`{"version": 1, "preferences": {"theme_mode": "light"}}`)
+	require.NoError(t, err)
+	assert.Equal(t, "light", prefs.ThemeMode)
+	assert.Equal(t, "nord", prefs.ThemePreset)
+	assert.Equal(t, "inter", prefs.ThemeFont)
+	assert.True(t, prefs.KpiMono)
+	assert.Equal(t, "selfhst", prefs.IconSource)
+	assert.Equal(t, seededCSS, prefs.CustomCSS)
+
+	// CSS that loads from another host refuses the whole import
+	prefs, err = apply(`{"version": 1, "preferences": {"theme_mode": "dark", "theme_preset": "dracula",
+		"custom_css": "body { background: \\75rl(https://evil.example/a.png) }"}}`)
+	var invalid *dashdoc.ValidationError
+	require.ErrorAs(t, err, &invalid)
+	assert.Equal(t, "preferences.custom_css", invalid.Issues[0].Path)
+	assert.Equal(t, "light", prefs.ThemeMode)
+	assert.Equal(t, "nord", prefs.ThemePreset)
+	assert.Equal(t, seededCSS, prefs.CustomCSS)
+
+	// The preview shows the CSS under whatever spelling the server accepts,
+	// and a merge, which leaves the preferences alone, has none to show
+	var shouted dashdoc.Document
+	require.NoError(t, json.Unmarshal([]byte(`{"version": 1, "PREFERENCES": {"CUSTOM_CSS": "a { color: red }"}}`), &shouted))
+	summary, err := env.svc.Preview(ctx, transferAdmin, &shouted, dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, "a { color: red }", summary.CustomCSS)
+	summary, err = env.svc.Preview(ctx, transferAdmin, &shouted, dashdoc.ModeMerge)
+	require.NoError(t, err)
+	assert.Empty(t, summary.CustomCSS)
+
+	prefs, err = apply(`{"version": 1, "preferences": {"custom_css": ""}}`)
+	require.NoError(t, err)
+	assert.Empty(t, prefs.CustomCSS)
 }
 
 func TestImportedIntegrationHasNoCredentialsAndIsNotPolled(t *testing.T) {
@@ -790,6 +858,12 @@ func TestInvalidDocuments(t *testing.T) {
 		{"group without name", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Ref: "g"}}}, "groups[0]"},
 		{"group tile style", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Name: "G", TileStyle: "grid"}}}, "groups[0]"},
 		{"group display", prefs(dashdoc.Preferences{GroupDisplay: new("grid")}), "preferences"},
+		{"theme preset", prefs(dashdoc.Preferences{ThemePreset: new("solarized")}), "preferences"},
+		{"theme font", prefs(dashdoc.Preferences{ThemeFont: new("comic-sans")}), "preferences"},
+		{"icon source", prefs(dashdoc.Preferences{IconSource: new("https://evil.example")}), "preferences"},
+		{"custom css with a url", prefs(dashdoc.Preferences{CustomCSS: new("a { background: url(https://evil.example) }")}), "preferences.custom_css"},
+		{"custom css with an import", prefs(dashdoc.Preferences{CustomCSS: new(`@import "https://evil.example/x.css";`)}), "preferences.custom_css"},
+		{"custom css too large", prefs(dashdoc.Preferences{CustomCSS: new(strings.Repeat("a", utils.MaxCustomCSSBytes+1))}), "preferences.custom_css"},
 		{"group color", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Name: "G", Color: "red"}}}, "groups[0]"},
 		{"unknown integration kind", &dashdoc.Document{Version: 1, Integrations: []dashdoc.Integration{{Kind: "nope", Name: "X", BaseURL: "http://192.168.1.2"}}}, "integrations[0]"},
 		{"integration url with credentials", &dashdoc.Document{Version: 1, Integrations: []dashdoc.Integration{{Kind: "svc-fake", Name: "X", BaseURL: "http://user:pass@192.168.1.2"}}}, "integrations[0]"},

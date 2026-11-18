@@ -275,6 +275,24 @@ export default function DashboardImport() {
               </div>
             )}
             <SummaryTable summary={preview} />
+            {preview.custom_css && (
+              <div className="mt-4">
+                <h3 className="text-text-primary mb-1 text-sm font-medium">
+                  This file brings custom CSS (read it before you import)
+                </h3>
+                <p className="text-text-secondary mb-2 text-sm">
+                  It restyles every page behind the login. It cannot load anything from another
+                  site, but it can hide or change what you see.
+                </p>
+                <pre
+                  tabIndex={0}
+                  aria-label="Custom CSS in the file"
+                  className="bg-background border-card-border text-text-primary max-h-48 overflow-auto rounded border p-2 font-mono text-xs whitespace-pre-wrap"
+                >
+                  {preview.custom_css}
+                </pre>
+              </div>
+            )}
             <button
               type="button"
               onClick={() => (mode === 'replace' ? setConfirming(true) : apply())}
