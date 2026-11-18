@@ -1,0 +1,100 @@
+image:
+  repository: turboot/nimbus
+  # Defaults to the chart's appVersion
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+secrets:
+  # Use a Secret you manage yourself instead of the values below. Keys:
+  #   db-password     (required)
+  #   jwt-secret      (optional)
+  #   encryption-key  (optional)
+  existingSecret: ""
+  # Database password. Required unless existingSecret is set. Letters, digits, - and _ only.
+  dbPassword: ""
+  # Signs sessions, at least 32 characters. Empty: Nimbus generates one and keeps it in the uploads volume.
+  jwtSecret: ""
+  # Encrypts integration credentials (openssl rand -base64 32). Empty: Nimbus generates one and keeps
+  # it in the uploads volume. If this key is lost, integration credentials have to be entered again.
+  encryptionKey: ""
+
+# Extra environment variables, see docs/CONFIGURATION.md
+env: {}
+  # FRONTEND_URL: https://nimbus.example.com
+  # COOKIE_SECURE: "true"
+
+# Extra env sources, for example a Secret with OAuth or SMTP credentials
+envFrom: []
+  # - secretRef:
+  #     name: nimbus-oauth
+
+# Uploads: icons, avatars, wallpapers and the generated JWT_SECRET and ENCRYPTION_KEY. Back it up.
+persistence:
+  enabled: true
+  existingClaim: ""
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 2Gi
+
+service:
+  type: ClusterIP
+  port: 3000
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # The live dashboard uses server-sent events. With ingress-nginx:
+    # nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+  hosts:
+    - host: nimbus.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+    # - secretName: nimbus-tls
+    #   hosts:
+    #     - nimbus.local
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    memory: 1Gi
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Built-in PostgreSQL (one StatefulSet replica). Disable it to use externalDatabase.
+postgresql:
+  enabled: true
+  image:
+    repository: turboot/nimbus-postgres
+    tag: "18"
+    pullPolicy: IfNotPresent
+  persistence:
+    storageClass: ""
+    size: 5Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# Used when postgresql.enabled is false. The password comes from secrets.dbPassword
+# or the db-password key of secrets.existingSecret.
+# The user must be allowed to CREATE EXTENSION pgcrypto.
+externalDatabase:
+  host: ""
+  port: 5432
+  user: nimbus
+  database: nimbus
