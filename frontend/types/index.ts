@@ -473,6 +473,7 @@ export interface UserPreferences {
   card_opacity: number // %, 0-100
   card_blur: number // px, 0-40
   layout_mode: LayoutMode
+  group_display: GroupDisplay | null // null follows the layout
   status_strip: StatusStrip
   updated_at?: string
 }
@@ -501,6 +502,9 @@ export interface StatusStrip {
 // classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
 export type LayoutMode = 'classic' | 'canvas'
 
+// tabs: one group at a time; sections: all groups stacked under a header
+export type GroupDisplay = 'tabs' | 'sections'
+
 export interface PreferencesUpdateRequest {
   theme_mode?: 'light' | 'dark' | 'auto'
   theme_background?: string | null
@@ -515,6 +519,7 @@ export interface PreferencesUpdateRequest {
   card_opacity?: number
   card_blur?: number
   layout_mode?: LayoutMode
+  group_display?: GroupDisplay
   status_strip?: StatusStrip
 }
 

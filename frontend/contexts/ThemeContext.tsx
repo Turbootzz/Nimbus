@@ -14,6 +14,7 @@ import { api } from '@/lib/api'
 import type {
   PreferencesUpdateRequest,
   CardScale,
+  GroupDisplay,
   LayoutMode,
   StatusChip,
   StatusStrip,
@@ -43,6 +44,8 @@ interface ThemeContextType {
   viewMode: ViewMode
   glass: Glass
   statusStrip: StatusStrip
+  // The user's choice; null follows the layout (resolveGroupDisplay)
+  groupDisplay: GroupDisplay | null
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
@@ -54,6 +57,7 @@ interface ThemeContextType {
   // Merges the change; may raise the dim to keep glass cards readable
   setGlass: (change: Partial<Glass>) => void
   setStatusStrip: (statusStrip: StatusStrip) => void
+  setGroupDisplay: (groupDisplay: GroupDisplay) => void
   // Read the layout with useLayoutMode (lib/layout-store), which can't flash
   setLayoutMode: (layoutMode: LayoutMode) => void
   // Uploads and applies a wallpaper; resolves to an error message or null
@@ -64,6 +68,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 const noStatusStrip: StatusStrip = { enabled: false, chips: [] }
+
+// parseGroupDisplay reads the cached choice; anything else is no choice
+function parseGroupDisplay(raw: string | null | undefined): GroupDisplay | null {
+  return raw === 'tabs' || raw === 'sections' ? raw : null
+}
 
 // parseStatusStrip reads the cached strip; off when missing or broken, and
 // without chips that aren't chips
@@ -98,6 +107,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [glass, setGlassState] = useState<Glass>(defaultGlass)
   const [statusStrip, setStatusStripState] = useState<StatusStrip>(noStatusStrip)
+  const [groupDisplay, setGroupDisplayState] = useState<GroupDisplay | null>(null)
   // False until the cached preferences are read; before that the state holds
   // defaults, and applying them would undo what ThemeScript painted
   const [restored, setRestored] = useState(false)
@@ -110,7 +120,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
   // Preferences the user changed while the first load was running; that
   // load must not undo them
-  const changedRef = useRef(new Set<'layout' | 'statusStrip'>())
+  const changedRef = useRef(new Set<'layout' | 'statusStrip' | 'groupDisplay'>())
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -155,6 +165,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setViewModeState(e.newValue as ViewMode)
       } else if (e.key === 'statusStrip' && e.newValue) {
         setStatusStripState(parseStatusStrip(e.newValue))
+      } else if (e.key === 'groupDisplay') {
+        setGroupDisplayState(parseGroupDisplay(e.newValue))
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)
         if (parsed) setGlassState(parsed)
@@ -191,6 +203,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedViewMode) setViewModeState(savedViewMode)
       if (savedGlass) setGlassState(savedGlass)
       setStatusStripState(parseStatusStrip(localStorage.getItem('statusStrip')))
+      setGroupDisplayState(parseGroupDisplay(localStorage.getItem('groupDisplay')))
       setRestored(true)
 
       // Step 2: Try to load from API and sync
@@ -222,6 +235,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             const apiStatusStrip = response.data.status_strip ?? noStatusStrip
             setStatusStripState(apiStatusStrip)
             localStorage.setItem('statusStrip', JSON.stringify(apiStatusStrip))
+          }
+          if (!changedRef.current.has('groupDisplay')) {
+            const apiGroupDisplay = parseGroupDisplay(response.data.group_display)
+            setGroupDisplayState(apiGroupDisplay)
+            if (apiGroupDisplay) {
+              localStorage.setItem('groupDisplay', apiGroupDisplay)
+            } else {
+              localStorage.removeItem('groupDisplay')
+            }
           }
           // Unless the user already picked one while this was loading
           if (!changedRef.current.has('layout')) {
@@ -325,6 +347,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     if (updates.card_scale) localStorage.setItem('cardScale', updates.card_scale)
     if (updates.view_mode) localStorage.setItem('viewMode', updates.view_mode)
+    if (updates.group_display) localStorage.setItem('groupDisplay', updates.group_display)
     if (updates.status_strip) {
       localStorage.setItem('statusStrip', JSON.stringify(updates.status_strip))
     }
@@ -496,6 +519,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [savePreferences]
   )
 
+  const setGroupDisplay = useCallback(
+    (v: GroupDisplay) => {
+      changedRef.current.add('groupDisplay')
+      setGroupDisplayState(v)
+      savePreferences({ group_display: v })
+    },
+    [savePreferences]
+  )
+
   const setLayoutMode = useCallback(
     (v: LayoutMode) => {
       changedRef.current.add('layout')
@@ -518,6 +550,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       viewMode,
       glass,
       statusStrip,
+      groupDisplay,
       setTheme,
       setAccentColor,
       setBackground,
@@ -528,6 +561,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setViewMode,
       setGlass,
       setStatusStrip,
+      setGroupDisplay,
       setLayoutMode,
       uploadWallpaper,
       loading,
@@ -544,6 +578,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       viewMode,
       glass,
       statusStrip,
+      groupDisplay,
       setTheme,
       setAccentColor,
       setBackground,
@@ -554,6 +589,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setViewMode,
       setGlass,
       setStatusStrip,
+      setGroupDisplay,
       setLayoutMode,
       uploadWallpaper,
       loading,

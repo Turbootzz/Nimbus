@@ -1,19 +1,10 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import {
-  ServerIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  PlusIcon,
-} from '@heroicons/react/24/outline'
+import { ServerIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import {
   DndContext,
-  closestCenter,
-  pointerWithin,
-  CollisionDetection,
   DragEndEvent,
   DragStartEvent,
   DragOverlay,
@@ -44,16 +35,23 @@ import ServiceCard from '@/components/ServiceCard'
 import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
+import DashboardStats from '@/components/DashboardStats'
+import GroupSections from '@/components/GroupSections'
 import ServicesGrid from '@/components/ServicesGrid'
 import WidgetCard from '@/components/widgets/WidgetCard'
 import WidgetModal from '@/components/widgets/WidgetModal'
 import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
+import { createCollisionDetection } from '@/lib/tile-collision'
 import {
+  GROUP_DROP_PREFIX,
   filterTilesByGroup,
+  groupTilesBySection,
   mergeTiles,
+  moveTile,
   reorderTiles,
+  resolveGroupDisplay,
   splitTiles,
   tileKey,
   toTilePositions,
@@ -61,28 +59,6 @@ import {
 
 function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
-}
-
-// Factory for custom collision detection based on drag type
-function createCollisionDetection(isDraggingTab: boolean, groupIds: string[]): CollisionDetection {
-  return (args) => {
-    const activeId = toStringId(args.active.id)
-
-    // If dragging a tab, only collide with other tabs
-    if (isDraggingTab || groupIds.includes(activeId)) {
-      return closestCenter(args)
-    }
-
-    // For tile drags: prioritize group tabs (pointer-based), then the grid (center-based)
-    const pointerCollisions = pointerWithin(args)
-    const groupTabCollision = pointerCollisions.find((c) => toStringId(c.id).startsWith('group-'))
-    if (groupTabCollision) {
-      return [groupTabCollision]
-    }
-
-    // Fall back to closestCenter for tile reordering
-    return closestCenter(args)
-  }
 }
 
 export default function DashboardPage() {
@@ -93,6 +69,7 @@ export default function DashboardPage() {
     cardScale,
     viewMode,
     statusStrip,
+    groupDisplay,
   } = useTheme()
   const layoutMode = useLayoutMode()
   const [services, setServices] = useState<Service[]>([])
@@ -131,11 +108,18 @@ export default function DashboardPage() {
   // Services and widgets in one grid, ordered by their shared positions
   const tiles = useMemo(() => mergeTiles(services, widgets), [services, widgets])
 
+  // Sections stack every group on the page; tabs show one group at a time
+  const sectioned =
+    enableServiceGrouping &&
+    groups.length > 0 &&
+    resolveGroupDisplay(groupDisplay, layoutMode) === 'sections'
+  const tabbed = enableServiceGrouping && !sectioned
+
   // Tiles of the selected group; the default group also shows ungrouped
-  // tiles (backwards compat). Without grouping everything is shown.
+  // tiles (backwards compat). Sections, and no grouping, show everything.
   const filteredTiles = useMemo(
-    () => (enableServiceGrouping ? filterTilesByGroup(tiles, selectedGroupId, groups) : tiles),
-    [tiles, selectedGroupId, enableServiceGrouping, groups]
+    () => (tabbed ? filterTilesByGroup(tiles, selectedGroupId, groups) : tiles),
+    [tiles, selectedGroupId, tabbed, groups]
   )
 
   const filteredServices = useMemo(
@@ -147,6 +131,16 @@ export default function DashboardPage() {
   const sortableTiles = useMemo(
     () => (viewMode === 'list' ? filteredTiles.filter((t) => t.kind === 'service') : filteredTiles),
     [filteredTiles, viewMode]
+  )
+
+  const sections = useMemo(
+    () => (sectioned ? groupTilesBySection(filteredTiles, groups) : []),
+    [sectioned, filteredTiles, groups]
+  )
+  // Sections with only the tiles that can be dragged, for drops
+  const sortableSections = useMemo(
+    () => (sectioned ? groupTilesBySection(sortableTiles, groups) : []),
+    [sectioned, sortableTiles, groups]
   )
 
   const widgetTypeMap = useMemo(
@@ -212,10 +206,12 @@ export default function DashboardPage() {
 
   // Create collision detection that handles both tab and service drags
   const groupIds = useMemo(() => groups.map((g) => g.id), [groups])
-  const collisionDetection = useMemo(
-    () => createCollisionDetection(isDraggingTab, groupIds),
-    [isDraggingTab, groupIds]
-  )
+  const collisionDetection = useMemo(() => {
+    const sectionOfTile = sectioned
+      ? new Map(sortableSections.flatMap((s) => s.tiles.map((t) => [tileKey(t), s.group.id])))
+      : undefined
+    return createCollisionDetection(isDraggingTab, groupIds, sectionOfTile)
+  }, [isDraggingTab, groupIds, sectioned, sortableSections])
 
   // DnD sensors for mouse and touch
   const sensors = useSensors(
@@ -410,11 +406,16 @@ export default function DashboardPage() {
     // Skip if it was a tab drag that didn't land on another tab
     if (isTabDrag) return
 
+    if (sectioned) {
+      if (activeId !== overId && widgetsLoaded) await dropInSections(activeId, overId)
+      return
+    }
+
     // Check if dropped on a group tab (IDs prefixed with "group-")
-    if (overId.startsWith('group-')) {
+    if (overId.startsWith(GROUP_DROP_PREFIX)) {
       const draggedTile = tiles.find((t) => tileKey(t) === activeId)
       if (draggedTile) {
-        await moveTileToGroup(draggedTile, overId.replace('group-', ''))
+        await moveTileToGroup(draggedTile, overId.replace(GROUP_DROP_PREFIX, ''))
       }
       return
     }
@@ -422,26 +423,65 @@ export default function DashboardPage() {
     // Normal reorder within the visible tiles; hidden tiles keep their slots
     if (activeId === overId || !widgetsLoaded) return
     const reordered = reorderTiles(tiles, sortableTiles, activeId, overId)
-    if (!reordered) return
+    if (reordered) await saveTileOrder(reordered, tiles)
+  }
 
-    // Capture current state for rollback
-    const previousServices = services
-    const previousWidgets = widgets
-
-    // Optimistic update
-    const next = splitTiles(reordered)
+  const showTiles = (order: Tile[]) => {
+    const next = splitTiles(order)
     setServices(next.services)
     setWidgets(next.widgets)
+  }
 
-    // Persist every position so services and widgets never share one
+  // Shows the new order at once and saves every position, so services and
+  // widgets never share one. On failure the tiles go back to `fallback`.
+  const saveTileOrder = async (order: Tile[], fallback: Tile[]) => {
+    showTiles(order)
     try {
-      const response = await api.reorderTiles({ tiles: toTilePositions(reordered) })
+      const response = await api.reorderTiles({ tiles: toTilePositions(order) })
       if (response.error) throw new Error(response.error.message)
     } catch (error) {
       console.error('Failed to save order:', error)
-      setServices(previousServices)
-      setWidgets(previousWidgets)
+      showTiles(fallback)
     }
+  }
+
+  // A drop in sections mode: a reorder, or a move to another section, which
+  // saves the group first and then the positions
+  const dropInSections = async (activeKey: string, overId: string) => {
+    const move = moveTile(tiles, sortableSections, activeKey, overId)
+    if (!move) return
+    if (!move.regrouped) return saveTileOrder(move.tiles, tiles)
+
+    const { tile, group } = move.regrouped
+    showTiles(move.tiles)
+    try {
+      await saveTileGroup(tile, group.is_default ? '' : group.id)
+    } catch (error) {
+      console.error('Failed to move tile to group:', error)
+      showTiles(tiles)
+      return
+    }
+    // If the order can't be saved, the tile is still in its new group
+    const regrouped = tiles.map((t) => (tileKey(t) === activeKey ? tile : t))
+    await saveTileOrder(move.tiles, regrouped)
+  }
+
+  // Saves the group of a service or widget; '' clears it (the default group).
+  // The API client returns errors instead of throwing, so this throws them.
+  const saveTileGroup = async (tile: Tile, groupId: string) => {
+    const response =
+      tile.kind === 'widget'
+        ? await api.updateWidget(tile.id, { group_id: groupId })
+        : await api.updateService(tile.id, {
+            name: tile.service.name,
+            url: tile.service.url,
+            description: tile.service.description || '',
+            icon: tile.service.icon || '',
+            icon_type: tile.service.icon_type || 'emoji',
+            icon_image_path: tile.service.icon_image_path || '',
+            group_id: groupId,
+          })
+    if (response.error) throw new Error(response.error.message)
   }
 
   // Moves a service or widget to another group (dropped on a group tab)
@@ -455,44 +495,25 @@ export default function DashboardPage() {
     if (isTargetDefault && !currentGroupId) return
     if (!isTargetDefault && currentGroupId === targetGroupId) return
 
+    // Optimistic update
+    const previousServices = services
+    const previousWidgets = widgets
     if (tile.kind === 'widget') {
-      const previousWidgets = widgets
       setWidgets(
         widgets.map((w) => (w.id === tile.id ? { ...w, group_id: newGroupId || null } : w))
       )
-      try {
-        const response = await api.updateWidget(tile.id, { group_id: newGroupId })
-        if (response.error) throw new Error(response.error.message)
-      } catch (error) {
-        console.error('Failed to move widget to group:', error)
-        setWidgets(previousWidgets)
-      }
-      return
+    } else {
+      setServices(
+        services.map((s) => (s.id === tile.id ? { ...s, group_id: newGroupId || undefined } : s))
+      )
     }
 
-    const draggedService = tile.service
-    const previousServices = services
-
-    // Optimistic update - move service to new group
-    setServices(
-      services.map((s) => (s.id === tile.id ? { ...s, group_id: newGroupId || undefined } : s))
-    )
-
-    // Persist to backend; the API client returns errors instead of throwing
     try {
-      const response = await api.updateService(tile.id, {
-        name: draggedService.name,
-        url: draggedService.url,
-        description: draggedService.description || '',
-        icon: draggedService.icon || '',
-        icon_type: draggedService.icon_type || 'emoji',
-        icon_image_path: draggedService.icon_image_path || '',
-        group_id: newGroupId,
-      })
-      if (response.error) throw new Error(response.error.message)
+      await saveTileGroup(tile, newGroupId)
     } catch (error) {
-      console.error('Failed to move service to group:', error)
+      console.error('Failed to move tile to group:', error)
       setServices(previousServices)
+      setWidgets(previousWidgets)
     }
   }
 
@@ -627,10 +648,16 @@ export default function DashboardPage() {
   // `from=dashboard` tells /services/new where to redirect after create.
   const addServiceHref = useMemo(() => {
     const params = new URLSearchParams()
-    if (enableServiceGrouping && selectedGroupId) params.set('group', selectedGroupId)
+    if (tabbed && selectedGroupId) params.set('group', selectedGroupId)
     params.set('from', 'dashboard')
     return `/services/new?${params.toString()}`
-  }, [enableServiceGrouping, selectedGroupId])
+  }, [tabbed, selectedGroupId])
+
+  // Sections have no tabs to drag, so a group swaps places with its neighbour
+  const handleMoveGroup = (group: Group, direction: -1 | 1) => {
+    const neighbour = groups[groups.findIndex((g) => g.id === group.id) + direction]
+    if (neighbour) handleTabReorder(group.id, neighbour.id)
+  }
 
   const handleGroupFormSubmit = async (data: {
     name?: string
@@ -720,6 +747,73 @@ export default function DashboardPage() {
     )
   }
 
+  const header = (
+    <DashboardHeader
+      groups={groups}
+      selectedGroupId={selectedGroupId}
+      onSelectGroup={handleSelectGroup}
+      onCreateGroup={handleCreateGroup}
+      onEditGroup={handleEditGroup}
+      onDeleteGroup={handleDeleteGroup}
+      isEditMode={isEditMode}
+      onToggleEditMode={handleToggleEditMode}
+      enableServiceGrouping={tabbed}
+      activeId={activeId}
+      isDraggingTab={isDraggingTab}
+      addServiceHref={addServiceHref}
+      onAddWidget={handleAddWidget}
+    />
+  )
+
+  // A grid (or list) of tiles; sortable in edit mode
+  const renderTiles = (gridTiles: Tile[]) => {
+    const grid = (
+      <ServicesGrid
+        tiles={gridTiles}
+        openInNewTab={openInNewTab}
+        enableCardResizing={enableCardResizing}
+        cardScale={cardScale}
+        viewMode={viewMode}
+        groupMonitoringMap={groupMonitoringMap}
+        widgetTypes={widgetTypeMap}
+        snapshots={snapshots}
+        integrationKpis={integrationKpis}
+        {...(isEditMode && {
+          isEditMode,
+          onSizeChange: handleSizeChange,
+          onEditService: setEditingService,
+          onWidgetSizeChange: handleWidgetSizeChange,
+          onEditWidget: handleEditWidget,
+          onDeleteWidget: setDeletingWidget,
+          onRefreshWidget: handleRefreshWidget,
+        })}
+      />
+    )
+    if (!isEditMode) return grid
+    const sortable = viewMode === 'list' ? gridTiles.filter((t) => t.kind === 'service') : gridTiles
+    return (
+      <SortableContext items={sortable.map(tileKey)} strategy={rectSortingStrategy}>
+        {grid}
+      </SortableContext>
+    )
+  }
+
+  const tileArea = sectioned ? (
+    <GroupSections
+      sections={sections}
+      isEditMode={isEditMode}
+      isDraggingTile={!!activeId}
+      onCreateGroup={handleCreateGroup}
+      onEditGroup={handleEditGroup}
+      onDeleteGroup={handleDeleteGroup}
+      onMoveGroup={handleMoveGroup}
+    >
+      {(section) => renderTiles(section.tiles)}
+    </GroupSections>
+  ) : (
+    renderTiles(filteredTiles)
+  )
+
   return (
     <div>
       {statusStrip.enabled && (
@@ -735,51 +829,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats cards; the canvas layout leaves them out */}
-      {layoutMode === 'classic' && (
-        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="glass-card border-card-border rounded-lg border p-6">
-            <div className="flex items-center">
-              <ServerIcon className="text-primary h-8 w-8" />
-              <div className="ml-4">
-                <p className="text-text-muted text-sm">Total Services</p>
-                <p className="text-text-primary text-2xl font-semibold">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card border-card-border rounded-lg border p-6">
-            <div className="flex items-center">
-              <CheckCircleIcon className="text-success h-8 w-8" />
-              <div className="ml-4">
-                <p className="text-text-muted text-sm">Online</p>
-                <p className="text-text-primary text-2xl font-semibold">{stats.online}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card border-card-border rounded-lg border p-6">
-            <div className="flex items-center">
-              <ExclamationCircleIcon className="text-error h-8 w-8" />
-              <div className="ml-4">
-                <p className="text-text-muted text-sm">Offline</p>
-                <p className="text-text-primary text-2xl font-semibold">{stats.offline}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="glass-card border-card-border rounded-lg border p-6">
-            <div className="flex items-center">
-              <ClockIcon className="text-info h-8 w-8" />
-              <div className="ml-4">
-                <p className="text-text-muted text-sm">Avg Response</p>
-                <p className="text-text-primary text-2xl font-semibold">
-                  {stats.avgResponseTime}ms
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {layoutMode === 'classic' && <DashboardStats stats={stats} />}
 
       {!widgetsLoaded && (
         <p className="text-error wallpaper-panel mb-4 text-sm">
@@ -788,7 +838,7 @@ export default function DashboardPage() {
         </p>
       )}
 
-      {/* Header with group tabs and action buttons */}
+      {/* Header with group tabs and action buttons, then the tiles */}
       {isEditMode ? (
         <DndContext
           sensors={sensors}
@@ -797,42 +847,8 @@ export default function DashboardPage() {
           onDragEnd={handleDragEnd}
           onDragCancel={handleDragCancel}
         >
-          <DashboardHeader
-            groups={groups}
-            selectedGroupId={selectedGroupId}
-            onSelectGroup={handleSelectGroup}
-            onCreateGroup={handleCreateGroup}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={handleDeleteGroup}
-            isEditMode={isEditMode}
-            onToggleEditMode={handleToggleEditMode}
-            enableServiceGrouping={enableServiceGrouping}
-            activeId={activeId}
-            isDraggingTab={isDraggingTab}
-            addServiceHref={addServiceHref}
-            onAddWidget={handleAddWidget}
-          />
-
-          <SortableContext items={sortableTiles.map(tileKey)} strategy={rectSortingStrategy}>
-            <ServicesGrid
-              tiles={filteredTiles}
-              openInNewTab={openInNewTab}
-              enableCardResizing={enableCardResizing}
-              cardScale={cardScale}
-              viewMode={viewMode}
-              isEditMode={isEditMode}
-              onSizeChange={handleSizeChange}
-              onEditService={setEditingService}
-              groupMonitoringMap={groupMonitoringMap}
-              widgetTypes={widgetTypeMap}
-              onWidgetSizeChange={handleWidgetSizeChange}
-              onEditWidget={handleEditWidget}
-              onDeleteWidget={setDeletingWidget}
-              onRefreshWidget={handleRefreshWidget}
-              snapshots={snapshots}
-              integrationKpis={integrationKpis}
-            />
-          </SortableContext>
+          {header}
+          {tileArea}
 
           <DragOverlay dropAnimation={null}>
             {activeTile?.kind === 'widget' && (
@@ -876,38 +892,13 @@ export default function DashboardPage() {
         </DndContext>
       ) : (
         <>
-          <DashboardHeader
-            groups={groups}
-            selectedGroupId={selectedGroupId}
-            onSelectGroup={handleSelectGroup}
-            onCreateGroup={handleCreateGroup}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={handleDeleteGroup}
-            isEditMode={isEditMode}
-            onToggleEditMode={handleToggleEditMode}
-            enableServiceGrouping={enableServiceGrouping}
-            activeId={activeId}
-            isDraggingTab={isDraggingTab}
-            addServiceHref={addServiceHref}
-            onAddWidget={handleAddWidget}
-          />
-
-          <ServicesGrid
-            tiles={filteredTiles}
-            openInNewTab={openInNewTab}
-            enableCardResizing={enableCardResizing}
-            cardScale={cardScale}
-            viewMode={viewMode}
-            groupMonitoringMap={groupMonitoringMap}
-            widgetTypes={widgetTypeMap}
-            snapshots={snapshots}
-            integrationKpis={integrationKpis}
-          />
+          {header}
+          {tileArea}
         </>
       )}
 
-      {/* Empty state for groups with no tiles */}
-      {enableServiceGrouping && filteredTiles.length === 0 && !isLoading && (
+      {/* Empty state for groups with no tiles; sections have their own */}
+      {tabbed && filteredTiles.length === 0 && !isLoading && (
         <div className="glass-card border-card-border rounded-lg border p-12 text-center">
           <ServerIcon className="text-text-muted mx-auto mb-4 h-12 w-12" />
           <h3 className="text-text-primary mb-2 text-lg font-medium">Nothing in this group yet</h3>
@@ -942,7 +933,7 @@ export default function DashboardPage() {
         <WidgetModal
           types={widgetTypes}
           widget={editingWidget}
-          groupId={enableServiceGrouping ? selectedGroupId : null}
+          groupId={tabbed ? selectedGroupId : null}
           onClose={() => {
             setShowWidgetModal(false)
             setEditingWidget(null)
