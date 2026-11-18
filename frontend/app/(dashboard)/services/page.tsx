@@ -269,6 +269,7 @@ export default function ServicesPage() {
                   service={service}
                   onDelete={handleDelete}
                   isMonitored={isServiceEffectivelyMonitored(service, groupMonitoringMap)}
+                  readOnly={readOnly}
                 />
               ))}
             </div>
