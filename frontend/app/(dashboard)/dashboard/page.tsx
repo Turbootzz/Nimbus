@@ -472,7 +472,6 @@ export default function DashboardPage() {
       return
     }
 
-    const draggedService = tile.service
     const previousServices = services
 
     // Optimistic update - move service to new group
@@ -482,15 +481,8 @@ export default function DashboardPage() {
 
     // Persist to backend; the API client returns errors instead of throwing
     try {
-      const response = await api.updateService(tile.id, {
-        name: draggedService.name,
-        url: draggedService.url,
-        description: draggedService.description || '',
-        icon: draggedService.icon || '',
-        icon_type: draggedService.icon_type || 'emoji',
-        icon_image_path: draggedService.icon_image_path || '',
-        group_id: newGroupId,
-      })
+      // Only the group: other fields keep what is stored
+      const response = await api.updateService(tile.id, { group_id: newGroupId })
       if (response.error) throw new Error(response.error.message)
     } catch (error) {
       console.error('Failed to move service to group:', error)
@@ -509,26 +501,9 @@ export default function DashboardPage() {
     setResizingId(id)
     setServices(services.map((s) => (s.id === id ? { ...s, card_size: newSize } : s)))
 
-    // Fetch fresh service data to avoid overwriting concurrent updates
+    // Only the size: an edit saved meanwhile keeps its other fields
     try {
-      const response = await api.getService(id)
-      if (response.error || !response.data) {
-        console.error('Failed to fetch service:', response.error?.message)
-        setServices(previousServices)
-        return
-      }
-
-      const freshService = response.data
-      const updated = await api.updateService(id, {
-        name: freshService.name,
-        url: freshService.url,
-        description: freshService.description || '',
-        icon: freshService.icon || '',
-        icon_type: freshService.icon_type || 'emoji',
-        icon_image_path: freshService.icon_image_path || '',
-        group_id: freshService.group_id ?? '',
-        card_size: newSize,
-      })
+      const updated = await api.updateService(id, { card_size: newSize })
       if (updated.error) throw new Error(updated.error.message)
     } catch (error) {
       console.error('Failed to update card size:', error)
