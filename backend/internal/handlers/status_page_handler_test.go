@@ -182,6 +182,15 @@ func TestStatusPage_DisabledLooksLikeAMissingRoute(t *testing.T) {
 	assert.Equal(t, missingStatus, status)
 	assert.Equal(t, missingBody, body)
 
+	// Headers too: nothing the enabled page sets may show while it is off
+	headersOf := func(path string) http.Header {
+		resp, err := f.app.Test(httptest.NewRequest(http.MethodGet, path, nil), -1)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		return resp.Header
+	}
+	assert.Equal(t, headersOf("/public/nothing-here"), headersOf("/public/status"))
+
 	// Configured but switched off stays hidden
 	saveStatus, saveBody := f.save(t, models.StatusPageSettings{GroupID: f.group.ID, Title: "Lab"})
 	require.Equal(t, http.StatusOK, saveStatus, saveBody)

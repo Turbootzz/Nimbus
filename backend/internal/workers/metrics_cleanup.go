@@ -92,10 +92,18 @@ func (w *MetricsCleanupWorker) run() {
 	ticker := time.NewTicker(w.cleanupInterval)
 	defer ticker.Stop()
 
+	// The public status page puts every visitor address in the rate limiter,
+	// so expired entries go as often as they expire (the 15 minute window)
+	// and not once a day
+	rateLimitTicker := time.NewTicker(15 * time.Minute)
+	defer rateLimitTicker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
 			w.runCleanup()
+		case <-rateLimitTicker.C:
+			handlers.CleanupForgotPasswordRateLimit()
 		case <-w.stopChan:
 			log.Println("Metrics cleanup worker stopped")
 			return
