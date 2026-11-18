@@ -1,6 +1,7 @@
 'use client'
 
 import type { Kpi, Snapshot, IntegrationPayload } from '@/types'
+import { liveKpi, tileKpis } from '@/lib/kpis'
 
 // Tailwind needs full class names, so no template strings here
 export const kpiColumns: Record<number, string> = {
@@ -11,8 +12,7 @@ export const kpiColumns: Record<number, string> = {
 }
 
 export interface ServiceKpis {
-  // From the integration kind, in display order. A snapshot can bring its
-  // own list (kpi_defs), which then wins.
+  // Those of the integration, in display order (see kpisForIntegration)
   kpis: Kpi[]
   snapshot?: Snapshot
 }
@@ -26,7 +26,8 @@ export function formatKpiValue(value: unknown, unit?: string): string {
 // Up to four numbers from a linked integration, shown on a service tile
 export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
   const payload = snapshot?.payload as IntegrationPayload | null | undefined
-  const shown = (Array.isArray(payload?.kpi_defs) ? payload.kpi_defs : kpis).slice(0, 4)
+  // The same KPIs before and after the first snapshot; only labels change
+  const shown = tileKpis(kpis).map((kpi) => liveKpi(kpi, payload))
   if (shown.length === 0) return null
 
   const values = payload?.kpis

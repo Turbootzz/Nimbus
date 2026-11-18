@@ -64,8 +64,10 @@ type KPI struct {
 	Key   string `json:"key"`
 	Label string `json:"label"`
 	Unit  string `json:"unit,omitempty"`
-	// Option names the option that must be set for this KPI to apply
-	Option string `json:"option,omitempty"`
+	// Option names the option that must be set for this KPI to apply;
+	// Without the one that must not be
+	Option  string `json:"option,omitempty"`
+	Without string `json:"without,omitempty"`
 }
 
 // Option describes one setting of a kind (a text field in the form). The
@@ -120,8 +122,9 @@ func (o Option) Matches(value string) bool {
 // holds kind-specific detail for widgets (e.g. a container list).
 type Payload struct {
 	KPIs map[string]any `json:"kpis,omitempty"`
-	// KPIDefs replaces Meta().KPIs on this integration's tile when the
-	// KPIs to show, or their labels, depend on its options or live data
+	// KPIDefs gives KPIs of Meta().KPIs another label and unit on this
+	// integration, when those depend on live data. Which KPIs apply follows
+	// from the options alone (KPI.Option, KPI.Without).
 	KPIDefs []KPI `json:"kpi_defs,omitempty"`
 	Data    any   `json:"data,omitempty"`
 }

@@ -42,7 +42,10 @@ func TestUptimeKuma(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"up": 2, "down": 1, "up_percent": 67}, payload.KPIs)
 
-	assert.Nil(t, payload.KPIDefs, "the kind's own KPIs apply")
+	for _, kpi := range impl.Meta().KPIs {
+		_, reported := payload.KPIs[kpi.Key]
+		assert.Equal(t, kpi.Option != uptimeKumaSlug, reported, kpi.Key)
+	}
 
 	assert.ErrorIs(t, impl.Test(ctx, newTestConn(server.URL, models.IntegrationCredentials{APIKey: "x"})), errRejected)
 	assertUnreachable(t, impl, "/metrics")
@@ -89,12 +92,12 @@ func TestUptimeKumaStatusPage(t *testing.T) {
 	require.NoError(t, impl.Test(ctx, conn))
 	payload, err := impl.Fetch(ctx, conn)
 	require.NoError(t, err)
-	assert.Equal(t, map[string]any{"up": 2, "down": 1, "up_percent": 67, "uptime": 69.97}, payload.KPIs)
-	keys := []string{}
-	for _, kpi := range payload.KPIDefs {
-		keys = append(keys, kpi.Key)
+	// Real uptime takes the place of the share that is up
+	assert.Equal(t, map[string]any{"up": 2, "down": 1, "uptime": 69.97}, payload.KPIs)
+	for _, kpi := range impl.Meta().KPIs {
+		_, reported := payload.KPIs[kpi.Key]
+		assert.Equal(t, kpi.Without != uptimeKumaSlug, reported, kpi.Key)
 	}
-	assert.Equal(t, []string{"up", "down", "uptime"}, keys, "the tile shows real uptime, not the share")
 
 	conn.Options = json.RawMessage(`{"status_page_slug":"gone"}`)
 	assert.EqualError(t, impl.Test(ctx, conn), "/api/status-page/gone returned status 404")

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -23,12 +22,8 @@ func (homeAssistant) Kind() string { return "home_assistant" }
 // their KPIs
 var homeAssistantEntityOptions = []string{"entity_1", "entity_2"}
 
-// Fixed KPIs, in tile order; with two extra entities the last one gives way
-var homeAssistantFixedKPIs = []KPI{
-	{Key: "people_home", Label: "People home"},
-	{Key: "lights_on", Label: "Lights on"},
-	{Key: "switches_on", Label: "Switches on"},
-}
+// A friendly name or entity ID longer than this is cut on the tile
+const homeAssistantLabelLength = 40
 
 func (homeAssistant) Meta() Meta {
 	meta := Meta{
@@ -37,7 +32,13 @@ func (homeAssistant) Meta() Meta {
 		DefaultPort: 8123,
 		// A long-lived access token from the user's profile page
 		AuthTypes: []string{models.IntegrationAuthToken},
-		KPIs:      slices.Clone(homeAssistantFixedKPIs),
+		// A tile has four numbers: with two extra entities the last of
+		// these gives way
+		KPIs: []KPI{
+			{Key: "people_home", Label: "People home"},
+			{Key: "lights_on", Label: "Lights on"},
+			{Key: "switches_on", Label: "Switches on"},
+		},
 	}
 	for i, key := range homeAssistantEntityOptions {
 		label := fmt.Sprintf("Entity %d", i+1)
@@ -74,35 +75,38 @@ type homeAssistantState struct {
 }
 
 func (homeAssistant) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
-	// Extra entities by entity ID, each with its KPI as far as it is known
-	extras := map[string]*KPI{}
-	var extraKPIs []*KPI
+	// The KPIs of the extra entities, by entity ID (one entity can be both)
+	extras := map[string][]*KPI{}
+	var defs []*KPI
 	for _, key := range homeAssistantEntityOptions {
-		id := conn.Option(key)
-		if id == "" || extras[id] != nil {
-			continue
+		if id := conn.Option(key); id != "" {
+			// Until Fetch finds its friendly name the entity ID is the label
+			kpi := &KPI{Key: key, Label: clip(id, homeAssistantLabelLength)}
+			extras[id] = append(extras[id], kpi)
+			defs = append(defs, kpi)
 		}
-		extras[id] = &KPI{Key: key, Label: id}
-		extraKPIs = append(extraKPIs, extras[id])
 	}
 
-	kpis := map[string]any{}
+	values := map[string]any{}
 	var people, lights, switches int
 	// The states list can be large; count while reading instead of keeping it
 	err := eachJSON(ctx, conn, "/api/states", homeAssistantAuth(conn), func(s homeAssistantState) {
-		if kpi := extras[s.EntityID]; kpi != nil {
-			kpis[kpi.Key] = homeAssistantValue(s.State)
+		if kpis := extras[s.EntityID]; len(kpis) > 0 {
 			var attributes struct {
 				FriendlyName any `json:"friendly_name"`
 				Unit         any `json:"unit_of_measurement"`
 			}
 			// Attributes are free-form; odd ones just give no name or unit
 			_ = json.Unmarshal(s.Attributes, &attributes)
-			if name, _ := attributes.FriendlyName.(string); name != "" {
-				kpi.Label = clip(name, 40)
-			}
+			name, _ := attributes.FriendlyName.(string)
 			unit, _ := attributes.Unit.(string)
-			kpi.Unit = clip(unit, 12)
+			for _, kpi := range kpis {
+				if name != "" {
+					kpi.Label = clip(name, homeAssistantLabelLength)
+				}
+				kpi.Unit = clip(unit, 12)
+				values[kpi.Key] = homeAssistantValue(s.State, unit != "")
+			}
 		}
 		domain, _, _ := strings.Cut(s.EntityID, ".")
 		switch {
@@ -117,24 +121,21 @@ func (homeAssistant) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	kpis["people_home"], kpis["lights_on"], kpis["switches_on"] = people, lights, switches
+	values["people_home"], values["lights_on"], values["switches_on"] = people, lights, switches
 
-	payload := &Payload{KPIs: kpis}
-	if len(extraKPIs) > 0 {
-		// A tile has four numbers: the extra entities come last and push
-		// out the last fixed ones
-		payload.KPIDefs = slices.Clone(homeAssistantFixedKPIs[:min(len(homeAssistantFixedKPIs), 4-len(extraKPIs))])
-		for _, kpi := range extraKPIs {
-			payload.KPIDefs = append(payload.KPIDefs, *kpi)
-		}
+	payload := &Payload{KPIs: values}
+	// The extra entities go by their own names
+	for _, kpi := range defs {
+		payload.KPIDefs = append(payload.KPIDefs, *kpi)
 	}
 	return payload, nil
 }
 
-// homeAssistantValue turns a state into a number when it is one, so the
-// tile formats it like other numbers
-func homeAssistantValue(state string) any {
-	if number, err := strconv.ParseFloat(state, 64); err == nil && !math.IsInf(number, 0) && !math.IsNaN(number) {
+// homeAssistantValue turns the state of an entity with a unit into a
+// number, so the tile formats it like other numbers. Without a unit a state
+// like "2024.10" (a version) or "0123" is text and stays as it is.
+func homeAssistantValue(state string, hasUnit bool) any {
+	if number, err := strconv.ParseFloat(state, 64); hasUnit && err == nil && !math.IsInf(number, 0) && !math.IsNaN(number) {
 		return number
 	}
 	return clip(state, 24)

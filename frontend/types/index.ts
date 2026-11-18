@@ -98,6 +98,7 @@ export interface Kpi {
   label: string
   unit?: string
   option?: string // only applies when the integration has this option set
+  without?: string // only applies when the integration has this option not set
 }
 
 // A setting of a kind, shown as a text field in the integration form
@@ -172,7 +173,7 @@ export interface IntegrationTestResult {
 // Payload of an integration snapshot
 export interface IntegrationPayload {
   kpis?: Record<string, number | string>
-  // Replaces the kind's KPIs on the tile (labels from live data)
+  // Labels and units from live data, for KPIs of the kind by key
   kpi_defs?: Kpi[]
 }
 

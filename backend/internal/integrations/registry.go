@@ -45,8 +45,10 @@ func Register(i Integration) {
 		}
 	}
 	for _, kpi := range meta.KPIs {
-		if kpi.Option != "" && !seen[kpi.Option] {
-			panic(fmt.Sprintf("integrations: kind %q KPI %q needs unknown option %q", kind, kpi.Key, kpi.Option))
+		for _, option := range []string{kpi.Option, kpi.Without} {
+			if option != "" && !seen[option] {
+				panic(fmt.Sprintf("integrations: kind %q KPI %q names unknown option %q", kind, kpi.Key, option))
+			}
 		}
 	}
 	registry[kind] = i

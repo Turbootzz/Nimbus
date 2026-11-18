@@ -88,6 +88,8 @@ func TestRegister_PanicsOnProgrammerErrors(t *testing.T) {
 			Options: []Option{{Key: "node", Label: "Node", Type: "date"}}}},
 		"KPI for unknown option": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
 			KPIs: []KPI{{Key: "extra", Label: "Extra", Option: "node"}}}},
+		"KPI without unknown option": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			KPIs: []KPI{{Key: "extra", Label: "Extra", Without: "node"}}}},
 	}
 	for name, i := range cases {
 		assert.Panics(t, func() { Register(i) }, name)

@@ -35,8 +35,8 @@ func (uptimeKuma) Meta() Meta {
 			{Key: "up", Label: "Up"},
 			{Key: "down", Label: "Down"},
 			// The share of counted monitors that is up right now
-			{Key: "up_percent", Label: "Up share", Unit: "%"},
-			// Real uptime, which only a status page reports
+			{Key: "up_percent", Label: "Up share", Unit: "%", Without: uptimeKumaSlug},
+			// Real uptime, which only a status page reports, takes its place
 			{Key: "uptime", Label: "Uptime 24h", Unit: "%", Option: uptimeKumaSlug},
 		},
 		Options: []Option{{
@@ -169,18 +169,5 @@ func (uptimeKuma) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Payload{
-		KPIs: map[string]any{
-			"up":         up,
-			"down":       down,
-			"up_percent": percent(float64(up), float64(up+down)),
-			"uptime":     uptime,
-		},
-		// The tile shows the real uptime instead of the share
-		KPIDefs: []KPI{
-			{Key: "up", Label: "Up"},
-			{Key: "down", Label: "Down"},
-			{Key: "uptime", Label: "Uptime 24h", Unit: "%"},
-		},
-	}, nil
+	return &Payload{KPIs: map[string]any{"up": up, "down": down, "uptime": uptime}}, nil
 }

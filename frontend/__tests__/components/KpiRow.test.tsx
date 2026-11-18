@@ -58,17 +58,34 @@ describe('KpiRow', () => {
     expect(container).toBeEmptyDOMElement()
   })
 
-  it("prefers the snapshot's own KPI list, with its labels", () => {
+  it("takes labels and units from the snapshot's kpi_defs, not which KPIs to show", () => {
+    const entity = { key: 'entity_1', label: 'Entity 1', option: 'entity_1' }
     const payload = {
       kpis: { wanted: 3, entity_1: 21.5 },
       kpi_defs: [
-        { key: 'wanted', label: 'Wanted' },
-        { key: 'entity_1', label: 'Living room', unit: '°C' },
+        { key: 'entity_1', label: '<b>Living room</b>', unit: '°C' },
+        { key: 'other', label: 'Other' },
       ],
     }
-    render(<KpiRow kpis={kpis} snapshot={snapshot({ payload })} />)
-    expect(screen.getByText('Living room')).toBeInTheDocument()
+    const { container } = render(
+      <KpiRow kpis={[...kpis, entity]} snapshot={snapshot({ payload })} />
+    )
+    // As text, never as markup
+    expect(screen.getByText('<b>Living room</b>')).toBeInTheDocument()
+    expect(container.querySelector('b')).toBeNull()
     expect(screen.getByText(`${(21.5).toLocaleString()} °C`)).toBeInTheDocument()
-    expect(screen.queryByText('Queued')).not.toBeInTheDocument()
+    expect(screen.getByText('Queued')).toBeInTheDocument()
+    expect(screen.queryByText('Other')).not.toBeInTheDocument()
+  })
+
+  it('shows the same four KPIs before the first snapshot as after it', () => {
+    const extras = [
+      { key: 'entity_1', label: 'Entity 1', option: 'entity_1' },
+      { key: 'entity_2', label: 'Entity 2', option: 'entity_2' },
+    ]
+    render(<KpiRow kpis={[...kpis, ...extras]} />)
+    expect(screen.getAllByText('Loading')).toHaveLength(4)
+    expect(screen.getByText('Entity 2')).toBeInTheDocument()
+    expect(screen.queryByText('Size')).not.toBeInTheDocument()
   })
 })

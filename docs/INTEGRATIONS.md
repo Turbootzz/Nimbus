@@ -44,7 +44,7 @@ Status page mode needs no key and Nimbus sends none. Uptime Kuma caches these en
 
 ### Home Assistant extra entities
 
-Enter an entity ID such as `sensor.living_room_temperature` under **Extra entity 1** or **2** to show its state on the tile, with its friendly name as the label and its unit. A tile has room for four numbers: one extra entity is added as the fourth, a second one takes the place of **Switches on**. All of them stay available for the status strip.
+Enter an entity ID such as `sensor.living_room_temperature` under **Extra entity 1** or **2** to show its state on the tile, with its friendly name as the label and its unit. A state is formatted as a number when the entity has a unit. A tile has room for four numbers: one extra entity is added as the fourth, a second one takes the place of **Switches on**. All of them stay available for the status strip.
 
 ### Docker through Portainer
 
@@ -92,8 +92,9 @@ Options: []Option{{
 - The server rejects keys the kind doesn't declare, values that are too long or don't match `Pattern`, and a missing `Required` option. The browser checks `Pattern` too, so keep it to what Go and JavaScript share and write a literal `-` inside a class as `\-`.
 - Escape an option wherever it goes: `url.PathEscape` in a path, `url.QueryEscape` in a query.
 - Options are stored in plain text and sent back to the browser. Secrets belong in the credentials.
-- A KPI that only exists when an option is set names it: `{Key: "uptime", Label: "Uptime 24h", Option: "status_page_slug"}`. It is left out of the tile and the status strip for integrations without that option.
-- When the KPIs to show, or their labels, depend on live data, `Fetch` returns them in `Payload.KPIDefs` (in tile order, at most four). They replace `Meta().KPIs` on that integration's tile; the keys must still be in `Meta().KPIs` so the status strip can offer them. Home Assistant does this to label an entity by its friendly name.
+- A KPI that only exists when an option is set names it: `{Key: "uptime", Label: "Uptime 24h", Option: "status_page_slug"}`. One that gives way when an option is set names it in `Without`. Such a KPI is left out of the tile and the status strip for integrations it does not apply to, and `Fetch` leaves its value out.
+- A tile shows four numbers. When more apply, the KPIs with an `Option` stay and the others give way, from the end.
+- When a label or unit depends on live data, `Fetch` returns it in `Payload.KPIDefs`: a KPI with the same `Key` as one in `Meta().KPIs`, whose label and unit then show on that integration's tile and in the status strip. Home Assistant does this to label an entity by its friendly name. Keep such text short (see `clip`): it comes from another system.
 
 ### Rules
 
