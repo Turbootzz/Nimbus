@@ -59,6 +59,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Configurable check intervals
 - Prometheus metrics export
 - Dashboard export and import (JSON), for backups and moving between instances
+- Scoped API tokens and an MCP endpoint for AI assistants
 - Mobile responsive design
 
 </td>
@@ -180,6 +181,20 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 | `DB_USER` | `nimbus` | Database username |
 | `DB_NAME` | `nimbus` | Database name |
 
+### 🤖 AI assistants (MCP)
+
+Nimbus has a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `/mcp`, so Claude, Open WebUI or another MCP client can answer "what is down?" or "how was Jellyfin's uptime this week?" from your dashboard. It is read-only unless you allow more, and Nimbus itself holds no AI keys.
+
+1. Create a token with the **MCP** scope under **Settings → API Tokens**.
+2. Point your client at it, for example Claude Code:
+
+```bash
+claude mcp add --transport http nimbus http://localhost:3000/mcp \
+  --header "Authorization: Bearer nimbus_your_token"
+```
+
+Setup for Claude Desktop, Open WebUI and Home Assistant, the tools and the security notes are in [docs/MCP.md](docs/MCP.md). The same tokens give scripts scoped access to the REST API, see [API Tokens](docs/CONFIGURATION.md#api-tokens).
+
 **For production**, set custom secrets in a `.env` file:
 ```bash
 DB_PASSWORD=your-secure-password
@@ -244,12 +259,13 @@ Run `make help` for all available commands.
 
 | Document | Description |
 |----------|-------------|
-| [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, Prometheus |
+| [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, API tokens, Prometheus |
 | [README.md](README.md) | Information about Nimbus |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
 | [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
+| [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
 
 ---
 
