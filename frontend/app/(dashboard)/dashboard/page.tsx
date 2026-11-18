@@ -76,6 +76,7 @@ export default function DashboardPage() {
     viewMode,
     statusStrip,
     groupDisplay,
+    loading: preferencesLoading,
   } = useTheme()
   const layoutMode = useLayoutMode()
   const [services, setServices] = useState<Service[]>([])
@@ -760,7 +761,9 @@ export default function DashboardPage() {
     }
   }
 
-  if (isLoading) {
+  // Without a cached choice, tabs or sections is only known once the
+  // preferences are in; waiting avoids showing one and then the other
+  if (isLoading || (preferencesLoading && enableServiceGrouping && groupDisplay === null)) {
     return (
       <div className="flex min-h-96 items-center justify-center">
         <div className="wallpaper-panel text-center">
