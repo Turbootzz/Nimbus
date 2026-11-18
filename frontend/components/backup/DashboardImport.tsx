@@ -25,7 +25,7 @@ const modes: { value: ImportMode; label: string; description: string }[] = [
 
 const entities = ['groups', 'services', 'widgets', 'integrations'] as const
 
-function issuesOf(error: ApiError): ImportIssue[] {
+export function issuesOf(error: ApiError): ImportIssue[] {
   return Array.isArray(error.details) ? (error.details as ImportIssue[]) : []
 }
 
@@ -34,7 +34,7 @@ function plural(count: number, noun: string) {
 }
 
 // What an import does (or did), per kind of entity
-function SummaryTable({ summary }: { summary: ImportSummary }) {
+export function SummaryTable({ summary }: { summary: ImportSummary }) {
   const replace = summary.mode === 'replace'
   return (
     <div className="overflow-x-auto">
