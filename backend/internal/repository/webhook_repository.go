@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -171,46 +172,49 @@ func (r *WebhookRepository) CountByUserID(ctx context.Context, userID string) (i
 	return count, err
 }
 
-// Update updates an existing webhook
-func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook) error {
+// Update updates an existing webhook. The target (format, URL, options,
+// verify_tls) and the credentials are only written when the caller changed
+// them: an update of something else, like the enabled toggle, then can't put
+// back a target or secret that another request replaced after this one read it.
+func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook, writeTarget, writeCredentials bool) error {
 	triggersJSON, err := json.Marshal(webhook.Triggers)
-	if err != nil {
-		return err
-	}
-
-	optionsJSON, err := json.Marshal(webhook.Options)
 	if err != nil {
 		return err
 	}
 
 	webhook.UpdatedAt = time.Now()
 
-	query := `
-		UPDATE webhooks
-		SET name = $1, url = $2, enabled = $3, triggers = $4, format = $5,
-			options = $6, credentials_enc = $7, verify_tls = $8,
-			retry_count = $9, retry_delay_seconds = $10, updated_at = $11
-		WHERE id = $12 AND user_id = $13
-	`
-
-	result, err := r.db.ExecContext(
-		ctx,
-		query,
+	set := "name = $1, enabled = $2, triggers = $3, retry_count = $4, retry_delay_seconds = $5, updated_at = $6"
+	args := []interface{}{
 		webhook.Name,
-		webhook.URL,
 		webhook.Enabled,
 		triggersJSON,
-		webhook.Format,
-		optionsJSON,
-		nullableBytes(webhook.CredentialsEnc),
-		webhook.VerifyTLS,
 		webhook.RetryCount,
 		webhook.RetryDelaySeconds,
 		webhook.UpdatedAt,
-		webhook.ID,
-		webhook.UserID,
-	)
+	}
+	// Placeholders are numbered in the order they appear
+	add := func(column string, value interface{}) {
+		args = append(args, value)
+		set += fmt.Sprintf(", %s = $%d", column, len(args))
+	}
+	if writeTarget {
+		optionsJSON, err := json.Marshal(webhook.Options)
+		if err != nil {
+			return err
+		}
+		add("url", webhook.URL)
+		add("format", webhook.Format)
+		add("options", optionsJSON)
+		add("verify_tls", webhook.VerifyTLS)
+	}
+	if writeCredentials {
+		add("credentials_enc", nullableBytes(webhook.CredentialsEnc))
+	}
+	args = append(args, webhook.ID, webhook.UserID)
+	query := fmt.Sprintf(`UPDATE webhooks SET %s WHERE id = $%d AND user_id = $%d`, set, len(args)-1, len(args))
 
+	result, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return err
 	}

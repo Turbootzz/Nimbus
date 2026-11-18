@@ -7,8 +7,10 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -607,6 +609,48 @@ func TestTelegramTokenNeverLeaks(t *testing.T) {
 	}
 }
 
+// Generic, Discord and Slack webhooks keep their secret in the URL. A
+// receiver that echoes it must not get it into the logs or the test result.
+func TestPlainWebhookURLNeverLeaks(t *testing.T) {
+	var logged bytes.Buffer
+	log.SetOutput(&logged)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error":"invalid webhook ` + r.URL.RequestURI() + `"}`))
+	}))
+	t.Cleanup(server.Close)
+	ctx := context.Background()
+
+	for _, format := range []string{models.WebhookFormatGeneric, models.WebhookFormatDiscord, models.WebhookFormatSlack} {
+		notifier := newTargetNotifier(t, nil)
+		webhook := saveTarget(t, notifier, &models.Webhook{
+			Format: format, URL: server.URL + "/hook/secret123?key=secret456",
+		}, models.WebhookCredentials{})
+
+		notifier.sendWebhook(ctx, webhook, targetEvent(models.StatusOffline))
+		result, err := notifier.TestWebhook(ctx, webhook.ID, "user-1")
+		if err != nil {
+			t.Fatalf("TestWebhook: %v", err)
+		}
+		logs, err := notifier.webhookRepo.GetLogsByWebhookID(ctx, webhook.ID, 10)
+		if err != nil || len(logs) != 1 || logs[0].ErrorMessage == nil {
+			t.Fatalf("logs = %v, err = %v", logs, err)
+		}
+		if *logs[0].ErrorMessage != "HTTP 404" || result.Error != "HTTP 404" {
+			t.Errorf("%s: delivery log = %q, test result = %q, want HTTP 404", format, *logs[0].ErrorMessage, result.Error)
+		}
+	}
+
+	// Stop logging into the buffer before reading it: goroutines of earlier
+	// tests may still log
+	log.SetOutput(os.Stderr)
+	if strings.Contains(logged.String(), "secret") {
+		t.Errorf("server log leaks the webhook URL: %s", logged.String())
+	}
+}
+
 func TestResponseError_ScrubsEchoedSecrets(t *testing.T) {
 	server, _ := targetServer(t, http.StatusBadRequest, `{"errors":["token `+testPushoverToken+` is invalid"]}`)
 	notifier := newTargetNotifier(t, nil)
@@ -753,6 +797,103 @@ func TestWebhookProxy_BlocksMetadata(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "http://192.168.1.10:8080/message", nil)
 	if _, err := webhookProxy(req); err != nil {
 		t.Errorf("LAN target refused: %v", err)
+	}
+}
+
+// Through a proxy, a name that resolves to a metadata address is refused
+// too. No t.Parallel: the lookups are package-level.
+func TestWebhookProxy_ChecksResolvedAddresses(t *testing.T) {
+	proxyURL, _ := url.Parse("http://proxy.lan:3128")
+	useProxy := true
+	lookups := 0
+	proxyFromEnvironment = func(*http.Request) (*url.URL, error) {
+		if useProxy {
+			return proxyURL, nil
+		}
+		return nil, nil
+	}
+	lookupHost = func(_ context.Context, host string) ([]string, error) {
+		lookups++
+		switch host {
+		case "rebound.example.com":
+			return []string{"93.184.216.34", "169.254.169.254"}, nil
+		case "mapped.example.com":
+			return []string{"::ffff:169.254.169.254"}, nil
+		case "discord.com":
+			return []string{"162.159.128.233"}, nil
+		}
+		return nil, errors.New("no such host")
+	}
+	t.Cleanup(func() {
+		proxyFromEnvironment = http.ProxyFromEnvironment
+		lookupHost = net.DefaultResolver.LookupHost
+	})
+
+	for target, blocked := range map[string]bool{
+		"https://rebound.example.com/hook": true,
+		"https://mapped.example.com/hook":  true,
+		"http://169.254.169.254/latest":    true,
+		"https://discord.com/api/webhooks": false,
+		"https://only-the-proxy-knows.lan": false, // not resolvable here
+		"http://192.168.1.10:8080/message": false,
+	} {
+		req, _ := http.NewRequest(http.MethodPost, target, nil)
+		proxy, err := webhookProxy(req)
+		if blocked && !errors.Is(err, utils.ErrBlockedHost) {
+			t.Errorf("webhookProxy(%s) error = %v, want ErrBlockedHost", target, err)
+		}
+		if !blocked && (err != nil || proxy != proxyURL) {
+			t.Errorf("webhookProxy(%s) = %v, %v, want the proxy", target, proxy, err)
+		}
+	}
+
+	// Without a proxy the dialer checks the address it connects to
+	useProxy, lookups = false, 0
+	req, _ := http.NewRequest(http.MethodPost, "https://rebound.example.com/hook", nil)
+	if proxy, err := webhookProxy(req); proxy != nil || err != nil || lookups != 0 {
+		t.Errorf("direct: proxy = %v, err = %v, lookups = %d", proxy, err, lookups)
+	}
+}
+
+// A redirect to another origin must not receive the token, in a header or
+// in a body that a 307 resends; a redirect on the same origin still delivers
+func TestDeliver_RefusesCrossOriginRedirect(t *testing.T) {
+	other, otherRequests := targetServer(t, http.StatusOK, `{}`)
+	var redirectTo string
+	var code int
+	var delivered []string
+	first := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/message" {
+			http.Redirect(w, r, redirectTo, code)
+			return
+		}
+		delivered = append(delivered, r.Method+" "+r.Header.Get("X-Gotify-Key"))
+	}))
+	t.Cleanup(first.Close)
+
+	notifier := newTargetNotifier(t, nil)
+	webhook := saveTarget(t, notifier, &models.Webhook{
+		Format: models.WebhookFormatGotify, URL: first.URL, VerifyTLS: true,
+	}, models.WebhookCredentials{Token: "gotify-secret"})
+
+	for _, code = range []int{http.StatusFound, http.StatusTemporaryRedirect} {
+		redirectTo = other.URL + "/login"
+		status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
+		if status != 0 || errMsg != errCrossOriginRedirect.Error() {
+			t.Errorf("%d to another origin: status = %d, error = %q", code, status, errMsg)
+		}
+	}
+	if got := otherRequests(); len(got) != 0 {
+		t.Errorf("the other origin received %d requests, want none: %+v", len(got), got)
+	}
+
+	redirectTo = first.URL + "/moved"
+	status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
+	if status != http.StatusOK || errMsg != "" {
+		t.Errorf("same origin: status = %d, error = %q", status, errMsg)
+	}
+	if len(delivered) != 1 || delivered[0] != "POST gotify-secret" {
+		t.Errorf("same-origin redirect delivered %v, want one POST with the token", delivered)
 	}
 }
 
