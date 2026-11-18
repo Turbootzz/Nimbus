@@ -23,8 +23,10 @@ import type {
   Service,
   CardSize,
   Group,
+  GroupUpdateRequest,
   ServiceStatusEvent,
   Tile,
+  TileStyle,
   Widget,
   WidgetTypeMeta,
 } from '@/types'
@@ -32,6 +34,7 @@ import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
 import StatusStrip from '@/components/StatusStrip'
 import ServiceCard from '@/components/ServiceCard'
+import ServiceChip from '@/components/ServiceChip'
 import ServiceListItem from '@/components/ServiceListItem'
 import GroupForm from '@/components/GroupForm'
 import DashboardHeader from '@/components/DashboardHeader'
@@ -54,6 +57,7 @@ import {
   resolveGroupDisplay,
   splitTiles,
   tileKey,
+  tileStyleOf,
   toTilePositions,
 } from '@/lib/tiles'
 
@@ -659,11 +663,7 @@ export default function DashboardPage() {
     if (neighbour) handleTabReorder(group.id, neighbour.id)
   }
 
-  const handleGroupFormSubmit = async (data: {
-    name?: string
-    color?: string
-    monitoring_enabled?: boolean
-  }) => {
+  const handleGroupFormSubmit = async (data: GroupUpdateRequest) => {
     setGroupFormLoading(true)
     try {
       if (editingGroup) {
@@ -679,6 +679,7 @@ export default function DashboardPage() {
           name: data.name!,
           color: data.color,
           monitoring_enabled: data.monitoring_enabled,
+          tile_style: data.tile_style,
         })
         if (response.error) {
           throw new Error(response.error.message)
@@ -766,10 +767,11 @@ export default function DashboardPage() {
   )
 
   // A grid (or list) of tiles; sortable in edit mode
-  const renderTiles = (gridTiles: Tile[]) => {
+  const renderTiles = (gridTiles: Tile[], tileStyle?: TileStyle) => {
     const grid = (
       <ServicesGrid
         tiles={gridTiles}
+        tileStyle={tileStyle}
         openInNewTab={openInNewTab}
         enableCardResizing={enableCardResizing}
         cardScale={cardScale}
@@ -808,10 +810,13 @@ export default function DashboardPage() {
       onDeleteGroup={handleDeleteGroup}
       onMoveGroup={handleMoveGroup}
     >
-      {(section) => renderTiles(section.tiles)}
+      {(section) => renderTiles(section.tiles, section.group.tile_style)}
     </GroupSections>
   ) : (
-    renderTiles(filteredTiles)
+    renderTiles(
+      filteredTiles,
+      tabbed ? groups.find((g) => g.id === selectedGroupId)?.tile_style : undefined
+    )
   )
 
   return (
@@ -862,7 +867,19 @@ export default function DashboardPage() {
               />
             )}
             {activeTile?.kind === 'service' &&
-              (viewMode === 'list' ? (
+              (enableServiceGrouping && tileStyleOf(activeTile, groups) === 'chips' ? (
+                <ServiceChip
+                  service={activeTile.service}
+                  openInNewTab={openInNewTab}
+                  cardScale={cardScale}
+                  isEditMode
+                  isDragging
+                  isMonitored={isServiceEffectivelyMonitored(
+                    activeTile.service,
+                    groupMonitoringMap
+                  )}
+                />
+              ) : viewMode === 'list' ? (
                 <ServiceListItem
                   service={activeTile.service}
                   openInNewTab={openInNewTab}

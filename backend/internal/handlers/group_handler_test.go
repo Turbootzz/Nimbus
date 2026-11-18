@@ -33,6 +33,7 @@ func setupGroupTestDB(t *testing.T) *sql.DB {
 			position INTEGER DEFAULT 0,
 			is_default INTEGER DEFAULT 0,
 			monitoring_enabled INTEGER DEFAULT 1,
+			tile_style TEXT NOT NULL DEFAULT 'cards',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -805,5 +806,74 @@ func TestGroupHandler_ReorderGroups_InvalidJSON(t *testing.T) {
 
 	if resp.StatusCode != http.StatusBadRequest {
 		t.Errorf("Expected status %d for invalid JSON, got %d", http.StatusBadRequest, resp.StatusCode)
+	}
+}
+
+func TestGroupHandler_TileStyle(t *testing.T) {
+	db := setupGroupTestDB(t)
+	defer db.Close()
+
+	const userID = "cccccccc-cccc-cccc-cccc-ccccccccccc1"
+	const groupID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1"
+	groupRepo := repository.NewGroupRepository(db)
+	handler := NewGroupHandler(groupRepo)
+	createGroupDirectly(t, db, &models.Group{
+		ID: groupID, UserID: userID, Name: "Links", Color: "#ff0000",
+		CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	})
+
+	app := fiber.New()
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("user_id", userID)
+		return c.Next()
+	})
+	app.Post("/groups", handler.CreateGroup)
+	app.Put("/groups/:id", handler.UpdateGroup)
+
+	send := func(method, path, body string) (int, models.GroupResponse) {
+		t.Helper()
+		req := httptest.NewRequest(method, path, bytes.NewReader([]byte(body)))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := app.Test(req, -1)
+		if err != nil {
+			t.Fatalf("Failed to execute request: %v", err)
+		}
+		defer resp.Body.Close()
+		var group models.GroupResponse
+		_ = json.NewDecoder(resp.Body).Decode(&group)
+		return resp.StatusCode, group
+	}
+
+	// Groups made before tile styles existed are cards
+	status, group := send(http.MethodPut, "/groups/"+groupID, `{"name":"Quick launch"}`)
+	if status != http.StatusOK || group.TileStyle != models.TileStyleCards {
+		t.Fatalf("rename: status %d, tile_style %q, want 200 and cards", status, group.TileStyle)
+	}
+
+	status, group = send(http.MethodPut, "/groups/"+groupID, `{"tile_style":"chips"}`)
+	if status != http.StatusOK || group.TileStyle != models.TileStyleChips {
+		t.Fatalf("update: status %d, tile_style %q, want 200 and chips", status, group.TileStyle)
+	}
+	stored, err := groupRepo.GetByID(context.Background(), groupID)
+	if err != nil {
+		t.Fatalf("Failed to retrieve group: %v", err)
+	}
+	if stored.TileStyle != models.TileStyleChips || stored.Name != "Quick launch" {
+		t.Errorf("stored tile_style %q, name %q; want chips, Quick launch", stored.TileStyle, stored.Name)
+	}
+
+	// An update without a style keeps it
+	status, group = send(http.MethodPut, "/groups/"+groupID, `{"color":"#00ff00"}`)
+	if status != http.StatusOK || group.TileStyle != models.TileStyleChips {
+		t.Errorf("color update: status %d, tile_style %q, want 200 and chips", status, group.TileStyle)
+	}
+
+	for _, request := range []struct{ method, path string }{
+		{http.MethodPut, "/groups/" + groupID},
+		{http.MethodPost, "/groups"},
+	} {
+		if status, _ := send(request.method, request.path, `{"name":"Bad","tile_style":"tiles"}`); status != http.StatusBadRequest {
+			t.Errorf("%s with an unknown tile_style: status %d, want 400", request.method, status)
+		}
 	}
 }

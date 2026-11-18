@@ -7,12 +7,13 @@ import { getApiUrl } from '@/lib/utils/api-url'
 
 interface ServiceIconProps {
   service: Service
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
   className?: string
 }
 
 // Container dimensions for all icon types
 const sizeClasses = {
+  xs: 'w-5 h-5', // chips
   sm: 'w-12 h-12',
   md: 'w-16 h-16',
   lg: 'w-20 h-20',
@@ -23,6 +24,7 @@ const sizeClasses = {
 
 // Emoji text sizes - slightly larger to fill container height
 const emojiSizeClasses = {
+  xs: 'text-base leading-none',
   sm: 'text-4xl',
   md: 'text-6xl',
   lg: 'text-7xl',
@@ -32,6 +34,7 @@ const emojiSizeClasses = {
 }
 
 const sizeDimensions = {
+  xs: 20,
   sm: 48,
   md: 64,
   lg: 80,

@@ -411,6 +411,9 @@ export interface TileReorderRequest {
 }
 
 // Group types
+// cards: full tiles; chips: one-line links for a quick-launch group
+export type TileStyle = 'cards' | 'chips'
+
 export interface Group {
   id: string
   name: string
@@ -418,6 +421,7 @@ export interface Group {
   position: number
   is_default: boolean
   monitoring_enabled: boolean
+  tile_style?: TileStyle // cards when missing
   created_at: string
   updated_at?: string
 }
@@ -426,12 +430,14 @@ export interface GroupCreateRequest {
   name: string
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupUpdateRequest {
   name?: string
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupPosition {

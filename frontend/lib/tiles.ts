@@ -1,5 +1,14 @@
 import { arrayMove } from '@dnd-kit/sortable'
-import type { Group, GroupDisplay, LayoutMode, Service, Tile, TilePosition, Widget } from '@/types'
+import type {
+  Group,
+  GroupDisplay,
+  LayoutMode,
+  Service,
+  Tile,
+  TilePosition,
+  TileStyle,
+  Widget,
+} from '@/types'
 
 /**
  * Unique key for a tile across services and widgets, used as the dnd-kit id
@@ -106,6 +115,16 @@ export function resolveGroupDisplay(
   layoutMode: LayoutMode
 ): GroupDisplay {
   return choice ?? (layoutMode === 'canvas' ? 'sections' : 'tabs')
+}
+
+/**
+ * Tile style of the group a tile shows in. Like everywhere else, ungrouped
+ * tiles belong to the default group.
+ */
+export function tileStyleOf(tile: Tile, groups: Group[]): TileStyle {
+  const groupId = tileGroupId(tile)
+  const group = groups.find((g) => g.id === groupId) ?? groups.find((g) => g.is_default)
+  return group?.tile_style ?? 'cards'
 }
 
 export interface TileSection {
