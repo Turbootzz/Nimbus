@@ -654,6 +654,11 @@ func withPreferences(p models.UserPreferences, request *models.PreferencesUpdate
 	set(&p.CardBlur, request.CardBlur)
 	set(&p.LayoutMode, request.LayoutMode)
 	set(&p.StatusStrip, request.StatusStrip)
+	set(&p.ThemePreset, request.ThemePreset)
+	set(&p.ThemeFont, request.ThemeFont)
+	set(&p.KpiMono, request.KpiMono)
+	set(&p.IconSource, request.IconSource)
+	set(&p.CustomCSS, request.CustomCSS)
 	// Not given, a document's group display follows the layout again
 	if request.GroupDisplay != nil || request.FollowLayout {
 		p.GroupDisplay = request.GroupDisplay

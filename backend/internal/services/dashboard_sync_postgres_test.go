@@ -100,6 +100,9 @@ widgets:
 preferences:
   theme_mode: dark
   group_display: sections
+  theme_preset: nord
+  kpi_mono: true
+  custom_css: ".card { border-radius: 0; }"
   status_strip:
     enabled: true
     chips:
@@ -116,6 +119,7 @@ preferences:
 	assert.Equal(t, 1, summary.NeedsCredentials, "Radarr has none")
 	assert.Equal(t, "chips", one(`SELECT tile_style FROM groups WHERE user_id = $1 AND name = 'Media'`, transferFresh))
 	assert.Equal(t, "sections", one(`SELECT group_display FROM user_preferences WHERE user_id = $1`, transferFresh))
+	assert.Equal(t, "nord", one(`SELECT theme_preset FROM user_preferences WHERE user_id = $1`, transferFresh))
 
 	sonarrService := one(`SELECT id FROM services WHERE user_id = $1 AND name = 'Sonarr'`, transferFresh)
 	sonarr := one(`SELECT id FROM integrations WHERE user_id = $1 AND name = 'Sonarr'`, transferFresh)
@@ -153,6 +157,7 @@ widgets:
   - {type: markdown, title: Notes, position: 3, config: {content: changed}}
 preferences:
   theme_mode: light
+  theme_preset: dracula
 `
 	summary = sync(changed)
 	assert.Equal(t, dashdoc.Count{Updated: 1, Removed: 1}, summary.Groups)
@@ -171,6 +176,8 @@ preferences:
 	assert.Equal(t, "1", one(`SELECT COUNT(*) FROM integrations WHERE user_id = $1`, transferFresh))
 	assert.Equal(t, "2", one(`SELECT COUNT(*) FROM groups WHERE user_id = $1`, transferFresh))
 	assert.Equal(t, "light", one(`SELECT theme_mode FROM user_preferences WHERE user_id = $1`, transferFresh))
+	assert.Equal(t, "dracula|true|.card { border-radius: 0; }", one(`SELECT theme_preset || '|' || kpi_mono::text || '|' || custom_css FROM user_preferences WHERE user_id = $1`, transferFresh),
+		"the preset changed; the settings the file left out kept their value")
 	assert.Equal(t, "", one(`SELECT COALESCE(group_display, '') FROM user_preferences WHERE user_id = $1`, transferFresh), "left out, it follows the layout")
 
 	// And unchanged again

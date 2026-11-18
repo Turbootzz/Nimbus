@@ -561,3 +561,60 @@ widgets:
 	}
 	assert.NotContains(t, logged.String(), "SENTINEL", "and nothing of what it holds there")
 }
+
+func TestSyncAppliesTheThemeSettings(t *testing.T) {
+	env := newTransferEnv(t)
+	theme := func() (preset, font, source, css string, mono bool) {
+		t.Helper()
+		require.NoError(t, env.db.QueryRow(`SELECT theme_preset, theme_font, icon_source, custom_css, kpi_mono FROM user_preferences WHERE user_id = ?`, transferAdmin).
+			Scan(&preset, &font, &source, &css, &mono))
+		return
+	}
+	doc := &dashdoc.Document{Version: dashdoc.Version, Preferences: &dashdoc.Preferences{
+		ThemePreset: new("nord"), ThemeFont: new("inter"), KpiMono: new(true), IconSource: new("selfhst"),
+		CustomCSS: new(".card { border-radius: 0; }"),
+	}}
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	preset, font, source, css, mono := theme()
+	assert.Equal(t, []any{"nord", "inter", "selfhst", ".card { border-radius: 0; }", true}, []any{preset, font, source, css, mono})
+
+	before := env.dump(t, transferAdmin)
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+	assert.Equal(t, before, env.dump(t, transferAdmin))
+
+	// A change of one of them alone is a change
+	doc.Preferences.ThemePreset = new("dracula")
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	doc.Preferences.CustomCSS = new(".card { border-radius: 4px; }")
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	preset, _, _, css, _ = theme()
+	assert.Equal(t, []any{"dracula", ".card { border-radius: 4px; }"}, []any{preset, css})
+
+	// Left out, a setting keeps the value the user has; "" clears the CSS
+	doc.Preferences = &dashdoc.Preferences{ThemeFont: new("system")}
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	preset, font, source, css, mono = theme()
+	assert.Equal(t, []any{"dracula", "system", "selfhst", ".card { border-radius: 4px; }", true}, []any{preset, font, source, css, mono})
+	doc.Preferences.CustomCSS = new("")
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	_, _, _, css, _ = theme()
+	assert.Empty(t, css)
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+}
+
+func TestSyncRefusesCustomCSSWithoutQuotingIt(t *testing.T) {
+	env := newTransferEnv(t)
+	const file = "owner: admin@example.com\nversion: 1\npreferences:\n  theme_preset: nord\n  custom_css: \"@import url(https://evil.example/steal.css); .card { color: red; }\"\n"
+	parsed, err := configfile.Parse([]byte(file), func(string) (string, bool) { return "", false })
+	require.NoError(t, err)
+
+	_, err = env.svc.Sync(context.Background(), transferAdmin, &parsed.Document, true)
+	assert.Equal(t, []string{"preferences.custom_css"}, issuePaths(t, err))
+	assert.Zero(t, env.count(t, "user_preferences", transferAdmin), "nothing of the file is applied")
+
+	// What the watcher logs names the field, never the CSS
+	reason := parsed.Reason(err)
+	assert.Contains(t, reason, "preferences.custom_css")
+	assert.NotContains(t, reason, "evil.example")
+	assert.NotContains(t, reason, "color: red")
+}
