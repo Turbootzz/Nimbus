@@ -6,6 +6,7 @@ import type { Service } from '@/types'
 import { getStatusBgColor, getResponseTimeColor } from '@/lib/status-utils'
 import ServiceIcon from '@/components/ServiceIcon'
 import { overlayActionClass } from '@/components/EditOverlay'
+import { useServiceDetail } from '@/components/ServiceHoverDetail'
 
 interface ServiceListItemProps {
   service: Service
@@ -30,6 +31,8 @@ export default function ServiceListItem({
   isMonitored,
 }: ServiceListItemProps) {
   const monitored = isMonitored ?? service.monitoring_enabled
+  // Uptime and last error, on hover, focus or a long press
+  const detail = useServiceDetail(service, monitored, !isEditMode)
   const linkProps = {
     href: service.url,
     target: openInNewTab ? '_blank' : '_self',
@@ -121,8 +124,11 @@ export default function ServiceListItem({
   }
 
   return (
-    <a {...linkProps} className={`${baseClasses} ${hoverClasses}`}>
-      {content}
-    </a>
+    <>
+      <a {...linkProps} {...detail.triggerProps} className={`${baseClasses} ${hoverClasses}`}>
+        {content}
+      </a>
+      {detail.popover}
+    </>
   )
 }

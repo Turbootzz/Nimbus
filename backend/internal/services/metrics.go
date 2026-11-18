@@ -36,6 +36,11 @@ type MetricsResponse struct {
 	MinResponseTime  float64           `json:"min_response_time"`
 	MaxResponseTime  float64           `json:"max_response_time"`
 	DataPoints       []MetricDataPoint `json:"data_points"`
+	// Latest health check, also when it is older than the time range
+	LastCheckedAt *time.Time `json:"last_checked_at,omitempty"`
+	// Latest failed check within the time range
+	LastError   *string    `json:"last_error,omitempty"`
+	LastErrorAt *time.Time `json:"last_error_at,omitempty"`
 }
 
 // TimeRange represents a time range
@@ -84,7 +89,7 @@ func (m *MetricsService) GetServiceMetrics(ctx context.Context, serviceID string
 		}
 	}
 
-	return &MetricsResponse{
+	response := &MetricsResponse{
 		ServiceID: serviceID,
 		TimeRange: TimeRange{
 			Start: startTime,
@@ -98,7 +103,32 @@ func (m *MetricsService) GetServiceMetrics(ctx context.Context, serviceID string
 		MinResponseTime:  stats["min_response_time"].(float64),
 		MaxResponseTime:  stats["max_response_time"].(float64),
 		DataPoints:       dataPoints,
-	}, nil
+	}
+	if err := m.addLastCheck(ctx, response); err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+// addLastCheck fills in when the service was last checked and the latest
+// error within the response's time range
+func (m *MetricsService) addLastCheck(ctx context.Context, response *MetricsResponse) error {
+	latest, err := m.statusLogRepo.GetLatestByServiceID(ctx, response.ServiceID, 1)
+	if err != nil {
+		return fmt.Errorf("failed to get latest check: %w", err)
+	}
+	if len(latest) > 0 {
+		response.LastCheckedAt = &latest[0].CheckedAt
+	}
+	failed, err := m.statusLogRepo.GetLastError(ctx, response.ServiceID, response.TimeRange.Start)
+	if err != nil {
+		return fmt.Errorf("failed to get last error: %w", err)
+	}
+	if failed != nil {
+		response.LastError = failed.ErrorMessage
+		response.LastErrorAt = &failed.CheckedAt
+	}
+	return nil
 }
 
 // GetRecentStatusLogs retrieves the most recent status logs for a service

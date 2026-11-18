@@ -5,6 +5,7 @@ import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { CardScale, Service } from '@/types'
 import { getStatusBgColor } from '@/lib/status-utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import { useServiceDetail } from '@/components/ServiceHoverDetail'
 
 interface ServiceChipProps {
   service: Service
@@ -40,10 +41,8 @@ export default function ServiceChip({
 }: ServiceChipProps) {
   const monitored = isMonitored ?? service.monitoring_enabled
   const status = monitored ? service.status : 'not monitored'
-  const latency =
-    monitored && service.status === 'online' && service.response_time != null
-      ? ` · ${service.response_time}ms`
-      : ''
+  // URL, latency, uptime and last error, on hover, focus or a long press
+  const detail = useServiceDetail(service, monitored, !isEditMode)
 
   const baseClasses = `glass-card border-card-border flex max-w-full items-center rounded-full border transition-all ${scaleClasses[cardScale]}`
 
@@ -88,14 +87,17 @@ export default function ServiceChip({
   }
 
   return (
-    <a
-      href={service.url}
-      target={openInNewTab ? '_blank' : '_self'}
-      {...(openInNewTab && { rel: 'noopener noreferrer' })}
-      title={`${service.url}${latency}`}
-      className={`${baseClasses} hover:border-primary hover:shadow-md`}
-    >
-      {content}
-    </a>
+    <>
+      <a
+        href={service.url}
+        target={openInNewTab ? '_blank' : '_self'}
+        {...(openInNewTab && { rel: 'noopener noreferrer' })}
+        {...detail.triggerProps}
+        className={`${baseClasses} hover:border-primary hover:shadow-md`}
+      >
+        {content}
+      </a>
+      {detail.popover}
+    </>
   )
 }

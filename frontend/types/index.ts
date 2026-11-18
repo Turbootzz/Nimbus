@@ -595,6 +595,9 @@ export interface MetricsResponse {
   min_response_time: number
   max_response_time: number
   data_points: MetricDataPoint[]
+  last_checked_at?: string // latest check, also when older than the range
+  last_error?: string // latest failed check within the range
+  last_error_at?: string
 }
 
 export type TimeRangeOption = '1h' | '6h' | '24h' | '7d' | '30d'

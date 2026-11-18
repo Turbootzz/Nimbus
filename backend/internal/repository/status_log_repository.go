@@ -131,6 +131,34 @@ func (r *StatusLogRepository) GetLatestByServiceID(ctx context.Context, serviceI
 	return logs, rows.Err()
 }
 
+// GetLastError returns the most recent check since `since` that failed with
+// an error message, or nil when there is none
+func (r *StatusLogRepository) GetLastError(ctx context.Context, serviceID string, since time.Time) (*models.StatusLog, error) {
+	query := `
+		SELECT id, service_id, status, response_time, error_message, checked_at
+		FROM service_status_logs
+		WHERE service_id = $1 AND checked_at >= $2 AND error_message IS NOT NULL AND error_message <> ''
+		ORDER BY checked_at DESC
+		LIMIT 1
+	`
+	log := &models.StatusLog{}
+	err := r.db.QueryRowContext(ctx, query, serviceID, since).Scan(
+		&log.ID,
+		&log.ServiceID,
+		&log.Status,
+		&log.ResponseTime,
+		&log.ErrorMessage,
+		&log.CheckedAt,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return log, nil
+}
+
 // GetUptimeStats calculates uptime statistics for a service within a time range
 func (r *StatusLogRepository) GetUptimeStats(ctx context.Context, serviceID string, startTime, endTime time.Time) (map[string]interface{}, error) {
 	query := `

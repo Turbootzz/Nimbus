@@ -42,6 +42,8 @@ import type {
   WidgetCreateRequest,
   WidgetUpdateRequest,
   TileReorderRequest,
+  MetricsResponse,
+  TimeRangeOption,
   Snapshot,
   Integration,
   IntegrationKindMeta,
@@ -450,6 +452,16 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  // Uptime and response times of a service; interval is the width of a
+  // data point in minutes
+  async getServiceMetrics(
+    id: string,
+    range: TimeRangeOption = '24h',
+    interval = 5
+  ): Promise<ApiResponse<MetricsResponse>> {
+    return this.request<MetricsResponse>(`/metrics/${id}?range=${range}&interval=${interval}`)
   }
 
   // ============================================
