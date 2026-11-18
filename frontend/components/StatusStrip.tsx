@@ -85,7 +85,7 @@ export default function StatusStrip({
           title={chip.problem}
           className="glass-card border-card-border flex shrink-0 items-baseline gap-2 rounded-full border px-3 py-1.5"
         >
-          <span className="text-text-muted text-[10px] font-semibold tracking-wide uppercase">
+          <span className="kpi-label text-text-muted text-[10px] font-semibold tracking-wide uppercase">
             {chip.label}
           </span>
           <span

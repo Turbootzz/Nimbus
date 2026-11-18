@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import CanvasTopBar from '@/components/layout/CanvasTopBar'
 import CommandPalette from '@/components/CommandPalette'
+import CustomCss from '@/components/CustomCss'
 import {
   subscribeSidebar,
   getSidebarSnapshot,
@@ -116,6 +117,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <CommandPalette />
+      <CustomCss />
     </div>
   )
 }

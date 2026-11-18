@@ -5,6 +5,11 @@ import { Toggle } from '@/components/ui/Toggle'
 import WallpaperSettings from '@/components/WallpaperSettings'
 import LayoutSettings from '@/components/LayoutSettings'
 import StatusStripSettings from '@/components/StatusStripSettings'
+import ThemeGallery from '@/components/ThemeGallery'
+import FontSettings from '@/components/FontSettings'
+import IconSourceSettings from '@/components/IconSourceSettings'
+import CustomCssSettings from '@/components/CustomCssSettings'
+import ThemeTransfer from '@/components/ThemeTransfer'
 import { useLayoutMode } from '@/lib/layout-store'
 import { resolveGroupDisplay } from '@/lib/tiles'
 
@@ -120,6 +125,8 @@ export default function ThemePage() {
             </div>
           </div>
 
+          <ThemeGallery />
+
           {/* Accent Color */}
           <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Accent Color</h2>
@@ -171,6 +178,8 @@ export default function ThemePage() {
               </div>
             </div>
           </div>
+
+          <FontSettings />
 
           <LayoutSettings />
 
@@ -297,6 +306,12 @@ export default function ThemePage() {
               </p>
             </div>
           </div>
+
+          <IconSourceSettings />
+
+          <CustomCssSettings />
+
+          <ThemeTransfer />
         </div>
       </div>
     </div>

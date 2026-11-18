@@ -24,7 +24,7 @@ export default function CustomApiWidget({
         const value = formatKpiValue(payload.kpis[field.label], field.unit)
         return (
           <div key={field.label} className="min-w-0">
-            <dt className="text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
+            <dt className="kpi-label text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
               {field.label}
             </dt>
             <dd

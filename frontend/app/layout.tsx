@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
 import '../styles/globals.css'
+import '../styles/themes.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeScript } from '@/components/ThemeScript'
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
@@ -13,6 +15,25 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+// The fonts a user can pick in the theme settings (styles/themes.css). The
+// files are in the repo under their OFL licences, so the build fetches
+// nothing; not preloaded, so only users who picked one download it.
+const inter = localFont({
+  src: '../styles/fonts/inter/InterVariable.woff2',
+  variable: '--font-inter',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+})
+
+const jetbrainsMono = localFont({
+  src: '../styles/fonts/jetbrains-mono/JetBrainsMono-Variable.woff2',
+  variable: '--font-jetbrains-mono',
+  weight: '100 800',
+  display: 'swap',
+  preload: false,
 })
 
 // SEO: Set NEXT_PUBLIC_SITE_URL to enable SEO features (e.g., https://nimbus.example.com)
@@ -111,7 +132,9 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <ThemeProvider>{children}</ThemeProvider>
         <ServiceWorkerRegistration />
       </body>
