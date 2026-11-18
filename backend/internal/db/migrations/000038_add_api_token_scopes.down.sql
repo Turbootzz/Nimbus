@@ -1,0 +1,2 @@
+ALTER TABLE api_tokens DROP COLUMN IF EXISTS expires_at;
+ALTER TABLE api_tokens DROP COLUMN IF EXISTS scopes;

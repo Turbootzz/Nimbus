@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,6 +52,8 @@ func setupMiddlewareTestDB(t *testing.T) *sql.DB {
 			token_hash TEXT NOT NULL UNIQUE,
 			token_prefix TEXT NOT NULL,
 			read_only INTEGER NOT NULL DEFAULT 1,
+			scopes TEXT NOT NULL DEFAULT '',
+			expires_at TIMESTAMP,
 			last_used_at TIMESTAMP,
 			created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 		);
@@ -521,10 +524,11 @@ func createTestAPIToken(t *testing.T, db *sql.DB, userID string, readOnly bool) 
 	}
 
 	query := `
-		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only)
-		VALUES (?, ?, ?, ?, ?, ?)
+		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only, scopes)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
-	if _, err := db.Exec(query, uuid.New().String(), userID, "Test Token", hash, prefix, readOnly); err != nil {
+	scopes := strings.Join(models.LegacyScopes(readOnly), " ")
+	if _, err := db.Exec(query, uuid.New().String(), userID, "Test Token", hash, prefix, readOnly, scopes); err != nil {
 		t.Fatalf("Failed to insert api token: %v", err)
 	}
 
@@ -537,7 +541,7 @@ func newAPITokenTestApp(db *sql.DB) *fiber.App {
 	authService := services.NewAuthService()
 
 	app := fiber.New()
-	app.Use(AuthMiddleware(authService, userRepo, apiTokenRepo))
+	app.Use(AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	app.Get("/protected", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"user_id":     c.Locals("user_id"),
@@ -566,7 +570,7 @@ func TestAuthMiddleware_APIToken_Valid(t *testing.T) {
 	authService := services.NewAuthService()
 
 	app := fiber.New()
-	app.Use(AuthMiddleware(authService, userRepo, apiTokenRepo))
+	app.Use(AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	app.Get("/protected", func(c *fiber.Ctx) error {
 		capturedUserID = c.Locals("user_id").(string)
 		capturedEmail = c.Locals("email").(string)
@@ -700,7 +704,7 @@ func TestOptionalAuthMiddleware_APIToken(t *testing.T) {
 	authService := services.NewAuthService()
 
 	app := fiber.New()
-	app.Use(OptionalAuthMiddleware(authService, userRepo, apiTokenRepo))
+	app.Use(OptionalAuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	app.Get("/maybe-protected", func(c *fiber.Ctx) error {
 		userID := c.Locals("user_id")
 		if userID == nil {

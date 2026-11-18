@@ -171,6 +171,8 @@ func main() {
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
 	setupHandler := handlers.NewSetupHandler(userRepo, authService)
 	apiTokenHandler := handlers.NewAPITokenHandler(apiTokenRepo)
+	apiTokenHandler.SetActivityLog(repository.NewActivityLogRepository(database))
+	middleware.SetAPITokenRateLimit(getEnvPositiveInt("API_TOKEN_RATE_LIMIT", middleware.DefaultAPITokenRateLimit))
 	integrationHandler := handlers.NewIntegrationHandler(integrationService)
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
 	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
@@ -250,8 +252,16 @@ func main() {
 	authProtected.Post("/oauth/link/:provider", oauthHandler.LinkProvider)
 	authProtected.Delete("/oauth/unlink/:provider", oauthHandler.UnlinkProvider)
 
+	// API tokens reach a route group only through the read scope passed to
+	// AuthMiddleware: safe requests need that scope, all others also need
+	// write:services. Groups without a scope are closed to tokens.
+
+	// Status logs are metrics, so they are registered before the services
+	// group to get their own scope
+	v1.Get("/services/:id<guid>/status-logs", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadMetrics), metricsHandler.GetRecentStatusLogs)
+
 	// Service routes (all protected)
-	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
 	// Sets service positions exactly as given. Services share their position
@@ -265,10 +275,9 @@ func main() {
 	services.Put("/:id<guid>", serviceHandler.UpdateService)
 	services.Delete("/:id<guid>", serviceHandler.DeleteService)
 	services.Post("/:id<guid>/check", serviceHandler.CheckService)
-	services.Get("/:id<guid>/status-logs", metricsHandler.GetRecentStatusLogs)
 
 	// Group routes (all protected)
-	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	groups.Post("/", groupHandler.CreateGroup)
 	groups.Get("/", groupHandler.GetGroups)
 	groups.Put("/reorder", groupHandler.ReorderGroups) // Must be before /:id routes
@@ -277,7 +286,7 @@ func main() {
 	groups.Delete("/:id<guid>", groupHandler.DeleteGroup)
 
 	// Webhook routes (all protected)
-	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	webhooks := v1.Group("/webhooks", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	webhooks.Post("/", webhookHandler.CreateWebhook)
 	webhooks.Get("/", webhookHandler.GetWebhooks)
 	webhooks.Get("/:id<guid>", webhookHandler.GetWebhook)
@@ -293,22 +302,22 @@ func main() {
 	v1.Get("/uploads/wallpapers/:filename", staticHandler.ServeWallpaper)
 
 	// Upload routes (protected)
-	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	uploads := v1.Group("/uploads", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
 	uploads.Post("/service-icon", uploadHandler.UploadServiceIcon)
 
 	// User avatar route (protected)
-	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	users := v1.Group("/users/me", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	users.Put("/avatar", uploadHandler.UploadAvatar)
 	users.Put("/wallpaper", preferencesHandler.UploadWallpaper)
 
 	// Metrics routes (protected)
-	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadMetrics))
 	metrics.Get("/:id<guid>", metricsHandler.GetServiceMetrics)
 
 	// Prometheus metrics endpoint (supports both JWT and API key authentication)
 	// Middleware is optional - handler checks for both JWT (from middleware) and API key
 	prometheus := v1.Group("/prometheus")
-	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo, apiTokenRepo), metricsHandler.GetUserPrometheusMetrics)
+	prometheus.Get("/metrics/user/:userID<guid>", middleware.OptionalAuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadMetrics), metricsHandler.GetUserPrometheusMetrics)
 
 	// API token routes (protected; session auth only so a leaked token
 	// can never create or revoke tokens)
@@ -330,7 +339,7 @@ func main() {
 	integrationRoutes.Post("/:id<guid>/test", integrationHandler.TestIntegration)
 
 	// Widget routes (all protected)
-	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	widgetRoutes.Get("/types", widgetHandler.ListTypes) // Must be before /:id routes
 	widgetRoutes.Post("/", widgetHandler.CreateWidget)
 	widgetRoutes.Get("/", widgetHandler.ListWidgets)
@@ -340,7 +349,7 @@ func main() {
 	widgetRoutes.Post("/:id<guid>/refresh", widgetHandler.RefreshWidget)
 
 	// Dashboard routes (all protected); services and widgets share one order
-	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
 	dashboard.Get("/data", dashboardHandler.Data)
 	dashboard.Get("/stream", dashboardHandler.Stream)
@@ -352,7 +361,7 @@ func main() {
 	v1.Post("/import", append(transferAuth, transferHandler.Import)...)
 
 	// User preferences routes (protected)
-	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo))
+	preferences := v1.Group("/users/me/preferences", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	preferences.Get("/", preferencesHandler.GetPreferences)
 	preferences.Put("/", preferencesHandler.UpdatePreferences)
 
@@ -454,6 +463,20 @@ func main() {
 	}
 
 	log.Println("Server stopped")
+}
+
+// getEnvPositiveInt reads a whole number above zero from an environment variable
+func getEnvPositiveInt(key string, defaultValue int) int {
+	valStr := os.Getenv(key)
+	if valStr == "" {
+		return defaultValue
+	}
+	value, err := strconv.Atoi(valStr)
+	if err != nil || value <= 0 {
+		log.Printf("Invalid value for %s: %s, using default %d", key, valStr, defaultValue)
+		return defaultValue
+	}
+	return value
 }
 
 // getEnvDuration reads a duration from environment variable in seconds

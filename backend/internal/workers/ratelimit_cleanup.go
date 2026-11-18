@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nimbus/backend/internal/middleware"
 	"github.com/nimbus/backend/internal/services"
 )
 
@@ -45,7 +46,7 @@ func (w *RateLimitCleanupWorker) run() {
 	for {
 		select {
 		case <-ticker.C:
-			removed := services.CleanupRateLimitCache()
+			removed := services.CleanupRateLimitCache() + middleware.CleanupAPITokenRateLimit()
 			if removed > 0 {
 				log.Printf("Rate limit cache cleanup: removed %d expired entries", removed)
 			}
