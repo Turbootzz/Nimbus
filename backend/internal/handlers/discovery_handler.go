@@ -32,11 +32,11 @@ func requireAdmin(c *fiber.Ctx) (string, error) {
 	return userID, nil
 }
 
-// requestHost is the host name the request was sent to, "" when it is not
-// a plain host
-func requestHost(c *fiber.Ctx) string {
-	parsed, err := url.Parse("http://" + c.Hostname())
-	if err != nil {
+// hostName is the name in a Host header, without its port; "" when the
+// header is anything but a host
+func hostName(host string) string {
+	parsed, err := url.Parse("http://" + host)
+	if err != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
 		return ""
 	}
 	return parsed.Hostname()
@@ -50,7 +50,7 @@ func (h *DiscoveryHandler) DiscoverDocker(c *fiber.Ctx) error {
 		return err
 	}
 	// UserContext: outgoing requests must not hold on to fasthttp's recycled RequestCtx
-	result, err := h.service.Discover(c.UserContext(), userID, requestHost(c))
+	result, err := h.service.Discover(c.UserContext(), userID, hostName(c.Hostname()))
 	if err != nil {
 		return discoveryError(c, err, "discover containers")
 	}

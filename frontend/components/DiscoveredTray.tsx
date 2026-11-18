@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
+import { INTEGRATION_PREFILL_KEY } from '@/types'
 import type {
   DiscoveredContainer,
   DiscoveredIntegration,
@@ -26,10 +27,6 @@ const buttonClass =
 const primaryButton = `${buttonClass} bg-primary hover:bg-primary-hover text-white`
 const quietButton = `${buttonClass} text-text-secondary hover:text-text-primary hover:bg-card-hover`
 const badgeClass = 'rounded-full px-2 py-0.5 text-xs font-medium'
-
-function integrationHref({ kind, name, base_url }: DiscoveredIntegration): string {
-  return `/settings/integrations?${new URLSearchParams({ kind, name, url: base_url })}`
-}
 
 function ContainerIcon({ url }: { url: string }) {
   const [failed, setFailed] = useState(false)
@@ -212,7 +209,10 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
         <p className="text-text-secondary mt-3 text-sm">
           This container asks for a {suggestion.name} integration.{' '}
           <Link
-            href={integrationHref(suggestion)}
+            href="/settings/integrations"
+            onClick={() =>
+              sessionStorage.setItem(INTEGRATION_PREFILL_KEY, JSON.stringify(suggestion))
+            }
             className="text-primary hover:text-primary-hover font-medium"
           >
             Set it up

@@ -7,7 +7,20 @@ import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
 import IntegrationForm from '@/components/integrations/IntegrationForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import type { Integration } from '@/types'
+import { INTEGRATION_PREFILL_KEY } from '@/types'
+import type { DiscoveredIntegration, Integration } from '@/types'
+
+// readPrefill returns what the Discovered tray left in this tab, if anything
+function readPrefill(): DiscoveredIntegration | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(INTEGRATION_PREFILL_KEY) ?? 'null')
+    if (typeof stored?.kind !== 'string' || typeof stored?.base_url !== 'string') return null
+    return { kind: stored.kind, name: String(stored.name ?? ''), base_url: stored.base_url }
+  } catch {
+    return null
+  }
+}
 
 function StatusBadge({ integration }: { integration: Integration }) {
   // An imported integration: the file never carries credentials
@@ -33,23 +46,17 @@ export default function IntegrationsPage() {
   const [deleting, setDeleting] = useState<Integration | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  // ?kind=&name=&url= (from the Discovered tray) opens the form filled in;
-  // the credentials are still entered here
-  const [linkParams, setLinkParams] = useState(() =>
-    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search)
-  )
-  const linkedKind = kinds.find((k) => k.kind === linkParams?.get('kind'))
-  const prefill = linkedKind && {
-    kind: linkedKind.kind,
-    name: linkParams?.get('name') || linkedKind.name,
-    base_url: linkParams?.get('url') || '',
-  }
+  // The Discovered tray leaves the integration a container label asked for;
+  // the form opens filled in and the credentials are still entered here
+  const [linked, setLinked] = useState<DiscoveredIntegration | null>(readPrefill)
+  const linkedKind = kinds.find((k) => k.kind === linked?.kind)
+  const prefill = linked && linkedKind ? { ...linked, name: linked.name || linkedKind.name } : null
   const closeForm = () => {
     setShowForm(false)
     setEditing(null)
-    if (linkParams) {
-      setLinkParams(null)
-      window.history.replaceState(null, '', window.location.pathname)
+    if (linked) {
+      setLinked(null)
+      sessionStorage.removeItem(INTEGRATION_PREFILL_KEY)
     }
   }
 

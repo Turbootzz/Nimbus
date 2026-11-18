@@ -85,7 +85,7 @@ Labels are optional. Without them a container is listed under its container name
 | `nimbus.icon` | A [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) name such as `sonarr`, or an `http(s)://` image URL. |
 | `nimbus.group` | Group to put the service in (35 characters at most). |
 | `nimbus.description` | Description on the tile. |
-| `nimbus.widget` | An integration kind: `adguard`, `home_assistant`, `jellyfin`, `pihole`, `proxmox`, `qbittorrent`, `radarr`, `sonarr` or `uptime_kuma`. After you add the container, the tray links to the integration form with the kind and address filled in. You still enter the credentials there, and link the integration to the service under **Live numbers**. Nothing is stored before you save that form. |
+| `nimbus.widget` | An integration kind: `adguard`, `home_assistant`, `jellyfin`, `pihole`, `proxmox`, `qbittorrent`, `radarr`, `sonarr` or `uptime_kuma`. After you add the container, the tray links to the integration form with the kind and address filled in. Check that address before you enter credentials: it comes from the label. You still enter the credentials there, and link the integration to the service under **Live numbers**. Nothing is stored before you save that form. |
 
 Already using [Homepage](https://gethomepage.dev)? `homepage.name`, `homepage.href`, `homepage.icon`, `homepage.group` and `homepage.description` are read when the `nimbus.*` label for that field is missing. Homepage has no `enable` label, so such containers are filled in but not auto-added; add `nimbus.enable=true` for that. Homepage's other icon sets (`mdi-`, `si-`, `sh-`) are not used; the icon is guessed from the image instead.
 
@@ -128,7 +128,7 @@ The icon is the dashboard-icons image named after the image, without registry, o
 
 - Discovery sends one request per Docker integration: the container list (`GET /containers/json`). It never opens the addresses or icons it finds.
 - Labels often hold secrets (reverse-proxy passwords, tokens). Nimbus reads only the labels in the table above and returns nothing else, not in this API and not in the Docker containers widget.
-- Whoever can start containers can set labels. Addresses and icon URLs other than `http://` and `https://` are dropped, and label text is shown as plain text. Still, with auto-add on, anyone who can start a container on that host can put a link on your dashboard.
+- Whoever can start containers can set labels. Addresses and icon URLs other than `http://` and `https://` are dropped, and label text is shown as plain text. Still, with auto-add on, anyone who can start a container on that host can put a link on your dashboard. Like every service, an added container is health-checked: the Nimbus server sends a `GET` to its address every interval (it does not follow redirects and keeps only the status and response time). Leave auto-add off if people you don't trust with that can start containers.
 - Prefer a [socket proxy](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` over mounting the socket. If you mount it, mount it `:ro` and read [Docker socket](CONFIGURATION.md#docker-socket): `:ro` alone does not make the Docker API read-only.
 
 ```yaml

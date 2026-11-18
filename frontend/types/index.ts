@@ -857,6 +857,10 @@ export interface DiscoveredIntegration {
   base_url: string
 }
 
+// Where the Discovered tray leaves an integration for the integration form.
+// sessionStorage, not the address: a link from elsewhere can't fill the form.
+export const INTEGRATION_PREFILL_KEY = 'nimbus:integration-prefill'
+
 export interface DiscoveryResponse {
   integrations: number // Docker integrations that were read
   containers: DiscoveredContainer[]

@@ -7,9 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -288,6 +291,52 @@ func TestDiscoveryHandler_ListsParsedContainers(t *testing.T) {
 	assert.False(t, evil.URLGuessed)
 
 	assert.Empty(t, byName["backup"].URL, "no published port, no guess")
+}
+
+// Behind a unix socket the address is guessed from the host the admin
+// opened Nimbus on (nginx forwards it in the Host header)
+func TestDiscoveryHandler_UnixSocketGuessUsesRequestHost(t *testing.T) {
+	for host, want := range map[string]string{
+		"nimbus.lan:3000":   "nimbus.lan",
+		"dash.example.com":  "dash.example.com",
+		"192.168.1.10:3000": "192.168.1.10",
+		"[fd00::5]:3000":    "fd00::5",
+		"":                  "",
+		"bad host":          "",
+		"evil.lan/path":     "",
+		"evil.lan?x=1":      "",
+		"user@evil.lan":     "",
+	} {
+		assert.Equal(t, want, hostName(host), host)
+	}
+
+	// Not t.TempDir(): its path is too long for a socket on macOS
+	dir, err := os.MkdirTemp("", "nimbus")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	socket := filepath.Join(dir, "docker.sock")
+	listener, err := net.Listen("unix", socket)
+	require.NoError(t, err)
+	docker := &http.Server{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, `[{"Id":"1","Names":["/web"],"Image":"nginx","State":"running","Ports":[{"PublicPort":8080,"Type":"tcp"}]}]`)
+	})}
+	go func() { _ = docker.Serve(listener) }()
+	t.Cleanup(func() { _ = docker.Close() })
+
+	db := setupDiscoveryDB(t)
+	cipher, err := utils.NewCipher(bytes.Repeat([]byte{7}, 32))
+	require.NoError(t, err)
+	f := newDiscoveryFixture(t, db)
+	f.integrations = services.NewIntegrationService(repository.NewIntegrationRepository(db), cipher, socket)
+	f.service = services.NewDiscoveryService(f.integrations, repository.NewDiscoveryRepository(db),
+		repository.NewServiceRepository(db), repository.NewGroupRepository(db), repository.NewSettingsRepository(db), discoveryIcons)
+	f.addDocker(t, discoveryAdminID, "Socket", "unix://"+socket)
+
+	result := discover(t, f.app(discoveryAdminID, "admin")) // sent to nimbus.lan:3000
+	require.Empty(t, result.Errors)
+	require.Len(t, result.Containers, 1)
+	assert.Equal(t, "http://nimbus.lan:8080", result.Containers[0].URL)
+	assert.True(t, result.Containers[0].URLGuessed)
 }
 
 func TestDiscoveryHandler_AdminOnly(t *testing.T) {

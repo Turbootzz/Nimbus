@@ -3,6 +3,7 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DiscoveredTray from '@/components/DiscoveredTray'
 import { api } from '@/lib/api'
+import { INTEGRATION_PREFILL_KEY } from '@/types'
 import type { DiscoveredContainer, DiscoveryResponse, Service, User } from '@/types'
 
 vi.mock('@/lib/api', () => ({
@@ -99,9 +100,12 @@ describe('DiscoveredTray', () => {
     })
     await waitFor(() => expect(onAdded).toHaveBeenCalledWith(service))
     expect(screen.queryByText('https://sonarr.lan')).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Set it up' })).toHaveAttribute(
-      'href',
-      '/settings/integrations?kind=sonarr&name=Sonarr&url=https%3A%2F%2Fsonarr.lan'
+    // Handed over in sessionStorage, never in the address
+    const setUp = screen.getByRole('link', { name: 'Set it up' })
+    expect(setUp).toHaveAttribute('href', '/settings/integrations')
+    await userEvent.click(setUp)
+    expect(JSON.parse(sessionStorage.getItem(INTEGRATION_PREFILL_KEY)!)).toEqual(
+      labelled.integration
     )
   })
 
