@@ -50,6 +50,8 @@ type Meta struct {
 	// AdminOnly kinds can only be set up by admins, e.g. because they
 	// expose the host
 	AdminOnly bool `json:"admin_only,omitempty"`
+	// ReadOnly kinds get a client that refuses everything but GET and HEAD
+	ReadOnly bool `json:"-"`
 	// DockerSocket kinds also take unix:///path as the URL, for the
 	// socket the server allows in DOCKER_SOCKET
 	DockerSocket bool `json:"docker_socket,omitempty"`
@@ -76,7 +78,8 @@ type Option struct {
 	// MaxLength in characters; 0 means DefaultOptionMaxLength
 	MaxLength int `json:"max_length,omitempty"`
 	// Pattern is a regular expression the whole value must match. Keep it
-	// simple: the browser checks it too.
+	// simple, with a literal - in a class written as \-: the browser
+	// checks it too.
 	Pattern string `json:"pattern,omitempty"`
 }
 

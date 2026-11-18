@@ -19,16 +19,23 @@ func NewUnixSocketClient(path string, timeout time.Duration) *http.Client {
 		},
 		ResponseHeaderTimeout: timeout,
 	}
-	return &http.Client{
+	return ReadOnlyClient(&http.Client{
 		Timeout:   timeout,
-		Transport: readOnlyTransport{transport},
+		Transport: transport,
 		// A redirect from a local socket is never expected
 		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
-	}
+	})
+}
+
+// ReadOnlyClient makes client refuse every request but GET and HEAD before
+// it is sent, for APIs where Nimbus must never change anything
+func ReadOnlyClient(client *http.Client) *http.Client {
+	client.Transport = readOnlyTransport{client.Transport}
+	return client
 }
 
 type readOnlyTransport struct {
-	next *http.Transport
+	next http.RoundTripper
 }
 
 func (t readOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -37,12 +44,14 @@ func (t readOnlyTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		if req.Body != nil {
 			_ = req.Body.Close()
 		}
-		return nil, fmt.Errorf("%s requests are not allowed on the socket", req.Method)
+		return nil, fmt.Errorf("%s requests are not allowed: this connection is read-only", req.Method)
 	}
 	return t.next.RoundTrip(req)
 }
 
 // CloseIdleConnections lets http.Client.CloseIdleConnections reach the transport
 func (t readOnlyTransport) CloseIdleConnections() {
-	t.next.CloseIdleConnections()
+	if closer, ok := t.next.(interface{ CloseIdleConnections() }); ok {
+		closer.CloseIdleConnections()
+	}
 }

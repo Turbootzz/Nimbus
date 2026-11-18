@@ -39,6 +39,7 @@ func (docker) Meta() Meta {
 			"<id> is the number in the Portainer address (#!/<id>/docker/...); create the key under My account, Access tokens.",
 		AdminOnly:    true,
 		DockerSocket: true,
+		ReadOnly:     true,
 	}
 }
 

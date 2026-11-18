@@ -34,7 +34,7 @@ func (proxmox) Meta() Meta {
 			Help:        "Only count this node. Leave empty for the whole cluster.",
 			Placeholder: "pve",
 			MaxLength:   63,
-			Pattern:     `[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?`,
+			Pattern:     `[A-Za-z0-9\-]+`,
 		}},
 	}
 }

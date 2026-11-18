@@ -751,3 +751,34 @@ func TestIntegrationService_SessionIsClosed(t *testing.T) {
 	require.NoError(t, svc.Delete(ctx, busy.ID, "user-1"))
 	assert.Equal(t, "s-1 at http://new.lan", closed())
 }
+
+func TestIntegrationService_DockerOverHTTPIsReadOnly(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method)
+	}))
+	defer server.Close()
+
+	conn, err := svc.newConn(&models.Integration{Kind: "docker", BaseURL: server.URL}, models.IntegrationCredentials{APIKey: "ptr_token"}, &integrations.State{})
+	require.NoError(t, err)
+	defer conn.Client.CloseIdleConnections()
+
+	resp, err := conn.Client.Get(conn.BaseURL + "/version")
+	require.NoError(t, err)
+	resp.Body.Close()
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+		req, err := http.NewRequest(method, conn.BaseURL+"/containers/x/stop", strings.NewReader("{}"))
+		require.NoError(t, err)
+		_, err = conn.Client.Do(req)
+		assert.ErrorContains(t, err, method+" requests are not allowed")
+	}
+	assert.Equal(t, []string{http.MethodGet}, methods, "nothing but the GET left the process")
+
+	// Other kinds keep a full client (logins are POSTs)
+	conn, err = svc.newConn(&models.Integration{Kind: "svc-fake", BaseURL: server.URL}, models.IntegrationCredentials{}, &integrations.State{})
+	require.NoError(t, err)
+	resp, err = conn.Client.Post(conn.BaseURL+"/login", "text/plain", strings.NewReader(""))
+	require.NoError(t, err)
+	resp.Body.Close()
+}

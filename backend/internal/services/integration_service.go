@@ -562,6 +562,10 @@ func (s *IntegrationService) newConn(integration *models.Integration, creds mode
 		baseURL, client = socketBaseURL, utils.NewUnixSocketClient(path, s.timeout)
 	} else {
 		client = utils.NewSafeClient(integration.VerifyTLS, s.timeout)
+		// The socket client is read-only already; this covers a proxy or Portainer
+		if impl, ok := integrations.Get(integration.Kind); ok && impl.Meta().ReadOnly {
+			client = utils.ReadOnlyClient(client)
+		}
 	}
 	return &integrations.Conn{
 		BaseURL:   baseURL,

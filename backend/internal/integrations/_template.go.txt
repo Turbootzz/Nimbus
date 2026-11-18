@@ -37,7 +37,7 @@ func (example) Meta() Meta {
 			Help:        "Only count this library. Leave empty for all.",
 			Placeholder: "films",
 			MaxLength:   60,
-			Pattern:     `[a-z0-9-]+`,
+			Pattern:     `[a-z0-9\-]+`,
 		}},
 	}
 }
