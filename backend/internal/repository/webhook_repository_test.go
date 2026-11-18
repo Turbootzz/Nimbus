@@ -28,6 +28,9 @@ func setupWebhookTestDB(t *testing.T) *sql.DB {
 			enabled INTEGER NOT NULL DEFAULT 1,
 			triggers TEXT NOT NULL DEFAULT '{"on_offline":true,"on_online":false}',
 			format TEXT NOT NULL DEFAULT 'generic',
+			options TEXT NOT NULL DEFAULT '{}',
+			credentials_enc BLOB,
+			verify_tls INTEGER NOT NULL DEFAULT 1,
 			retry_count INTEGER NOT NULL DEFAULT 0,
 			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
 			last_triggered_at TIMESTAMP,
@@ -335,7 +338,7 @@ func TestWebhookRepository_Update(t *testing.T) {
 	webhook.Enabled = false
 	webhook.Format = models.WebhookFormatSlack
 
-	if err := repo.Update(ctx, webhook); err != nil {
+	if err := repo.Update(ctx, webhook, true, true); err != nil {
 		t.Fatalf("Failed to update webhook: %v", err)
 	}
 
@@ -358,6 +361,61 @@ func TestWebhookRepository_Update(t *testing.T) {
 	}
 }
 
+// An update that leaves the target and credentials alone must not put back
+// the ones it read, when another request replaced them in the meantime
+func TestWebhookRepository_Update_KeepsConcurrentTargetChange(t *testing.T) {
+	db := setupWebhookTestDB(t)
+	defer db.Close()
+
+	repo := NewWebhookRepository(db)
+	ctx := context.Background()
+
+	webhook := &models.Webhook{
+		UserID: "user-1", Name: "Gotify", URL: "https://old.example.com", Enabled: true,
+		Triggers: models.WebhookTriggers{OnOffline: true}, Format: models.WebhookFormatGotify,
+		CredentialsEnc: []byte("blob-a"), VerifyTLS: true,
+	}
+	if err := repo.Create(ctx, webhook); err != nil {
+		t.Fatalf("Failed to create webhook: %v", err)
+	}
+	stale := *webhook // what the enabled-only request read
+
+	webhook.URL = "https://new.example.com"
+	webhook.CredentialsEnc = []byte("blob-b")
+	if err := repo.Update(ctx, webhook, true, true); err != nil {
+		t.Fatalf("Failed to replace the target: %v", err)
+	}
+
+	stale.Enabled = false
+	if err := repo.Update(ctx, &stale, false, false); err != nil {
+		t.Fatalf("Failed to update enabled: %v", err)
+	}
+
+	stored, err := repo.GetByID(ctx, webhook.ID, "user-1")
+	if err != nil {
+		t.Fatalf("Failed to get webhook: %v", err)
+	}
+	if stored.Enabled {
+		t.Error("Expected webhook to be disabled")
+	}
+	if string(stored.CredentialsEnc) != "blob-b" || stored.URL != "https://new.example.com" {
+		t.Errorf("stale update restored the old target: url = %s, credentials = %s", stored.URL, stored.CredentialsEnc)
+	}
+
+	// A target change without new credentials keeps the stored blob
+	stored.VerifyTLS = false
+	if err := repo.Update(ctx, stored, true, false); err != nil {
+		t.Fatalf("Failed to update verify_tls: %v", err)
+	}
+	stored, err = repo.GetByID(ctx, webhook.ID, "user-1")
+	if err != nil {
+		t.Fatalf("Failed to get webhook: %v", err)
+	}
+	if stored.VerifyTLS || string(stored.CredentialsEnc) != "blob-b" {
+		t.Errorf("verify_tls = %v, credentials = %s", stored.VerifyTLS, stored.CredentialsEnc)
+	}
+}
+
 func TestWebhookRepository_Update_NotFound(t *testing.T) {
 	db := setupWebhookTestDB(t)
 	defer db.Close()
@@ -375,7 +433,7 @@ func TestWebhookRepository_Update_NotFound(t *testing.T) {
 		Format:   models.WebhookFormatGeneric,
 	}
 
-	err := repo.Update(ctx, webhook)
+	err := repo.Update(ctx, webhook, true, true)
 	if err != sql.ErrNoRows {
 		t.Errorf("Expected sql.ErrNoRows, got %v", err)
 	}

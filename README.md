@@ -41,6 +41,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Response time tracking
 - Smart self-signed cert handling
 - Status history & uptime graphs
+- Offline alerts: webhook, Discord, Slack, ntfy, Gotify, Telegram, Pushover ([docs](docs/NOTIFICATIONS.md))
 
 </td>
 <td width="50%">
@@ -171,7 +172,7 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
-| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in volume, back it up) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials and notification tokens (persisted in volume, back it up) |
 | `DOCKER_SOCKET` | *(none)* | Docker socket the Docker integration may use, e.g. `/var/run/docker.sock` |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
@@ -247,6 +248,7 @@ Run `make help` for all available commands.
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
 | [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
+| [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
 
 ---
 

@@ -194,7 +194,7 @@ DB_PASSWORD=password   # Your PostgreSQL password
 JWT_SECRET=            # At least 32 characters
 ```
 
-`make dev-backend` adds an `ENCRYPTION_KEY` to your env file on first run, like the Docker image does. Keep it: saved integration credentials can't be read without it.
+`make dev-backend` adds an `ENCRYPTION_KEY` to your env file on first run, like the Docker image does. Keep it: saved integration credentials and notification tokens can't be read without it.
 
 ### Verify Connection
 

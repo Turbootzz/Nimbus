@@ -505,6 +505,8 @@ export interface ApiError {
   message: string
   code?: string
   details?: unknown
+  // Per-field validation messages, keyed by the request field name
+  fields?: Record<string, string>
 }
 
 export interface ApiResponse<T> {
@@ -585,7 +587,20 @@ export interface OAuthProviderStatus {
 }
 
 // Webhook types
-export type WebhookFormat = 'generic' | 'discord' | 'slack'
+export type WebhookFormat =
+  'generic' | 'discord' | 'slack' | 'ntfy' | 'gotify' | 'telegram' | 'pushover'
+
+// Non-secret settings of a notification target
+export interface WebhookOptions {
+  priority?: number // ntfy: 1-5
+  chat_id?: string // Telegram
+}
+
+// Secrets are write-only: the API never returns them
+export interface WebhookCredentials {
+  token?: string
+  user_key?: string // Pushover
+}
 
 export interface WebhookTriggers {
   on_offline: boolean
@@ -599,6 +614,9 @@ export interface Webhook {
   enabled: boolean
   triggers: WebhookTriggers
   format: WebhookFormat
+  options?: WebhookOptions
+  has_credentials?: boolean
+  verify_tls?: boolean
   retry_count: number
   retry_delay_seconds: number
   last_triggered_at?: string
@@ -612,10 +630,13 @@ export interface Webhook {
 
 export interface WebhookCreateRequest {
   name: string
-  url: string
+  url?: string // not used by Telegram and Pushover
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  options?: WebhookOptions
+  credentials?: WebhookCredentials
+  verify_tls?: boolean // false allows a self-signed certificate
   retry_count?: number
   retry_delay_seconds?: number
 }
@@ -626,6 +647,9 @@ export interface WebhookUpdateRequest {
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  options?: WebhookOptions
+  credentials?: WebhookCredentials // omitted keeps the stored secrets
+  verify_tls?: boolean
   retry_count?: number
   retry_delay_seconds?: number
 }

@@ -1,5 +1,6 @@
 'use client'
 
+import { getWebhookTarget } from '@/lib/webhook-targets'
 import type { Webhook } from '@/types'
 
 interface WebhookCardProps {
@@ -10,16 +11,15 @@ interface WebhookCardProps {
   onToggle: () => void
 }
 
-const formatLabels: Record<string, string> = {
-  generic: 'Generic',
-  discord: 'Discord',
-  slack: 'Slack',
-}
-
 export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: WebhookCardProps) {
   const maskUrl = (url: string) => {
     try {
       const parsed = new URL(url)
+      // An ntfy topic name works like a password, and the fixed API
+      // endpoints need no more than their host
+      if (webhook.format === 'ntfy' || !getWebhookTarget(webhook.format).url) {
+        return parsed.origin
+      }
       const pathParts = parsed.pathname.split('/')
       if (pathParts.length > 2) {
         const masked = pathParts.slice(0, 3).join('/') + '/...'
@@ -55,7 +55,7 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
               {webhook.enabled ? 'Active' : 'Disabled'}
             </span>
             <span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-medium">
-              {formatLabels[webhook.format] || webhook.format}
+              {getWebhookTarget(webhook.format).label}
             </span>
           </div>
 

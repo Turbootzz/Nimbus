@@ -166,6 +166,7 @@ class ApiClient {
             message: data.error || data.message || 'An error occurred',
             code: data.code,
             details: data.details,
+            fields: data.fields,
           },
         }
       }

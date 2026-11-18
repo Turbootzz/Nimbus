@@ -1,11 +1,12 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Rate limit: max 1 notification per service per status per webhook per 5 minutes
@@ -44,18 +46,115 @@ var (
 type WebhookNotifier struct {
 	webhookRepo *repository.WebhookRepository
 	serviceRepo repository.ServiceRepositoryInterface
-	httpClient  *http.Client
+	httpClient  *http.Client  // verifies TLS certificates
+	insecure    *http.Client  // for webhooks with verify_tls off
+	cipher      *utils.Cipher // nil until SetCipher; only notification targets need it
 }
+
+// errNoCipher means credentials can't be read or written without ENCRYPTION_KEY
+var errNoCipher = errors.New("credential encryption is not configured")
 
 // NewWebhookNotifier creates a new webhook notifier
 func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo repository.ServiceRepositoryInterface) *WebhookNotifier {
 	return &WebhookNotifier{
 		webhookRepo: webhookRepo,
 		serviceRepo: serviceRepo,
-		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		httpClient:  newWebhookClient(true),
+		insecure:    newWebhookClient(false),
 	}
+}
+
+// errCrossOriginRedirect has no URL in it: both ends of a redirect can hold a secret
+var errCrossOriginRedirect = errors.New("refused a redirect to another address")
+
+// newWebhookClient allows private addresses (ntfy and Gotify usually live on
+// the LAN) and blocks cloud metadata endpoints, also after a redirect.
+// A redirect to another scheme, host or port is refused: a delivery carries
+// its secret in a header (Gotify, ntfy), the body (Pushover) or the URL, and
+// net/http would send the header, and on a 307 or 308 the body, along.
+func newWebhookClient(verifyTLS bool) *http.Client {
+	client := utils.NewSafeClient(verifyTLS, 10*time.Second)
+	client.Transport.(*http.Transport).Proxy = webhookProxy
+	inherited := client.CheckRedirect
+	client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+		if err := inherited(req, via); err != nil {
+			return err
+		}
+		first := via[0].URL
+		if req.URL.Scheme != first.Scheme || !strings.EqualFold(req.URL.Host, first.Host) {
+			return errCrossOriginRedirect
+		}
+		return nil
+	}
+	return client
+}
+
+// Replaced in tests
+var (
+	proxyFromEnvironment = http.ProxyFromEnvironment
+	lookupHost           = net.DefaultResolver.LookupHost
+)
+
+// webhookProxy honours HTTP_PROXY, HTTPS_PROXY and NO_PROXY, for servers that
+// only reach Discord and the like through a proxy. Behind a proxy the dialer
+// sees the proxy's address, so the target is checked here: by name, and by
+// the addresses the name resolves to. That last check is best effort. The
+// proxy resolves the name again, so it does not stop DNS rebinding or a name
+// that only the proxy's DNS maps to a metadata address; and a name that does
+// not resolve here (or not within the timeout) still goes to the proxy, since
+// hosts behind a proxy often have no outside DNS.
+func webhookProxy(req *http.Request) (*url.URL, error) {
+	host := req.URL.Hostname()
+	if utils.IsBlockedHost(host) || utils.IsBlockedIP(host) {
+		return nil, utils.ErrBlockedHost
+	}
+	proxy, err := proxyFromEnvironment(req)
+	if err != nil || proxy == nil || net.ParseIP(host) != nil {
+		return proxy, err
+	}
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+	addrs, _ := lookupHost(ctx, host)
+	for _, addr := range addrs {
+		if utils.IsBlockedIP(addr) {
+			return nil, utils.ErrBlockedHost
+		}
+	}
+	return proxy, nil
+}
+
+// encryptCredentials returns the blob to store, bound to the webhook ID;
+// nil when there is nothing to store.
+func (w *WebhookNotifier) encryptCredentials(creds models.WebhookCredentials, webhookID string) ([]byte, error) {
+	if creds == (models.WebhookCredentials{}) {
+		return nil, nil
+	}
+	if w.cipher == nil {
+		return nil, errNoCipher
+	}
+	plaintext, err := json.Marshal(creds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode credentials: %w", err)
+	}
+	return w.cipher.Encrypt(plaintext, []byte(webhookID))
+}
+
+func (w *WebhookNotifier) decryptCredentials(webhook *models.Webhook) (models.WebhookCredentials, error) {
+	var creds models.WebhookCredentials
+	if len(webhook.CredentialsEnc) == 0 {
+		return creds, nil
+	}
+	if w.cipher == nil {
+		return creds, errNoCipher
+	}
+	plaintext, err := w.cipher.Decrypt(webhook.CredentialsEnc, []byte(webhook.ID))
+	if err != nil {
+		return creds, err
+	}
+	if err := json.Unmarshal(plaintext, &creds); err != nil {
+		return creds, fmt.Errorf("failed to decode credentials: %w", err)
+	}
+	return creds, nil
 }
 
 // Notify sends notifications to all enabled webhooks for a user
@@ -195,40 +294,48 @@ func (w *WebhookNotifier) isRateLimited(webhookID, serviceID, status string) boo
 	return false
 }
 
-// sendWebhook sends a single webhook notification
-func (w *WebhookNotifier) sendWebhook(ctx context.Context, webhook *models.Webhook, event NotificationEvent) {
-	startTime := time.Now()
-
-	payload := w.buildPayload(webhook.Format, event)
-	payloadBytes, err := json.Marshal(payload)
+// deliver sends one notification and returns the HTTP status (0 when no
+// response came back) and an error message that is safe to store and show.
+// It is the single send path for real notifications and the test button.
+func (w *WebhookNotifier) deliver(ctx context.Context, webhook *models.Webhook, event NotificationEvent) (statusCode int, errMsg string) {
+	creds, err := w.decryptCredentials(webhook)
 	if err != nil {
-		w.recordResult(ctx, webhook, event, false, 0, time.Since(startTime), err.Error())
-		return
+		log.Printf("Webhook %s: failed to read credentials: %v", webhook.Name, err)
+		return 0, "Stored credentials could not be read. Enter them again."
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader(payloadBytes))
+	req, err := w.buildRequest(ctx, webhook, creds, event)
 	if err != nil {
-		w.recordResult(ctx, webhook, event, false, 0, time.Since(startTime), err.Error())
-		return
+		return 0, err.Error()
 	}
 
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Nimbus-Webhook/1.0")
-
-	resp, err := w.httpClient.Do(req)
+	client := w.httpClient
+	if !webhook.VerifyTLS {
+		client = w.insecure
+	}
+	resp, err := client.Do(req)
 	if err != nil {
-		w.recordResult(ctx, webhook, event, false, 0, time.Since(startTime), err.Error())
-		return
+		return 0, deliveryError(err, creds)
 	}
 	defer resp.Body.Close()
 
-	success := resp.StatusCode >= 200 && resp.StatusCode < 300
-	errMsg := ""
-	if !success {
-		errMsg = fmt.Sprintf("HTTP %d", resp.StatusCode)
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return resp.StatusCode, ""
 	}
+	switch webhook.Format {
+	case models.WebhookFormatNtfy, models.WebhookFormatGotify, models.WebhookFormatTelegram, models.WebhookFormatPushover:
+		return resp.StatusCode, responseError(resp, creds)
+	}
+	// A plain webhook's secret is its URL, which can't be scrubbed from
+	// what the receiver answers: only the status is kept
+	return resp.StatusCode, fmt.Sprintf("HTTP %d", resp.StatusCode)
+}
 
-	w.recordResult(ctx, webhook, event, success, resp.StatusCode, time.Since(startTime), errMsg)
+// sendWebhook sends a single webhook notification
+func (w *WebhookNotifier) sendWebhook(ctx context.Context, webhook *models.Webhook, event NotificationEvent) {
+	startTime := time.Now()
+	statusCode, errMsg := w.deliver(ctx, webhook, event)
+	w.recordResult(ctx, webhook, event, errMsg == "", statusCode, time.Since(startTime), errMsg)
 }
 
 // recordResult records the webhook delivery result
@@ -466,49 +573,14 @@ func (w *WebhookNotifier) TestWebhook(ctx context.Context, webhookID, userID str
 	}
 
 	startTime := time.Now()
+	statusCode, errMsg := w.deliver(ctx, webhook, testEvent)
 
-	payload := w.buildPayload(webhook.Format, testEvent)
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return &TestWebhookResult{
-			Success: false,
-			Error:   err.Error(),
-		}, nil
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, webhook.URL, bytes.NewReader(payloadBytes))
-	if err != nil {
-		return &TestWebhookResult{
-			Success: false,
-			Error:   err.Error(),
-		}, nil
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Nimbus-Webhook/1.0")
-
-	resp, err := w.httpClient.Do(req)
-	if err != nil {
-		return &TestWebhookResult{
-			Success:        false,
-			ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
-			Error:          err.Error(),
-		}, nil
-	}
-	defer resp.Body.Close()
-
-	success := resp.StatusCode >= 200 && resp.StatusCode < 300
-	result := &TestWebhookResult{
-		Success:        success,
-		StatusCode:     resp.StatusCode,
+	return &TestWebhookResult{
+		Success:        errMsg == "",
+		StatusCode:     statusCode,
 		ResponseTimeMs: int(time.Since(startTime).Milliseconds()),
-	}
-
-	if !success {
-		result.Error = fmt.Sprintf("HTTP %d", resp.StatusCode)
-	}
-
-	return result, nil
+		Error:          errMsg,
+	}, nil
 }
 
 // CleanupRateLimitCache removes expired entries from the rate limit cache

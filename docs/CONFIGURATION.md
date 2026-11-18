@@ -35,7 +35,7 @@ Nimbus uses **convention over configuration**. Most variables have sensible defa
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Authentication secret (persisted in uploads volume) |
-| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in uploads volume) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials and notification tokens (persisted in uploads volume) |
 
 > **Security note:** The default database password is safe because PostgreSQL is only accessible within the Docker network (not exposed externally). For shared hosting environments, set a custom password.
 
@@ -108,7 +108,7 @@ CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ENCRYPTION_KEY` | *auto-generated* (Docker and `make dev-backend`) | Base64 encoded 32-byte key that encrypts integration credentials (AES-256-GCM) |
+| `ENCRYPTION_KEY` | *auto-generated* (Docker and `make dev-backend`) | Base64 encoded 32-byte key that encrypts integration credentials and [notification](NOTIFICATIONS.md) tokens (AES-256-GCM) |
 
 Generate one with `openssl rand -base64 32`. The unified image creates it on first start and saves it in `uploads/.secrets/generated.env`, next to `JWT_SECRET`. A key you set yourself always wins over the generated one. For local development, `make dev-backend` adds one to your `.env`.
 
