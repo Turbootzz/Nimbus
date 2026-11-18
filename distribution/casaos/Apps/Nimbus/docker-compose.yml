@@ -1,0 +1,120 @@
+name: nimbus
+services:
+  nimbus:
+    image: turboot/nimbus:2.0.0
+    container_name: nimbus
+    restart: unless-stopped
+    depends_on:
+      nimbus-db:
+        condition: service_healthy
+    ports:
+      - target: 3000
+        published: "3210"
+        protocol: tcp
+    environment:
+      TZ: $TZ
+      DB_HOST: nimbus-db
+      DB_PASSWORD: nimbus-default-password
+    volumes:
+      - type: bind
+        source: /DATA/AppData/$AppID/uploads
+        target: /app/backend/uploads
+    networks:
+      - nimbus-net
+    deploy:
+      resources:
+        reservations:
+          memory: 256M
+    x-casaos:
+      envs:
+        - container: TZ
+          description:
+            en_US: Time zone
+        - container: DB_HOST
+          description:
+            en_US: Database host
+        - container: DB_PASSWORD
+          description:
+            en_US: Database password, the same as POSTGRES_PASSWORD of nimbus-db
+      ports:
+        - container: "3000"
+          description:
+            en_US: Web UI
+      volumes:
+        - container: /app/backend/uploads
+          description:
+            en_US: Uploads and the generated secrets. Back it up.
+
+  nimbus-db:
+    image: turboot/nimbus-postgres:18
+    container_name: nimbus-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nimbus
+      POSTGRES_USER: nimbus
+      POSTGRES_PASSWORD: nimbus-default-password
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - type: bind
+        source: /DATA/AppData/$AppID/postgres
+        target: /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimbus -d nimbus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - nimbus-net
+    x-casaos:
+      envs:
+        - container: POSTGRES_PASSWORD
+          description:
+            en_US: Database password, the same as DB_PASSWORD of nimbus
+      volumes:
+        - container: /var/lib/postgresql/data
+          description:
+            en_US: Database files
+
+networks:
+  nimbus-net:
+    name: nimbus-net
+
+x-casaos:
+  id: io.github.turbootzz.nimbus
+  main: nimbus
+  index: /
+  port_map: "3210"
+  scheme: http
+  icon: https://cdn.jsdelivr.net/gh/IceWhaleTech/CasaOS-AppStore@main/Apps/Nimbus/icon.png
+  title:
+    en_US: Nimbus
+  tagline:
+    en_US: Your homelab, beautifully organized
+  description:
+    en_US: |
+      Nimbus is a dashboard for the apps and services you run at home. Add your services as tiles, and Nimbus checks whether they are online and how fast they respond.
+
+      - Health checks with uptime history and response times
+      - Widgets next to your services: clock, weather, notes, bookmarks, RSS, calendar and more
+      - Live numbers from your apps on their tile: Sonarr, Radarr, qBittorrent, Pi-hole, AdGuard Home, Proxmox, Jellyfin, Home Assistant and Uptime Kuma
+      - Several users, each with their own dashboard, wallpaper and theme
+  tips:
+    before_install:
+      en_US: |
+        Create your account when you first open Nimbus; the first account becomes the admin.
+
+        Nimbus generates its secrets on first start and keeps them in `/DATA/AppData/nimbus/uploads/.secrets`. Back that folder up: without the encryption key, saved integration credentials can't be read.
+  author: Turbootzz
+  developer: Turbootzz
+  category: Home
+  architectures:
+    - amd64
+    - arm64
+  version: "2.0.0"
+  update_at: "2026-11-18"
+  release_notes:
+    en_US: Widgets, app integrations, wallpaper and a canvas layout. See https://github.com/Turbootzz/Nimbus/blob/main/CHANGELOG.md
+  website: https://github.com/Turbootzz/Nimbus
+  repo: https://github.com/Turbootzz/Nimbus
+  support: https://github.com/Turbootzz/Nimbus/discussions
+  docs: https://github.com/Turbootzz/Nimbus/blob/main/docs/CONFIGURATION.md

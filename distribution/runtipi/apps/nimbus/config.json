@@ -1,0 +1,36 @@
+{
+  "$schema": "../app-info-schema.json",
+  "name": "Nimbus",
+  "port": 8114,
+  "available": true,
+  "exposable": true,
+  "dynamic_config": true,
+  "id": "nimbus",
+  "tipi_version": 1,
+  "version": "2.0.0",
+  "categories": ["utilities"],
+  "description": "Nimbus is a self-hosted, multi-user dashboard for your homelab. It checks whether your services are online, shows widgets next to them and puts live numbers from your apps on their tiles.",
+  "short_desc": "Homelab dashboard with health checks, widgets and app integrations",
+  "author": "Turbootzz",
+  "source": "https://github.com/Turbootzz/Nimbus",
+  "website": "https://github.com/Turbootzz/Nimbus",
+  "form_fields": [
+    {
+      "type": "random",
+      "label": "Database password",
+      "min": 32,
+      "env_variable": "NIMBUS_DB_PASSWORD"
+    },
+    {
+      "type": "url",
+      "label": "Public URL",
+      "hint": "The address you open Nimbus at, for example https://nimbus.example.com. Used in password reset emails and OAuth redirects.",
+      "required": false,
+      "env_variable": "NIMBUS_FRONTEND_URL"
+    }
+  ],
+  "supported_architectures": ["arm64", "amd64"],
+  "created_at": 1795031421538,
+  "updated_at": 1795031421538,
+  "min_tipi_version": "4.5.0"
+}

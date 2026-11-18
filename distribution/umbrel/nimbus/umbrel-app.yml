@@ -1,0 +1,44 @@
+manifestVersion: 1
+id: nimbus
+storage:
+  dataRoot: data
+category: files
+name: Nimbus
+version: "2.0.0"
+tagline: Your homelab, beautifully organized
+description: >-
+  Nimbus is a dashboard for the apps and services you run at home. Add your services as tiles, and Nimbus checks whether they are online and how fast they respond.
+
+
+  Create your account when you first open Nimbus; the first account becomes the admin.
+
+
+  - Health checks with uptime history and response times
+
+  - Widgets next to your services: clock, weather, notes, bookmarks, RSS, calendar and more
+
+  - Live numbers from your apps on their tile: Sonarr, Radarr, qBittorrent, Pi-hole, AdGuard Home, Proxmox, Jellyfin, Home Assistant and Uptime Kuma
+
+  - Several users, each with their own dashboard, wallpaper and theme
+
+  - Sign in with Google, GitHub, Discord or your own OpenID Connect provider
+
+
+  Nimbus generates its secrets on first start and keeps them with its data. They are included in your Umbrel backups.
+releaseNotes: ""
+
+developer: Turbootzz
+website: https://github.com/Turbootzz/Nimbus
+dependencies: []
+repo: https://github.com/Turbootzz/Nimbus
+support: https://github.com/Turbootzz/Nimbus/discussions
+
+port: 3023
+gallery: []
+path: ""
+
+defaultUsername: ""
+defaultPassword: ""
+
+submitter: Turbootzz
+submission: https://github.com/getumbrel/umbrel-apps/pull/XXXX

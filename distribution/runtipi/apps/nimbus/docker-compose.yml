@@ -1,0 +1,60 @@
+version: '3.7'
+services:
+  nimbus:
+    image: turboot/nimbus:2.0.0
+    container_name: nimbus
+    environment:
+      - DB_HOST=nimbus-db
+      - DB_PASSWORD=${NIMBUS_DB_PASSWORD}
+      - FRONTEND_URL=${NIMBUS_FRONTEND_URL}
+    restart: unless-stopped
+    volumes:
+      - ${APP_DATA_DIR}/data/uploads:/app/backend/uploads
+    ports:
+      - ${APP_PORT}:3000
+    depends_on:
+      nimbus-db:
+        condition: service_healthy
+    networks:
+      - tipi_main_network
+    labels:
+      traefik.enable: true
+      traefik.http.middlewares.nimbus-web-redirect.redirectscheme.scheme: https
+      traefik.http.services.nimbus.loadbalancer.server.port: 3000
+      traefik.http.routers.nimbus-insecure.rule: Host(`${APP_DOMAIN}`)
+      traefik.http.routers.nimbus-insecure.entrypoints: web
+      traefik.http.routers.nimbus-insecure.service: nimbus
+      traefik.http.routers.nimbus-insecure.middlewares: nimbus-web-redirect
+      traefik.http.routers.nimbus.rule: Host(`${APP_DOMAIN}`)
+      traefik.http.routers.nimbus.entrypoints: websecure
+      traefik.http.routers.nimbus.service: nimbus
+      traefik.http.routers.nimbus.tls.certresolver: myresolver
+      traefik.http.routers.nimbus-local-insecure.rule: Host(`nimbus.${LOCAL_DOMAIN}`)
+      traefik.http.routers.nimbus-local-insecure.entrypoints: web
+      traefik.http.routers.nimbus-local-insecure.service: nimbus
+      traefik.http.routers.nimbus-local-insecure.middlewares: nimbus-web-redirect
+      traefik.http.routers.nimbus-local.rule: Host(`nimbus.${LOCAL_DOMAIN}`)
+      traefik.http.routers.nimbus-local.entrypoints: websecure
+      traefik.http.routers.nimbus-local.service: nimbus
+      traefik.http.routers.nimbus-local.tls: true
+      runtipi.managed: true
+  nimbus-db:
+    container_name: nimbus-db
+    image: turboot/nimbus-postgres:18
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=nimbus
+      - POSTGRES_USER=nimbus
+      - POSTGRES_PASSWORD=${NIMBUS_DB_PASSWORD}
+      - PGDATA=/var/lib/postgresql/data
+    volumes:
+      - ${APP_DATA_DIR}/data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimbus -d nimbus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tipi_main_network
+    labels:
+      runtipi.managed: true

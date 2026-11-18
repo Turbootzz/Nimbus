@@ -1,0 +1,71 @@
+{
+  "services": [
+    {
+      "name": "nimbus",
+      "image": "turboot/nimbus:2.0.0",
+      "isMain": true,
+      "internalPort": 3000,
+      "environment": [
+        {
+          "key": "DB_HOST",
+          "value": "nimbus-db"
+        },
+        {
+          "key": "DB_PASSWORD",
+          "value": "${NIMBUS_DB_PASSWORD}"
+        },
+        {
+          "key": "FRONTEND_URL",
+          "value": "${NIMBUS_FRONTEND_URL}"
+        }
+      ],
+      "dependsOn": {
+        "nimbus-db": {
+          "condition": "service_healthy"
+        }
+      },
+      "volumes": [
+        {
+          "hostPath": "${APP_DATA_DIR}/data/uploads",
+          "containerPath": "/app/backend/uploads"
+        }
+      ]
+    },
+    {
+      "name": "nimbus-db",
+      "image": "turboot/nimbus-postgres:18",
+      "environment": [
+        {
+          "key": "POSTGRES_DB",
+          "value": "nimbus"
+        },
+        {
+          "key": "POSTGRES_USER",
+          "value": "nimbus"
+        },
+        {
+          "key": "POSTGRES_PASSWORD",
+          "value": "${NIMBUS_DB_PASSWORD}"
+        },
+        {
+          "key": "PGDATA",
+          "value": "/var/lib/postgresql/data"
+        }
+      ],
+      "volumes": [
+        {
+          "hostPath": "${APP_DATA_DIR}/data/postgres",
+          "containerPath": "/var/lib/postgresql/data"
+        }
+      ],
+      "healthCheck": {
+        "test": "pg_isready -U nimbus -d nimbus",
+        "interval": "10s",
+        "timeout": "5s",
+        "retries": 5
+      }
+    }
+  ],
+  "schemaVersion": 2,
+  "$schema": "https://schemas.runtipi.io/v2/dynamic-compose.json"
+}
