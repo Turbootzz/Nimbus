@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -88,15 +89,38 @@ func newWebhookClient(verifyTLS bool) *http.Client {
 	return client
 }
 
+// Replaced in tests
+var (
+	proxyFromEnvironment = http.ProxyFromEnvironment
+	lookupHost           = net.DefaultResolver.LookupHost
+)
+
 // webhookProxy honours HTTP_PROXY, HTTPS_PROXY and NO_PROXY, for servers that
 // only reach Discord and the like through a proxy. Behind a proxy the dialer
-// sees the proxy's address, so the target is checked here.
+// sees the proxy's address, so the target is checked here: by name, and by
+// the addresses the name resolves to. That last check is best effort. The
+// proxy resolves the name again, so it does not stop DNS rebinding or a name
+// that only the proxy's DNS maps to a metadata address; and a name that does
+// not resolve here still goes to the proxy, since hosts behind a proxy often
+// have no outside DNS.
 func webhookProxy(req *http.Request) (*url.URL, error) {
 	host := req.URL.Hostname()
 	if utils.IsBlockedHost(host) || utils.IsBlockedIP(host) {
 		return nil, utils.ErrBlockedHost
 	}
-	return http.ProxyFromEnvironment(req)
+	proxy, err := proxyFromEnvironment(req)
+	if err != nil || proxy == nil || net.ParseIP(host) != nil {
+		return proxy, err
+	}
+	ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+	defer cancel()
+	addrs, _ := lookupHost(ctx, host)
+	for _, addr := range addrs {
+		if utils.IsBlockedIP(addr) {
+			return nil, utils.ErrBlockedHost
+		}
+	}
+	return proxy, nil
 }
 
 // encryptCredentials returns the blob to store, bound to the webhook ID;

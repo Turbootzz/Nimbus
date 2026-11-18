@@ -7,8 +7,10 @@ import (
 	"errors"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"reflect"
 	"strings"
@@ -753,6 +755,61 @@ func TestWebhookProxy_BlocksMetadata(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodPost, "http://192.168.1.10:8080/message", nil)
 	if _, err := webhookProxy(req); err != nil {
 		t.Errorf("LAN target refused: %v", err)
+	}
+}
+
+// Through a proxy, a name that resolves to a metadata address is refused
+// too. No t.Parallel: the lookups are package-level.
+func TestWebhookProxy_ChecksResolvedAddresses(t *testing.T) {
+	proxyURL, _ := url.Parse("http://proxy.lan:3128")
+	useProxy := true
+	lookups := 0
+	proxyFromEnvironment = func(*http.Request) (*url.URL, error) {
+		if useProxy {
+			return proxyURL, nil
+		}
+		return nil, nil
+	}
+	lookupHost = func(_ context.Context, host string) ([]string, error) {
+		lookups++
+		switch host {
+		case "rebound.example.com":
+			return []string{"93.184.216.34", "169.254.169.254"}, nil
+		case "mapped.example.com":
+			return []string{"::ffff:169.254.169.254"}, nil
+		case "discord.com":
+			return []string{"162.159.128.233"}, nil
+		}
+		return nil, errors.New("no such host")
+	}
+	t.Cleanup(func() {
+		proxyFromEnvironment = http.ProxyFromEnvironment
+		lookupHost = net.DefaultResolver.LookupHost
+	})
+
+	for target, blocked := range map[string]bool{
+		"https://rebound.example.com/hook": true,
+		"https://mapped.example.com/hook":  true,
+		"http://169.254.169.254/latest":    true,
+		"https://discord.com/api/webhooks": false,
+		"https://only-the-proxy-knows.lan": false, // not resolvable here
+		"http://192.168.1.10:8080/message": false,
+	} {
+		req, _ := http.NewRequest(http.MethodPost, target, nil)
+		proxy, err := webhookProxy(req)
+		if blocked && !errors.Is(err, utils.ErrBlockedHost) {
+			t.Errorf("webhookProxy(%s) error = %v, want ErrBlockedHost", target, err)
+		}
+		if !blocked && (err != nil || proxy != proxyURL) {
+			t.Errorf("webhookProxy(%s) = %v, %v, want the proxy", target, proxy, err)
+		}
+	}
+
+	// Without a proxy the dialer checks the address it connects to
+	useProxy, lookups = false, 0
+	req, _ := http.NewRequest(http.MethodPost, "https://rebound.example.com/hook", nil)
+	if proxy, err := webhookProxy(req); proxy != nil || err != nil || lookups != 0 {
+		t.Errorf("direct: proxy = %v, err = %v, lookups = %d", proxy, err, lookups)
 	}
 }
 
