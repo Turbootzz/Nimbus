@@ -64,7 +64,7 @@ Each app is one Go file in `backend/internal/integrations/` that registers itsel
 
 1. Copy `backend/internal/integrations/_template.go.txt` to `<app>.go` and `_template_test.go.txt` to `<app>_test.go`. The template is a working kind with a test. Then make the type implement `Integration` for your app:
    - `Kind()`: a stable id, stored in the database (`"pihole"`). Never change it later.
-   - `Meta()`: the name, the [dashboard-icons](https://github.com/walkxcode/dashboard-icons) slug, the default port, the auth types it accepts (the first is the default) and its KPIs. The KPIs are the numbers on the tile, in display order; the tile shows the first four. Optional: `URLHint` (the example address in the form), `Hint` (a line of help under the URL field) and `Options` (see [Options](#options)).
+   - `Meta()`: the name, the [dashboard-icons](https://github.com/walkxcode/dashboard-icons) slug, the default port, the auth types it accepts (the first is the default) and its KPIs. The KPIs are the numbers on the tile, in display order; the tile shows four of them (see [Options](#options) for which, when more apply). Optional: `URLHint` (the example address in the form), `Hint` (a line of help under the URL field) and `Options` (see [Options](#options)).
    - `Test(ctx, conn)`: a cheap call that proves the URL and the credentials work.
    - `Fetch(ctx, conn)`: returns a `Payload` whose `KPIs` map has one value per KPI key. Values can be numbers or short text like `"3/5"`.
 2. Register it in `init()`: `func init() { Register(myApp{}) }`.
