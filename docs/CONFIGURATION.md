@@ -22,8 +22,8 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
 - [Prometheus Integration](#prometheus-integration)
 - [Dashboard Export and Import](#dashboard-export-and-import)
   - [Import from another dashboard](#import-from-another-dashboard)
-- [Config File](#config-file)
 - [Public Status Page](#public-status-page)
+- [Config File](#config-file)
 - [Production Deployment](#production-deployment)
 
 ---
@@ -764,10 +764,26 @@ list it.
 What you change in the UI between two applies stays until the file changes or the server
 restarts; then the file wins for everything it describes. Set `NIMBUS_CONFIG_READONLY=true` to
 rule that out: edits by the owner are then refused with `409` and the message that the
-dashboard is managed by a config file, and the UI shows a banner and hides its edit buttons.
+dashboard is managed by a config file, and the UI shows a banner and hides its edit controls
+(edit mode, add buttons, the discovered-containers tray).
 Health checks, widget refreshes, connection tests and the import preview keep working. The lock
 applies once the owner is known, so not while Nimbus waits for that admin or when the very
 first read of the file fails.
+
+### Together with other features
+
+- **Public status page.** The status page shows one of the admin's groups. A sync keeps a
+  group that the file still lists in place, so the page keeps working through renames of other
+  entries. When the file no longer has that group (or renames it) and `replace` removes it,
+  the status page turns itself off until an admin picks a group again.
+- **Docker discovery.** Nimbus remembers which containers it added by the service they became.
+  When a sync removes or recreates such a service, that container is not offered again; it
+  shows under the ignored containers, where it can be offered again. Auto-add (the admin
+  setting) skips the owner of the config file in `replace` mode and whenever the dashboard is
+  read-only: the file decides which services there are, and what auto-add put there would be
+  removed at the next sync. In `merge` mode without read-only, discovery works as usual.
+- **API tokens.** A token of the owner with `write:services` is locked like the owner's
+  browser session; reads and `recheck_service` over MCP keep working.
 
 ### When something is wrong
 

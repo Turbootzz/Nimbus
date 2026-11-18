@@ -171,23 +171,29 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     {item.name}
                   </Link>
                 ))}
-                <button
-                  type="button"
-                  onClick={handleEditLayout}
-                  className="flex w-full items-center px-4 py-2 text-sm transition-colors"
-                  style={{ color: 'var(--color-text-primary)' }}
-                  {...menuItemHover}
-                >
-                  {isEditMode ? (
-                    <CheckIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-success)' }} />
-                  ) : (
-                    <PencilSquareIcon
-                      className="mr-3 h-5 w-5"
-                      style={{ color: 'var(--color-text-muted)' }}
-                    />
-                  )}
-                  {isEditMode ? 'Done editing' : 'Edit layout'}
-                </button>
+                {/* A dashboard locked by a config file can't be edited */}
+                {!user?.config_file?.read_only && (
+                  <button
+                    type="button"
+                    onClick={handleEditLayout}
+                    className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                    style={{ color: 'var(--color-text-primary)' }}
+                    {...menuItemHover}
+                  >
+                    {isEditMode ? (
+                      <CheckIcon
+                        className="mr-3 h-5 w-5"
+                        style={{ color: 'var(--color-success)' }}
+                      />
+                    ) : (
+                      <PencilSquareIcon
+                        className="mr-3 h-5 w-5"
+                        style={{ color: 'var(--color-text-muted)' }}
+                      />
+                    )}
+                    {isEditMode ? 'Done editing' : 'Edit layout'}
+                  </button>
+                )}
                 {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
                   <a
                     href="https://nimbusapp.dev"

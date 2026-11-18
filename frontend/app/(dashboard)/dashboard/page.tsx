@@ -91,8 +91,11 @@ export default function DashboardPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   // Shared with the canvas top bar, whose user menu also toggles it
-  const isEditMode = useEditMode()
-  const configFile = useConfigFile()
+  // A dashboard locked by a config file never enters edit mode, which is
+  // what shows every edit, delete, add-group and drag control
+  const readOnly = useConfigFile()?.read_only ?? false
+  const editModeOn = useEditMode()
+  const isEditMode = editModeOn && !readOnly
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -780,7 +783,7 @@ export default function DashboardPage() {
 
   const header = (
     <DashboardHeader
-      readOnly={configFile?.read_only}
+      readOnly={readOnly}
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
@@ -852,7 +855,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <DiscoveredTray variant="link" />
+      {!readOnly && <DiscoveredTray variant="link" />}
       {statusStrip.enabled && (
         <StatusStrip
           strip={statusStrip}

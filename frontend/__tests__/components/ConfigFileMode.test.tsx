@@ -1,14 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import ConfigFileBanner from '@/components/ConfigFileBanner'
 import DashboardHeader from '@/components/DashboardHeader'
+import UserMenu from '@/components/UserMenu'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: vi.fn() }) }))
 vi.mock('@/lib/api', () => ({
   api: {
     getCurrentUser: vi.fn(),
+    logout: vi.fn(),
   },
 }))
 
@@ -75,5 +78,19 @@ describe('config file mode', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.getByText(/Read-only: managed by config file/)).toBeInTheDocument()
+  })
+
+  it('offers "Edit layout" in the canvas menu unless the dashboard is read-only', async () => {
+    me({ read_only: false, preferences: false })
+    const { unmount } = render(<UserMenu withNavigation />)
+    fireEvent.click(await screen.findByRole('button', { name: /Admin/ }))
+    expect(screen.getByRole('button', { name: 'Edit layout' })).toBeInTheDocument()
+    unmount()
+
+    me({ read_only: true, preferences: false })
+    render(<UserMenu withNavigation />)
+    fireEvent.click(await screen.findByRole('button', { name: /Admin/ }))
+    expect(screen.getByRole('link', { name: 'Services' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit layout' })).not.toBeInTheDocument()
   })
 })

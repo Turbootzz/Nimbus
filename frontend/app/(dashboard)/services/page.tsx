@@ -230,7 +230,9 @@ export default function ServicesPage() {
         </div>
       )}
 
-      <DiscoveredTray onAdded={(service) => setServices((prev) => [...prev, service])} />
+      {!readOnly && (
+        <DiscoveredTray onAdded={(service) => setServices((prev) => [...prev, service])} />
+      )}
 
       {/* Services grid */}
       {services.length === 0 ? (
