@@ -3,10 +3,12 @@ package handlers
 import (
 	"database/sql"
 	"errors"
+	"sort"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
@@ -25,6 +27,23 @@ func NewWebhookHandler(webhookRepo *repository.WebhookRepository, notificationSe
 		webhookRepo:         webhookRepo,
 		notificationService: notificationService,
 	}
+}
+
+// invalidFormatError lists the accepted formats
+const invalidFormatError = "Invalid format. Must be one of: generic, discord, slack, ntfy, gotify, telegram, pushover"
+
+// webhookFieldErrors answers 400 with per-field messages for the form. The
+// first message (by field name, so it is stable) doubles as the summary.
+func webhookFieldErrors(c *fiber.Ctx, fields map[string]string) error {
+	names := make([]string, 0, len(fields))
+	for name := range fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		"error":  fields[names[0]],
+		"fields": fields,
+	})
 }
 
 // CreateWebhook handles webhook creation
@@ -53,20 +72,6 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 		})
 	}
 
-	if req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "URL is required",
-		})
-	}
-
-	// Validate URL security
-	if err := utils.ValidateWebhookURL(req.URL); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error":  "Invalid webhook URL",
-			"detail": err.Error(),
-		})
-	}
-
 	// Validate format
 	format := req.Format
 	if format == "" {
@@ -74,8 +79,24 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 	}
 	if !models.IsValidWebhookFormat(format) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid format. Must be one of: generic, discord, slack",
+			"error": invalidFormatError,
 		})
+	}
+
+	// Telegram and Pushover post to a fixed endpoint; the rest need a URL
+	if models.WebhookFixedURL(format) == "" {
+		if req.URL == "" {
+			return webhookFieldErrors(c, map[string]string{"url": "URL is required"})
+		}
+
+		// Validate URL security
+		if err := utils.ValidateWebhookURL(req.URL); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Invalid webhook URL",
+				"detail": err.Error(),
+				"fields": map[string]string{"url": "Invalid webhook URL: " + err.Error()},
+			})
+		}
 	}
 
 	// Check webhook limit
@@ -124,6 +145,7 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 
 	now := time.Now()
 	webhook := &models.Webhook{
+		ID:                uuid.New().String(), // credentials are bound to it
 		UserID:            userID,
 		Name:              req.Name,
 		URL:               req.URL,
@@ -134,6 +156,23 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 		RetryDelaySeconds: retryDelaySeconds,
 		CreatedAt:         now,
 		UpdatedAt:         now,
+	}
+	if req.Options != nil {
+		webhook.Options = *req.Options
+	}
+
+	creds := models.WebhookCredentials{}
+	if req.Credentials != nil {
+		creds = *req.Credentials
+	}
+	if fields := services.PrepareWebhookTarget(webhook, &creds); len(fields) > 0 {
+		return webhookFieldErrors(c, fields)
+	}
+	webhook.CredentialsEnc, err = h.notificationService.EncryptWebhookCredentials(creds, webhook.ID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to store webhook credentials",
+		})
 	}
 
 	if err := h.webhookRepo.Create(c.Context(), webhook); err != nil {
@@ -241,14 +280,57 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 		webhook.Name = *req.Name
 	}
 
-	if req.URL != nil {
-		if err := utils.ValidateWebhookURL(*req.URL); err != nil {
+	// A new format starts without the old format's settings and secrets
+	oldFormat := webhook.Format
+	if req.Format != nil {
+		if !models.IsValidWebhookFormat(*req.Format) {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error":  "Invalid webhook URL",
-				"detail": err.Error(),
+				"error": invalidFormatError,
 			})
 		}
-		webhook.URL = *req.URL
+		webhook.Format = *req.Format
+	}
+	formatChanged := webhook.Format != oldFormat
+
+	if models.WebhookFixedURL(webhook.Format) == "" {
+		if req.URL != nil {
+			if err := utils.ValidateWebhookURL(*req.URL); err != nil {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+					"error":  "Invalid webhook URL",
+					"detail": err.Error(),
+					"fields": map[string]string{"url": "Invalid webhook URL: " + err.Error()},
+				})
+			}
+			webhook.URL = *req.URL
+		} else if models.WebhookFixedURL(oldFormat) != "" {
+			// The stored URL is the old format's API endpoint, not the user's
+			return webhookFieldErrors(c, map[string]string{"url": "URL is required"})
+		}
+	}
+
+	if req.Options != nil {
+		webhook.Options = *req.Options
+	} else if formatChanged {
+		webhook.Options = models.WebhookOptions{}
+	}
+
+	// Omitted credentials keep the stored blob untouched
+	var creds *models.WebhookCredentials
+	if req.Credentials != nil {
+		creds = req.Credentials
+	} else if formatChanged {
+		creds = &models.WebhookCredentials{}
+	}
+	if fields := services.PrepareWebhookTarget(webhook, creds); len(fields) > 0 {
+		return webhookFieldErrors(c, fields)
+	}
+	if creds != nil {
+		webhook.CredentialsEnc, err = h.notificationService.EncryptWebhookCredentials(*creds, webhook.ID)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to store webhook credentials",
+			})
+		}
 	}
 
 	if req.Enabled != nil {
@@ -257,15 +339,6 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 
 	if req.Triggers != nil {
 		webhook.Triggers = *req.Triggers
-	}
-
-	if req.Format != nil {
-		if !models.IsValidWebhookFormat(*req.Format) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid format. Must be one of: generic, discord, slack",
-			})
-		}
-		webhook.Format = *req.Format
 	}
 
 	if req.RetryCount != nil {

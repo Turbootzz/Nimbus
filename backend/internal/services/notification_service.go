@@ -5,7 +5,9 @@ import (
 	"log"
 	"time"
 
+	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // NotificationEvent represents a service status change event
@@ -30,6 +32,24 @@ func NewNotificationService(webhookRepo *repository.WebhookRepository, serviceRe
 	return &NotificationService{
 		webhookNotifier: NewWebhookNotifier(webhookRepo, serviceRepo),
 	}
+}
+
+// SetCipher enables encrypted credentials for notification targets (ntfy,
+// Gotify, Telegram, Pushover). Plain webhooks work without it.
+func (n *NotificationService) SetCipher(cipher *utils.Cipher) {
+	n.webhookNotifier.cipher = cipher
+}
+
+// EncryptWebhookCredentials returns the blob to store for a webhook's
+// secrets, bound to its ID; nil when there are none.
+func (n *NotificationService) EncryptWebhookCredentials(creds models.WebhookCredentials, webhookID string) ([]byte, error) {
+	if creds == (models.WebhookCredentials{}) {
+		return nil, nil
+	}
+	if n == nil {
+		return nil, errNoCipher
+	}
+	return n.webhookNotifier.encryptCredentials(creds, webhookID)
 }
 
 // NotifyStatusChange sends notifications for a service status change

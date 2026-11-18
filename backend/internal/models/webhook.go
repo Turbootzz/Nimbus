@@ -7,15 +7,53 @@ const (
 	WebhookFormatGeneric = "generic"
 	WebhookFormatDiscord = "discord"
 	WebhookFormatSlack   = "slack"
+
+	WebhookFormatNtfy     = "ntfy"
+	WebhookFormatGotify   = "gotify"
+	WebhookFormatTelegram = "telegram"
+	WebhookFormatPushover = "pushover"
+)
+
+// Fixed API endpoints. They are stored as the webhook URL, so a token never
+// ends up in the url column.
+const (
+	TelegramAPIURL = "https://api.telegram.org"
+	PushoverAPIURL = "https://api.pushover.net/1/messages.json"
 )
 
 // IsValidWebhookFormat checks if the given format is valid
 func IsValidWebhookFormat(format string) bool {
 	switch format {
-	case WebhookFormatGeneric, WebhookFormatDiscord, WebhookFormatSlack:
+	case WebhookFormatGeneric, WebhookFormatDiscord, WebhookFormatSlack,
+		WebhookFormatNtfy, WebhookFormatGotify, WebhookFormatTelegram, WebhookFormatPushover:
 		return true
 	}
 	return false
+}
+
+// WebhookFixedURL returns the endpoint of formats that always post to the
+// same service, or "" when the user supplies the URL.
+func WebhookFixedURL(format string) string {
+	switch format {
+	case WebhookFormatTelegram:
+		return TelegramAPIURL
+	case WebhookFormatPushover:
+		return PushoverAPIURL
+	}
+	return ""
+}
+
+// WebhookOptions are the non-secret settings of a notification target
+type WebhookOptions struct {
+	Priority int    `json:"priority,omitempty"` // ntfy: 1-5
+	ChatID   string `json:"chat_id,omitempty"`  // Telegram
+}
+
+// WebhookCredentials are the decrypted secrets of a notification target.
+// Never return this to clients.
+type WebhookCredentials struct {
+	Token   string `json:"token,omitempty"`    // ntfy access token, Gotify/Pushover app token, Telegram bot token
+	UserKey string `json:"user_key,omitempty"` // Pushover user or group key
 }
 
 // WebhookTriggers defines what events trigger the webhook
@@ -33,6 +71,8 @@ type Webhook struct {
 	Enabled             bool            `json:"enabled" db:"enabled"`
 	Triggers            WebhookTriggers `json:"triggers" db:"triggers"`
 	Format              string          `json:"format" db:"format"`
+	Options             WebhookOptions  `json:"options" db:"options"`
+	CredentialsEnc      []byte          `json:"-" db:"credentials_enc"` // encrypted WebhookCredentials
 	RetryCount          int             `json:"retry_count" db:"retry_count"`
 	RetryDelaySeconds   int             `json:"retry_delay_seconds" db:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at" db:"last_triggered_at"`
@@ -46,27 +86,33 @@ type Webhook struct {
 
 // WebhookCreateRequest for creating a new webhook
 type WebhookCreateRequest struct {
-	Name              string           `json:"name" validate:"required,max=100"`
-	URL               string           `json:"url" validate:"required,url"`
-	Enabled           *bool            `json:"enabled"`
-	Triggers          *WebhookTriggers `json:"triggers"`
-	Format            string           `json:"format" validate:"omitempty,oneof=generic discord slack"`
-	RetryCount        *int             `json:"retry_count" validate:"omitempty,min=0,max=5"`
-	RetryDelaySeconds *int             `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
+	Name              string              `json:"name" validate:"required,max=100"`
+	URL               string              `json:"url" validate:"omitempty,url"` // required unless the format has a fixed endpoint
+	Enabled           *bool               `json:"enabled"`
+	Triggers          *WebhookTriggers    `json:"triggers"`
+	Format            string              `json:"format" validate:"omitempty,oneof=generic discord slack ntfy gotify telegram pushover"`
+	Options           *WebhookOptions     `json:"options"`
+	Credentials       *WebhookCredentials `json:"credentials"`
+	RetryCount        *int                `json:"retry_count" validate:"omitempty,min=0,max=5"`
+	RetryDelaySeconds *int                `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
 
-// WebhookUpdateRequest for updating a webhook
+// WebhookUpdateRequest for updating a webhook. Changing the format resets
+// options and credentials unless new ones are sent.
 type WebhookUpdateRequest struct {
-	Name              *string          `json:"name" validate:"omitempty,max=100"`
-	URL               *string          `json:"url" validate:"omitempty,url"`
-	Enabled           *bool            `json:"enabled"`
-	Triggers          *WebhookTriggers `json:"triggers"`
-	Format            *string          `json:"format" validate:"omitempty,oneof=generic discord slack"`
-	RetryCount        *int             `json:"retry_count" validate:"omitempty,min=0,max=5"`
-	RetryDelaySeconds *int             `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
+	Name              *string             `json:"name" validate:"omitempty,max=100"`
+	URL               *string             `json:"url" validate:"omitempty,url"`
+	Enabled           *bool               `json:"enabled"`
+	Triggers          *WebhookTriggers    `json:"triggers"`
+	Format            *string             `json:"format" validate:"omitempty,oneof=generic discord slack ntfy gotify telegram pushover"`
+	Options           *WebhookOptions     `json:"options"`
+	Credentials       *WebhookCredentials `json:"credentials"` // omitted keeps the stored secrets, present replaces them
+	RetryCount        *int                `json:"retry_count" validate:"omitempty,min=0,max=5"`
+	RetryDelaySeconds *int                `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
 
-// WebhookResponse is the safe data to return to clients
+// WebhookResponse is the safe data to return to clients. Secrets are never
+// echoed back, only whether some are stored.
 type WebhookResponse struct {
 	ID                  string          `json:"id"`
 	Name                string          `json:"name"`
@@ -74,6 +120,8 @@ type WebhookResponse struct {
 	Enabled             bool            `json:"enabled"`
 	Triggers            WebhookTriggers `json:"triggers"`
 	Format              string          `json:"format"`
+	Options             WebhookOptions  `json:"options"`
+	HasCredentials      bool            `json:"has_credentials"`
 	RetryCount          int             `json:"retry_count"`
 	RetryDelaySeconds   int             `json:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at,omitempty"`
@@ -94,6 +142,8 @@ func (w *Webhook) ToResponse() WebhookResponse {
 		Enabled:             w.Enabled,
 		Triggers:            w.Triggers,
 		Format:              w.Format,
+		Options:             w.Options,
+		HasCredentials:      len(w.CredentialsEnc) > 0,
 		RetryCount:          w.RetryCount,
 		RetryDelaySeconds:   w.RetryDelaySeconds,
 		LastTriggeredAt:     w.LastTriggeredAt,

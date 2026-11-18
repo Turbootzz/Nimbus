@@ -29,8 +29,9 @@ func main() {
 	// Load environment variables
 	config.MustLoadEnv()
 
-	// Integration credentials are encrypted with ENCRYPTION_KEY. Only the
-	// server needs it, so it is checked here instead of in LoadEnv.
+	// Integration and notification credentials are encrypted with
+	// ENCRYPTION_KEY. Only the server needs it, so it is checked here instead
+	// of in LoadEnv.
 	credentialCipher, err := utils.NewCipherFromEnv()
 	if err != nil {
 		log.Fatalf("Failed to load environment: %v", err)
@@ -120,6 +121,7 @@ func main() {
 
 	// Initialize notification service
 	notificationService := services.NewNotificationService(webhookRepo, serviceRepo)
+	notificationService.SetCipher(credentialCipher)
 
 	// Initialize health check service
 	healthCheckTimeout := getEnvDuration("HEALTH_CHECK_TIMEOUT", 10*time.Second)

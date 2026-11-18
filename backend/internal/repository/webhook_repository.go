@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
 )
 
@@ -17,55 +18,18 @@ func NewWebhookRepository(sqlDB *sql.DB) *WebhookRepository {
 	return &WebhookRepository{db: sqlDB}
 }
 
-// Create creates a new webhook
-func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook) error {
-	triggersJSON, err := json.Marshal(webhook.Triggers)
-	if err != nil {
-		return err
-	}
-
-	query := `
-		INSERT INTO webhooks (user_id, name, url, enabled, triggers, format, retry_count, retry_delay_seconds, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-		RETURNING id
-	`
-
-	webhook.CreatedAt = time.Now()
-	webhook.UpdatedAt = webhook.CreatedAt
-
-	err = r.db.QueryRowContext(
-		ctx,
-		query,
-		webhook.UserID,
-		webhook.Name,
-		webhook.URL,
-		webhook.Enabled,
-		triggersJSON,
-		webhook.Format,
-		webhook.RetryCount,
-		webhook.RetryDelaySeconds,
-		webhook.CreatedAt,
-		webhook.UpdatedAt,
-	).Scan(&webhook.ID)
-
-	return err
-}
-
-// GetByID retrieves a webhook by ID, scoped to the user
-func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*models.Webhook, error) {
-	webhook := &models.Webhook{}
-	var triggersJSON []byte
-
-	query := `
-		SELECT id, user_id, name, url, enabled, triggers, format,
+// webhookColumns is the column list every webhook read selects
+const webhookColumns = `id, user_id, name, url, enabled, triggers, format, options, credentials_enc,
 			   retry_count, retry_delay_seconds,
 			   last_triggered_at, last_success_at, consecutive_failures,
-			   total_sent, total_failed, created_at, updated_at
-		FROM webhooks
-		WHERE id = $1 AND user_id = $2
-	`
+			   total_sent, total_failed, created_at, updated_at`
 
-	err := r.db.QueryRowContext(ctx, query, id, userID).Scan(
+// scanWebhook reads one row selected with webhookColumns
+func scanWebhook(row interface{ Scan(dest ...any) error }) (*models.Webhook, error) {
+	webhook := &models.Webhook{}
+	var triggersJSON, optionsJSON []byte
+
+	err := row.Scan(
 		&webhook.ID,
 		&webhook.UserID,
 		&webhook.Name,
@@ -73,6 +37,8 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 		&webhook.Enabled,
 		&triggersJSON,
 		&webhook.Format,
+		&optionsJSON,
+		&webhook.CredentialsEnc,
 		&webhook.RetryCount,
 		&webhook.RetryDelaySeconds,
 		&webhook.LastTriggeredAt,
@@ -83,10 +49,6 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 		&webhook.CreatedAt,
 		&webhook.UpdatedAt,
 	)
-
-	if err == sql.ErrNoRows {
-		return nil, sql.ErrNoRows
-	}
 	if err != nil {
 		return nil, err
 	}
@@ -94,118 +56,109 @@ func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*mo
 	if err := json.Unmarshal(triggersJSON, &webhook.Triggers); err != nil {
 		return nil, err
 	}
+	if err := json.Unmarshal(optionsJSON, &webhook.Options); err != nil {
+		return nil, err
+	}
 
 	return webhook, nil
+}
+
+// queryWebhooks runs a query selecting webhookColumns and scans every row
+func (r *WebhookRepository) queryWebhooks(ctx context.Context, query string, args ...any) ([]*models.Webhook, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var webhooks []*models.Webhook
+	for rows.Next() {
+		webhook, err := scanWebhook(rows)
+		if err != nil {
+			return nil, err
+		}
+		webhooks = append(webhooks, webhook)
+	}
+
+	return webhooks, rows.Err()
+}
+
+// Create creates a new webhook. A preset ID is kept, since encrypted
+// credentials are bound to it.
+func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook) error {
+	triggersJSON, err := json.Marshal(webhook.Triggers)
+	if err != nil {
+		return err
+	}
+	optionsJSON, err := json.Marshal(webhook.Options)
+	if err != nil {
+		return err
+	}
+
+	if webhook.ID == "" {
+		webhook.ID = uuid.New().String()
+	}
+
+	query := `
+		INSERT INTO webhooks (id, user_id, name, url, enabled, triggers, format, options, credentials_enc,
+							  retry_count, retry_delay_seconds, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+	`
+
+	webhook.CreatedAt = time.Now()
+	webhook.UpdatedAt = webhook.CreatedAt
+
+	_, err = r.db.ExecContext(
+		ctx,
+		query,
+		webhook.ID,
+		webhook.UserID,
+		webhook.Name,
+		webhook.URL,
+		webhook.Enabled,
+		triggersJSON,
+		webhook.Format,
+		optionsJSON,
+		nullableBytes(webhook.CredentialsEnc),
+		webhook.RetryCount,
+		webhook.RetryDelaySeconds,
+		webhook.CreatedAt,
+		webhook.UpdatedAt,
+	)
+
+	return err
+}
+
+// GetByID retrieves a webhook by ID, scoped to the user
+func (r *WebhookRepository) GetByID(ctx context.Context, id, userID string) (*models.Webhook, error) {
+	query := `
+		SELECT ` + webhookColumns + `
+		FROM webhooks
+		WHERE id = $1 AND user_id = $2
+	`
+	return scanWebhook(r.db.QueryRowContext(ctx, query, id, userID))
 }
 
 // GetAllByUserID retrieves all webhooks for a specific user
 func (r *WebhookRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Webhook, error) {
 	query := `
-		SELECT id, user_id, name, url, enabled, triggers, format,
-			   retry_count, retry_delay_seconds,
-			   last_triggered_at, last_success_at, consecutive_failures,
-			   total_sent, total_failed, created_at, updated_at
+		SELECT ` + webhookColumns + `
 		FROM webhooks
 		WHERE user_id = $1
 		ORDER BY created_at ASC
 	`
-
-	rows, err := r.db.QueryContext(ctx, query, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var webhooks []*models.Webhook
-	for rows.Next() {
-		webhook := &models.Webhook{}
-		var triggersJSON []byte
-
-		err := rows.Scan(
-			&webhook.ID,
-			&webhook.UserID,
-			&webhook.Name,
-			&webhook.URL,
-			&webhook.Enabled,
-			&triggersJSON,
-			&webhook.Format,
-			&webhook.RetryCount,
-			&webhook.RetryDelaySeconds,
-			&webhook.LastTriggeredAt,
-			&webhook.LastSuccessAt,
-			&webhook.ConsecutiveFailures,
-			&webhook.TotalSent,
-			&webhook.TotalFailed,
-			&webhook.CreatedAt,
-			&webhook.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := json.Unmarshal(triggersJSON, &webhook.Triggers); err != nil {
-			return nil, err
-		}
-
-		webhooks = append(webhooks, webhook)
-	}
-
-	return webhooks, rows.Err()
+	return r.queryWebhooks(ctx, query, userID)
 }
 
 // GetEnabledByUserID retrieves all enabled webhooks for a user (for notification service)
 func (r *WebhookRepository) GetEnabledByUserID(ctx context.Context, userID string) ([]*models.Webhook, error) {
 	query := `
-		SELECT id, user_id, name, url, enabled, triggers, format,
-			   retry_count, retry_delay_seconds,
-			   last_triggered_at, last_success_at, consecutive_failures,
-			   total_sent, total_failed, created_at, updated_at
+		SELECT ` + webhookColumns + `
 		FROM webhooks
 		WHERE user_id = $1 AND enabled = true
 		ORDER BY created_at ASC
 	`
-
-	rows, err := r.db.QueryContext(ctx, query, userID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var webhooks []*models.Webhook
-	for rows.Next() {
-		webhook := &models.Webhook{}
-		var triggersJSON []byte
-
-		err := rows.Scan(
-			&webhook.ID,
-			&webhook.UserID,
-			&webhook.Name,
-			&webhook.URL,
-			&webhook.Enabled,
-			&triggersJSON,
-			&webhook.Format,
-			&webhook.RetryCount,
-			&webhook.RetryDelaySeconds,
-			&webhook.LastTriggeredAt,
-			&webhook.LastSuccessAt,
-			&webhook.ConsecutiveFailures,
-			&webhook.TotalSent,
-			&webhook.TotalFailed,
-			&webhook.CreatedAt,
-			&webhook.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		if err := json.Unmarshal(triggersJSON, &webhook.Triggers); err != nil {
-			return nil, err
-		}
-
-		webhooks = append(webhooks, webhook)
-	}
-
-	return webhooks, rows.Err()
+	return r.queryWebhooks(ctx, query, userID)
 }
 
 // CountByUserID returns the number of webhooks for a user (for limit check)
@@ -223,13 +176,19 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 		return err
 	}
 
+	optionsJSON, err := json.Marshal(webhook.Options)
+	if err != nil {
+		return err
+	}
+
 	webhook.UpdatedAt = time.Now()
 
 	query := `
 		UPDATE webhooks
 		SET name = $1, url = $2, enabled = $3, triggers = $4, format = $5,
-			retry_count = $6, retry_delay_seconds = $7, updated_at = $8
-		WHERE id = $9 AND user_id = $10
+			options = $6, credentials_enc = $7,
+			retry_count = $8, retry_delay_seconds = $9, updated_at = $10
+		WHERE id = $11 AND user_id = $12
 	`
 
 	result, err := r.db.ExecContext(
@@ -240,6 +199,8 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 		webhook.Enabled,
 		triggersJSON,
 		webhook.Format,
+		optionsJSON,
+		nullableBytes(webhook.CredentialsEnc),
 		webhook.RetryCount,
 		webhook.RetryDelaySeconds,
 		webhook.UpdatedAt,
