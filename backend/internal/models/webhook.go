@@ -73,6 +73,7 @@ type Webhook struct {
 	Format              string          `json:"format" db:"format"`
 	Options             WebhookOptions  `json:"options" db:"options"`
 	CredentialsEnc      []byte          `json:"-" db:"credentials_enc"` // encrypted WebhookCredentials
+	VerifyTLS           bool            `json:"verify_tls" db:"verify_tls"`
 	RetryCount          int             `json:"retry_count" db:"retry_count"`
 	RetryDelaySeconds   int             `json:"retry_delay_seconds" db:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at" db:"last_triggered_at"`
@@ -93,6 +94,7 @@ type WebhookCreateRequest struct {
 	Format            string              `json:"format" validate:"omitempty,oneof=generic discord slack ntfy gotify telegram pushover"`
 	Options           *WebhookOptions     `json:"options"`
 	Credentials       *WebhookCredentials `json:"credentials"`
+	VerifyTLS         *bool               `json:"verify_tls"` // default true; false allows self-signed certificates
 	RetryCount        *int                `json:"retry_count" validate:"omitempty,min=0,max=5"`
 	RetryDelaySeconds *int                `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
@@ -107,6 +109,7 @@ type WebhookUpdateRequest struct {
 	Format            *string             `json:"format" validate:"omitempty,oneof=generic discord slack ntfy gotify telegram pushover"`
 	Options           *WebhookOptions     `json:"options"`
 	Credentials       *WebhookCredentials `json:"credentials"` // omitted keeps the stored secrets, present replaces them
+	VerifyTLS         *bool               `json:"verify_tls"`
 	RetryCount        *int                `json:"retry_count" validate:"omitempty,min=0,max=5"`
 	RetryDelaySeconds *int                `json:"retry_delay_seconds" validate:"omitempty,min=10,max=300"`
 }
@@ -122,6 +125,7 @@ type WebhookResponse struct {
 	Format              string          `json:"format"`
 	Options             WebhookOptions  `json:"options"`
 	HasCredentials      bool            `json:"has_credentials"`
+	VerifyTLS           bool            `json:"verify_tls"`
 	RetryCount          int             `json:"retry_count"`
 	RetryDelaySeconds   int             `json:"retry_delay_seconds"`
 	LastTriggeredAt     *time.Time      `json:"last_triggered_at,omitempty"`
@@ -144,6 +148,7 @@ func (w *Webhook) ToResponse() WebhookResponse {
 		Format:              w.Format,
 		Options:             w.Options,
 		HasCredentials:      len(w.CredentialsEnc) > 0,
+		VerifyTLS:           w.VerifyTLS,
 		RetryCount:          w.RetryCount,
 		RetryDelaySeconds:   w.RetryDelaySeconds,
 		LastTriggeredAt:     w.LastTriggeredAt,

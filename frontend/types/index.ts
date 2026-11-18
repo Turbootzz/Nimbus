@@ -616,6 +616,7 @@ export interface Webhook {
   format: WebhookFormat
   options?: WebhookOptions
   has_credentials?: boolean
+  verify_tls?: boolean
   retry_count: number
   retry_delay_seconds: number
   last_triggered_at?: string
@@ -635,6 +636,7 @@ export interface WebhookCreateRequest {
   format?: WebhookFormat
   options?: WebhookOptions
   credentials?: WebhookCredentials
+  verify_tls?: boolean // false allows a self-signed certificate
   retry_count?: number
   retry_delay_seconds?: number
 }
@@ -647,6 +649,7 @@ export interface WebhookUpdateRequest {
   format?: WebhookFormat
   options?: WebhookOptions
   credentials?: WebhookCredentials // omitted keeps the stored secrets
+  verify_tls?: boolean
   retry_count?: number
   retry_delay_seconds?: number
 }

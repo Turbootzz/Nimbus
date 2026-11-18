@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
+import { Toggle } from '@/components/ui/Toggle'
 import {
   NTFY_PRIORITIES,
   WEBHOOK_TARGETS,
@@ -72,6 +73,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
     chatId: webhook?.options?.chat_id || '',
     priority: webhook?.options?.priority || 3,
     removeToken: false,
+    verifyTls: webhook?.verify_tls ?? true,
     onOffline: webhook?.triggers?.on_offline ?? true,
     onOnline: webhook?.triggers?.on_online ?? false,
     retryCount: webhook?.retry_count ?? 0,
@@ -326,6 +328,17 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                 </select>
               )}
             </Field>
+          )}
+
+          {target.selfHosted && (
+            <Toggle
+              id="webhook-verify-tls"
+              enabled={values.verifyTls}
+              onChange={(verifyTls) => set('verifyTls', verifyTls)}
+              label="Verify TLS certificate"
+              description="Turn off for a server with a self-signed certificate"
+              disabled={isLoading}
+            />
           )}
 
           <fieldset aria-describedby={errors.triggers ? 'triggers-error' : undefined}>

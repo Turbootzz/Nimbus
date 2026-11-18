@@ -19,6 +19,7 @@ export interface WebhookTarget {
   userKey?: TextField
   chatId?: TextField
   priority?: boolean
+  selfHosted?: boolean // may have a self-signed certificate: offer the TLS toggle
 }
 
 export const WEBHOOK_TARGETS: WebhookTarget[] = [
@@ -27,6 +28,7 @@ export const WEBHOOK_TARGETS: WebhookTarget[] = [
     label: 'Generic',
     description: 'Standard JSON payload',
     url: { label: 'Webhook URL', placeholder: 'https://example.com/webhook' },
+    selfHosted: true,
   },
   {
     value: 'discord',
@@ -56,6 +58,7 @@ export const WEBHOOK_TARGETS: WebhookTarget[] = [
       optional: true,
     },
     priority: true,
+    selfHosted: true,
   },
   {
     value: 'gotify',
@@ -63,6 +66,7 @@ export const WEBHOOK_TARGETS: WebhookTarget[] = [
     description: 'Push to a Gotify server',
     url: { label: 'Server URL', placeholder: 'http://192.168.1.10:8080' },
     token: { label: 'App token', help: 'Create an application in Gotify and copy its token.' },
+    selfHosted: true,
   },
   {
     value: 'telegram',
@@ -109,6 +113,7 @@ export interface WebhookFormValues {
   chatId: string
   priority: number
   removeToken: boolean // ntfy: drop the saved access token
+  verifyTls: boolean
   onOffline: boolean
   onOnline: boolean
   retryCount: number
@@ -189,6 +194,8 @@ export function buildWebhookRequest(
     retry_delay_seconds: values.retryDelaySeconds,
   }
   if (target.url) request.url = values.url.trim()
+  // Other types always verify; the backend enforces that
+  if (target.selfHosted) request.verify_tls = values.verifyTls
   if (target.priority) request.options = { priority: values.priority }
   if (target.chatId) request.options = { chat_id: values.chatId.trim() }
 

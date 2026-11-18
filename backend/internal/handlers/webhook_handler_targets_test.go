@@ -365,3 +365,37 @@ func TestWebhookHandler_TestTarget(t *testing.T) {
 		t.Errorf("status = %d, body = %s", status, raw)
 	}
 }
+
+// verify_tls defaults to on, can be turned off for a self-hosted target and
+// survives an update that doesn't mention it; fixed public APIs always verify
+func TestWebhookHandler_VerifyTLS(t *testing.T) {
+	app, _ := targetTestApp(t)
+
+	_, raw := targetRequest(t, app, http.MethodPost, "/webhooks", map[string]any{
+		"name": "gotify", "format": "gotify", "url": "https://gotify.lan",
+		"credentials": map[string]any{"token": "AbC123"},
+	})
+	created := decodeWebhook(t, raw)
+	if !created.VerifyTLS {
+		t.Fatalf("created = %+v, want verify_tls on by default", created)
+	}
+
+	path := "/webhooks/" + created.ID
+	_, raw = targetRequest(t, app, http.MethodPut, path, map[string]any{"verify_tls": false})
+	if decodeWebhook(t, raw).VerifyTLS {
+		t.Errorf("verify_tls was not turned off: %s", raw)
+	}
+	_, raw = targetRequest(t, app, http.MethodPut, path, map[string]any{"enabled": false})
+	if decodeWebhook(t, raw).VerifyTLS {
+		t.Errorf("a toggle reset verify_tls: %s", raw)
+	}
+
+	_, raw = targetRequest(t, app, http.MethodPost, "/webhooks", map[string]any{
+		"name": "telegram", "format": "telegram", "verify_tls": false,
+		"options":     map[string]any{"chat_id": "42"},
+		"credentials": map[string]any{"token": "123456789:AAbbCCddEEffGGhhIIjjKKllMMnnOOppQQr"},
+	})
+	if !decodeWebhook(t, raw).VerifyTLS {
+		t.Errorf("Telegram must always verify TLS: %s", raw)
+	}
+}

@@ -20,7 +20,7 @@ func NewWebhookRepository(sqlDB *sql.DB) *WebhookRepository {
 
 // webhookColumns is the column list every webhook read selects
 const webhookColumns = `id, user_id, name, url, enabled, triggers, format, options, credentials_enc,
-			   retry_count, retry_delay_seconds,
+			   verify_tls, retry_count, retry_delay_seconds,
 			   last_triggered_at, last_success_at, consecutive_failures,
 			   total_sent, total_failed, created_at, updated_at`
 
@@ -39,6 +39,7 @@ func scanWebhook(row interface{ Scan(dest ...any) error }) (*models.Webhook, err
 		&webhook.Format,
 		&optionsJSON,
 		&webhook.CredentialsEnc,
+		&webhook.VerifyTLS,
 		&webhook.RetryCount,
 		&webhook.RetryDelaySeconds,
 		&webhook.LastTriggeredAt,
@@ -101,8 +102,8 @@ func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook)
 
 	query := `
 		INSERT INTO webhooks (id, user_id, name, url, enabled, triggers, format, options, credentials_enc,
-							  retry_count, retry_delay_seconds, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+							  verify_tls, retry_count, retry_delay_seconds, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 	`
 
 	webhook.CreatedAt = time.Now()
@@ -120,6 +121,7 @@ func (r *WebhookRepository) Create(ctx context.Context, webhook *models.Webhook)
 		webhook.Format,
 		optionsJSON,
 		nullableBytes(webhook.CredentialsEnc),
+		webhook.VerifyTLS,
 		webhook.RetryCount,
 		webhook.RetryDelaySeconds,
 		webhook.CreatedAt,
@@ -186,9 +188,9 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 	query := `
 		UPDATE webhooks
 		SET name = $1, url = $2, enabled = $3, triggers = $4, format = $5,
-			options = $6, credentials_enc = $7,
-			retry_count = $8, retry_delay_seconds = $9, updated_at = $10
-		WHERE id = $11 AND user_id = $12
+			options = $6, credentials_enc = $7, verify_tls = $8,
+			retry_count = $9, retry_delay_seconds = $10, updated_at = $11
+		WHERE id = $12 AND user_id = $13
 	`
 
 	result, err := r.db.ExecContext(
@@ -201,6 +203,7 @@ func (r *WebhookRepository) Update(ctx context.Context, webhook *models.Webhook)
 		webhook.Format,
 		optionsJSON,
 		nullableBytes(webhook.CredentialsEnc),
+		webhook.VerifyTLS,
 		webhook.RetryCount,
 		webhook.RetryDelaySeconds,
 		webhook.UpdatedAt,

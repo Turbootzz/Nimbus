@@ -16,7 +16,7 @@ Each user manages their own targets (up to 10).
 | Telegram | Bot token, chat ID | Create a bot with [@BotFather](https://t.me/BotFather) and send it a message first, bots can't start a chat. The chat ID is a user, group or channel ID (groups are negative), or a public `@channelname`. |
 | Pushover | App token, user key | Create an application on pushover.net for the app token. The user key is on your Pushover dashboard; a group key works too. |
 
-The Nimbus server sends the notifications, so ntfy and Gotify URLs must be reachable from the server, not from your browser. Addresses on your LAN are fine. A server with a self-signed certificate needs plain `http://` or a certificate the Nimbus host trusts.
+The Nimbus server sends the notifications, so ntfy and Gotify URLs must be reachable from the server, not from your browser. Addresses on your LAN are fine. For a server with a self-signed certificate, turn off **Verify TLS certificate** on the target (generic, ntfy and Gotify only). `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY` are honoured.
 
 ## Secrets
 
@@ -70,5 +70,6 @@ Targets are managed with `/api/v1/webhooks` (`GET`, `POST`, `PUT /:id`, `DELETE 
 - `format`: `generic`, `discord`, `slack`, `ntfy`, `gotify`, `telegram` or `pushover`.
 - `url`: required except for `telegram` and `pushover`.
 - `options`: `priority` (ntfy, 1-5) or `chat_id` (Telegram).
+- `verify_tls`: `false` skips the certificate check, for `generic`, `ntfy` and `gotify`. Default `true`.
 - `credentials`: `token`, plus `user_key` for Pushover. Responses only carry `has_credentials`. On update, leave `credentials` out to keep the saved secrets; sending it replaces them, and `{}` removes an ntfy token.
 - Validation errors come back as `{"error": "...", "fields": {"token": "..."}}`.

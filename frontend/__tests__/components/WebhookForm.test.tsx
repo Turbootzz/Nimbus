@@ -79,6 +79,7 @@ describe('WebhookForm', () => {
         name: 'Gotify',
         format: 'gotify',
         url: 'http://192.168.1.10:8080',
+        verify_tls: true,
         credentials: { token: 'AppToken.123' },
         triggers: { on_offline: true, on_online: false },
         retry_count: 0,
@@ -143,6 +144,22 @@ describe('WebhookForm', () => {
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(onSubmit.mock.calls[0][0].credentials).toEqual({})
+  })
+
+  it('offers the TLS toggle for self-hosted types only', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(null)
+    const ntfy = saved({ format: 'ntfy', url: 'https://ntfy.lan/alerts', has_credentials: false })
+    render(<WebhookForm webhook={ntfy} onSubmit={onSubmit} onClose={() => {}} />)
+
+    const toggle = screen.getByRole('switch', { name: 'Verify TLS certificate' })
+    expect(toggle).toBeChecked()
+    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+    expect(onSubmit.mock.calls[0][0].verify_tls).toBe(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Telegram' }))
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument()
   })
 
   it('closes on Escape', () => {

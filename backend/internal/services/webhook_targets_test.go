@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -118,9 +119,9 @@ func TestBuildTelegramPayload(t *testing.T) {
 		t.Error("parse_mode must not be set")
 	}
 
-	long := strings.Repeat("é", 5000)
-	event.ErrorMsg = &long
-	event.NewStatus = models.StatusOffline
+	// The error is capped on its own (see TestNotificationText_CapsLongErrors);
+	// the whole text is still cut when the rest is too long
+	event.ServiceURL = "https://example.com/" + strings.Repeat("a", 5000)
 	if got := len([]rune(buildTelegramPayload("1", event)["text"].(string))); got != telegramMaxText {
 		t.Errorf("long text has %d characters, want %d", got, telegramMaxText)
 	}
@@ -706,5 +707,83 @@ func TestNotifyWithRetry_Target(t *testing.T) {
 				t.Errorf("body = %v", got[0].Body)
 			}
 		})
+	}
+}
+
+// A secret must not survive in part when it sits on the cut, nor URL-encoded
+func TestResponseError_ScrubsBeforeTruncating(t *testing.T) {
+	padding := strings.Repeat("x", maxErrorDetail-10)
+	server, _ := targetServer(t, http.StatusBadRequest, `{"error":"`+padding+testPushoverToken+`"}`)
+	notifier := newTargetNotifier(t, nil)
+	webhook := saveTarget(t, notifier, &models.Webhook{
+		Format: models.WebhookFormatPushover, URL: server.URL,
+	}, models.WebhookCredentials{Token: testPushoverToken, UserKey: testPushoverUser})
+
+	_, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline))
+	if strings.Contains(errMsg, testPushoverToken[:5]) {
+		t.Errorf("error leaks part of the token: %q", errMsg)
+	}
+}
+
+func TestScrubSecrets_URLEncoded(t *testing.T) {
+	creds := models.WebhookCredentials{Token: testTelegramToken, UserKey: "a/b c"}
+	encoded := strings.Replace(testTelegramToken, ":", "%3A", 1)
+	for _, msg := range []string{
+		"bad " + testTelegramToken,
+		"bad " + encoded,
+		"bad " + strings.ToLower(encoded),
+		"bad a%2Fb+c and a%2Fb%20c",
+	} {
+		got := scrubSecrets(msg, creds)
+		if !strings.Contains(got, "[redacted]") || strings.Contains(got, "AAbb") || strings.Contains(got, "%2F") {
+			t.Errorf("scrubSecrets(%q) = %q", msg, got)
+		}
+	}
+}
+
+// Behind a proxy the dialer can't see the target, so the proxy lookup refuses
+// metadata endpoints itself
+func TestWebhookProxy_BlocksMetadata(t *testing.T) {
+	for _, target := range []string{"http://169.254.169.254/latest", "http://metadata.google.internal/"} {
+		req, _ := http.NewRequest(http.MethodPost, target, nil)
+		if _, err := webhookProxy(req); !errors.Is(err, utils.ErrBlockedHost) {
+			t.Errorf("webhookProxy(%s) error = %v, want ErrBlockedHost", target, err)
+		}
+	}
+	req, _ := http.NewRequest(http.MethodPost, "http://192.168.1.10:8080/message", nil)
+	if _, err := webhookProxy(req); err != nil {
+		t.Errorf("LAN target refused: %v", err)
+	}
+}
+
+// A self-signed server only works with verify_tls off
+func TestDeliver_VerifyTLS(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(server.Close)
+	server.Config.ErrorLog = log.New(io.Discard, "", 0)
+	notifier := newTargetNotifier(t, nil)
+	webhook := &models.Webhook{Format: models.WebhookFormatGotify, URL: server.URL, VerifyTLS: true}
+
+	if status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline)); status != 0 || !strings.Contains(errMsg, "certificate") {
+		t.Errorf("verify on: status = %d, error = %q, want a certificate error", status, errMsg)
+	}
+	webhook.VerifyTLS = false
+	if status, errMsg := notifier.deliver(context.Background(), webhook, targetEvent(models.StatusOffline)); status != http.StatusOK || errMsg != "" {
+		t.Errorf("verify off: status = %d, error = %q", status, errMsg)
+	}
+}
+
+func TestNotificationText_CapsLongErrors(t *testing.T) {
+	long := strings.Repeat("é", 5000)
+	event := targetEvent(models.StatusOffline)
+	event.ErrorMsg = &long
+	text := buildTelegramPayload("1", event)["text"].(string)
+	if !strings.HasSuffix(text, event.ServiceURL) {
+		t.Error("a long error cut the service link off the Telegram message")
+	}
+	if got := len(buildNtfyPayload("alerts", 3, event)["message"].(string)); got > 4096 {
+		t.Errorf("ntfy message is %d bytes, over its 4096 limit", got)
 	}
 }

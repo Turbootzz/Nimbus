@@ -16,6 +16,7 @@ const base: WebhookFormValues = {
   chatId: '',
   priority: 3,
   removeToken: false,
+  verifyTls: true,
   onOffline: true,
   onOnline: false,
   retryCount: 0,
@@ -116,6 +117,7 @@ describe('buildWebhookRequest', () => {
       name: 'Alerts',
       format: 'generic',
       url: 'https://example.com/hook',
+      verify_tls: true,
       triggers: { on_offline: true, on_online: false },
       retry_count: 0,
       retry_delay_seconds: 30,
@@ -129,6 +131,13 @@ describe('buildWebhookRequest', () => {
     )
     expect(request.options).toEqual({ priority: 5 })
     expect(request.credentials).toEqual({ token: 'tk_1' })
+  })
+
+  it('sends verify_tls only for types that can be self-hosted', () => {
+    const gotify = form({ format: 'gotify', token: 'app', verifyTls: false })
+    expect(buildWebhookRequest(gotify, false).verify_tls).toBe(false)
+    const discord = form({ format: 'discord', verifyTls: false })
+    expect('verify_tls' in buildWebhookRequest(discord, false)).toBe(false)
   })
 
   it('sends no URL for Telegram and Pushover', () => {

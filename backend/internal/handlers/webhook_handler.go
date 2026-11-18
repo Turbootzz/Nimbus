@@ -152,6 +152,7 @@ func (h *WebhookHandler) CreateWebhook(c *fiber.Ctx) error {
 		Enabled:           enabled,
 		Triggers:          triggers,
 		Format:            format,
+		VerifyTLS:         req.VerifyTLS == nil || *req.VerifyTLS,
 		RetryCount:        retryCount,
 		RetryDelaySeconds: retryDelaySeconds,
 		CreatedAt:         now,
@@ -312,6 +313,10 @@ func (h *WebhookHandler) UpdateWebhook(c *fiber.Ctx) error {
 		webhook.Options = *req.Options
 	} else if formatChanged {
 		webhook.Options = models.WebhookOptions{}
+	}
+
+	if req.VerifyTLS != nil {
+		webhook.VerifyTLS = *req.VerifyTLS
 	}
 
 	// Omitted credentials keep the stored blob untouched

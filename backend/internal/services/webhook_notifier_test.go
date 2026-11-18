@@ -615,6 +615,7 @@ func setupWebhookNotifierTestDB(t *testing.T) *repository.WebhookRepository {
 			format TEXT NOT NULL DEFAULT 'generic',
 			options TEXT NOT NULL DEFAULT '{}',
 			credentials_enc BLOB,
+			verify_tls INTEGER NOT NULL DEFAULT 1,
 			retry_count INTEGER NOT NULL DEFAULT 0,
 			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
 			last_triggered_at TIMESTAMP, last_success_at TIMESTAMP,
@@ -679,6 +680,7 @@ func TestNotifyWithRetry_ConfirmedOfflineClearsPending(t *testing.T) {
 		webhookRepo: webhookRepo,
 		serviceRepo: serviceRepo,
 		httpClient:  &http.Client{Timeout: 5 * time.Second},
+		insecure:    &http.Client{Timeout: 5 * time.Second},
 	}
 
 	webhook := &models.Webhook{

@@ -45,7 +45,8 @@ var (
 type WebhookNotifier struct {
 	webhookRepo *repository.WebhookRepository
 	serviceRepo repository.ServiceRepositoryInterface
-	httpClient  *http.Client
+	httpClient  *http.Client  // verifies TLS certificates
+	insecure    *http.Client  // for webhooks with verify_tls off
 	cipher      *utils.Cipher // nil until SetCipher; only notification targets need it
 }
 
@@ -57,10 +58,28 @@ func NewWebhookNotifier(webhookRepo *repository.WebhookRepository, serviceRepo r
 	return &WebhookNotifier{
 		webhookRepo: webhookRepo,
 		serviceRepo: serviceRepo,
-		// Private addresses are allowed (ntfy and Gotify usually live on the
-		// LAN); cloud metadata endpoints are blocked, also after a redirect
-		httpClient: utils.NewSafeClient(true, 10*time.Second),
+		httpClient:  newWebhookClient(true),
+		insecure:    newWebhookClient(false),
 	}
+}
+
+// newWebhookClient allows private addresses (ntfy and Gotify usually live on
+// the LAN) and blocks cloud metadata endpoints, also after a redirect.
+func newWebhookClient(verifyTLS bool) *http.Client {
+	client := utils.NewSafeClient(verifyTLS, 10*time.Second)
+	client.Transport.(*http.Transport).Proxy = webhookProxy
+	return client
+}
+
+// webhookProxy honours HTTP_PROXY, HTTPS_PROXY and NO_PROXY, for servers that
+// only reach Discord and the like through a proxy. Behind a proxy the dialer
+// sees the proxy's address, so the target is checked here.
+func webhookProxy(req *http.Request) (*url.URL, error) {
+	host := req.URL.Hostname()
+	if utils.IsBlockedHost(host) || utils.IsBlockedIP(host) {
+		return nil, utils.ErrBlockedHost
+	}
+	return http.ProxyFromEnvironment(req)
 }
 
 // encryptCredentials returns the blob to store, bound to the webhook ID;
@@ -249,7 +268,11 @@ func (w *WebhookNotifier) deliver(ctx context.Context, webhook *models.Webhook, 
 		return 0, err.Error()
 	}
 
-	resp, err := w.httpClient.Do(req)
+	client := w.httpClient
+	if !webhook.VerifyTLS {
+		client = w.insecure
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return 0, deliveryError(err, creds)
 	}

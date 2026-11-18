@@ -32,6 +32,7 @@ func setupNotificationTestDB(t *testing.T) *sql.DB {
 			format TEXT NOT NULL DEFAULT 'generic',
 			options TEXT NOT NULL DEFAULT '{}',
 			credentials_enc BLOB,
+			verify_tls INTEGER NOT NULL DEFAULT 1,
 			retry_count INTEGER NOT NULL DEFAULT 0,
 			retry_delay_seconds INTEGER NOT NULL DEFAULT 30,
 			last_triggered_at TIMESTAMP,

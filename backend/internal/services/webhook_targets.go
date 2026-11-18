@@ -55,6 +55,7 @@ func PrepareWebhookTarget(webhook *models.Webhook, creds *models.WebhookCredenti
 	fields := map[string]string{}
 	if fixed := models.WebhookFixedURL(webhook.Format); fixed != "" {
 		webhook.URL = fixed
+		webhook.VerifyTLS = true // public APIs have real certificates
 	}
 	options := webhook.Options
 	webhook.Options = models.WebhookOptions{}
@@ -117,6 +118,9 @@ func PrepareWebhookTarget(webhook *models.Webhook, creds *models.WebhookCredenti
 		if creds != nil {
 			*creds = models.WebhookCredentials{}
 		}
+		if webhook.Format != models.WebhookFormatGeneric {
+			webhook.VerifyTLS = true // Discord and Slack are never self-hosted
+		}
 	}
 	return fields
 }
@@ -144,7 +148,9 @@ func notificationText(event NotificationEvent) (title, message string) {
 	if event.NewStatus == models.StatusOffline {
 		message = "The service is not responding."
 		if event.ErrorMsg != nil && *event.ErrorMsg != "" {
-			message = *event.ErrorMsg
+			// Capped for every target: the tightest limit is Pushover's, and
+			// it keeps the link that follows in a Telegram message intact
+			message = truncate(*event.ErrorMsg, pushoverMaxMessage)
 		}
 		return event.ServiceName + " is offline", message
 	}
@@ -294,7 +300,7 @@ func (w *WebhookNotifier) buildRequest(ctx context.Context, webhook *models.Webh
 // request URL; only the cause is kept.
 func deliveryError(err error, creds models.WebhookCredentials) string {
 	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
+	for errors.As(err, &urlErr) {
 		err = urlErr.Err
 	}
 	return scrubSecrets(err.Error(), creds)
@@ -316,18 +322,22 @@ func responseError(resp *http.Response, creds models.WebhookCredentials) string 
 	}
 	for _, detail := range []string{body.Description, body.ErrorDescription, body.Error, strings.Join(body.Errors, ", ")} {
 		if detail != "" {
-			return msg + ": " + scrubSecrets(truncate(detail, maxErrorDetail), creds)
+			// Scrub before cutting, or a secret on the cut survives in part
+			return msg + ": " + truncate(scrubSecrets(detail, creds), maxErrorDetail)
 		}
 	}
 	return msg
 }
 
 // scrubSecrets removes credentials from a message, in case a server or
-// library echoes them back
+// library echoes them back, as they are or URL-encoded (%3A or %3a)
 func scrubSecrets(msg string, creds models.WebhookCredentials) string {
 	for _, secret := range []string{creds.Token, creds.UserKey} {
-		if secret != "" {
-			msg = strings.ReplaceAll(msg, secret, "[redacted]")
+		if secret == "" {
+			continue
+		}
+		for _, form := range []string{secret, url.QueryEscape(secret), url.PathEscape(secret)} {
+			msg = regexp.MustCompile("(?i)"+regexp.QuoteMeta(form)).ReplaceAllLiteralString(msg, "[redacted]")
 		}
 	}
 	return msg
