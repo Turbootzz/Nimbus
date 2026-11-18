@@ -10,12 +10,14 @@ const sw = createRequire(import.meta.url)('../../public/sw-routing.js')
 
 const ORIGIN = 'https://nimbus.test'
 
-const route = (path: string, init: { method?: string; mode?: string } = {}) =>
+type RouteInit = { method?: string; mode?: string; headers?: Record<string, string> }
+const route = (path: string, init: RouteInit = {}) =>
   sw.route(
     {
       url: path.startsWith('http') ? path : ORIGIN + path,
       method: init.method ?? 'GET',
       mode: init.mode ?? 'cors',
+      headers: new Headers(init.headers),
     },
     ORIGIN
   )
@@ -86,11 +88,19 @@ describe('service worker routing', () => {
     expect(route('/api/v1/services/favicon?url=https://example.com')).toBeNull()
   })
 
+  it('never handles a range request', () => {
+    const headers = { Range: 'bytes=0-99' }
+    expect(route('/_next/static/media/intro-1a2b.mp4', { headers })).toBeNull()
+    expect(route('/api/v1/services', { headers })).toBeNull()
+  })
+
   it('purges the API cache when the session changes', () => {
     expect(route('/api/v1/auth/login', { method: 'POST' })).toBe('purge')
     expect(route('/api/v1/auth/logout', { method: 'POST' })).toBe('purge')
     expect(route('/api/v1/auth/register', { method: 'POST' })).toBe('purge')
     expect(route('/api/v1/auth/me', { method: 'DELETE' })).toBe('purge')
+    expect(route('/api/v1/auth/change-password', { method: 'PUT' })).toBe('purge')
+    expect(route('/api/v1/auth/reset-password', { method: 'POST' })).toBe('purge')
     expect(route('/api/v1/setup/admin', { method: 'POST' })).toBe('purge')
     expect(route('/api/v1/auth/oauth/github', { mode: 'navigate' })).toBe('purge')
     expect(route('/api/v1/auth/oauth/github/callback?code=x', { mode: 'navigate' })).toBe('purge')
@@ -186,6 +196,27 @@ describe('network-first API strategy', () => {
     expect(cache.put).not.toHaveBeenCalled()
   })
 
+  it('never stores a response the server marked no-store', async () => {
+    const cache = fakeCache()
+    const fresh = async () => json([], { headers: { 'Cache-Control': 'private, no-store' } })
+    await sw.networkFirst(servicesRequest(), apiDeps(cache, fresh))
+    expect(cache.put).not.toHaveBeenCalled()
+  })
+
+  it('still returns the server answer when the cache cannot be written', async () => {
+    const cache = fakeCache()
+    cache.put.mockRejectedValue(new DOMException('full', 'QuotaExceededError'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const response = await sw.networkFirst(
+      servicesRequest(),
+      apiDeps(cache, async () => json([{ name: 'fresh' }]))
+    )
+
+    expect(await response.json()).toEqual([{ name: 'fresh' }])
+    warn.mockRestore()
+  })
+
   it('purges the cache on a 401', async () => {
     const deps = apiDeps(fakeCache(), async () => json({ error: 'expired' }, { status: 401 }))
     await sw.networkFirst(servicesRequest(), deps)
@@ -232,6 +263,14 @@ describe('cache-first static strategy', () => {
     const response = await sw.cacheFirst(missing, { fetch: fetch404, openCache })
     expect(response.status).toBe(404)
     expect(cache.store.has(missing.url)).toBe(false)
+  })
+
+  it('still returns the file when the cache cannot be written', async () => {
+    const cache = fakeCache()
+    cache.put.mockRejectedValue(new DOMException('full', 'QuotaExceededError'))
+    const fetch = async () => new Response('js')
+    const response = await sw.cacheFirst(request(), { fetch, openCache: async () => cache })
+    expect(await response.text()).toBe('js')
   })
 })
 
@@ -291,6 +330,13 @@ describe('offline page precache', () => {
   it('fails the install when the offline page cannot be fetched', async () => {
     const fetch = async () => new Response('', { status: 500 })
     const deps = { fetch, openCache: async () => fakeCache() }
+    await expect(sw.precacheOffline(deps)).rejects.toThrow('offline page unavailable')
+  })
+
+  it('fails the install when the offline page is a redirect', async () => {
+    const redirected = new Response(html)
+    Object.defineProperty(redirected, 'redirected', { value: true })
+    const deps = { fetch: async () => redirected, openCache: async () => fakeCache() }
     await expect(sw.precacheOffline(deps)).rejects.toThrow('offline page unavailable')
   })
 

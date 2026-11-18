@@ -42,6 +42,8 @@ function changesSession(method, path) {
 function route(request, origin) {
   const url = new URL(request.url)
   if (url.origin !== origin) return null
+  // A cached full file is no answer to a request for part of it
+  if (request.headers.has('range')) return null
   const path = url.pathname.replace(/\/+$/, '') || '/'
 
   if (path === '/api' || path.startsWith('/api/')) {
@@ -60,11 +62,15 @@ function route(request, origin) {
   return null
 }
 
-// Only complete, successful, same-origin responses that set no cookie. Workers
-// cannot see Set-Cookie in browsers, so route() keeping auth out is the real guard.
+// Only complete, successful, same-origin responses that set no cookie and that
+// the server allows to be stored. Workers cannot see Set-Cookie in browsers, so
+// route() keeping auth out is the real guard.
 function isCacheable(response) {
   return (
-    response.status === 200 && response.type !== 'opaque' && !response.headers.has('Set-Cookie')
+    response.status === 200 &&
+    response.type !== 'opaque' &&
+    !response.headers.has('Set-Cookie') &&
+    !/no-store/i.test(response.headers.get('Cache-Control') || '')
   )
 }
 
@@ -95,13 +101,18 @@ async function networkFirst(request, deps) {
     if (cached) return cached
     throw error
   }
-  if (response.status === 401) {
-    // Session ended: the cached data has no owner anymore
-    await deps.purge()
-  } else if (isCacheable(response)) {
-    const copy = withCachedAt(response.clone(), new Date())
-    const cache = await deps.openCache()
-    if (generation === deps.generation()) await cache.put(request, copy)
+  try {
+    if (response.status === 401) {
+      // Session ended: the cached data has no owner anymore
+      await deps.purge()
+    } else if (isCacheable(response)) {
+      const copy = withCachedAt(response.clone(), new Date())
+      const cache = await deps.openCache()
+      if (generation === deps.generation()) await cache.put(request, copy)
+    }
+  } catch (error) {
+    // A full or broken cache must not cost the page the server's answer
+    console.warn('Could not update the offline cache:', error)
   }
   return response
 }
@@ -112,7 +123,8 @@ async function cacheFirst(request, deps) {
   const cached = await cache.match(request)
   if (cached) return cached
   const response = await deps.fetch(request)
-  if (isCacheable(response)) await cache.put(request, response.clone())
+  // A full cache must not cost the page the file
+  if (isCacheable(response)) await cache.put(request, response.clone()).catch(() => {})
   return response
 }
 
@@ -136,7 +148,10 @@ function extractAssetUrls(html) {
 // when the page itself cannot be fetched; a missing asset is not fatal.
 async function precacheOffline(deps) {
   const response = await deps.fetch(OFFLINE_URL)
-  if (!isCacheable(response)) throw new Error('offline page unavailable: ' + response.status)
+  // A redirected response cannot answer a page load
+  if (!isCacheable(response) || response.redirected) {
+    throw new Error('offline page unavailable: ' + response.status)
+  }
   const html = await response.clone().text()
   const cache = await deps.openCache()
   await cache.put(OFFLINE_URL, response)
