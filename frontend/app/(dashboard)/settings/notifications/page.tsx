@@ -33,23 +33,22 @@ export default function NotificationsPage() {
     fetchWebhooks()
   }, [fetchWebhooks])
 
+  // Returns the API error so the form can show it, or null once saved
   const handleSubmit = async (data: WebhookFormData) => {
+    const response = editingWebhook
+      ? await api.updateWebhook(editingWebhook.id, data)
+      : await api.createWebhook(data)
+    const saved = response.data
+    if (!saved) return response.error ?? { message: 'Failed to save webhook' }
+
     if (editingWebhook) {
-      const response = await api.updateWebhook(editingWebhook.id, data)
-      if (response.data) {
-        setWebhooks(webhooks.map((w) => (w.id === editingWebhook.id ? response.data! : w)))
-        setEditingWebhook(null)
-        return true
-      }
+      setWebhooks(webhooks.map((w) => (w.id === saved.id ? saved : w)))
+      setEditingWebhook(null)
     } else {
-      const response = await api.createWebhook(data)
-      if (response.data) {
-        setWebhooks([...webhooks, response.data])
-        setShowForm(false)
-        return true
-      }
+      setWebhooks([...webhooks, saved])
+      setShowForm(false)
     }
-    return false
+    return null
   }
 
   const handleDelete = async (id: string) => {
@@ -94,7 +93,8 @@ export default function NotificationsPage() {
         <div className="wallpaper-panel">
           <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Notifications</h1>
           <p className="text-text-secondary text-sm sm:text-base">
-            Configure webhooks to receive alerts when services change status
+            Get alerts through a webhook, Discord, Slack, ntfy, Gotify, Telegram or Pushover when
+            services change status
           </p>
         </div>
         <button
