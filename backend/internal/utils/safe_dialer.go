@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"syscall"
 	"time"
@@ -81,7 +82,7 @@ func IsBlockedIP(addr string) bool {
 // host. net/http wraps it in url.Error, so callers should use errors.Is.
 var ErrBlockedHost = errors.New("blocked host")
 
-// redirectSafeHeaders may follow a redirect to another host. Credentials
+// redirectSafeHeaders may follow a redirect to another app. Credentials
 // travel in headers of any name (X-API-Key, X-Api-Key, ...), so everything
 // else is dropped.
 var redirectSafeHeaders = map[string]bool{
@@ -90,21 +91,42 @@ var redirectSafeHeaders = map[string]bool{
 	"User-Agent":      true,
 }
 
+// sameService reports whether a redirect stays with the app the first
+// request went to: the same scheme, host and port, like curl and browsers
+// (another port can be another app), or an upgrade from http to https on
+// the same host, which always changes the port.
+func sameService(first, next *url.URL) bool {
+	if !strings.EqualFold(next.Hostname(), first.Hostname()) {
+		return false
+	}
+	if first.Scheme == "http" && next.Scheme == "https" {
+		return true
+	}
+	return next.Scheme == first.Scheme && effectivePort(next) == effectivePort(first)
+}
+
+func effectivePort(u *url.URL) string {
+	switch {
+	case u.Port() != "":
+		return u.Port()
+	case u.Scheme == "https":
+		return "443"
+	}
+	return "80"
+}
+
 // dropCredentialsOnRedirect keeps a redirect from carrying the first
-// request's credentials to another host, or from https to plain http.
-// Go only strips Authorization and Cookie itself, and re-adds the first
-// request's headers on every hop, hence the compare with the first request.
-// Another port on the same host keeps them, so http://app:80 can still
-// upgrade to https://app:443.
+// request's credentials to another app (see sameService). Go only strips
+// Authorization and Cookie itself, only for another domain, and re-adds the
+// first request's other headers on every hop, hence the compare with the
+// first request.
 func dropCredentialsOnRedirect(req, first *http.Request) error {
-	sameHost := strings.EqualFold(req.URL.Hostname(), first.URL.Hostname())
-	downgrade := first.URL.Scheme == "https" && req.URL.Scheme != "https"
-	if sameHost && !downgrade {
+	if sameService(first.URL, req.URL) {
 		return nil
 	}
 	// A 307 or 308 would send the body (a login form) along
 	if req.Method != http.MethodGet && req.Method != http.MethodHead {
-		return errors.New("refused a redirect that sends the request body to another host")
+		return errors.New("refused a redirect that sends the request body to another address")
 	}
 	for name := range req.Header {
 		// Not Header.Del: a key set without canonical casing would stay
@@ -118,7 +140,7 @@ func dropCredentialsOnRedirect(req, first *http.Request) error {
 // NewSafeClient returns an HTTP client for fetching user-supplied URLs.
 // Defense in depth: CheckRedirect blocks by hostname, the dialer's Control
 // blocks by resolved IP (so DNS rebinding can't sneak through). A redirect
-// to another host never gets the request's credentials.
+// to another host or port never gets the request's credentials.
 // verifyTLS=false skips certificate checks for this client only.
 func NewSafeClient(verifyTLS bool, timeout time.Duration) *http.Client {
 	dialer := &net.Dialer{

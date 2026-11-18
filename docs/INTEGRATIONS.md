@@ -23,7 +23,7 @@ The URL is the address the Nimbus server uses to reach the app, including a sub 
 
 Some apps have settings of their own, such as the Proxmox node. They show in the integration form under the credentials.
 
-**Verify TLS certificate** is on by default. Turning it off makes a self-signed certificate work, but Nimbus then can't tell the app from an impostor on the network, who would get the credentials. Only turn it off on a network you trust. If the app redirects Nimbus to another host, the credentials are never sent along.
+**Verify TLS certificate** is on by default. Turning it off makes a self-signed certificate work, but Nimbus then can't tell the app from an impostor on the network, who would get the credentials. Only turn it off on a network you trust. If the app redirects Nimbus to another host or port, the credentials are not sent along (an upgrade from http to https on the same host keeps them).
 
 ### Proxmox VE
 
@@ -97,7 +97,7 @@ Options: []Option{{
 
 ### Rules
 
-- Use `conn.Client` for every request. It blocks cloud metadata addresses, honours the TLS setting and keeps credentials away from redirects to another host.
+- Use `conn.Client` for every request. It blocks cloud metadata addresses, honours the TLS setting and keeps credentials away from redirects to another host or port.
 - A kind that must never change anything on the app sets `ReadOnly: true` in `Meta()`: its client then refuses everything but `GET` and `HEAD`.
 - Use the helpers in `http.go`: `getJSON`, `eachJSON` for big lists (they are read item by item), and `withSession` for apps that log in first. Store session ids in `conn.State`, which lives as long as the integration.
 - An app with few session seats (like Pi-hole) should also implement `Closer`: `Close` logs the kept session out when the integration is deleted.
