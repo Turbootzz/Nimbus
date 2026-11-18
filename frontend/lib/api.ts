@@ -56,6 +56,7 @@ import type {
   DiscoveryAddRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
+import { clearApiCache } from '@/lib/pwa'
 
 const getApiUrl = (): string | undefined => {
   const defaultPort = '8080'
@@ -154,6 +155,9 @@ class ApiClient {
       if (!response.ok) {
         // Handle 401 Unauthorized - token is invalid or user doesn't exist
         if (response.status === 401 && typeof window !== 'undefined') {
+          // The session is gone, so is the right to its offline copy
+          await clearApiCache()
+
           // Don't redirect for preferences endpoint - it's okay if user isn't logged in yet
           const isPreferencesEndpoint = endpoint.includes('/users/me/preferences')
 
@@ -213,6 +217,8 @@ class ApiClient {
   async logout(): Promise<void> {
     // Call backend to clear httpOnly cookie
     await this.request('/auth/logout', { method: 'POST' })
+    // Don't leave this user's dashboard on a shared device
+    await clearApiCache()
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
@@ -241,9 +247,11 @@ class ApiClient {
   }
 
   async deleteAccount(): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>('/auth/me', {
+    const response = await this.request<{ message: string }>('/auth/me', {
       method: 'DELETE',
     })
+    if (!response.error) await clearApiCache()
+    return response
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
@@ -689,10 +697,12 @@ class ApiClient {
   }
 
   async createInitialAdmin(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    return this.request<AuthResponse>('/setup/admin', {
+    const response = await this.request<AuthResponse>('/setup/admin', {
       method: 'POST',
       body: JSON.stringify(data),
     })
+    if (!response.error) await clearApiCache()
+    return response
   }
 
   // ============================================

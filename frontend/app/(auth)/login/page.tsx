@@ -8,6 +8,7 @@ import OAuthButton from '@/components/OAuthButton'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
+import { clearApiCache } from '@/lib/pwa'
 import type { OAuthProvider } from '@/types'
 
 function LoginForm() {
@@ -120,6 +121,9 @@ function LoginForm() {
       // No need to store token - backend sets httpOnly cookie automatically
       // The cookie will be sent with all subsequent requests via credentials: 'include'
       // Cookie expiration is controlled by backend based on remember_me flag
+
+      // A different user may have used this device before
+      await clearApiCache()
 
       // Redirect to dashboard
       window.location.href = '/dashboard'
