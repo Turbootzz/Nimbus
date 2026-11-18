@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
@@ -16,6 +16,9 @@ function readPrefill(): DiscoveredIntegration | null {
   try {
     const stored = JSON.parse(sessionStorage.getItem(INTEGRATION_PREFILL_KEY) ?? 'null')
     if (typeof stored?.kind !== 'string' || typeof stored?.base_url !== 'string') return null
+    // Only a plain http(s) address: never one that carries a user or password
+    const address = new URL(stored.base_url)
+    if (!/^https?:$/.test(address.protocol) || address.username || address.password) return null
     return { kind: stored.kind, name: String(stored.name ?? ''), base_url: stored.base_url }
   } catch {
     return null
@@ -51,13 +54,18 @@ export default function IntegrationsPage() {
   const [linked, setLinked] = useState<DiscoveredIntegration | null>(readPrefill)
   const linkedKind = kinds.find((k) => k.kind === linked?.kind)
   const prefill = linked && linkedKind ? { ...linked, name: linked.name || linkedKind.name } : null
+  // Used once: leaving this page without closing the form must not bring it back
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(INTEGRATION_PREFILL_KEY)
+    } catch {
+      // sessionStorage is blocked: there was nothing to read either
+    }
+  }, [])
   const closeForm = () => {
     setShowForm(false)
     setEditing(null)
-    if (linked) {
-      setLinked(null)
-      sessionStorage.removeItem(INTEGRATION_PREFILL_KEY)
-    }
+    setLinked(null)
   }
 
   const handleSaved = (saved: Integration) => {

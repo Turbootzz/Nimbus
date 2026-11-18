@@ -88,7 +88,7 @@ describe('DiscoveredTray', () => {
     const onAdded = vi.fn()
     render(<DiscoveredTray onAdded={onAdded} />)
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Add' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Add Sonarr' }))
 
     expect(api.addDiscovered).toHaveBeenCalledWith({
       key: 'i-1/sonarr',
@@ -114,7 +114,7 @@ describe('DiscoveredTray', () => {
     render(<DiscoveredTray />)
 
     expect(await screen.findByText('guess')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Review' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Review web' }))
     expect(api.addDiscovered).not.toHaveBeenCalled()
 
     const address = screen.getByLabelText('Address')
@@ -132,7 +132,7 @@ describe('DiscoveredTray', () => {
   it('closes the review form with Escape', async () => {
     render(<DiscoveredTray />)
 
-    await userEvent.click(await screen.findByRole('button', { name: 'Review' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Review web' }))
     await userEvent.type(screen.getByLabelText('Address'), '{Escape}')
 
     expect(screen.queryByLabelText('Address')).not.toBeInTheDocument()
@@ -143,8 +143,7 @@ describe('DiscoveredTray', () => {
     vi.mocked(api.unignoreDiscovered).mockResolvedValue({ data: undefined })
     render(<DiscoveredTray />)
 
-    const ignoreButtons = await screen.findAllByRole('button', { name: 'Ignore' })
-    await userEvent.click(ignoreButtons[0])
+    await userEvent.click(await screen.findByRole('button', { name: 'Ignore Sonarr' }))
     expect(api.ignoreDiscovered).toHaveBeenCalledWith('i-1/sonarr')
 
     await userEvent.click(await screen.findByRole('button', { name: 'Ignored (2)' }))
@@ -182,6 +181,25 @@ describe('DiscoveredTray', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /refresh/i }))
     await waitFor(() => expect(api.getDockerDiscovery).toHaveBeenCalledTimes(2))
+    // Only the button skips the server's cache
+    expect(vi.mocked(api.getDockerDiscovery).mock.calls).toEqual([[false], [true]])
+  })
+
+  it('says so when the containers cannot be loaded', async () => {
+    vi.mocked(api.getDockerDiscovery).mockResolvedValue({ error: { message: 'Server error' } })
+    render(<DiscoveredTray />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Server error')
+  })
+
+  it('loads label icons without a referrer', async () => {
+    vi.mocked(api.getDockerDiscovery).mockResolvedValue(
+      discovery([container({ icon_url: 'https://icons.example/sonarr.svg' })])
+    )
+    const { container: root } = render(<DiscoveredTray />)
+
+    await screen.findByText('Sonarr')
+    expect(root.querySelector('img')).toHaveAttribute('referrerpolicy', 'no-referrer')
   })
 
   it('is a link to the tray on the dashboard, counting only new containers', async () => {

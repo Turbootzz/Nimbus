@@ -399,8 +399,9 @@ class ApiClient {
   // Docker discovery (admins only)
   // ============================================
 
-  async getDockerDiscovery(): Promise<ApiResponse<DiscoveryResponse>> {
-    return this.request<DiscoveryResponse>('/discovery/docker')
+  // refresh asks Docker again instead of reusing the server's recent answer
+  async getDockerDiscovery(refresh = false): Promise<ApiResponse<DiscoveryResponse>> {
+    return this.request<DiscoveryResponse>(`/discovery/docker${refresh ? '?refresh=true' : ''}`)
   }
 
   async addDiscovered(data: DiscoveryAddRequest): Promise<ApiResponse<Service>> {

@@ -44,6 +44,8 @@ function ContainerIcon({ url }: { url: string }) {
       width={32}
       height={32}
       className="h-8 w-8 shrink-0 object-contain"
+      // The address comes from a container label: don't tell that host where Nimbus lives
+      referrerPolicy="no-referrer"
       onError={() => setFailed(true)}
       unoptimized
     />
@@ -66,10 +68,11 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
   // The integration the last added container asked for with nimbus.widget
   const [suggestion, setSuggestion] = useState<DiscoveredIntegration | null>(null)
 
-  const load = useCallback(async () => {
+  // refresh asks Docker again; otherwise the server may reuse a recent answer
+  const load = useCallback(async (refresh = false) => {
     setIsLoading(true)
     try {
-      const response = await api.getDockerDiscovery()
+      const response = await api.getDockerDiscovery(refresh)
       setError(response.error ? response.error.message : null)
       if (response.data) setResult(response.data)
     } catch (err) {
@@ -147,7 +150,27 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
     }
   }
 
-  if (!isAdmin || !result || result.integrations === 0) return null
+  // The dashboard link leads to #discovered before the tray exists
+  const loaded = result !== null
+  useEffect(() => {
+    if (loaded && variant === 'tray' && window.location.hash === '#discovered') {
+      document.getElementById('discovered')?.scrollIntoView?.()
+    }
+  }, [loaded, variant])
+
+  if (!isAdmin) return null
+  if (!result) {
+    // Without an answer there is no tray; say why instead of hiding it
+    return variant === 'tray' && error ? (
+      <p
+        role="alert"
+        className="glass-card border-card-border text-error mb-6 rounded-lg border p-4 text-sm"
+      >
+        Discovered containers could not be loaded: {error}
+      </p>
+    ) : null
+  }
+  if (result.integrations === 0) return null
 
   const offered = result.containers.filter((c) => !c.ignored)
   const ignored = result.containers.filter((c) => c.ignored)
@@ -182,7 +205,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
           </p>
         </div>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           disabled={isLoading}
           className={`${quietButton} inline-flex shrink-0 items-center`}
         >
@@ -278,7 +301,12 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                   {!editing && (
                     <div className="flex shrink-0 gap-1">
                       {needsReview ? (
-                        <button onClick={edit} disabled={busy} className={primaryButton}>
+                        <button
+                          onClick={edit}
+                          disabled={busy}
+                          className={primaryButton}
+                          aria-label={`Review ${container.name}`}
+                        >
                           Review
                         </button>
                       ) : (
@@ -287,10 +315,16 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                             onClick={() => add(container, container)}
                             disabled={busy}
                             className={primaryButton}
+                            aria-label={`Add ${container.name}`}
                           >
                             Add
                           </button>
-                          <button onClick={edit} disabled={busy} className={quietButton}>
+                          <button
+                            onClick={edit}
+                            disabled={busy}
+                            className={quietButton}
+                            aria-label={`Edit ${container.name}`}
+                          >
                             Edit
                           </button>
                         </>
@@ -305,6 +339,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                         }
                         disabled={busy}
                         className={quietButton}
+                        aria-label={`Ignore ${container.name}`}
                       >
                         Ignore
                       </button>
