@@ -33,6 +33,9 @@ func Register(i Integration) {
 	}
 	seen := map[string]bool{}
 	for _, option := range meta.Options {
+		if option.Type != "" && option.Type != OptionNumber {
+			panic(fmt.Sprintf("integrations: kind %q option %q has unknown type %q", kind, option.Key, option.Type))
+		}
 		if option.Key == "" || option.Label == "" || seen[option.Key] {
 			panic(fmt.Sprintf("integrations: kind %q has an option without a unique key and a label", kind))
 		}

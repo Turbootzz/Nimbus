@@ -368,6 +368,8 @@ export default function IntegrationForm({
                   </label>
                   <input
                     id={id}
+                    type={option.type === 'number' ? 'number' : 'text'}
+                    step="any"
                     value={options[option.key] ?? ''}
                     onChange={(e) => setOptions({ ...options, [option.key]: e.target.value })}
                     placeholder={option.placeholder}

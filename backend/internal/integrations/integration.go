@@ -6,8 +6,10 @@ package integrations
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"regexp"
+	"strconv"
 	"sync"
 
 	"github.com/nimbus/backend/internal/models"
@@ -74,7 +76,10 @@ type Option struct {
 	Label       string `json:"label"`
 	Help        string `json:"help,omitempty"`
 	Placeholder string `json:"placeholder,omitempty"`
-	Required    bool   `json:"required,omitempty"`
+	// Type is OptionNumber for a number; empty means text. A number is
+	// stored and read as text too.
+	Type     string `json:"type,omitempty"`
+	Required bool   `json:"required,omitempty"`
 	// MaxLength in characters; 0 means DefaultOptionMaxLength
 	MaxLength int `json:"max_length,omitempty"`
 	// Pattern is a regular expression the whole value must match. Keep it
@@ -82,6 +87,9 @@ type Option struct {
 	// checks it too.
 	Pattern string `json:"pattern,omitempty"`
 }
+
+// OptionNumber is the Option.Type of a number
+const OptionNumber = "number"
 
 // DefaultOptionMaxLength caps options that set no MaxLength
 const DefaultOptionMaxLength = 200
@@ -94,8 +102,13 @@ func (o Option) MaxLen() int {
 	return DefaultOptionMaxLength
 }
 
-// Matches reports whether value fits the option's pattern
+// Matches reports whether value fits the option's type and pattern
 func (o Option) Matches(value string) bool {
+	if o.Type == OptionNumber {
+		if number, err := strconv.ParseFloat(value, 64); err != nil || math.IsInf(number, 0) || math.IsNaN(number) {
+			return false
+		}
+	}
 	if o.Pattern == "" {
 		return true
 	}

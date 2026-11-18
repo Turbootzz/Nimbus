@@ -70,6 +70,7 @@ func (optionsKind) Meta() integrations.Meta {
 	return integrations.Meta{Name: "Options", AuthTypes: []string{models.IntegrationAuthNone}, Options: []integrations.Option{
 		{Key: "site", Label: "Site", Required: true, MaxLength: 5},
 		{Key: "entity", Label: "Entity", Placeholder: "sensor.temp", Pattern: `[a-z]+\.[a-z]+`},
+		{Key: "limit", Label: "Limit", Type: integrations.OptionNumber},
 	}}
 }
 
@@ -314,6 +315,8 @@ func TestIntegrationService_Options(t *testing.T) {
 		`{"site":5}`:                     "Site must be text",
 		`{"site":"a","entity":"Sensor"}`: "Entity is not valid; it looks like sensor.temp",
 		`{"site":"a","zzz":"1","b":"1"}`: `Options has no option "b"`,
+		`{"site":"a","limit":"ten"}`:     "Limit is not valid",
+		`{"site":"a","limit":10}`:        "Limit must be text",
 	} {
 		_, err := svc.Create(ctx, "user-1", false, request(options))
 		var vErr *ValidationError

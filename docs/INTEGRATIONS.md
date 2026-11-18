@@ -81,13 +81,14 @@ Options: []Option{{
     Label:       "Node",              // the field's label
     Help:        "Only count this node. Leave empty for the whole cluster.",
     Placeholder: "pve",               // also the example in the error for a bad value
+    Type:        "",                  // or OptionNumber for a number field
     Required:    false,
     MaxLength:   63,                  // characters; 200 when left out
     Pattern:     `[A-Za-z0-9\-]+`,    // the whole value must match
 }},
 ```
 
-- Read one with `conn.Option("node")`. It returns `""` when the option is not set. Values are trimmed text.
+- Read one with `conn.Option("node")`. It returns `""` when the option is not set. Values are trimmed text, also for a number: parse it with `strconv`.
 - The server rejects keys the kind doesn't declare, values that are too long or don't match `Pattern`, and a missing `Required` option. The browser checks `Pattern` too, so keep it to what Go and JavaScript share and write a literal `-` inside a class as `\-`.
 - Escape an option wherever it goes: `url.PathEscape` in a path, `url.QueryEscape` in a query.
 - Options are stored in plain text and sent back to the browser. Secrets belong in the credentials.

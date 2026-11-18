@@ -106,6 +106,7 @@ export interface IntegrationOption {
   label: string
   help?: string
   placeholder?: string
+  type?: 'number' // text when left out; the value is text either way
   required?: boolean
   max_length?: number
   pattern?: string // the whole value must match

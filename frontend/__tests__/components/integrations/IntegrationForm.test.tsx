@@ -179,6 +179,7 @@ describe('IntegrationForm', () => {
           pattern: '[a-z0-9]+',
         },
         { key: 'pool', label: 'Pool', required: true },
+        { key: 'limit', label: 'Limit', type: 'number' as const },
       ],
     },
   ]
@@ -195,6 +196,7 @@ describe('IntegrationForm', () => {
     expect(node).toHaveAttribute('pattern', '[a-z0-9]+')
     expect(node).toHaveAccessibleDescription('Only count this node.')
     expect(screen.getByLabelText('Pool')).toBeRequired()
+    expect(screen.getByLabelText('Limit')).toHaveAttribute('type', 'number')
 
     fireEvent.change(node, { target: { value: ' pve1 ' } })
     fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://pve.lan:8006' } })

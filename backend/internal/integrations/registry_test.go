@@ -84,6 +84,8 @@ func TestRegister_PanicsOnProgrammerErrors(t *testing.T) {
 			Options: []Option{{Key: "node", Label: "Node"}, {Key: "node", Label: "Node"}}}},
 		"bad option pattern": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
 			Options: []Option{{Key: "node", Label: "Node", Pattern: "("}}}},
+		"unknown option type": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
+			Options: []Option{{Key: "node", Label: "Node", Type: "date"}}}},
 		"KPI for unknown option": stubKind{kind: "badopt", meta: Meta{Name: "Bad", AuthTypes: valid.AuthTypes,
 			KPIs: []KPI{{Key: "extra", Label: "Extra", Option: "node"}}}},
 	}
@@ -99,6 +101,10 @@ func TestOptions(t *testing.T) {
 	assert.True(t, option.Matches("pve1"))
 	assert.False(t, option.Matches("pve1 "), "the whole value must match")
 	assert.True(t, Option{}.Matches("anything"))
+	number := Option{Type: OptionNumber}
+	assert.True(t, number.Matches("-2.5"))
+	assert.False(t, number.Matches("two"))
+	assert.False(t, number.Matches("NaN"))
 
 	conn := &Conn{Options: json.RawMessage(`{"node":"pve1","count":3}`)}
 	assert.Equal(t, "pve1", conn.Option("node"))
