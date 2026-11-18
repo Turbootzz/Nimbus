@@ -79,6 +79,7 @@ const discoverySchema = `
 		position INTEGER DEFAULT 0,
 		is_default INTEGER DEFAULT 0,
 		monitoring_enabled INTEGER DEFAULT 1,
+		tile_style TEXT NOT NULL DEFAULT 'cards',
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	);
