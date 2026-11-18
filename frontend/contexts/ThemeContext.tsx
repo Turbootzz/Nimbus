@@ -486,13 +486,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback(
     (v: 'light' | 'dark' | 'auto') => {
       setThemeState(v)
+      // Always saved with the mode, so the server never keeps a preset in
+      // a mode it doesn't have
       const kept = presetForMode(preset, v)
-      if (kept === preset) {
-        savePreferences({ theme_mode: v })
-      } else {
-        setPresetState(kept)
-        savePreferences({ theme_mode: v, theme_preset: kept })
-      }
+      setPresetState(kept)
+      savePreferences({ theme_mode: v, theme_preset: kept })
     },
     [savePreferences, preset]
   )

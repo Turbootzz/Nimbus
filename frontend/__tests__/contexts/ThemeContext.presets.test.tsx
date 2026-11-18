@@ -133,7 +133,10 @@ describe('ThemeContext presets, font and custom CSS', () => {
     const theme = await renderTheme()
     act(() => theme.current.setTheme('dark'))
     expect(theme.current.preset).toBe('nord')
-    expect(api.updatePreferences).toHaveBeenLastCalledWith({ theme_mode: 'dark' })
+    expect(api.updatePreferences).toHaveBeenLastCalledWith({
+      theme_mode: 'dark',
+      theme_preset: 'nord',
+    })
 
     await waitFor(() => expect(api.updatePreferences).toHaveBeenCalledTimes(1))
     act(() => theme.current.setTheme('light'))

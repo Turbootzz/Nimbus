@@ -67,7 +67,7 @@ Your CSS only applies to you: it is stored with your account and only added on t
 - `expression()`, `javascript:` and `-moz-binding` (script hooks of long-gone browsers);
 - `</style`.
 
-The check runs on the CSS the way a browser reads it: escapes such as `\75rl(` are decoded and case is ignored. It is deliberately stricter than a browser, so a `url(` inside a string or a comment is refused too, and so is a reference like `url(#gradient)`.
+The check runs on the CSS the way a browser reads it: escapes such as `\75rl(` are decoded and case is ignored. It is deliberately stricter than a browser, so a `url(` inside a string or a comment is refused too, and so are a reference like `url(#gradient)`, a `url(` inside an SVG data image, and a comment that holds `@import` or `image(`.
 
 With that, CSS can't load anything from another site, which also means it can't send anything out: the well-known trick of reading a field with attribute selectors (`input[value^="a"]`) needs a request per match to leak what it found.
 

@@ -127,7 +127,12 @@ func TestValidateCustomCSS_Rejected(t *testing.T) {
 		"url in a comment in a string": `a { content: "/*" } b { background: url(https://evil.example) } c { content: "*/" }`,
 		"style breakout, in a comment": `/* </style><script>alert(1)</script> */`,
 		"style breakout, in a string":  `a { content: "</style>" }`,
-		"paint worklet url":            `a { background: paint(x), url(https://evil.example) }`,
+		// Refused although a browser would load nothing: the price of
+		// checking the text instead of parsing it
+		"image( in a comment":         `/* background image(s) */ a { color: red }`,
+		"url( inside an svg data url": `a { background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><rect fill='url(%23g)'/></svg>") }`,
+		"import in a comment":         `/* no @import here */`,
+		"paint worklet url":           `a { background: paint(x), url(https://evil.example) }`,
 	}
 	for name, css := range tests {
 		t.Run(name, func(t *testing.T) {

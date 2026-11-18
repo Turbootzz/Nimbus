@@ -129,7 +129,8 @@ export default async function proxy(request: NextRequest) {
       const isValid = await validateToken(authToken)
       if (isValid) {
         // Authenticated users always go to dashboard
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        // Keeps the query, so /?safe=1 still opens without custom CSS
+        return NextResponse.redirect(new URL('/dashboard' + request.nextUrl.search, request.url))
       }
       // Token is invalid/expired - clear it and continue to unauthenticated flow
       if (SHOW_LANDING_PAGE) {
