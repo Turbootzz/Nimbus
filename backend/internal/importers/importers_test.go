@@ -10,6 +10,7 @@ import (
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/integrations"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -52,8 +53,7 @@ func assertImportable(t *testing.T, doc *dashdoc.Document) {
 	}
 	for _, service := range doc.Services {
 		assert.NotEmpty(t, service.Name)
-		_, ok := webURL(service.URL)
-		assert.True(t, ok, "service URL %q", service.URL)
+		assert.NoError(t, utils.ValidateServiceURL(service.URL), "the rule the import applies")
 		if service.IconType == models.IconTypeImageURL {
 			_, ok := webURL(service.IconURL)
 			assert.True(t, ok, "icon URL %q", service.IconURL)
@@ -67,6 +67,7 @@ func assertImportable(t *testing.T, doc *dashdoc.Document) {
 		assert.NotContains(t, integration.BaseURL, "?")
 		assert.Nil(t, integration.Credentials)
 		assert.Empty(t, integration.AuthType, "the server picks the kind's default")
+		assert.Empty(t, integration.Options, "options a kind doesn't declare are refused")
 	}
 }
 
@@ -396,6 +397,8 @@ func TestOddURLsAreSkipped(t *testing.T) {
         widget:
           type: sonarr
           url: https://user:pass@example.com/sonarr/?apikey=abc#frag
+    - Metadata:
+        href: http://169.254.169.254/latest/meta-data/
     - Good:
         href: https://example.com
 `
@@ -404,7 +407,7 @@ func TestOddURLsAreSkipped(t *testing.T) {
 	assert.Equal(t, []string{"Login", "Good"}, serviceNames(result.Document))
 	require.Len(t, result.Document.Integrations, 1)
 	assert.Equal(t, "https://example.com/sonarr", result.Document.Integrations[0].BaseURL, "no login, query or fragment")
-	assert.Len(t, result.Warnings, 5)
+	assert.Len(t, result.Warnings, 6)
 	assertImportable(t, &result.Document)
 }
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 const (
@@ -142,13 +143,15 @@ func (b *builder) group(name string) string {
 	return ref
 }
 
-// webURL returns raw when it is an http(s) URL with a host
+// webURL returns raw when it is a URL the import takes for a service: http
+// or https, with a host that is not a cloud metadata endpoint. It is the
+// rule of utils.ValidateServiceURL, which looks nothing up.
 func webURL(raw string) (*url.URL, bool) {
-	parsed, err := url.ParseRequestURI(raw)
-	if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Hostname() == "" {
+	if utils.ValidateServiceURL(raw) != nil {
 		return nil, false
 	}
-	return parsed, true
+	parsed, err := url.ParseRequestURI(raw)
+	return parsed, err == nil
 }
 
 // entry is a link as another dashboard describes it
@@ -171,7 +174,7 @@ func (b *builder) service(e entry) {
 		if e.url == "" {
 			b.warn("%s: skipped, it has no URL", name)
 		} else {
-			b.warn("%s: skipped, %q is not an http(s) URL", name, e.url)
+			b.warn("%s: skipped, %q is not an http(s) URL Nimbus can link to", name, e.url)
 		}
 		return
 	}
