@@ -110,7 +110,6 @@ export interface IntegrationKindMeta {
   url_hint?: string // example URL for the form
   hint?: string // extra help under the URL
   admin_only?: boolean // only listed for admins
-  docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
 }
 
 // Never contains credentials, only whether they are set

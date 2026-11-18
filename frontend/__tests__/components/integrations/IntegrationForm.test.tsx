@@ -75,6 +75,17 @@ describe('IntegrationForm', () => {
     expect(screen.queryByLabelText('Token')).not.toBeInTheDocument()
   })
 
+  it("shows a kind's hint under the URL", () => {
+    const withHint = [
+      { ...kinds[0], hint: 'Through Portainer: use an API key.' },
+      ...kinds.slice(1),
+    ]
+    render(<IntegrationForm kinds={withHint} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText(/Through Portainer: use an API key\./)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: kinds[1].kind } })
+    expect(screen.queryByText(/Through Portainer/)).not.toBeInTheDocument()
+  })
+
   it('keeps saved credentials when editing without typing new ones', async () => {
     const integration = makeIntegration()
     vi.mocked(api.updateIntegration).mockResolvedValue({ data: integration })

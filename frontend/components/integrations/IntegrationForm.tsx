@@ -240,7 +240,7 @@ export default function IntegrationForm({
                 disabled={busy}
                 required
               />
-              <p className="text-text-muted mt-1 text-xs">
+              <p className="text-text-muted mt-1 text-xs break-words">
                 The address Nimbus uses to reach the app, including any sub path.
                 {meta?.hint && ` ${meta.hint}`}
               </p>
