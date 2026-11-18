@@ -279,42 +279,6 @@ func (r *WidgetRepository) ListEnabled(ctx context.Context) ([]models.Widget, er
 	return r.queryWidgets(ctx, `SELECT `+widgetColumns+` FROM widgets WHERE enabled = TRUE`)
 }
 
-// MoveTile puts a service or widget of the user on another of their boards:
-// ungrouped (groups belong to a board) and after the last tile. The caller
-// checks that the board is the user's.
-func (r *WidgetRepository) MoveTile(ctx context.Context, userID, kind, id, boardID string) error {
-	table, ok := map[string]string{models.TileKindService: "services", models.TileKindWidget: "widgets"}[kind]
-	if !ok {
-		return fmt.Errorf("unknown tile kind %q", kind)
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
-	}
-	defer func() { _ = tx.Rollback() }()
-
-	if err := lockUser(ctx, tx, userID); err != nil {
-		return err
-	}
-	position, err := nextTilePosition(ctx, tx, userID)
-	if err != nil {
-		return err
-	}
-	result, err := tx.ExecContext(ctx,
-		`UPDATE `+table+` SET board_id = $1, group_id = NULL, position = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4`,
-		boardID, position, id, userID)
-	if err != nil {
-		return fmt.Errorf("failed to move tile: %w", err)
-	}
-	if err := requireAffected(result, ErrTileNotFound); err != nil {
-		return err
-	}
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tile move: %w", err)
-	}
-	return nil
-}
-
 // Update saves all editable fields. Type and position are never changed here.
 func (r *WidgetRepository) Update(ctx context.Context, widget *models.Widget) error {
 	query := `

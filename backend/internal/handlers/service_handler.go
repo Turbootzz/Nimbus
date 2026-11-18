@@ -24,6 +24,7 @@ type ServiceHandler struct {
 	integrationRepo    repository.IntegrationRepositoryInterface
 	poller             services.Poller
 	preferencesRepo    *repository.PreferencesRepository // icon source; may be nil
+	boards             *services.BoardService            // nil: one dashboard per user
 }
 
 func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService, integrationRepo repository.IntegrationRepositoryInterface) *ServiceHandler {
@@ -39,6 +40,12 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *rep
 // integration link changes, so its KPIs are fetched at once
 func (h *ServiceHandler) SetPoller(p services.Poller) {
 	h.poller = p
+}
+
+// SetBoards makes the handler board-aware: lists take ?board=, and a service
+// can be created on, or moved to, another board of the user
+func (h *ServiceHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func (h *ServiceHandler) kickPoller() {
@@ -83,9 +90,10 @@ func sameID(a, b *string) bool {
 	return *a == *b
 }
 
-// validateGroupOwnership checks that a group exists and belongs to the user.
+// validateGroupOwnership checks that a group exists, belongs to the user and
+// is on the service's board (boardID; "" skips that check).
 // Returns true if valid, false if validation failed (response already sent).
-func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID string) bool {
+func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID, boardID string) bool {
 	if h.groupRepo == nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Group validation unavailable",
@@ -119,6 +127,12 @@ func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID st
 		})
 		return false
 	}
+	if boardID != "" && group.BoardID != boardID {
+		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid group_id: group is on another board",
+		})
+		return false
+	}
 	return true
 }
 
@@ -143,9 +157,19 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		return serviceError(c, err, "create service", nil)
 	}
 
+	// The board: the user's default one unless the request names another of theirs
+	boardID := ""
+	if req.BoardID != nil {
+		boardID = *req.BoardID
+	}
+	board, err := h.boards.ResolveOwned(c.Context(), userID, boardID)
+	if err != nil {
+		return serviceError(c, err, "create service", boardNotFound)
+	}
+
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+		if !h.validateGroupOwnership(c, *req.GroupID, userID, board.ID()) {
 			return nil // Response already sent
 		}
 	}
@@ -159,6 +183,7 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	}
 
 	service.UserID = userID
+	service.BoardID = board.ID()
 	service.GroupID = req.GroupID
 	service.IntegrationID = integrationID
 
@@ -176,15 +201,24 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(service.ToResponse())
 }
 
-// GetServices retrieves all services for the authenticated user
+// GetServices retrieves the services of one board: ?board=<id>, or the
+// user's default board
 func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
 	}
+	board, err := requestBoard(c, h.boards, userID)
+	if err != nil {
+		return serviceError(c, err, "retrieve services", boardNotFound)
+	}
 
-	// Get all services for user
-	services, err := h.serviceRepo.GetAllByUserID(c.Context(), userID)
+	var services []*models.Service
+	if board.Board == nil {
+		services, err = h.serviceRepo.GetAllByUserID(c.Context(), userID)
+	} else {
+		services, err = h.serviceRepo.GetAllByBoardID(c.Context(), board.Board.ID)
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve services",
@@ -293,9 +327,19 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// Another board of the user moves the service there, out of its group
+	boardID, moved := existingService.BoardID, false
+	if req.BoardID != nil && *req.BoardID != "" && !strings.EqualFold(*req.BoardID, boardID) {
+		board, err := h.boards.ResolveOwned(c.Context(), userID, *req.BoardID)
+		if err != nil {
+			return serviceError(c, err, "update service", boardNotFound)
+		}
+		boardID, moved = board.ID(), true
+	}
+
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+		if !h.validateGroupOwnership(c, *req.GroupID, userID, boardID) {
 			return nil // Response already sent
 		}
 	}
@@ -412,6 +456,18 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		existingService.MonitoringEnabled = *req.MonitoringEnabled
 	}
 	existingService.UpdatedAt = time.Now()
+
+	if moved {
+		notFound := map[error]string{repository.ErrBoardNotFound: "Board not found", repository.ErrTileNotFound: "Service not found"}
+		position, err := h.boards.MoveTile(c.Context(), userID, models.TileKindService, serviceID, boardID)
+		if err != nil {
+			return serviceError(c, err, "move service", notFound)
+		}
+		existingService.BoardID, existingService.Position = boardID, position
+		if req.GroupID == nil {
+			existingService.GroupID = nil
+		}
+	}
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

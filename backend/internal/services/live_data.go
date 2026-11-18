@@ -402,6 +402,37 @@ func (s *LiveDataService) Snapshots(userID string) []models.Snapshot {
 	return s.cache.ForUser(userID)
 }
 
+// ViewerErrorMessage replaces the error of a snapshot someone other than
+// its owner sees: the real one may quote a host or a path of the owner's apps
+const ViewerErrorMessage = "This data could not be refreshed"
+
+// ServiceKey is the key of a service in the set BoardService.ViewerKeys
+// returns; widgets and integrations are in it by their snapshot key
+func ServiceKey(id string) string {
+	return "service:" + id
+}
+
+// ForViewer is the snapshot as a viewer of a shared board gets it
+func ForViewer(snap models.Snapshot) models.Snapshot {
+	if snap.Error != "" {
+		snap.Error = ViewerErrorMessage
+	}
+	return snap
+}
+
+// ViewerSnapshots returns the owner's snapshots whose key is in keys (see
+// BoardService.ViewerKeys), for someone who views the owner's shared board
+func (s *LiveDataService) ViewerSnapshots(ownerID string, keys map[string]bool) []models.Snapshot {
+	all := s.cache.ForUser(ownerID)
+	visible := make([]models.Snapshot, 0, len(all))
+	for _, snap := range all {
+		if keys[snap.Key()] {
+			visible = append(visible, ForViewer(snap))
+		}
+	}
+	return visible
+}
+
 // PruneSnapshots deletes stored snapshots of deleted widgets and integrations
 func (s *LiveDataService) PruneSnapshots(ctx context.Context) (int64, error) {
 	return s.snapshots.PruneOrphans(ctx)

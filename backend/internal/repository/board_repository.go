@@ -368,6 +368,42 @@ func (r *BoardRepository) Delete(ctx context.Context, id, userID, moveTo string)
 	return nil
 }
 
+// MoveTile puts a service or widget of the user on another of their boards:
+// ungrouped (groups belong to a board) and after the last tile. The caller
+// checks that the board is the user's. It returns the tile's new position.
+func (r *BoardRepository) MoveTile(ctx context.Context, userID, kind, id, boardID string) (int, error) {
+	table, ok := map[string]string{models.TileKindService: "services", models.TileKindWidget: "widgets"}[kind]
+	if !ok {
+		return 0, fmt.Errorf("unknown tile kind %q", kind)
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	if err := lockUser(ctx, tx, userID); err != nil {
+		return 0, err
+	}
+	position, err := nextTilePosition(ctx, tx, userID)
+	if err != nil {
+		return 0, err
+	}
+	result, err := tx.ExecContext(ctx,
+		`UPDATE `+table+` SET board_id = $1, group_id = NULL, position = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4`,
+		boardID, position, id, userID)
+	if err != nil {
+		return 0, fmt.Errorf("failed to move tile: %w", err)
+	}
+	if err := requireAffected(result, ErrTileNotFound); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit tile move: %w", err)
+	}
+	return position, nil
+}
+
 // ViewerKeys lists what a viewer of the board may follow live: its services
 // ("service:<id>"), its widgets and the integrations its services show
 // (snapshot keys, "widget:<id>" and "integration:<id>")

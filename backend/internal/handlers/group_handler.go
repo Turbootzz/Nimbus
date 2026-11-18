@@ -14,6 +14,13 @@ import (
 
 type GroupHandler struct {
 	groupRepo *repository.GroupRepository
+	boards    *services.BoardService // nil: one dashboard per user
+}
+
+// SetBoards makes the handler board-aware: the list takes ?board=, and a
+// group can be created on another board of the user
+func (h *GroupHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func NewGroupHandler(groupRepo *repository.GroupRepository) *GroupHandler {
@@ -40,7 +47,12 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	if err != nil {
 		return serviceError(c, err, "create group", nil)
 	}
+	board, err := h.boards.ResolveOwned(c.Context(), userID, req.BoardID)
+	if err != nil {
+		return serviceError(c, err, "create group", boardNotFound)
+	}
 	group.UserID = userID
+	group.BoardID = board.ID()
 
 	if err := h.groupRepo.Create(c.Context(), group); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -51,22 +63,33 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(group.ToResponse())
 }
 
-// GetGroups retrieves all groups for the authenticated user
+// GetGroups retrieves the groups of one board: ?board=<id>, or the user's
+// default board
 func (h *GroupHandler) GetGroups(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
 	}
-
-	// Ensure default group exists
-	_, err = h.groupRepo.EnsureDefaultGroup(c.Context(), userID)
+	board, err := requestBoard(c, h.boards, userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to ensure default group",
-		})
+		return serviceError(c, err, "retrieve groups", boardNotFound)
 	}
 
-	groups, err := h.groupRepo.GetAllByUserID(c.Context(), userID)
+	// Ensure default group exists; a viewer of someone's board creates nothing
+	if board.CanEdit {
+		if _, err = h.groupRepo.EnsureDefaultGroupOn(c.Context(), userID, board.ID()); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to ensure default group",
+			})
+		}
+	}
+
+	var groups []*models.Group
+	if board.Board == nil {
+		groups, err = h.groupRepo.GetAllByUserID(c.Context(), userID)
+	} else {
+		groups, err = h.groupRepo.GetAllByBoardID(c.Context(), board.Board.ID)
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve groups",

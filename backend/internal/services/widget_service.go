@@ -43,6 +43,7 @@ type WidgetService struct {
 	groups       GroupGetter
 	integrations IntegrationGetter
 	poller       Poller
+	boards       *BoardService // nil: one dashboard per user
 	// allowMasked accepts configs whose secrets are still masked; only a
 	// dashboard import sets it (widgets.MaskedConfig)
 	allowMasked bool
@@ -55,6 +56,12 @@ func NewWidgetService(repo repository.WidgetRepositoryInterface, groups GroupGet
 // SetPoller lets the service tell the widget poller about changes
 func (s *WidgetService) SetPoller(p Poller) {
 	s.poller = p
+}
+
+// SetBoards makes the service board-aware: a widget can be created on, or
+// moved to, another board of the user, and ListBoard lists one board
+func (s *WidgetService) SetBoards(boards *BoardService) {
+	s.boards = boards
 }
 
 // Types lists the widget types the user can add
@@ -76,6 +83,62 @@ func (s *WidgetService) List(ctx context.Context, userID string) ([]models.Widge
 		redact(&list[i])
 	}
 	return list, nil
+}
+
+// boardWidgetLister is the part of WidgetRepository that lists one board
+type boardWidgetLister interface {
+	ListByBoardID(ctx context.Context, boardID string) ([]models.Widget, error)
+}
+
+// ListBoard returns the widgets of a board the user may see (see
+// BoardService.Resolve), with secrets in their config masked. Someone who
+// only views the board gets less: see redactForViewer.
+func (s *WidgetService) ListBoard(ctx context.Context, userID string, access *BoardAccess) ([]models.Widget, error) {
+	if access.Board == nil {
+		return s.List(ctx, userID)
+	}
+	lister, ok := s.repo.(boardWidgetLister)
+	if !ok {
+		return nil, errors.New("widget repository can't list a board")
+	}
+	list, err := lister.ListByBoardID(ctx, access.Board.ID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range list {
+		redact(&list[i])
+		if !access.CanEdit {
+			redactForViewer(&list[i])
+		}
+	}
+	return list, nil
+}
+
+// redactForViewer strips what only the owner needs from a widget on a
+// shared board. A type the server fetches for (feeds, APIs) renders from
+// its data, so the query strings and user info of the URLs in its config go:
+// keys live there. Types the browser renders (notes, bookmarks, embeds) need
+// their config as it is, which the owner chose to share.
+func redactForViewer(widget *models.Widget) {
+	widget.UserID = ""
+	widgetType, ok := widgets.Get(widget.Type)
+	if !ok {
+		widget.Config = json.RawMessage(`{}`)
+		return
+	}
+	if _, fetches := widgetType.(widgets.Fetcher); !fetches {
+		return
+	}
+	var config any
+	if json.Unmarshal(widget.Config, &config) != nil {
+		widget.Config = json.RawMessage(`{}`)
+		return
+	}
+	stripped, err := json.Marshal(widgets.StripURLSecrets(config))
+	if err != nil {
+		stripped = json.RawMessage(`{}`)
+	}
+	widget.Config = stripped
 }
 
 // Get returns a widget with secrets in its config masked
@@ -150,6 +213,12 @@ func (s *WidgetService) Update(ctx context.Context, id, userID string, isAdmin b
 	widget, err := s.apply(ctx, userID, isAdmin, req, current)
 	if err != nil {
 		return nil, err
+	}
+	if widget.BoardID != current.BoardID {
+		// Update leaves board and position alone, so the move goes first
+		if widget.Position, err = s.boards.MoveTile(ctx, userID, models.TileKindWidget, id, widget.BoardID); err != nil {
+			return nil, err
+		}
 	}
 	if err := s.repo.Update(ctx, widget); err != nil {
 		return nil, err
@@ -244,8 +313,22 @@ func (s *WidgetService) apply(ctx context.Context, userID string, isAdmin bool, 
 		w.Enabled = *req.Enabled
 	}
 
+	// The board: on create the user's default one unless the request names
+	// another of theirs; on update another board moves the widget there,
+	// out of its group
+	if boardID := strings.TrimSpace(deref(req.BoardID)); current == nil || (boardID != "" && !strings.EqualFold(boardID, current.BoardID)) {
+		board, err := s.boards.ResolveOwned(ctx, userID, boardID)
+		if errors.Is(err, repository.ErrBoardNotFound) {
+			return nil, invalid("Board not found")
+		}
+		if err != nil {
+			return nil, err
+		}
+		w.BoardID, w.GroupID = board.ID(), nil
+	}
+
 	if req.GroupID != nil {
-		groupID, err := s.resolveGroup(ctx, userID, *req.GroupID)
+		groupID, err := s.resolveGroup(ctx, userID, w.BoardID, *req.GroupID)
 		if err != nil {
 			return nil, err
 		}
@@ -313,8 +396,16 @@ func hasConfig(config json.RawMessage) bool {
 	return len(config) > 0 && string(config) != "null"
 }
 
-// resolveGroup checks that a group belongs to the user; "" means no group
-func (s *WidgetService) resolveGroup(ctx context.Context, userID, groupID string) (*string, error) {
+func deref(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// resolveGroup checks that a group belongs to the user and is on the
+// widget's board (boardID; "" skips that check); "" means no group
+func (s *WidgetService) resolveGroup(ctx context.Context, userID, boardID, groupID string) (*string, error) {
 	groupID = strings.TrimSpace(groupID)
 	if groupID == "" {
 		return nil, nil
@@ -328,6 +419,9 @@ func (s *WidgetService) resolveGroup(ctx context.Context, userID, groupID string
 	}
 	if err != nil {
 		return nil, err
+	}
+	if boardID != "" && group.BoardID != boardID {
+		return nil, invalid("Group is on another board")
 	}
 	return &group.ID, nil
 }
