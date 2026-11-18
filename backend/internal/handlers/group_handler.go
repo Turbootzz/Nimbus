@@ -9,6 +9,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 type GroupHandler struct {
@@ -35,45 +36,11 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate name
-	if req.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name is required",
-		})
+	group, err := services.NewGroupFromRequest(&req)
+	if err != nil {
+		return serviceError(c, err, "create group", nil)
 	}
-	if len(req.Name) > models.MaxGroupNameLen {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Name must be %d characters or less", models.MaxGroupNameLen),
-		})
-	}
-
-	// Validate color
-	color := req.Color
-	if color == "" {
-		color = models.DefaultGroupColor
-	}
-	if !models.IsValidHexColor(color) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid color format. Must be hex format #RRGGBB",
-		})
-	}
-
-	// Default monitoring to enabled
-	monitoringEnabled := true
-	if req.MonitoringEnabled != nil {
-		monitoringEnabled = *req.MonitoringEnabled
-	}
-
-	now := time.Now()
-	group := &models.Group{
-		UserID:            userID,
-		Name:              req.Name,
-		Color:             color,
-		IsDefault:         false,
-		MonitoringEnabled: monitoringEnabled,
-		CreatedAt:         now,
-		UpdatedAt:         now,
-	}
+	group.UserID = userID
 
 	if err := h.groupRepo.Create(c.Context(), group); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
