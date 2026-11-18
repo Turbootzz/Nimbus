@@ -51,7 +51,12 @@ func ValidateCustomCSS(css string) error {
 				break
 			}
 			rest = rest[i+len("url("):]
-			target := strings.TrimLeft(strings.TrimLeft(rest, " \t\n"), `"'`)
+			// At most one quote: a second one would be part of the URL,
+			// which then is a relative one
+			target := strings.TrimLeft(rest, " \t\n")
+			if strings.HasPrefix(target, `"`) || strings.HasPrefix(target, `'`) {
+				target = target[1:]
+			}
 			if !strings.HasPrefix(target, "data:image/") {
 				return errors.New("url() may only hold a data: image")
 			}
@@ -62,7 +67,9 @@ func ValidateCustomCSS(css string) error {
 
 // decodeCSSEscapes resolves backslash escapes the way a CSS parser does:
 // up to six hex digits and one optional space are a code point, a backslash
-// before a newline is nothing, any other escaped character is itself
+// before a newline is nothing, any other escaped character is itself.
+// An escaped quote is a character, not the start of a string, so it comes
+// out as U+FFFD and can't pass for the quote around a url().
 func decodeCSSEscapes(css string) string {
 	// A parser first turns every kind of newline into \n
 	css = cssNewlines.Replace(css)
@@ -86,7 +93,7 @@ func decodeCSSEscapes(css string) string {
 		}
 		if end == i {
 			if runes[i] != '\n' {
-				out.WriteRune(runes[i])
+				out.WriteRune(unquote(runes[i]))
 			}
 			continue
 		}
@@ -94,7 +101,7 @@ func decodeCSSEscapes(css string) string {
 		if code == 0 || code > utf8.MaxRune {
 			code = utf8.RuneError
 		}
-		out.WriteRune(rune(code))
+		out.WriteRune(unquote(rune(code)))
 		// One whitespace character after the digits belongs to the escape
 		if end < len(runes) && (runes[end] == ' ' || runes[end] == '\t' || runes[end] == '\n') {
 			end++
@@ -102,6 +109,13 @@ func decodeCSSEscapes(css string) string {
 		i = end - 1
 	}
 	return out.String()
+}
+
+func unquote(r rune) rune {
+	if r == '"' || r == '\'' {
+		return utf8.RuneError
+	}
+	return r
 }
 
 func isHexDigit(r rune) bool {

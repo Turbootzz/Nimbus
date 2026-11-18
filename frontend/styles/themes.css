@@ -183,6 +183,12 @@
   color: var(--color-on-primary, #fff);
 }
 
+/* The same for white text on a status colour: the page colour of a preset
+   reads on its own status colours */
+[data-preset] :is(.bg-success, .bg-warning, .bg-error, .bg-info).text-white {
+  color: var(--color-background);
+}
+
 /* Font choice. The variables come from next/font on <body> (app/layout.tsx):
    self-hosted files, each with a fallback sized to match so the text doesn't
    move when the font arrives. No attribute keeps the default of globals.css. */
