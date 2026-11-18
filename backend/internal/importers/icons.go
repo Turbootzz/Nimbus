@@ -9,11 +9,12 @@ import (
 	"github.com/nimbus/backend/internal/models"
 )
 
-// Where the icon sets that dashboards refer to by name are served. These are
-// the URLs Homepage itself builds (src/components/resolvedicon.jsx in
-// gethomepage/homepage); dashboard-icons is also what Nimbus' own icon
-// lookup uses. Nothing is fetched here: the browser loads the image, and a
-// name that doesn't exist falls back to the default icon there.
+// Where the icon sets that dashboards refer to by name are served. For
+// dashboard-icons (which Nimbus' own icon lookup uses too), selfh.st and
+// Material Design these are the URLs Homepage itself builds
+// (src/components/resolvedicon.jsx in gethomepage/homepage). Nothing is
+// fetched here: the browser loads the image, and a name that doesn't exist
+// falls back to the default icon there.
 const (
 	dashboardIconsURL = "https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/"
 	selfhstIconsURL   = "https://cdn.jsdelivr.net/gh/selfhst/icons@main/"

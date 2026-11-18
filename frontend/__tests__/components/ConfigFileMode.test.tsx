@@ -47,7 +47,9 @@ describe('config file mode', () => {
   it('explains a read-only dashboard', async () => {
     me({ read_only: true, preferences: true })
     render(<ConfigFileBanner />)
-    expect(await screen.findByRole('status')).toHaveTextContent('This dashboard is read-only')
+    const banner = await screen.findByRole('status')
+    expect(banner).toHaveTextContent('This dashboard is read-only')
+    expect(banner).toHaveTextContent('Theme, layout and wallpaper settings come from the file too')
   })
 
   it('offers no edit or add buttons on a read-only dashboard', () => {

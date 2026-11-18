@@ -105,6 +105,9 @@ describe('ImportWizard', () => {
       screen.getByRole('row', { name: /Sonarr.*http:\/\/sonarr\.lan.*Media.*sonarr/ })
     ).toBeInTheDocument()
     expect(screen.getByText(/comes without credentials/)).toBeInTheDocument()
+    expect(
+      screen.getByRole('row', { name: /Sonarr sonarr http:\/\/sonarr\.lan/ })
+    ).toBeInTheDocument()
 
     // Checked without changing anything: a merge that matches groups
     expect(api.importDashboard).toHaveBeenCalledTimes(1)

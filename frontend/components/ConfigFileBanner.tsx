@@ -20,6 +20,8 @@ export default function ConfigFileBanner() {
         {configFile.read_only
           ? 'This dashboard is read-only: its groups, services, widgets and integrations are set in the file NIMBUS_CONFIG_FILE points at. Change the file to change the dashboard.'
           : 'This dashboard follows the file NIMBUS_CONFIG_FILE points at. What you change here can be overwritten when the file changes or the server restarts.'}
+        {configFile.preferences &&
+          ' Theme, layout and wallpaper settings come from the file too: changes to them are not saved.'}
       </p>
     </div>
   )

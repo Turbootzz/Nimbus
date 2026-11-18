@@ -413,6 +413,46 @@ export default function ImportWizard() {
               </div>
             </div>
 
+            {doc.integrations.length > 0 && (
+              <div>
+                <h3 className="text-text-primary mb-2 text-sm font-medium">Integrations</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="text-text-muted border-card-border border-b">
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          Name
+                        </th>
+                        <th scope="col" className="py-2 pr-4 font-medium">
+                          App
+                        </th>
+                        <th scope="col" className="py-2 font-medium">
+                          Address
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {doc.integrations.map((integration, index) => (
+                        <tr key={index} className="border-card-border border-b last:border-b-0">
+                          <th scope="row" className={`${cellClass} text-text-primary font-normal`}>
+                            {integration.name}
+                          </th>
+                          <td className={`${cellClass} text-text-secondary`}>{integration.kind}</td>
+                          <td className="text-text-secondary py-2 align-top break-all">
+                            {integration.base_url}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-text-muted mt-2 text-xs">
+                  Credentials are not taken over. Enter them under Settings → Integrations after the
+                  import.
+                </p>
+              </div>
+            )}
+
             {preview && (
               <div>
                 <SummaryTable summary={preview} />

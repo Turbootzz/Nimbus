@@ -291,8 +291,12 @@ func (s *DashboardTransferService) Sync(ctx context.Context, userID string, doc 
 	run.changes.Credentials = map[string][]byte{}
 	summary, err := run.apply(stored)
 	if err != nil {
+		// Images went to disk first; nothing points at them now
 		for _, name := range run.savedIcons {
 			s.Images.Remove(ImageIcon, name)
+		}
+		if run.savedWallpaper != "" {
+			s.Images.Remove(ImageWallpaper, run.savedWallpaper)
 		}
 		return nil, limitIssue(err)
 	}
@@ -309,9 +313,10 @@ type syncRun struct {
 	changes repository.DashboardChanges
 	summary dashdoc.Summary
 
-	// savedIcons are removed again when the sync fails, staleIcons when it
-	// succeeds
+	// savedIcons and savedWallpaper are removed again when the sync fails,
+	// staleIcons when it succeeds
 	savedIcons, staleIcons []string
+	savedWallpaper         string
 	// reconnect are the integrations whose session no longer applies
 	reconnect []*models.Integration
 }
@@ -612,7 +617,7 @@ func (r *syncRun) preferences() (release func(), err error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to store wallpaper: %w", err)
 			}
-			release = releaseSaved
+			release, r.savedWallpaper = releaseSaved, path
 			request.ThemeBackground = models.NullableString{Value: &path, Set: true}
 		}
 	}

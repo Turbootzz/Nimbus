@@ -98,6 +98,11 @@ func TestParseNamesTheMissingVariables(t *testing.T) {
 	assert.Contains(t, err.Error(), "METER_TOKEN, SONARR_API_KEY", "an empty variable is as good as none")
 }
 
+func TestParseRefusesANULFromAVariable(t *testing.T) {
+	_, err := Parse([]byte("owner: a@b.c\nversion: 1\ngroups:\n  - name: ${NAME}\n"), env(map[string]string{"NAME": "a\x00b"}))
+	assert.ErrorContains(t, err, "can not be stored")
+}
+
 func TestParseRefuses(t *testing.T) {
 	level := func(name, previous string) string {
 		return name + ": &" + name + " [" + strings.TrimSuffix(strings.Repeat("*"+previous+",", 9), ",") + "]\n"
@@ -118,6 +123,7 @@ func TestParseRefuses(t *testing.T) {
 		"keys of other types": "owner: a@b.c\nversion: 1\n1: 2\n",
 		"an alias bomb":       bomb,
 		"binary":              "\x00\xff\xfe\x01",
+		"a NUL character":     `{"owner": "a@b.c", "version": 1, "groups": [{"name": "a\u0000b"}]}`,
 		"too much":            strings.Repeat("a", MaxSize+1),
 	}
 	for name, content := range cases {

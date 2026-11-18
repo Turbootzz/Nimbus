@@ -46,15 +46,18 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 		return nil, errors.New("the file must hold a mapping with owner, version and the dashboard")
 	}
 
-	missing := map[string]bool{}
-	tree = interpolate(tree, lookup, missing)
-	if len(missing) > 0 {
-		names := make([]string, 0, len(missing))
-		for name := range missing {
+	values := &interpolation{lookup: lookup, missing: map[string]bool{}}
+	tree = values.apply(tree)
+	if len(values.missing) > 0 {
+		names := make([]string, 0, len(values.missing))
+		for name := range values.missing {
 			names = append(names, name)
 		}
 		sort.Strings(names)
 		return nil, fmt.Errorf("environment variable not set or empty: %s", strings.Join(names, ", "))
+	}
+	if values.nul {
+		return nil, errors.New(`a value holds the character \u0000, which can not be stored`)
 	}
 
 	// Through JSON, so a YAML file is checked exactly like a JSON one.
@@ -78,37 +81,48 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 // variable matches ${NAME} and its escape $${NAME}
 var variable = regexp.MustCompile(`\$?\$\{([A-Za-z_][A-Za-z0-9_]*)\}`)
 
-// interpolate replaces the variables in every string value of a parsed file
-// and records the ones that are not set. An empty variable counts as not
-// set: a secret must never silently become empty.
-func interpolate(value any, lookup func(string) (string, bool), missing map[string]bool) any {
+// interpolation replaces the variables of a parsed file and notes what is
+// wrong with its values
+type interpolation struct {
+	lookup func(string) (string, bool)
+	// missing are the variables that are not set. An empty one counts too:
+	// a secret must never silently become empty.
+	missing map[string]bool
+	// nul: a value holds the character the database can't store
+	nul bool
+}
+
+// apply replaces the variables in every string value under value
+func (in *interpolation) apply(value any) any {
 	switch v := value.(type) {
 	case string:
-		return variable.ReplaceAllStringFunc(v, func(match string) string {
+		replaced := variable.ReplaceAllStringFunc(v, func(match string) string {
 			if strings.HasPrefix(match, "$$") {
 				return match[1:]
 			}
 			name := match[2 : len(match)-1]
-			replacement, ok := lookup(name)
+			replacement, ok := in.lookup(name)
 			if !ok || replacement == "" {
-				missing[name] = true
+				in.missing[name] = true
 			}
 			return replacement
 		})
+		in.nul = in.nul || strings.ContainsRune(replaced, 0)
+		return replaced
 	case map[string]any:
 		for key, item := range v {
-			v[key] = interpolate(item, lookup, missing)
+			v[key] = in.apply(item)
 		}
 	case map[any]any:
 		// YAML with keys that are not strings; JSON has no such thing
 		out := make(map[string]any, len(v))
 		for key, item := range v {
-			out[fmt.Sprint(key)] = interpolate(item, lookup, missing)
+			out[fmt.Sprint(key)] = in.apply(item)
 		}
 		return out
 	case []any:
 		for i, item := range v {
-			v[i] = interpolate(item, lookup, missing)
+			v[i] = in.apply(item)
 		}
 	}
 	return value
