@@ -28,6 +28,14 @@ func (proxmox) Meta() Meta {
 			{Key: "cpu", Label: "CPU", Unit: "%"},
 			{Key: "memory", Label: "Memory", Unit: "%"},
 		},
+		Options: []Option{{
+			Key:         "node",
+			Label:       "Node",
+			Help:        "Only count this node. Leave empty for the whole cluster.",
+			Placeholder: "pve",
+			MaxLength:   63,
+			Pattern:     `[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?`,
+		}},
 	}
 }
 
@@ -36,15 +44,24 @@ func proxmoxAuth(conn *Conn) authFunc {
 	return func(r *http.Request) { r.Header.Set("Authorization", "PVEAPIToken="+token) }
 }
 
-func (proxmox) Test(ctx context.Context, conn *Conn) error {
+func (p proxmox) Test(ctx context.Context, conn *Conn) error {
 	var version struct {
 		Data map[string]any `json:"data"`
 	}
-	return getJSON(ctx, conn, "/api2/json/version", proxmoxAuth(conn), &version)
+	if err := getJSON(ctx, conn, "/api2/json/version", proxmoxAuth(conn), &version); err != nil {
+		return err
+	}
+	if conn.Option("node") == "" {
+		return nil
+	}
+	// Fetch fails on a node name the cluster doesn't have
+	_, err := p.Fetch(ctx, conn)
+	return err
 }
 
 type proxmoxResource struct {
 	Type     string  `json:"type"`
+	Node     string  `json:"node"`
 	Status   string  `json:"status"`
 	Template int     `json:"template"`
 	CPU      float64 `json:"cpu"` // share of maxcpu in use, 0 to 1
@@ -61,9 +78,15 @@ func (proxmox) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 		return nil, err
 	}
 
+	node := conn.Option("node")
+	nodeFound := node == ""
 	var vmsUp, vms, ctUp, cts int
 	var cpuUsed, cpuTotal, memUsed, memTotal float64
 	for _, r := range resources.Data {
+		if node != "" && !strings.EqualFold(r.Node, node) {
+			continue
+		}
+		nodeFound = nodeFound || r.Type == "node"
 		switch {
 		case r.Type == "qemu" && r.Template == 0:
 			vms++
@@ -81,6 +104,9 @@ func (proxmox) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 			memUsed += r.Mem
 			memTotal += r.MaxMem
 		}
+	}
+	if !nodeFound {
+		return nil, fmt.Errorf("node %q was not found in the cluster", node)
 	}
 	return &Payload{KPIs: map[string]any{
 		"vms":        fmt.Sprintf("%d/%d", vmsUp, vms),
