@@ -235,12 +235,12 @@ func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, er
 
 func insertGroup(ctx context.Context, tx *sql.Tx, group *models.Group) error {
 	query := `
-		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := tx.ExecContext(ctx, query,
 		group.ID, group.UserID, group.Name, group.Color, group.Position,
-		group.IsDefault, group.MonitoringEnabled, group.CreatedAt, group.UpdatedAt,
+		group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create group: %w", err)

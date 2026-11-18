@@ -67,6 +67,8 @@ type Group struct {
 	// default group the user already has
 	Default           bool  `json:"default,omitempty"`
 	MonitoringEnabled *bool `json:"monitoring_enabled,omitempty"`
+	// TileStyle is "cards" or "chips"; omitted means cards
+	TileStyle string `json:"tile_style,omitempty"`
 }
 
 // Integration is a connection to an app, without its credentials
@@ -122,7 +124,8 @@ type Widget struct {
 }
 
 // Preferences are the user's look and layout settings. An omitted field
-// keeps the value the user has. They are only applied by ModeReplace.
+// keeps the value the user has, except GroupDisplay. They are only applied
+// by ModeReplace.
 type Preferences struct {
 	ThemeMode *string `json:"theme_mode,omitempty"`
 	// ThemeBackground is an image URL; "" clears the background
@@ -130,18 +133,23 @@ type Preferences struct {
 	// WallpaperData is an uploaded background image embedded as base64
 	WallpaperData string `json:"wallpaper_data,omitempty"`
 	// ThemeAccentColor is #RRGGBB; "" goes back to the default accent
-	ThemeAccentColor      *string      `json:"theme_accent_color,omitempty"`
-	OpenInNewTab          *bool        `json:"open_in_new_tab,omitempty"`
-	EnableCardResizing    *bool        `json:"enable_card_resizing,omitempty"`
-	EnableServiceGrouping *bool        `json:"enable_service_grouping,omitempty"`
-	CardScale             *string      `json:"card_scale,omitempty"`
-	ViewMode              *string      `json:"view_mode,omitempty"`
-	WallpaperBlur         *int         `json:"wallpaper_blur,omitempty"`
-	WallpaperDim          *int         `json:"wallpaper_dim,omitempty"`
-	CardOpacity           *int         `json:"card_opacity,omitempty"`
-	CardBlur              *int         `json:"card_blur,omitempty"`
-	LayoutMode            *string      `json:"layout_mode,omitempty"`
-	StatusStrip           *StatusStrip `json:"status_strip,omitempty"`
+	ThemeAccentColor      *string `json:"theme_accent_color,omitempty"`
+	OpenInNewTab          *bool   `json:"open_in_new_tab,omitempty"`
+	EnableCardResizing    *bool   `json:"enable_card_resizing,omitempty"`
+	EnableServiceGrouping *bool   `json:"enable_service_grouping,omitempty"`
+	CardScale             *string `json:"card_scale,omitempty"`
+	ViewMode              *string `json:"view_mode,omitempty"`
+	WallpaperBlur         *int    `json:"wallpaper_blur,omitempty"`
+	WallpaperDim          *int    `json:"wallpaper_dim,omitempty"`
+	CardOpacity           *int    `json:"card_opacity,omitempty"`
+	CardBlur              *int    `json:"card_blur,omitempty"`
+	LayoutMode            *string `json:"layout_mode,omitempty"`
+	// GroupDisplay is "tabs" or "sections". Omitted follows the layout
+	// (tabs in classic, sections in canvas) instead of keeping the value
+	// the user has: that is a setting of its own, and an export has to
+	// carry it.
+	GroupDisplay *string      `json:"group_display,omitempty"`
+	StatusStrip  *StatusStrip `json:"status_strip,omitempty"`
 }
 
 // StatusStrip is the row of KPI chips at the top of the dashboard

@@ -121,7 +121,8 @@ func upsertPreferences(ctx context.Context, db execer, userID string, p *models.
 	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
 	add("card_blur", p.CardBlur, p.CardBlur != nil)
 	add("layout_mode", p.LayoutMode, p.LayoutMode != nil)
-	add("group_display", p.GroupDisplay, p.GroupDisplay != nil)
+	// An import can also go back to following the layout (NULL)
+	add("group_display", p.GroupDisplay, p.GroupDisplay != nil || p.FollowLayout)
 	if p.StatusStrip != nil {
 		add("status_strip", *p.StatusStrip, true)
 	}

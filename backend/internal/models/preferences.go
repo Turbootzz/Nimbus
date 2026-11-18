@@ -131,7 +131,10 @@ type PreferencesUpdateRequest struct {
 	CardBlur              *int           `json:"card_blur" validate:"omitempty,min=0,max=40"`
 	LayoutMode            *string        `json:"layout_mode" validate:"omitempty,oneof=classic canvas"`
 	GroupDisplay          *string        `json:"group_display" validate:"omitempty,oneof=tabs sections"`
-	StatusStrip           *StatusStrip   `json:"status_strip"`
+	// FollowLayout clears group_display when it is not given. Set by a
+	// dashboard import only, never read from a request.
+	FollowLayout bool         `json:"-"`
+	StatusStrip  *StatusStrip `json:"status_strip"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
