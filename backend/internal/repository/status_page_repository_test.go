@@ -65,6 +65,16 @@ func seedStatusPageService(t *testing.T, db *sql.DB, id, groupID string, positio
 	})
 }
 
+// seedTheirUngroupedService adds a monitored ungrouped service of user-2,
+// which no group of user-1 may show
+func seedTheirUngroupedService(t *testing.T, db *sql.DB, id string) {
+	t.Helper()
+	createServiceDirectly(t, db, &models.Service{
+		ID: id, UserID: "user-2", Name: id, URL: "http://" + id + ".internal", Status: models.StatusOnline,
+		MonitoringEnabled: true, CreatedAt: time.Now(), UpdatedAt: time.Now(),
+	})
+}
+
 func seedStatusLog(t *testing.T, db *sql.DB, serviceID, status string, at time.Time) {
 	t.Helper()
 	_, err := db.Exec(`INSERT INTO service_status_logs (service_id, status, checked_at) VALUES (?, ?, ?)`, serviceID, status, at)
@@ -79,6 +89,7 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	seedStatusPageService(t, db, "svc-b", "group-1", 1, true)
 	seedStatusPageService(t, db, "svc-other", "group-2", 0, true)
 	seedStatusPageService(t, db, "svc-ungrouped", "", 0, true)
+	seedTheirUngroupedService(t, db, "svc-theirs")
 
 	since := time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC)
 	// svc-a: two checks in hour 0, one in hour 5
@@ -89,6 +100,7 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	seedStatusLog(t, db, "svc-a", models.StatusOffline, since.Add(-time.Minute))
 	seedStatusLog(t, db, "svc-other", models.StatusOffline, since.Add(time.Minute))
 	seedStatusLog(t, db, "svc-ungrouped", models.StatusOffline, since.Add(time.Minute))
+	seedStatusLog(t, db, "svc-theirs", models.StatusOffline, since.Add(time.Minute))
 	// svc-b: a check stored in another time zone lands in the same hour
 	seedStatusLog(t, db, "svc-b", models.StatusOnline, since.Add(2*time.Hour+time.Minute).In(time.FixedZone("CET", 3600)))
 
@@ -104,10 +116,13 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-a", Hour: 5, Total: 1, Online: 1}, got["svc-a@5h0m0s"])
 	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-b", Hour: 2, Total: 1, Online: 1}, got["svc-b@2h0m0s"])
 
-	// A default group also counts its owner's ungrouped services
+	// A default group also counts its owner's ungrouped services, and only theirs
 	buckets, err = repo.GetHourlyUptimeByGroup(context.Background(), &models.Group{ID: "group-1", UserID: "user-1", IsDefault: true}, since)
 	require.NoError(t, err)
 	assert.Len(t, buckets, 4)
+	for _, b := range buckets {
+		assert.NotEqual(t, "svc-theirs", b.ServiceID)
+	}
 }
 
 func TestStatusLogRepository_GetHourlyUptimeByGroup_Empty(t *testing.T) {
@@ -137,6 +152,7 @@ func TestServiceRepository_GetMonitoredByGroup(t *testing.T) {
 	seedStatusPageService(t, db, "paused", "group-off", 0, true)
 	seedStatusPageService(t, db, "ungrouped", "", 0, true)
 	seedStatusPageService(t, db, "ungrouped-off", "", 4, false)
+	seedTheirUngroupedService(t, db, "theirs")
 
 	services, err := repo.GetMonitoredByGroup(context.Background(), public)
 	require.NoError(t, err)
