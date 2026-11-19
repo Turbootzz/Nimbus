@@ -51,11 +51,14 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 		if e.name == "" {
 			e.name = displayName(asString(name))
 		}
+		// A dashboard-icons name, from a label or else the image, is its SVG,
+		// as Docker discovery and Nimbus' own icon lookup use
+		slug := integrations.IconSlug(e.icon)
 		if e.icon == "" {
-			if slug := imageSlug(asString(settings["image"])); slug != "" {
-				// The SVG set, like the icons Nimbus looks up itself
-				e.icon = dashboardIconsURL + "svg/" + slug + ".svg"
-			}
+			slug = imageSlug(asString(settings["image"]))
+		}
+		if slug != "" {
+			e.icon = dashboardIconsURL + "svg/" + slug + ".svg"
 		}
 		if e.url == "" {
 			port := publishedPort(asList(settings["ports"]))
