@@ -564,7 +564,9 @@ func TestBoards_ViewerStream(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	go func() { _ = f.app.Listener(ln) }()
-	t.Cleanup(func() { _ = f.app.Shutdown() })
+	// Closing the listener, not app.Shutdown: Shutdown writes a field of the
+	// server that request contexts handed to database/sql read unsynchronized
+	t.Cleanup(func() { _ = ln.Close() })
 
 	req, err := http.NewRequest(http.MethodGet, "http://"+ln.Addr().String()+"/dashboard/stream?board="+sharedBoardID, nil)
 	require.NoError(t, err)
