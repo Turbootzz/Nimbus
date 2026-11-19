@@ -30,7 +30,11 @@ func NewUnixSocketClient(path string, timeout time.Duration) *http.Client {
 // ReadOnlyClient makes client refuse every request but GET and HEAD before
 // it is sent, for APIs where Nimbus must never change anything
 func ReadOnlyClient(client *http.Client) *http.Client {
-	client.Transport = readOnlyTransport{client.Transport}
+	next := client.Transport
+	if next == nil {
+		next = http.DefaultTransport // what http.Client uses for nil
+	}
+	client.Transport = readOnlyTransport{next}
 	return client
 }
 
