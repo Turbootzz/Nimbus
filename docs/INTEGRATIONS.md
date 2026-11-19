@@ -23,7 +23,7 @@ The URL is the address the Nimbus server uses to reach the app, including a sub 
 
 Some apps have settings of their own, such as the Proxmox node. They show in the integration form under the credentials.
 
-**Verify TLS certificate** is on by default. Turning it off makes a self-signed certificate work, but Nimbus then can't tell the app from an impostor on the network, who would get the credentials. Only turn it off on a network you trust. If the app redirects Nimbus to another host or port, the credentials are not sent along (an upgrade from http to https on the same host keeps them).
+**Verify TLS certificate** is on by default. Turning it off makes a self-signed certificate work, but Nimbus then can't tell the app from an impostor on the network, who would get the credentials. Only turn it off on a network you trust. If the app redirects Nimbus to another host or port, the credentials are not sent along (only an upgrade from `http://` on port 80 to `https://` on port 443 of the same host keeps them). An app that redirects from one non-standard port to another, for example `http://nas.lan:5000` to `https://nas.lan:5001`, therefore fails to connect: enter its final `https://` URL.
 
 ### Proxmox VE
 
