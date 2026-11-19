@@ -108,8 +108,10 @@ export default function DashboardImport() {
   const [issues, setIssues] = useState<ImportIssue[]>([])
   const [busy, setBusy] = useState(false)
   const [confirming, setConfirming] = useState(false)
-  // Only the answer to the latest preview request counts
+  // Only the answer to the latest file read or preview request counts
   const request = useRef(0)
+  // The mode a file is previewed in once it is read
+  const modeRef = useRef(mode)
 
   useEffect(() => {
     if (!confirming) return
@@ -144,32 +146,48 @@ export default function DashboardImport() {
     if (!chosen) return
     // So choosing the same file again, after fixing it, is noticed
     if (fileInput.current) fileInput.current.value = ''
+    // Whatever the previous file was doing no longer counts
+    const current = ++request.current
+    setFile(null)
+    setPreview(null)
+    setResult(null)
+    setError(null)
+    setIssues([])
     if (chosen.size > MAX_FILE_BYTES) {
-      request.current++
-      setFile(null)
-      setPreview(null)
-      setResult(null)
-      setIssues([])
       setError('The file is too large. An export is at most 10 MB.')
       return
     }
-    const text = await chosen.text()
+    setBusy(true)
+    let text: string
+    try {
+      text = await chosen.text()
+    } catch {
+      if (current !== request.current) return
+      setBusy(false)
+      setError('The file could not be read')
+      return
+    }
+    if (current !== request.current) return
     setFile({ name: chosen.name, text })
-    await loadPreview(text, mode)
+    await loadPreview(text, modeRef.current)
   }
 
   const chooseMode = (next: ImportMode) => {
     setMode(next)
+    modeRef.current = next
     if (file) loadPreview(file.text, next)
   }
 
+  // A preview of another mode tells nothing about this one
+  const ready = preview?.mode === mode ? preview : null
+
   const apply = async () => {
-    if (!file) return
+    if (!file || !ready) return
     setConfirming(false)
     setBusy(true)
     setError(null)
     setIssues([])
-    const response = await api.importDashboard(file.text, mode)
+    const response = await api.importDashboard(file.text, ready.mode)
     setBusy(false)
     if (!response.data) {
       fail(response.error)
@@ -181,7 +199,7 @@ export default function DashboardImport() {
     if (fileInput.current) fileInput.current.value = ''
   }
 
-  const willDelete = preview ? entities.reduce((n, e) => n + preview[e].removed, 0) : 0
+  const willDelete = ready ? entities.reduce((n, e) => n + ready[e].removed, 0) : 0
 
   return (
     <section className="glass-card border-card-border rounded-lg border p-6">
@@ -262,7 +280,7 @@ export default function DashboardImport() {
           </div>
         )}
 
-        {preview && (
+        {ready && (
           <>
             {mode === 'replace' && (
               <div
@@ -278,8 +296,8 @@ export default function DashboardImport() {
                 </p>
               </div>
             )}
-            <SummaryTable summary={preview} />
-            {preview.custom_css && (
+            <SummaryTable summary={ready} />
+            {ready.custom_css && (
               <div className="mt-4">
                 <h3 className="text-text-primary mb-1 text-sm font-medium">
                   This file brings custom CSS (read it before you import)
@@ -293,7 +311,7 @@ export default function DashboardImport() {
                   aria-label="Custom CSS in the file"
                   className="bg-background border-card-border text-text-primary max-h-48 overflow-auto rounded border p-2 font-mono text-xs whitespace-pre-wrap"
                 >
-                  {preview.custom_css}
+                  {ready.custom_css}
                 </pre>
               </div>
             )}
@@ -326,7 +344,7 @@ export default function DashboardImport() {
         )}
       </div>
 
-      {confirming && preview && (
+      {confirming && ready && (
         <ConfirmDialog
           title="Replace your dashboard?"
           message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.`}

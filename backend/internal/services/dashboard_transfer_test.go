@@ -919,6 +919,26 @@ func TestInvalidDocuments(t *testing.T) {
 	assert.ErrorAs(t, err, &vErr)
 }
 
+// The accent takes what the preferences endpoint takes, as written
+func TestImportKeepsTheAccentColorAsGiven(t *testing.T) {
+	env := newTransferEnv(t)
+	ctx := context.Background()
+	for _, color := range []string{"#abc", "#3B82F6"} {
+		_, err := env.svc.Apply(ctx, transferUser, &dashdoc.Document{Version: 1, Preferences: &dashdoc.Preferences{ThemeAccentColor: &color}}, dashdoc.ModeReplace)
+		require.NoError(t, err)
+		prefs, err := env.preferences.GetByUserID(ctx, transferUser)
+		require.NoError(t, err)
+		require.NotNil(t, prefs.ThemeAccentColor)
+		assert.Equal(t, color, *prefs.ThemeAccentColor)
+	}
+
+	_, err := env.svc.Apply(ctx, transferUser, &dashdoc.Document{Version: 1, Preferences: &dashdoc.Preferences{ThemeAccentColor: new("")}}, dashdoc.ModeReplace)
+	require.NoError(t, err)
+	prefs, err := env.preferences.GetByUserID(ctx, transferUser)
+	require.NoError(t, err)
+	assert.Nil(t, prefs.ThemeAccentColor)
+}
+
 func TestImportStaysUnderThePerUserLimits(t *testing.T) {
 	env := newTransferEnv(t)
 	ctx := context.Background()

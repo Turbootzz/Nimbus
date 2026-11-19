@@ -52,6 +52,7 @@ export default function ServiceListItem({
       {isEditMode && (
         <div
           {...dragHandleProps}
+          aria-label={`Move ${service.name}`}
           className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
