@@ -256,10 +256,11 @@ func (r *StatusLogRepository) GetAggregatedByInterval(ctx context.Context, servi
 	return results, rows.Err()
 }
 
-// GetHourlyUptimeByGroup counts the checks of every service in a group per
-// hour since the given time, in one query. Hour 0 starts at since. Bucketing
+// GetHourlyUptimeByGroup counts the checks of every service in a group (with
+// a default group's ungrouped ones, see GetMonitoredByGroup) per hour since
+// the given time, in one query. Hour 0 starts at since. Bucketing
 // relative to since keeps it independent of the database time zone.
-func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupID string, since time.Time) ([]models.UptimeBucket, error) {
+func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, group *models.Group, since time.Time) ([]models.UptimeBucket, error) {
 	// since is $1 because SQLite numbers parameters in order of appearance
 	hour := `CAST((julianday(l.checked_at) - julianday($1)) * 24 AS INTEGER)`
 	if r.isPostgreSQL {
@@ -271,11 +272,11 @@ func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupI
 			COUNT(CASE WHEN l.status = 'online' THEN 1 END) AS online
 		FROM service_status_logs l
 		JOIN services s ON s.id = l.service_id
-		WHERE l.checked_at >= $1 AND s.group_id = $2
+		WHERE l.checked_at >= $1 AND (s.group_id = $2 OR (s.group_id IS NULL AND s.board_id = $3))
 		GROUP BY l.service_id, hour
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, since, groupID)
+	rows, err := r.db.QueryContext(ctx, query, since, group.ID, ungroupedBoard(group))
 	if err != nil {
 		return nil, err
 	}

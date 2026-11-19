@@ -144,6 +144,16 @@ func (s *StatusPageService) Save(ctx context.Context, userID string, settings mo
 	return settings, nil
 }
 
+// UseGroup points the page at another group of userID and keeps the rest of
+// its settings. A replace import calls it for the group it re-created.
+func (s *StatusPageService) UseGroup(ctx context.Context, userID, groupID string) error {
+	if err := s.settingsRepo.UpdateBatch(ctx, map[string]string{statusPageGroupKey: groupID}, &userID); err != nil {
+		return err
+	}
+	s.Invalidate()
+	return nil
+}
+
 // requireOwnGroup rejects a group that is missing or someone else's, with
 // one message so group IDs cannot be probed
 func (s *StatusPageService) requireOwnGroup(ctx context.Context, userID, groupID string) error {
@@ -232,14 +242,14 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 		return nil, nil
 	}
 
-	services, err := s.serviceRepo.GetMonitoredByGroupID(ctx, group.ID)
+	services, err := s.serviceRepo.GetMonitoredByGroup(ctx, group)
 	if err != nil {
 		return nil, err
 	}
 
 	// Hour buckets end with the running hour, so the bars line up on the clock
 	since := now.Truncate(time.Hour).Add(-(uptimeHours - 1) * time.Hour)
-	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group.ID, since)
+	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group, since)
 	if err != nil {
 		return nil, err
 	}

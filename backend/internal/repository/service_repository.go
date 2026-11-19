@@ -195,19 +195,29 @@ func (r *ServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, use
 	return r.queryServices(ctx, query, userID)
 }
 
-// GetMonitoredByGroupID retrieves the services of one group that are health
-// checked: monitoring is on for both the service and the group
-func (r *ServiceRepository) GetMonitoredByGroupID(ctx context.Context, groupID string) ([]*models.Service, error) {
+// GetMonitoredByGroup retrieves the services of one group that are health
+// checked, by the rule of GetAllForMonitoring. A default group also holds
+// the ungrouped services of its board, as on the dashboard.
+func (r *ServiceRepository) GetMonitoredByGroup(ctx context.Context, group *models.Group) ([]*models.Service, error) {
 	query := `
 		SELECT ` + monitoredServiceColumns + `
 		FROM services s
-		JOIN groups g ON s.group_id = g.id
-		WHERE s.group_id = $1
+		LEFT JOIN groups g ON s.group_id = g.id
+		WHERE (s.group_id = $1 OR (s.group_id IS NULL AND s.board_id = $2))
 		  AND s.monitoring_enabled = TRUE
-		  AND g.monitoring_enabled = TRUE
+		  AND (s.group_id IS NULL OR g.monitoring_enabled = TRUE)
 		ORDER BY s.position ASC, s.created_at DESC
 	`
-	return r.queryServices(ctx, query, groupID)
+	return r.queryServices(ctx, query, group.ID, ungroupedBoard(group))
+}
+
+// ungroupedBoard is the board whose ungrouped services belong to group: its
+// board for a default group, else nil, which matches nothing
+func ungroupedBoard(group *models.Group) any {
+	if group.IsDefault {
+		return group.BoardID
+	}
+	return nil
 }
 
 // Update updates an existing service

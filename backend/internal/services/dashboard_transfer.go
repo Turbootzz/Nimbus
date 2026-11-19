@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 
@@ -73,6 +74,14 @@ type DashboardTransferDeps struct {
 	Images             ImageStore
 }
 
+// StatusPage is the public status page as a replace import sees it. The page
+// shows one group, and a replace removes every group of the user and creates
+// new ones: the page follows its group to the new one with the same name.
+type StatusPage interface {
+	Settings(ctx context.Context) (models.StatusPageSettings, error)
+	UseGroup(ctx context.Context, userID, groupID string) error
+}
+
 // DashboardTransferService exports a user's dashboard as a dashdoc.Document
 // and imports one. It is the single way a document gets into the database:
 //
@@ -87,7 +96,8 @@ type DashboardTransferDeps struct {
 // widget configs, per-user limits).
 type DashboardTransferService struct {
 	DashboardTransferDeps
-	poller Poller
+	poller     Poller
+	statusPage StatusPage
 }
 
 func NewDashboardTransferService(deps DashboardTransferDeps) *DashboardTransferService {
@@ -97,6 +107,11 @@ func NewDashboardTransferService(deps DashboardTransferDeps) *DashboardTransferS
 // SetPoller lets an import start polling what it created
 func (s *DashboardTransferService) SetPoller(p Poller) {
 	s.poller = p
+}
+
+// SetStatusPage lets a replace keep the status page on its group
+func (s *DashboardTransferService) SetStatusPage(page StatusPage) {
+	s.statusPage = page
 }
 
 // Export reads the user's dashboard into a document. Its content only
@@ -466,6 +481,12 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	}
 	p.useStoredGroups(stored)
 	replace := mode == dashdoc.ModeReplace
+	var move *statusPageMove
+	if replace {
+		if move, err = s.statusPageMove(ctx, userID, p.rows.Groups, boards); err != nil {
+			return nil, err
+		}
+	}
 
 	if dryRun {
 		before, err := s.Dashboard.Scope(ctx, userID, boards.listed())
@@ -480,7 +501,7 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 		if err := limitIssue(p.rows.CheckLimits(kept, dashboardLimits)); err != nil {
 			return nil, err
 		}
-		return p.summary(mode, true, before), nil
+		return move.note(p.summary(mode, true, before)), nil
 	}
 
 	// Images go to disk first; whatever fails after that removes them again
@@ -537,7 +558,54 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 		s.Images.PruneWallpapers(ctx)
 	}
 	kick(s.poller)
-	return p.summary(mode, false, applied.Scope), nil
+	if move != nil && move.to != nil {
+		if err := s.statusPage.UseGroup(ctx, userID, move.to.ID); err != nil {
+			log.Printf("Import: failed to keep the status page on group %q: %v", move.from, err)
+		}
+	}
+	return move.note(p.summary(mode, false, applied.Scope)), nil
+}
+
+// statusPageMove is where a replace takes the status page: from the name of
+// the user's group it shows to the planned group with that name, nil if none
+type statusPageMove struct {
+	from    string
+	to      *models.Group
+	enabled bool
+}
+
+// statusPageMove returns nil when the page shows none of the user's groups
+// on a board the document replaces
+func (s *DashboardTransferService) statusPageMove(ctx context.Context, userID string, planned []*models.Group, boards *docBoards) (*statusPageMove, error) {
+	if s.statusPage == nil {
+		return nil, nil
+	}
+	settings, err := s.statusPage.Settings(ctx)
+	if err != nil || settings.GroupID == "" {
+		return nil, err
+	}
+	groups, err := s.Groups.GetAllByUserID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list groups: %w", err)
+	}
+	i := slices.IndexFunc(groups, func(g *models.Group) bool { return g.ID == settings.GroupID })
+	if i < 0 || !boards.manages(groups[i].BoardID) {
+		return nil, nil
+	}
+	move := &statusPageMove{from: groups[i].Name, enabled: settings.Enabled}
+	board := boards.of(groups[i].BoardID)
+	if j := slices.IndexFunc(planned, func(g *models.Group) bool { return g.BoardID == board && key(g.Name) == key(move.from) }); j >= 0 {
+		move.to = planned[j]
+	}
+	return move, nil
+}
+
+// note tells the summary what happens to a page that is on
+func (m *statusPageMove) note(summary *dashdoc.Summary) *dashdoc.Summary {
+	if m != nil && m.enabled {
+		summary.StatusPage = &dashdoc.StatusPageImpact{Group: m.from, Kept: m.to != nil}
+	}
+	return summary
 }
 
 // hasNUL reports a \u0000 escape in JSON that is not itself escaped.

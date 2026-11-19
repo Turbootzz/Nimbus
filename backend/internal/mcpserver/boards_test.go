@@ -86,7 +86,7 @@ func TestBoards_ToolsReadTheDefaultBoardUnlessOneIsNamed(t *testing.T) {
 
 	_, list, err := tools.listServices(ctx, reader, listServicesInput{})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Router", "Pi-hole", "pi-hole"}, names(list))
+	assert.Equal(t, []string{"Router", "Pi-hole", "pi-hole", "Printer"}, names(list))
 
 	for _, board := range []string{"media", "Media", "brd-media"} {
 		_, list, err = tools.listServices(ctx, reader, listServicesInput{Board: board})
@@ -155,7 +155,7 @@ func TestBoards_DashboardResourceListsTheBoards(t *testing.T) {
 	})
 	require.NoError(t, err)
 	text := result.Contents[0].Text
-	assert.Contains(t, text, "3 services:", "the default board")
+	assert.Contains(t, text, "4 services:", "the default board")
 	assert.Contains(t, text, "## Boards")
 	assert.Contains(t, text, "- Home (home), default")
 	assert.Contains(t, text, "- Media (media)\n")

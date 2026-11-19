@@ -250,4 +250,16 @@ type Summary struct {
 	// it, so the user can read it before a file of someone else styles
 	// their pages
 	CustomCSS string `json:"custom_css,omitempty"`
+	// StatusPage is set by a replace while the public status page shows one
+	// of the user's groups, which the replace removes
+	StatusPage *StatusPageImpact `json:"status_page,omitempty"`
+}
+
+// StatusPageImpact is what a replace does to the public status page
+type StatusPageImpact struct {
+	// Group is the name of the group the page shows
+	Group string `json:"group"`
+	// Kept: the document has a group with that name, which the page then
+	// shows. Otherwise the page goes offline.
+	Kept bool `json:"kept"`
 }

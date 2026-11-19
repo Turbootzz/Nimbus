@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Toggle } from '@/components/ui/Toggle'
+import { useModalLayer } from '@/hooks/useModalLayer'
 import type { Group, GroupCreateRequest, GroupUpdateRequest, TileStyle } from '@/types'
 
 interface GroupFormProps {
@@ -12,19 +13,20 @@ interface GroupFormProps {
   isLoading?: boolean
 }
 
-// Preset colors for quick selection
-const presetColors = [
-  '#6366f1', // Indigo (default)
-  '#ef4444', // Red
-  '#f97316', // Orange
-  '#eab308', // Yellow
-  '#22c55e', // Green
-  '#14b8a6', // Teal
-  '#3b82f6', // Blue
-  '#8b5cf6', // Violet
-  '#ec4899', // Pink
-  '#64748b', // Slate
-]
+// Preset colors for quick selection, by the name a screen reader says
+const colorNames: Record<string, string> = {
+  '#6366f1': 'Indigo', // the default
+  '#ef4444': 'Red',
+  '#f97316': 'Orange',
+  '#eab308': 'Yellow',
+  '#22c55e': 'Green',
+  '#14b8a6': 'Teal',
+  '#3b82f6': 'Blue',
+  '#8b5cf6': 'Violet',
+  '#ec4899': 'Pink',
+  '#64748b': 'Slate',
+}
+const presetColors = Object.keys(colorNames)
 
 const tileStyles: { value: TileStyle; label: string; description: string }[] = [
   { value: 'cards', label: 'Cards', description: 'Full tiles with status and details' },
@@ -46,6 +48,8 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
   const [error, setError] = useState<string | null>(null)
 
   const isEditMode = !!group
+  // Esc closes, Tab stays inside, focus returns on close; not while saving
+  const dialogRef = useModalLayer(onClose, !isLoading)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -109,13 +113,21 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
       />
 
       {/* Modal */}
-      <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg">
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="group-form-title"
+        className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg focus:outline-none"
+      >
         {/* Header */}
         <div className="border-card-border flex items-center justify-between border-b p-4">
-          <h3 className="text-text-primary text-lg font-semibold">
+          <h3 id="group-form-title" className="text-text-primary text-lg font-semibold">
             {isEditMode ? 'Edit Group' : 'Create Group'}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
             aria-label="Close"
@@ -158,10 +170,16 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
 
           {/* Color picker */}
           <div className="mb-4">
-            <label className="text-text-primary mb-2 block text-sm font-medium">Color</label>
+            <p id="group-color-label" className="text-text-primary mb-2 block text-sm font-medium">
+              Color
+            </p>
 
             {/* Preset colors */}
-            <div className="mb-3 flex flex-wrap gap-2">
+            <div
+              role="group"
+              aria-labelledby="group-color-label"
+              className="mb-3 flex flex-wrap gap-2"
+            >
               {presetColors.map((presetColor) => (
                 <button
                   key={presetColor}
@@ -172,6 +190,8 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
                   }`}
                   style={{ backgroundColor: presetColor }}
                   title={presetColor}
+                  aria-label={colorNames[presetColor]}
+                  aria-pressed={color === presetColor}
                   disabled={isLoading}
                 />
               ))}
@@ -181,6 +201,7 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
             <div className="flex items-center gap-2">
               <input
                 type="color"
+                aria-label="Custom color"
                 value={color}
                 onChange={(e) => handleColorSelect(e.target.value)}
                 className="h-8 w-8 cursor-pointer rounded border-0 p-0"
@@ -188,6 +209,7 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
               />
               <input
                 type="text"
+                aria-label="Color code"
                 value={customColor || color}
                 onChange={(e) => handleCustomColorChange(e.target.value)}
                 placeholder="#6366f1"

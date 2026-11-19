@@ -210,6 +210,22 @@ describe('IntegrationForm', () => {
     expect(screen.queryByLabelText('Node')).not.toBeInTheDocument()
   })
 
+  it('drops the error and the options of the previous kind', async () => {
+    vi.mocked(api.createIntegration).mockResolvedValue({
+      error: { message: 'Node is not valid; it looks like pve' },
+    })
+    render(<IntegrationForm kinds={withOptions} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'proxmox' } })
+    fireEvent.change(screen.getByLabelText('Node'), { target: { value: 'x' } })
+    fireEvent.submit(screen.getByLabelText('Node').closest('form')!)
+    expect(await screen.findByText('Node is not valid; it looks like pve')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'sonarr' } })
+    expect(screen.queryByText(/Node is not valid/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'proxmox' } })
+    expect(screen.getByLabelText('Node')).toHaveValue('')
+  })
+
   it('shows the stored options when editing and removes a cleared one', async () => {
     const integration = makeIntegration({
       kind: 'proxmox',

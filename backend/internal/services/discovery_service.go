@@ -290,13 +290,16 @@ func (s *DiscoveryService) checkKey(ctx context.Context, userID, key string) err
 func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.DiscoveryAddRequest) (*models.Service, error) {
 	name, group := strings.TrimSpace(req.Name), strings.TrimSpace(req.Group)
 	serviceURL, iconURL := strings.TrimSpace(req.URL), strings.TrimSpace(req.IconURL)
+	urlErr := utils.ValidateServiceURL(serviceURL)
 	switch {
 	case name == "":
 		return nil, invalid("Name is required")
 	case utf8.RuneCountInString(name) > discoveredNameMax:
 		return nil, invalid("Name must be %d characters or less", discoveredNameMax)
-	case !validServiceURL(serviceURL):
-		return nil, invalid("URL must be an http:// or https:// address")
+	case len(serviceURL) > discoveredURLMax:
+		return nil, invalid("URL must be %d characters or less", discoveredURLMax)
+	case urlErr != nil:
+		return nil, invalid("Invalid URL: %s", urlErr)
 	case iconURL != "" && (len(iconURL) > discoveredURLMax || utils.ValidateIconURL(iconURL) != nil):
 		return nil, invalid("Icon must be an http:// or https:// address")
 	case len(group) > models.MaxGroupNameLen:

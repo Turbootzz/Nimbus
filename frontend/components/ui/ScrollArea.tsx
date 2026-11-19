@@ -13,10 +13,15 @@ import {
 interface ScrollAreaProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode
   orientation?: 'horizontal' | 'vertical' | 'both'
+  // Scrolls by wheel, touch and focus only, without a visible bar
+  hideScrollbar?: boolean
 }
 
 const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
-  ({ children, orientation = 'vertical', className = '', ...props }, ref) => {
+  (
+    { children, orientation = 'vertical', hideScrollbar = false, className = '', ...props },
+    ref
+  ) => {
     const innerRef = useRef<HTMLDivElement>(null)
 
     // Expose the inner ref to parent components
@@ -28,6 +33,10 @@ const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
         : orientation === 'vertical'
           ? 'overflow-y-auto overflow-x-hidden'
           : 'overflow-auto'
+
+    const scrollbarClass = hideScrollbar
+      ? '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+      : '[&::-webkit-scrollbar-thumb]:bg-text-muted [&::-webkit-scrollbar-thumb:hover]:bg-text-secondary [scrollbar-width:thin] [scrollbar-color:var(--color-text-muted)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent'
 
     // Convert vertical scroll to horizontal for horizontal orientation
     const handleWheel = useCallback(
@@ -47,7 +56,7 @@ const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       <div
         ref={innerRef}
         onWheel={handleWheel}
-        className={` ${overflowClass} [&::-webkit-scrollbar-thumb]:bg-text-muted [&::-webkit-scrollbar-thumb:hover]:bg-text-secondary [scrollbar-width:thin] [scrollbar-color:var(--color-text-muted)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent ${className} `}
+        className={`${overflowClass} ${scrollbarClass} ${className}`}
         {...props}
       >
         {children}

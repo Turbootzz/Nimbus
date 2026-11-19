@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net"
 	"testing"
 )
@@ -503,11 +504,17 @@ func TestValidateServiceURL(t *testing.T) {
 	for _, invalid := range []string{
 		"", "not-a-valid-url", "http://", "javascript:alert(1)", "javascript://web.lan/%0aalert(1)",
 		"data:text/html,<script>alert(1)</script>", "file:///etc/passwd", "ftp://nas.lan",
+	} {
+		if err := ValidateServiceURL(invalid); !errors.Is(err, ErrServiceURLFormat) {
+			t.Errorf("ValidateServiceURL(%q) = %v, want ErrServiceURLFormat", invalid, err)
+		}
+	}
+	for _, metadata := range []string{
 		"http://169.254.169.254/latest/meta-data/", "http://[::ffff:169.254.169.254]/", "http://metadata.google.internal/",
 		"http://METADATA.google.internal/", "http://100.100.100.200/",
 	} {
-		if err := ValidateServiceURL(invalid); err == nil {
-			t.Errorf("ValidateServiceURL(%q) = nil, want an error", invalid)
+		if err := ValidateServiceURL(metadata); !errors.Is(err, ErrServiceURLMetadata) {
+			t.Errorf("ValidateServiceURL(%q) = %v, want ErrServiceURLMetadata", metadata, err)
 		}
 	}
 }

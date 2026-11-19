@@ -78,6 +78,10 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            role="switch"
+            aria-checked={webhook.enabled}
+            aria-label={`${webhook.name} enabled`}
             onClick={onToggle}
             className={`relative h-6 w-11 rounded-full transition-colors ${
               webhook.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'

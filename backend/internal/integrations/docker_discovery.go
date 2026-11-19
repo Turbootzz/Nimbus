@@ -45,7 +45,7 @@ type DiscoveredContainer struct {
 func DockerDiscover(ctx context.Context, conn *Conn) ([]DiscoveredContainer, error) {
 	containers := []DiscoveredContainer{}
 	err := eachJSON(ctx, conn, dockerContainersPath, dockerAuth(conn), func(c apiContainer) {
-		labels, hidden := parseDiscoveryLabels(c.Labels)
+		labels, hidden := ParseDiscoveryLabels(c.Labels)
 		if hidden || c.name() == "" {
 			return
 		}
@@ -64,9 +64,10 @@ func DockerDiscover(ctx context.Context, conn *Conn) ([]DiscoveredContainer, err
 	return containers, nil
 }
 
-// parseDiscoveryLabels reads the nimbus.* labels, falling back to homepage.*
-// for the fields Homepage has too. hidden reports nimbus.enable=false.
-func parseDiscoveryLabels(labels map[string]string) (parsed DiscoveryLabels, hidden bool) {
+// ParseDiscoveryLabels reads the nimbus.* labels, falling back to homepage.*
+// for the fields Homepage has too. hidden reports nimbus.enable=false. The
+// docker-compose importer reads a compose file's labels with it too.
+func ParseDiscoveryLabels(labels map[string]string) (parsed DiscoveryLabels, hidden bool) {
 	// first returns the first label that is set, trimmed
 	first := func(keys ...string) string {
 		for _, key := range keys {

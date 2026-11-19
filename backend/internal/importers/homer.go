@@ -20,7 +20,11 @@ func Homer(data []byte) (dashdoc.Document, []string, error) {
 	}
 	b := newBuilder()
 	for _, group := range groups {
-		for _, item := range asList(asMap(group)["items"]) {
+		items := asList(asMap(group)["items"])
+		if len(items) == 0 {
+			b.emptyGroup(asString(asMap(group)["name"]))
+		}
+		for _, item := range items {
 			settings := asMap(item)
 			// Font Awesome icons (icon) can't be shown; an image (logo) can
 			b.service(entry{

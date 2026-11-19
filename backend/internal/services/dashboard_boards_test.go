@@ -382,3 +382,32 @@ func TestBoardsTransferOnPostgres(t *testing.T) {
 	assert.Equal(t, 2, count(`SELECT COUNT(*) FROM services WHERE board_id = $1`, family.ID))
 	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM groups WHERE board_id = $1 AND is_default`, family.ID))
 }
+
+func TestReplaceMovesTheStatusPageOnlyOnItsBoard(t *testing.T) {
+	env, boards := newBoardTransferEnv(t)
+	ctx := context.Background()
+	env.seedDashboard(t)
+	defaultOnly := env.export(t, transferAdmin)
+	lab := env.addBoard(t, boards, transferAdmin, "Lab", false)
+	var labGroup string
+	require.NoError(t, env.db.QueryRow(`SELECT id FROM groups WHERE board_id = ? AND name = 'Lab apps'`, lab.ID).Scan(&labGroup))
+	page := &fakeStatusPage{models.StatusPageSettings{Enabled: true, GroupID: labGroup}}
+	env.svc.SetStatusPage(page)
+
+	// A document without the Lab board leaves its groups, and the page, alone
+	summary, err := env.svc.Apply(ctx, transferAdmin, reparse(t, defaultOnly), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Nil(t, summary.StatusPage)
+	assert.Equal(t, labGroup, page.GroupID)
+
+	// One that lists it re-creates the group there, and the page follows,
+	// also with a group of that name on the default board ahead of it
+	env.addGroup(t, transferAdmin, "Lab apps", -1, false)
+	summary, err = env.svc.Apply(ctx, transferAdmin, reparse(t, env.export(t, transferAdmin)), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, &dashdoc.StatusPageImpact{Group: "Lab apps", Kept: true}, summary.StatusPage)
+	var recreated string
+	require.NoError(t, env.db.QueryRow(`SELECT id FROM groups WHERE board_id = ? AND name = 'Lab apps'`, lab.ID).Scan(&recreated))
+	assert.NotEqual(t, labGroup, recreated)
+	assert.Equal(t, recreated, page.GroupID)
+}

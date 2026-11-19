@@ -257,7 +257,10 @@ function StandardCard({
           actions={editActions}
         />
       )}
-      <div className={`${marginBottom} flex items-start justify-between`}>
+      {/* Edit mode leaves room for the overlay, as widgets do */}
+      <div
+        className={`${marginBottom} ${isEditMode ? 'mt-7' : ''} flex items-start justify-between`}
+      >
         <ServiceIcon service={service} size={iconSize} />
         {monitored ? (
           <div className={`flex items-center ${getStatusColor(service.status)}`}>
@@ -356,8 +359,8 @@ function LargeCard({
           actions={editActions}
         />
       )}
-      {/* Status in top right */}
-      <div className={`${marginBottom} flex justify-end`}>
+      {/* Status in top right, below the overlay in edit mode */}
+      <div className={`${marginBottom} ${isEditMode ? 'mt-7' : ''} flex justify-end`}>
         {monitored ? (
           <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}

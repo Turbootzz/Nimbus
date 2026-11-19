@@ -37,6 +37,26 @@ services:
       - homepage.group=Network
       - homepage.name=Pi-hole
       - homepage.description=DNS
+      - nimbus.description=Blocks ads
+
+  # Nimbus' own labels, as Docker discovery reads them, win over Homepage's
+  radarr:
+    image: lscr.io/linuxserver/radarr:latest
+    ports:
+      - 7878:7878
+    labels:
+      homepage.name: Radarr
+      nimbus.name: Movies
+      nimbus.group: Media
+      nimbus.icon: radarr
+      nimbus.widget: radarr
+
+  watchtower:
+    image: containrrr/watchtower
+    ports:
+      - 8080:8080
+    labels:
+      - nimbus.enable=false
 
   traefik:
     image: traefik:v3.1
