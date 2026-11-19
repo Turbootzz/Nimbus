@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -70,7 +71,8 @@ func (h *DashboardTransferHandler) Import(c *fiber.Ctx) error {
 	if err := decoder.Decode(&doc); err != nil {
 		return BadRequest(c, "Invalid dashboard document: "+err.Error())
 	}
-	if decoder.More() {
+	// Only whitespace may follow; More() would let a stray "]" through
+	if err := decoder.Decode(new(json.RawMessage)); !errors.Is(err, io.EOF) {
 		return BadRequest(c, "Invalid dashboard document: unexpected data after the document")
 	}
 

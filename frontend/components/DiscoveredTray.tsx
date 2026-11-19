@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
@@ -67,15 +67,21 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
   const [showIgnored, setShowIgnored] = useState(false)
   // The integration the last added container asked for with nimbus.widget
   const [suggestion, setSuggestion] = useState<DiscoveredIntegration | null>(null)
+  // Bumped by every load and every completed action: an answer that started
+  // before either is out of date and dropped
+  const generation = useRef(0)
 
   // refresh asks Docker again; otherwise the server may reuse a recent answer
   const load = useCallback(async (refresh = false) => {
+    const current = ++generation.current
     setIsLoading(true)
     try {
       const response = await api.getDockerDiscovery(refresh)
+      if (current !== generation.current) return
       setError(response.error ? response.error.message : null)
       if (response.data) setResult(response.data)
     } catch (err) {
+      if (current !== generation.current) return
       setError(err instanceof Error ? err.message : 'Failed to load discovered containers')
     } finally {
       setIsLoading(false)
@@ -112,6 +118,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
         setError(response.error.message)
         return false
       }
+      generation.current++
       setResult((prev) => prev && { ...prev, containers: update(prev.containers) })
       return true
     } catch (err) {
@@ -145,7 +152,8 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
       without(container.key)
     )
     if (added) {
-      setDraft(null)
+      // Another container's form may be open by now
+      setDraft((current) => (current?.key === container.key ? null : current))
       setSuggestion(container.integration ?? null)
     }
   }

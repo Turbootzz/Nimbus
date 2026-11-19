@@ -120,7 +120,7 @@ func (m *MetricsService) addLastCheck(ctx context.Context, response *MetricsResp
 	if len(latest) > 0 {
 		response.LastCheckedAt = &latest[0].CheckedAt
 	}
-	failed, err := m.statusLogRepo.GetLastError(ctx, response.ServiceID, response.TimeRange.Start)
+	failed, err := m.statusLogRepo.GetLastError(ctx, response.ServiceID, response.TimeRange.Start, response.TimeRange.End)
 	if err != nil {
 		return fmt.Errorf("failed to get last error: %w", err)
 	}

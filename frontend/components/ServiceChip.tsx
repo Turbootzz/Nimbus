@@ -65,6 +65,7 @@ export default function ServiceChip({
       >
         <div
           {...dragHandleProps}
+          aria-label={`Move ${service.name}`}
           className="cursor-grab touch-none active:cursor-grabbing"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}

@@ -79,7 +79,9 @@ export function useServiceDetail(service: Service, monitored: boolean, enabled =
     }, delay)
   }
 
-  useEffect(() => () => clearTimeout(timer.current), [])
+  // Unmounting, or edit mode turning it off, cancels a popover that is on
+  // its way and closes an open one
+  useEffect(() => (enabled ? hide : undefined), [enabled, hide])
 
   useEffect(() => {
     if (!open) return

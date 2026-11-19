@@ -22,10 +22,12 @@ import (
 )
 
 const (
-	// maxEmbeddedBytes is how many bytes of images one export embeds. As
-	// base64 they must stay under the request body limit, or the export
-	// could not be imported again.
-	maxEmbeddedBytes = 6 * 1024 * 1024
+	// MaxDocumentSize is the largest document an import takes
+	// (handlers.MaxImportSize); an export leaves out images to stay under it
+	MaxDocumentSize = 10 * 1024 * 1024
+	// maxEmbeddedBytes is how many bytes of images one export loads: as
+	// base64, more could never fit in a document
+	maxEmbeddedBytes = MaxDocumentSize / 4 * 3
 	// pendingIcon stands in for the file name of an embedded icon until the
 	// image is stored
 	pendingIcon = "pending"
@@ -292,7 +294,39 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 	default:
 		doc.Preferences = s.exportPreferences(preferences, integrationRefs, widgetRefs, &budget, &doc.OmittedImages)
 	}
+	if err := fitImages(doc); err != nil {
+		return nil, err
+	}
 	return doc, nil
+}
+
+// fitImages leaves embedded images out, the wallpaper first and then icons
+// from the last service, until the document fits in an import as the browser
+// saves it: indented (DashboardExport.tsx). Text alone that is too large
+// stays too large.
+func fitImages(doc *dashdoc.Document) error {
+	raw, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to measure the export: %w", err)
+	}
+	// The margin covers omitted_images growing
+	size := len(raw) + 64
+	omit := func(data *string) {
+		size -= len(*data)
+		*data = ""
+		doc.OmittedImages++
+	}
+	if prefs := doc.Preferences; size > MaxDocumentSize && prefs != nil && prefs.WallpaperData != "" {
+		// Left out, so an import keeps the wallpaper the user has
+		omit(&prefs.WallpaperData)
+	}
+	for i := len(doc.Services) - 1; i >= 0 && size > MaxDocumentSize; i-- {
+		if service := &doc.Services[i]; service.IconData != "" {
+			omit(&service.IconData)
+			service.IconType = models.IconTypeEmoji
+		}
+	}
+	return nil
 }
 
 func (s *DashboardTransferService) exportPreferences(p *models.UserPreferences, integrationRefs, widgetRefs map[string]string, budget, omitted *int) *dashdoc.Preferences {
@@ -978,8 +1012,9 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 	case *in.ThemeAccentColor == "":
 		req.ThemeAccentColor = models.NullableString{Set: true}
 	default:
-		// #RRGGBB only: the column holds 7 characters
-		if !models.IsValidHexColor(*in.ThemeAccentColor) {
+		// What the preferences endpoint takes, within the 7 characters the
+		// column holds
+		if preferencesValidator.Var(*in.ThemeAccentColor, "hexcolor,max=7") != nil {
 			issues.Add("preferences.theme_accent_color", "must be a valid hex color (e.g., #3B82F6)")
 		}
 		req.ThemeAccentColor = models.NullableString{Value: in.ThemeAccentColor, Set: true}

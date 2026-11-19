@@ -59,6 +59,27 @@ describe('ThemeContext layout of a new browser', () => {
     expect(getLayoutSnapshot()).toBe('canvas')
   })
 
+  it('stops waiting after a while when the preferences do not come', async () => {
+    vi.useFakeTimers()
+    try {
+      let answer: (response: never) => void = () => {}
+      vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await act(() => vi.advanceTimersByTimeAsync(4900))
+      expect(result.current.loading).toBe(true)
+      await act(() => vi.advanceTimersByTimeAsync(100))
+      expect(result.current.loading).toBe(false)
+
+      // A late answer still applies
+      await act(async () =>
+        answer({ data: { theme_mode: 'auto', group_display: 'sections' } } as never)
+      )
+      expect(result.current.groupDisplay).toBe('sections')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('stops waiting when the preferences cannot be loaded', async () => {
     vi.mocked(api.getPreferences).mockResolvedValue({ error: { message: 'offline' } })
     await loadTheme()
@@ -84,6 +105,28 @@ describe('ThemeContext group display', () => {
   it('loads the choice and caches it', async () => {
     preferences({ group_display: 'sections' })
     const result = await loadTheme()
+    expect(result.current.groupDisplay).toBe('sections')
+    expect(store.groupDisplay).toBe('sections')
+  })
+
+  it('keeps a choice made in another tab while the preferences load', async () => {
+    let answer: (response: never) => void = () => {}
+    vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTheme(), { wrapper })
+    await waitFor(() => expect(api.getPreferences).toHaveBeenCalled())
+
+    store.groupDisplay = 'sections'
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'groupDisplay',
+          newValue: 'sections',
+          storageArea: localStorage,
+        })
+      )
+    })
+    await act(async () => answer({ data: { theme_mode: 'auto', group_display: 'tabs' } } as never))
+    await waitFor(() => expect(result.current.loading).toBe(false))
     expect(result.current.groupDisplay).toBe('sections')
     expect(store.groupDisplay).toBe('sections')
   })
