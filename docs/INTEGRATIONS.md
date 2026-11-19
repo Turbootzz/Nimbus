@@ -87,7 +87,7 @@ Labels are optional. Without them a container is listed under its container name
 | `nimbus.description` | Description on the tile. |
 | `nimbus.widget` | An integration kind: `adguard`, `home_assistant`, `jellyfin`, `pihole`, `proxmox`, `qbittorrent`, `radarr`, `sonarr` or `uptime_kuma`. After you add the container, the tray links to the integration form with the kind and address filled in. Check that address before you enter credentials: it comes from the label. You still enter the credentials there, and link the integration to the service under **Live numbers**. Nothing is stored before you save that form. |
 
-Already using [Homepage](https://gethomepage.dev)? `homepage.name`, `homepage.href`, `homepage.icon`, `homepage.group` and `homepage.description` are read when the `nimbus.*` label for that field is missing. Homepage has no `enable` label, so such containers are filled in but not auto-added; add `nimbus.enable=true` for that. Homepage's other icon sets (`mdi-`, `si-`, `sh-`) are not used; the icon is guessed from the image instead.
+Already using [Homepage](https://gethomepage.dev)? `homepage.name`, `homepage.href`, `homepage.icon`, `homepage.group` and `homepage.description` are read when the `nimbus.*` label for that field is missing. Homepage has no `enable` label, so such containers are filled in but not auto-added. Auto-add also takes no `homepage.href`: add `nimbus.enable=true` and `nimbus.url` for that. Homepage's other icon sets (`mdi-`, `si-`, `sh-`) are not used; the icon is guessed from the image instead.
 
 ```yaml
 services:
@@ -117,10 +117,10 @@ The icon is the dashboard-icons image named after the image, without registry, o
 
 ### Auto-add
 
-**Settings, Admin, Docker Discovery, Auto-add labelled containers** is off by default. When on, Nimbus checks every minute and adds containers that have both `nimbus.enable=true` and a valid address label, to the dashboard of the admin who owns the Docker integration. It never adds:
+**Settings, Admin, Docker Discovery, Auto-add labelled containers** is off by default. When on, Nimbus checks every minute and adds containers that have both `nimbus.enable=true` and a valid `nimbus.url`, to the dashboard of the admin who owns the Docker integration. It never adds:
 
 - unlabelled containers, or containers with only `homepage.*` labels;
-- a guessed address;
+- an address from `homepage.href` or a guessed one;
 - a container you ignored;
 - a container it added before, also after you deleted that service.
 

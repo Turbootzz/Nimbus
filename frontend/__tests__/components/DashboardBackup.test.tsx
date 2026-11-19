@@ -171,6 +171,59 @@ describe('DashboardImport', () => {
     expect(screen.getByText(/read it before you import/i)).toBeVisible()
   })
 
+  it('previews in the mode that is selected once the file is read', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.importDashboard).mockImplementation(async (_text, mode) => ({
+      data: mode === 'replace' ? replaceSummary : summary(),
+    }))
+    let finishReading: (text: string) => void = () => {}
+    const file = documentFile()
+    vi.spyOn(file, 'text').mockReturnValue(new Promise((resolve) => (finishReading = resolve)))
+    render(<DashboardImport />)
+
+    await user.upload(screen.getByLabelText('Dashboard file'), file)
+    // Switching while the file is still being read
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    finishReading(documentText)
+
+    await waitFor(() => expect(api.importDashboard).toHaveBeenCalled())
+    const selected = (screen.getByRole('radio', { checked: true }) as HTMLInputElement).value
+    expect(api.importDashboard).toHaveBeenLastCalledWith(documentText, selected, true)
+    const action = selected === 'replace' ? 'Replace my dashboard' : 'Import'
+    expect(await screen.findByRole('button', { name: action })).toBeEnabled()
+  })
+
+  it('offers no import while the preview is of another mode', async () => {
+    const user = userEvent.setup()
+    // A merge preview, whatever was asked
+    vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })
+    render(<DashboardImport />)
+
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    await user.upload(screen.getByLabelText('Dashboard file'), documentFile())
+
+    await waitFor(() =>
+      expect(api.importDashboard).toHaveBeenCalledWith(documentText, 'replace', true)
+    )
+    await waitFor(() => expect(screen.queryByText(/checking the file/i)).not.toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: 'Replace my dashboard' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
+  })
+
+  it('gives the controls back when the file can not be read', async () => {
+    const user = userEvent.setup()
+    const file = documentFile()
+    vi.spyOn(file, 'text').mockRejectedValue(new Error('gone'))
+    render(<DashboardImport />)
+
+    await user.upload(screen.getByLabelText('Dashboard file'), file)
+
+    expect(await screen.findByText('The file could not be read')).toBeVisible()
+    expect(screen.getByRole('button', { name: /choose file/i })).toBeEnabled()
+    expect(screen.getByRole('radio', { name: /replace/i })).toBeEnabled()
+    expect(api.importDashboard).not.toHaveBeenCalled()
+  })
+
   it('shows which entity and field of the file is wrong', async () => {
     const user = userEvent.setup()
     vi.mocked(api.importDashboard).mockResolvedValue({

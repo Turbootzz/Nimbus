@@ -164,12 +164,15 @@ export function groupTilesBySection(tiles: Tile[], groups: Group[]): TileSection
   return sections
 }
 
-// The default group holds the ungrouped tiles, so moving there clears the group
-function withGroup(tile: Tile, group: Group): Tile {
-  const groupId = group.is_default ? undefined : group.id
+function withGroupId(tile: Tile, groupId: string | null | undefined): Tile {
   return tile.kind === 'service'
-    ? { ...tile, service: { ...tile.service, group_id: groupId } }
+    ? { ...tile, service: { ...tile.service, group_id: groupId ?? undefined } }
     : { ...tile, widget: { ...tile.widget, group_id: groupId ?? null } }
+}
+
+// The default group holds the ungrouped tiles, so moving there clears the group
+export function withGroup(tile: Tile, group: Group): Tile {
+  return withGroupId(tile, group.is_default ? undefined : group.id)
 }
 
 export interface TileMove {
@@ -229,4 +232,31 @@ export function moveTile(
     tiles: [...rest.slice(0, index), moved, ...rest.slice(index)],
     regrouped: { tile: moved, group: to.group },
   }
+}
+
+/**
+ * Undoes a move of tile `key` that could not be saved, on the `current`
+ * tiles: the move showed `shown`, and the tiles were `before` it. The tile
+ * gets its group in `before` back. If nothing moved since, every tile goes
+ * back to its slot; after a newer move, only this tile goes back, ahead of
+ * the tile that followed it, so the newer move stays. Other changes to the
+ * tiles (a new size, a status) stay too.
+ */
+export function undoMove(current: Tile[], shown: Tile[], before: Tile[], key: string): Tile[] {
+  const tile = current.find((t) => tileKey(t) === key)
+  const index = before.findIndex((t) => tileKey(t) === key)
+  if (!tile || index === -1) return current
+  const undone = withGroupId(tile, tileGroupId(before[index]))
+
+  const currentKeys = current.map(tileKey)
+  if (currentKeys.join() === shown.map(tileKey).join()) {
+    const byKey = new Map(current.map((t) => [tileKey(t), t]))
+    return before.map((t) => (tileKey(t) === key ? undone : byKey.get(tileKey(t))!))
+  }
+
+  const rest = current.filter((t) => t !== tile)
+  const restKeys = rest.map(tileKey)
+  const next = before.slice(index + 1).find((t) => restKeys.includes(tileKey(t)))
+  const at = next ? restKeys.indexOf(tileKey(next)) : rest.length
+  return [...rest.slice(0, at), undone, ...rest.slice(at)]
 }

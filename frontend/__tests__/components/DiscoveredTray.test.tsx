@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DiscoveredTray from '@/components/DiscoveredTray'
 import { api } from '@/lib/api'
@@ -174,6 +174,45 @@ describe('DiscoveredTray', () => {
     expect(screen.getByText('<b>bold</b>')).toBeInTheDocument()
     expect(root.querySelector('img, b')).toBeNull()
     expect(screen.getByText('Portainer: credentials were rejected')).toBeInTheDocument()
+  })
+
+  it('drops a refresh that read the containers before an ignore completed', async () => {
+    let finishRefresh!: (response: { data: DiscoveryResponse }) => void
+    vi.mocked(api.getDockerDiscovery)
+      .mockResolvedValueOnce(discovery([labelled, guessed, ignoredOne]))
+      .mockImplementationOnce(() => new Promise((resolve) => (finishRefresh = resolve)))
+    vi.mocked(api.ignoreDiscovered).mockResolvedValue({ data: undefined })
+    render(<DiscoveredTray />)
+
+    const refresh = await screen.findByRole('button', { name: /refresh/i })
+    await userEvent.click(refresh)
+    await userEvent.click(screen.getByRole('button', { name: 'Ignore Sonarr' }))
+    expect(await screen.findByRole('button', { name: 'Ignored (2)' })).toBeInTheDocument()
+
+    await act(async () => finishRefresh(discovery([labelled, guessed, ignoredOne])))
+    await waitFor(() => expect(refresh).toBeEnabled())
+    expect(screen.getByRole('button', { name: 'Ignored (2)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ignore Sonarr' })).not.toBeInTheDocument()
+  })
+
+  it("keeps another container's review open when an add completes", async () => {
+    let finishAdd!: (response: { data: Service }) => void
+    vi.mocked(api.addDiscovered).mockImplementationOnce(
+      () => new Promise((resolve) => (finishAdd = resolve))
+    )
+    render(<DiscoveredTray />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Add Sonarr' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Review web' }))
+    const address = screen.getByLabelText('Address')
+    await userEvent.clear(address)
+    await userEvent.type(address, 'https://www.lan')
+
+    await act(async () => finishAdd({ data: { id: 's-1' } as Service }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Ignore Sonarr' })).not.toBeInTheDocument()
+    )
+    expect(screen.getByLabelText('Address')).toHaveValue('https://www.lan')
   })
 
   it('refreshes on demand', async () => {

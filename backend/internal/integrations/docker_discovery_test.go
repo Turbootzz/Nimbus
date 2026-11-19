@@ -28,7 +28,7 @@ func TestParseDiscoveryLabels(t *testing.T) {
 				"nimbus.url": "https://sonarr.lan", "nimbus.group": "Media",
 				"nimbus.description": "Series", "nimbus.widget": "Sonarr",
 			},
-			want: DiscoveryLabels{Enabled: true, Name: "Sonarr", Icon: "sonarr", URL: "https://sonarr.lan", Group: "Media", Description: "Series", Widget: "sonarr"},
+			want: DiscoveryLabels{Enabled: true, Name: "Sonarr", Icon: "sonarr", URL: "https://sonarr.lan", NimbusURL: true, Group: "Media", Description: "Series", Widget: "sonarr"},
 		},
 		{
 			name: "homepage fallback",
@@ -127,7 +127,7 @@ func TestDockerDiscover(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []DiscoveredContainer{
 		{Name: "sonarr", Image: "lscr.io/linuxserver/sonarr:latest", State: "running", Port: 8989,
-			Labels: DiscoveryLabels{Enabled: true, Name: "Sonarr", URL: "https://sonarr.lan"}},
+			Labels: DiscoveryLabels{Enabled: true, Name: "Sonarr", URL: "https://sonarr.lan", NimbusURL: true}},
 		{Name: "web", Image: "nginx:1.27", State: "running", Port: 8080},
 		{Name: "backup", Image: "restic", State: "exited"},
 	}, containers, "hidden and nameless containers are left out; the lowest published TCP port wins")
