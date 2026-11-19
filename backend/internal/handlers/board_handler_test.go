@@ -291,7 +291,6 @@ func TestBoards_WriteMatrix(t *testing.T) {
 		{"create group on the board", "POST", "/groups", `{"name":"New","board_id":"` + sharedBoardID + `"}`, 201},
 		{"update group", "PUT", "/groups/" + sharedGroupID, `{"name":"Renamed"}`, 200},
 		{"delete group", "DELETE", "/groups/" + sharedGroupID, "", 403}, // a default group
-		{"reorder groups", "PUT", "/groups/reorder", `{"groups":[{"id":"` + sharedGroupID + `","position":1}]}`, 200},
 		{"create widget on the board", "POST", "/widgets", `{"type":"clock","board_id":"` + sharedBoardID + `"}`, 201},
 		{"update widget", "PUT", "/widgets/" + sharedWidgetID, `{"title":"Renamed"}`, 200},
 		{"refresh widget", "POST", "/widgets/" + sharedWidgetID + "/refresh", "", 202},
@@ -534,6 +533,12 @@ func TestBoards_ManageOwnBoards(t *testing.T) {
 	assert.Equal(t, 400, status, body)
 	assert.Zero(t, f.count(t, `SELECT COUNT(*) FROM services WHERE board_id = ? AND user_id = ?`, sharedBoardID, boardUserID)+
 		f.count(t, `SELECT COUNT(*) FROM widgets WHERE board_id = ? AND user_id = ?`, sharedBoardID, boardUserID))
+	// Nor reorder its groups (the user has groups, so the position is in range)
+	status, body = f.do(t, boardUserID, http.MethodPut, "/groups/reorder", `{"groups":[{"id":"`+sharedGroupID+`","position":1}]}`)
+	assert.Equal(t, 404, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM groups WHERE id = ? AND position = 0`, sharedGroupID))
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/groups/reorder", `{"groups":[{"id":"`+sharedGroupID+`","position":1}]}`)
+	assert.Equal(t, 200, status, "the owner can: %s", body)
 
 	// Reorder, rename, share
 	_, body = f.do(t, boardUserID, http.MethodGet, "/boards", "")
