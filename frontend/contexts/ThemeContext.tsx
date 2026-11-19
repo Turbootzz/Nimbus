@@ -166,6 +166,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       } else if (e.key === 'statusStrip' && e.newValue) {
         setStatusStripState(parseStatusStrip(e.newValue))
       } else if (e.key === 'groupDisplay') {
+        // Newer than a first load that is still running
+        changedRef.current.add('groupDisplay')
         setGroupDisplayState(parseGroupDisplay(e.newValue))
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)

@@ -88,6 +88,28 @@ describe('ThemeContext group display', () => {
     expect(store.groupDisplay).toBe('sections')
   })
 
+  it('keeps a choice made in another tab while the preferences load', async () => {
+    let answer: (response: never) => void = () => {}
+    vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTheme(), { wrapper })
+    await waitFor(() => expect(api.getPreferences).toHaveBeenCalled())
+
+    store.groupDisplay = 'sections'
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent('storage', {
+          key: 'groupDisplay',
+          newValue: 'sections',
+          storageArea: localStorage,
+        })
+      )
+    })
+    await act(async () => answer({ data: { theme_mode: 'auto', group_display: 'tabs' } } as never))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.groupDisplay).toBe('sections')
+    expect(store.groupDisplay).toBe('sections')
+  })
+
   it('saves a new choice', async () => {
     preferences({ group_display: 'tabs' })
     const result = await loadTheme()
