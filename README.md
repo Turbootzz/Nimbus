@@ -58,6 +58,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Installable app (PWA): add Nimbus to your home screen or desktop; your services list stays readable offline. See [docs/PWA.md](docs/PWA.md)
 - Light/dark mode toggle
 - Accent color themes
+- Theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night), self-hosted fonts, custom CSS and theme export/import ([docs](docs/THEMING.md))
 - Drag & drop service tiles
 
 **📈 Metrics & Integration**
@@ -274,6 +275,7 @@ Run `make help` for all available commands.
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
 | [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
 | [PWA.md](docs/PWA.md) | Install Nimbus as an app, offline behaviour |
+| [THEMING.md](docs/THEMING.md) | Theme presets, fonts, icon source, custom CSS and theme files |
 
 ---
 
@@ -299,9 +301,12 @@ Run `make help` for all available commands.
 
 ## 🎨 Icon attributions
 
-When you click "Auto-fetch icon", Nimbus may download an SVG from the following open-source icon collection via the jsDelivr CDN. The icon is cached in your `uploads/service-icons/` volume; the origin is never re-fetched for rendering.
+When you click "Auto-fetch icon", Nimbus may download an icon from one of the following open-source icon collections via the jsDelivr CDN. The icon is cached in your `uploads/service-icons/` volume; the origin is never re-fetched for rendering.
 
 - [Dashboard Icons](https://github.com/homarr-labs/dashboard-icons) — Apache License 2.0
+- [selfh.st icons](https://github.com/selfhst/icons) — CC BY 4.0, when you pick it as the icon source in Theme settings
+
+The fonts you can pick in Theme settings ship with Nimbus: [Inter](https://github.com/rsms/inter) and [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), both under the SIL Open Font License 1.1 (licences in `frontend/styles/fonts/`).
 
 You can point the curated lookup at a self-hosted mirror or disable it entirely with the `DASHBOARD_ICONS_BASE_URL` env var (see [.env.example](.env.example)).
 

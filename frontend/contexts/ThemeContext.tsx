@@ -16,11 +16,23 @@ import type {
   PreferencesUpdateRequest,
   CardScale,
   GroupDisplay,
+  IconSource,
   LayoutMode,
   StatusChip,
   StatusStrip,
+  ThemeFont,
+  ThemePreset,
+  UserPreferences,
   ViewMode,
 } from '@/types'
+import {
+  applyThemeAttributes,
+  parseFont,
+  parseIconSource,
+  parsePreset,
+  presetChange,
+  presetForMode,
+} from '@/lib/theme-presets'
 import { setLayoutMode as storeLayoutMode, settleLayout } from '@/lib/layout-store'
 import {
   type Glass,
@@ -47,6 +59,13 @@ interface ThemeContextType {
   statusStrip: StatusStrip
   // The user's choice; null follows the layout (resolveGroupDisplay)
   groupDisplay: GroupDisplay | null
+  preset: ThemePreset
+  font: ThemeFont
+  kpiMono: boolean
+  iconSource: IconSource
+  // Only ever from the API, so it can't reach another user of this browser
+  customCss: string
+  // Picking a mode the preset doesn't have goes back to the default preset
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
@@ -61,6 +80,14 @@ interface ThemeContextType {
   setGroupDisplay: (groupDisplay: GroupDisplay) => void
   // Read the layout with useLayoutMode (lib/layout-store), which can't flash
   setLayoutMode: (layoutMode: LayoutMode) => void
+  // Sets the mode the preset belongs to and drops a custom accent
+  setPreset: (preset: ThemePreset) => void
+  setFont: (font: ThemeFont) => void
+  setKpiMono: (kpiMono: boolean) => void
+  setIconSource: (iconSource: IconSource) => void
+  // Saves theme settings the server may refuse (custom CSS, an imported
+  // theme) and applies what it stored; resolves to an error message or null
+  saveTheme: (update: PreferencesUpdateRequest) => Promise<string | null>
   // Uploads and applies a wallpaper; resolves to an error message or null
   uploadWallpaper: (file: File) => Promise<string | null>
   loading: boolean
@@ -113,6 +140,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [glass, setGlassState] = useState<Glass>(defaultGlass)
   const [statusStrip, setStatusStripState] = useState<StatusStrip>(noStatusStrip)
   const [groupDisplay, setGroupDisplayState] = useState<GroupDisplay | null>(null)
+  const [preset, setPresetState] = useState<ThemePreset>('default')
+  const [font, setFontState] = useState<ThemeFont>('default')
+  const [kpiMono, setKpiMonoState] = useState(false)
+  const [iconSource, setIconSourceState] = useState<IconSource>('dashboard-icons-svg')
+  const [customCss, setCustomCss] = useState('')
   // False until the cached preferences are read; before that the state holds
   // defaults, and applying them would undo what ThemeScript painted
   const [restored, setRestored] = useState(false)
@@ -174,6 +206,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Newer than a first load that is still running
         changedRef.current.add('groupDisplay')
         setGroupDisplayState(parseGroupDisplay(e.newValue))
+      } else if (e.key === 'themePreset') {
+        setPresetState(parsePreset(e.newValue))
+      } else if (e.key === 'themeFont') {
+        setFontState(parseFont(e.newValue))
+      } else if (e.key === 'kpiMono') {
+        setKpiMonoState(e.newValue === 'true')
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)
         if (parsed) setGlassState(parsed)
@@ -182,6 +220,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
+  }, [])
+
+  // Preset, font, icon source and custom CSS as the server has them. The
+  // first three are cached for ThemeScript; the CSS never is.
+  const applyThemePreferences = useCallback((data: UserPreferences) => {
+    // A preset only exists in its own mode; another client or an imported
+    // file may have stored one with a mode it doesn't have
+    const apiPreset = presetForMode(parsePreset(data.theme_preset), data.theme_mode || 'auto')
+    const apiFont = parseFont(data.theme_font)
+    setPresetState(apiPreset)
+    setFontState(apiFont)
+    setKpiMonoState(data.kpi_mono === true)
+    setIconSourceState(parseIconSource(data.icon_source))
+    setCustomCss(data.custom_css ?? '')
+    localStorage.setItem('themePreset', apiPreset)
+    localStorage.setItem('themeFont', apiFont)
+    localStorage.setItem('kpiMono', String(data.kpi_mono === true))
   }, [])
 
   // Load preferences on mount (from localStorage first, then API)
@@ -223,6 +278,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedGlass) setGlassState(savedGlass)
       setStatusStripState(parseStatusStrip(localStorage.getItem('statusStrip')))
       setGroupDisplayState(parseGroupDisplay(localStorage.getItem('groupDisplay')))
+      setPresetState(parsePreset(localStorage.getItem('themePreset')))
+      setFontState(parseFont(localStorage.getItem('themeFont')))
+      setKpiMonoState(localStorage.getItem('kpiMono') === 'true')
       setRestored(true)
 
       // Step 2: Try to load from API and sync
@@ -250,6 +308,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setCardScaleState(apiCardScale)
           setViewModeState(apiViewMode)
           setGlassState(apiGlass)
+          applyThemePreferences(response.data)
           if (!changedRef.current.has('statusStrip')) {
             const apiStatusStrip = response.data.status_strip ?? noStatusStrip
             setStatusStripState(apiStatusStrip)
@@ -306,7 +365,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
     loadPreferences()
     return () => clearTimeout(giveUp)
-  }, [])
+  }, [applyThemePreferences])
 
   // Apply theme to document
   useEffect(() => {
@@ -334,12 +393,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--color-primary-hover', accentColor)
       root.style.setProperty('--dark-primary', accentColor)
       root.style.setProperty('--dark-primary-hover', accentColor)
+      // White text on a custom accent, also on a preset (styles/themes.css)
+      root.style.setProperty('--color-on-primary', '#fff')
     } else {
       root.style.removeProperty('--color-primary')
       root.style.removeProperty('--color-primary-hover')
       root.style.removeProperty('--dark-primary')
       root.style.removeProperty('--dark-primary-hover')
+      root.style.removeProperty('--color-on-primary')
     }
+
+    applyThemeAttributes(root, { preset, font, kpiMono })
 
     // Wallpaper and glass cards go through CSS variables (globals.css).
     // wallpaperUrl only lets http(s) through, so a stored value can't inject
@@ -352,7 +416,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty(name, value)
     }
     localStorage.setItem('glassVars', JSON.stringify(variables))
-  }, [restored, theme, accentColor, background, glass])
+  }, [restored, theme, accentColor, background, glass, preset, font, kpiMono])
 
   // Helper to update localStorage for a set of preference updates
   const updateLocalStorage = (updates: PreferencesUpdateRequest) => {
@@ -369,6 +433,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (updates.card_scale) localStorage.setItem('cardScale', updates.card_scale)
     if (updates.view_mode) localStorage.setItem('viewMode', updates.view_mode)
     if (updates.group_display) localStorage.setItem('groupDisplay', updates.group_display)
+    if (updates.theme_preset) localStorage.setItem('themePreset', updates.theme_preset)
+    if (updates.theme_font) localStorage.setItem('themeFont', updates.theme_font)
+    if (updates.kpi_mono !== undefined) localStorage.setItem('kpiMono', String(updates.kpi_mono))
     if (updates.status_strip) {
       localStorage.setItem('statusStrip', JSON.stringify(updates.status_strip))
     }
@@ -433,9 +500,71 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback(
     (v: 'light' | 'dark' | 'auto') => {
       setThemeState(v)
-      savePreferences({ theme_mode: v })
+      // Always saved with the mode, so the server never keeps a preset in
+      // a mode it doesn't have
+      const kept = presetForMode(preset, v)
+      setPresetState(kept)
+      savePreferences({ theme_mode: v, theme_preset: kept })
+    },
+    [savePreferences, preset]
+  )
+
+  const setPreset = useCallback(
+    (v: ThemePreset) => {
+      const change = presetChange(v)
+      setPresetState(v)
+      if (change.theme_mode) setThemeState(change.theme_mode)
+      if (change.theme_accent_color === null) setAccentColorState(undefined)
+      savePreferences(change)
     },
     [savePreferences]
+  )
+
+  const setFont = useCallback(
+    (v: ThemeFont) => {
+      setFontState(v)
+      savePreferences({ theme_font: v })
+    },
+    [savePreferences]
+  )
+
+  const setKpiMono = useCallback(
+    (v: boolean) => {
+      setKpiMonoState(v)
+      savePreferences({ kpi_mono: v })
+    },
+    [savePreferences]
+  )
+
+  const setIconSource = useCallback(
+    (v: IconSource) => {
+      setIconSourceState(v)
+      savePreferences({ icon_source: v })
+    },
+    [savePreferences]
+  )
+
+  const saveTheme = useCallback(
+    async (update: PreferencesUpdateRequest) => {
+      const response = await api.updatePreferences(update)
+      if (response.error || !response.data) {
+        const fields = Object.values(response.error?.fields ?? {})
+        return fields.join('. ') || response.error?.message || 'Failed to save the theme'
+      }
+      const data = response.data
+      const glass = glassFromPreferences(data)
+      setThemeState(data.theme_mode || 'auto')
+      setAccentColorState(data.theme_accent_color)
+      setGlassState(glass)
+      applyThemePreferences(data)
+      updateLocalStorage({
+        theme_mode: data.theme_mode,
+        theme_accent_color: data.theme_accent_color ?? null,
+      })
+      localStorage.setItem('glass', JSON.stringify(glass))
+      return null
+    },
+    [applyThemePreferences]
   )
 
   const setAccentColor = useCallback(
@@ -572,6 +701,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       glass,
       statusStrip,
       groupDisplay,
+      preset,
+      font,
+      kpiMono,
+      iconSource,
+      customCss,
       setTheme,
       setAccentColor,
       setBackground,
@@ -584,6 +718,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setStatusStrip,
       setGroupDisplay,
       setLayoutMode,
+      setPreset,
+      setFont,
+      setKpiMono,
+      setIconSource,
+      saveTheme,
       uploadWallpaper,
       loading,
     }),
@@ -600,6 +739,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       glass,
       statusStrip,
       groupDisplay,
+      preset,
+      font,
+      kpiMono,
+      iconSource,
+      customCss,
       setTheme,
       setAccentColor,
       setBackground,
@@ -612,6 +756,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setStatusStrip,
       setGroupDisplay,
       setLayoutMode,
+      setPreset,
+      setFont,
+      setKpiMono,
+      setIconSource,
+      saveTheme,
       uploadWallpaper,
       loading,
     ]

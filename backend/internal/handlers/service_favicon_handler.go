@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/utils"
 	"golang.org/x/net/html"
 )
@@ -46,14 +48,53 @@ const (
 	dashboardIconsEnvVar      = "DASHBOARD_ICONS_BASE_URL"
 )
 
-// DashboardIconsBase returns the configured base URL (no trailing slash) for
-// the curated icon lookup. An empty value (env explicitly set to empty)
-// disables curated lookup.
-func DashboardIconsBase() string {
+// iconSources maps the icon_source preference to the fixed place its icons
+// live and their file type. Never a URL from the user.
+var iconSources = map[string]struct{ base, ext string }{
+	"dashboard-icons-svg":  {dashboardIconsDefaultBase, "svg"},
+	"dashboard-icons-png":  {"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png", "png"},
+	"dashboard-icons-webp": {"https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/webp", "webp"},
+	// selfh.st/icons, CC BY 4.0
+	"selfhst": {"https://cdn.jsdelivr.net/gh/selfhst/icons/svg", "svg"},
+}
+
+// curatedIcons returns the base URL (no trailing slash) and file type for
+// the curated icon lookup. DASHBOARD_ICONS_BASE_URL wins over the user's
+// source: it is the server's mirror of the SVG set, and empty disables the
+// lookup for everyone. An unknown source is the default one.
+func curatedIcons(source string) (base, ext string) {
 	if v, ok := os.LookupEnv(dashboardIconsEnvVar); ok {
-		return strings.TrimRight(strings.TrimSpace(v), "/")
+		return strings.TrimRight(strings.TrimSpace(v), "/"), "svg"
 	}
-	return dashboardIconsDefaultBase
+	icons, ok := iconSources[source]
+	if !ok {
+		icons = iconSources[models.DefaultIconSource]
+	}
+	return icons.base, icons.ext
+}
+
+// DashboardIconsBase is the base URL of the default curated icon set, for
+// callers without a user (Docker discovery). Empty disables the lookup.
+func DashboardIconsBase() string {
+	base, _ := curatedIcons(models.DefaultIconSource)
+	return base
+}
+
+// SetPreferences lets auto-fetch use the icon source the user picked
+func (h *ServiceHandler) SetPreferences(repo *repository.PreferencesRepository) {
+	h.preferencesRepo = repo
+}
+
+// iconSource is the user's icon source, or the default without one
+func (h *ServiceHandler) iconSource(ctx context.Context, userID string) string {
+	if h.preferencesRepo == nil {
+		return models.DefaultIconSource
+	}
+	preferences, err := h.preferencesRepo.GetByUserID(ctx, userID)
+	if err != nil {
+		return models.DefaultIconSource
+	}
+	return preferences.IconSource
 }
 
 // faviconHTTPClient is shared across requests so the connection pool is reused.
@@ -74,7 +115,8 @@ var faviconHTTPClient = utils.NewSafeClient(true, faviconFetchTimeout)
 // sidesteps CORS and lets icons persist even if the origin/CDN later goes
 // offline.
 func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
-	if _, err := RequireUserID(c); err != nil {
+	userID, err := RequireUserID(c)
+	if err != nil {
 		return err
 	}
 
@@ -113,7 +155,7 @@ func (h *ServiceHandler) FetchServiceFavicon(c *fiber.Ctx) error {
 	ctx, cancel := context.WithTimeout(c.UserContext(), faviconFetchTimeout)
 	defer cancel()
 
-	candidates := buildIconCandidates(ctx, name, pageURL)
+	candidates := buildIconCandidates(ctx, h.iconSource(c.Context(), userID), name, pageURL)
 	var lastErr error
 	for _, candidate := range candidates {
 		// Per-attempt timeout keeps a single slow upstream from eating the
@@ -170,8 +212,8 @@ func iconNotFoundMessage(name string, pageURL *url.URL) string {
 // with the curated dashboard-icons lookup (when a name is provided and the
 // curated base is configured) and then origin-site candidates (when a URL is
 // provided).
-func buildIconCandidates(ctx context.Context, name string, pageURL *url.URL) []*url.URL {
-	candidates := dashboardIconsCandidates(name)
+func buildIconCandidates(ctx context.Context, source, name string, pageURL *url.URL) []*url.URL {
+	candidates := dashboardIconsCandidates(source, name)
 	if pageURL != nil {
 		candidates = append(candidates, resolveFaviconCandidates(ctx, pageURL)...)
 	}
@@ -187,8 +229,8 @@ func buildIconCandidates(ctx context.Context, name string, pageURL *url.URL) []*
 // is indexed by brand name (plex.svg), so "Plex Media Server" — which a user
 // would naturally type — needs to fall through to the bare "plex" lookup.
 // Returns nil when curated lookup is disabled or the name is empty.
-func dashboardIconsCandidates(name string) []*url.URL {
-	base := DashboardIconsBase()
+func dashboardIconsCandidates(source, name string) []*url.URL {
+	base, ext := curatedIcons(source)
 	if base == "" {
 		return nil
 	}
@@ -202,7 +244,7 @@ func dashboardIconsCandidates(name string) []*url.URL {
 			return
 		}
 		seen[slug] = struct{}{}
-		if u, err := url.Parse(fmt.Sprintf("%s/%s.svg", base, slug)); err == nil {
+		if u, err := url.Parse(fmt.Sprintf("%s/%s.%s", base, slug, ext)); err == nil {
 			out = append(out, u)
 		}
 	}

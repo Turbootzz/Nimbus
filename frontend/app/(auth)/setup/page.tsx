@@ -132,6 +132,7 @@ export default function SetupPage() {
           className="mt-6 rounded-lg px-6 py-2.5 font-medium text-white transition focus:ring-4"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >
@@ -169,6 +170,7 @@ export default function SetupPage() {
           className="w-full rounded-lg py-2.5 font-medium text-white transition focus:ring-4"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >
@@ -333,6 +335,7 @@ export default function SetupPage() {
             className="flex-1 rounded-lg py-2.5 font-medium text-white transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: 'var(--color-primary)',
+              color: 'var(--color-on-primary, white)',
             }}
             {...buttonHover}
           >

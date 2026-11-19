@@ -153,6 +153,24 @@ describe('DashboardImport', () => {
     )
   })
 
+  it('shows the custom CSS a file brings before it is imported', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })
+    render(<DashboardImport />)
+    await user.upload(screen.getByLabelText('Dashboard file'), documentFile())
+    await screen.findByRole('button', { name: 'Import' })
+    expect(screen.queryByLabelText('Custom CSS in the file')).not.toBeInTheDocument()
+
+    vi.mocked(api.importDashboard).mockResolvedValue({
+      data: { ...replaceSummary, custom_css: 'body { display: none }' },
+    })
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    expect(await screen.findByLabelText('Custom CSS in the file')).toHaveTextContent(
+      'body { display: none }'
+    )
+    expect(screen.getByText(/read it before you import/i)).toBeVisible()
+  })
+
   it('previews in the mode that is selected once the file is read', async () => {
     const user = userEvent.setup()
     vi.mocked(api.importDashboard).mockImplementation(async (_text, mode) => ({

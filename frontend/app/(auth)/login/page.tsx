@@ -261,6 +261,7 @@ function LoginForm() {
           className="w-full rounded-lg py-2.5 font-medium text-white transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >

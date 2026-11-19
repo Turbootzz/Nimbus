@@ -31,6 +31,7 @@ vi.mock('@/components/layout/CanvasTopBar', () => ({
   default: () => <header data-testid="topbar" />,
 }))
 vi.mock('@/components/CommandPalette', () => ({ default: () => null }))
+vi.mock('@/components/CustomCss', () => ({ default: () => null }))
 
 const root = document.documentElement
 

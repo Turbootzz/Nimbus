@@ -86,13 +86,18 @@ export default function Sidebar({
           } ${isActive(item.href) ? 'text-white' : 'hover:bg-card-border hover:text-text-primary'}`}
           style={{
             backgroundColor: isActive(item.href) ? 'var(--color-primary)' : undefined,
-            color: isActive(item.href) ? 'white' : 'var(--color-text-secondary)',
+            // A theme preset names the colour that reads on its accent
+            color: isActive(item.href)
+              ? 'var(--color-on-primary, white)'
+              : 'var(--color-text-secondary)',
           }}
         >
           <item.icon
             className="h-5 w-5 shrink-0"
             style={{
-              color: isActive(item.href) ? 'white' : 'var(--color-text-muted)',
+              color: isActive(item.href)
+                ? 'var(--color-on-primary, white)'
+                : 'var(--color-text-muted)',
             }}
             aria-hidden="true"
           />
