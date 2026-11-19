@@ -93,16 +93,17 @@ var redirectSafeHeaders = map[string]bool{
 
 // sameService reports whether a redirect stays with the app the first
 // request went to: the same scheme, host and port, like curl and browsers
-// (another port can be another app), or an upgrade from http to https on
-// the same host, which always changes the port.
+// (another port can be another app), or the standard upgrade from http on
+// port 80 to https on port 443 of the same host.
 func sameService(first, next *url.URL) bool {
 	if !strings.EqualFold(next.Hostname(), first.Hostname()) {
 		return false
 	}
+	from, to := effectivePort(first), effectivePort(next)
 	if first.Scheme == "http" && next.Scheme == "https" {
-		return true
+		return from == "80" && to == "443"
 	}
-	return next.Scheme == first.Scheme && effectivePort(next) == effectivePort(first)
+	return next.Scheme == first.Scheme && to == from
 }
 
 func effectivePort(u *url.URL) string {
@@ -124,8 +125,10 @@ func dropCredentialsOnRedirect(req, first *http.Request) error {
 	if sameService(first.URL, req.URL) {
 		return nil
 	}
-	// A 307 or 308 would send the body (a login form) along
-	if req.Method != http.MethodGet && req.Method != http.MethodHead {
+	// A 307 or 308 would send the body (a login form) along, also on a GET:
+	// net/http has put it on req by now
+	hasBody := req.Body != nil && req.Body != http.NoBody
+	if hasBody || (req.Method != http.MethodGet && req.Method != http.MethodHead) {
 		return errors.New("refused a redirect that sends the request body to another address")
 	}
 	for name := range req.Header {
