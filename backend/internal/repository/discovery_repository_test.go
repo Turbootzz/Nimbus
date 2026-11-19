@@ -19,6 +19,7 @@ const discoveryTestSchema = `
 		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		discovery_key TEXT NOT NULL,
 		service_id TEXT REFERENCES services(id) ON DELETE SET NULL,
+		pending BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (user_id, discovery_key)
 	);
@@ -64,13 +65,13 @@ func TestDiscoveryRepository_ClaimLinkRelease(t *testing.T) {
 	repo := NewDiscoveryRepository(db)
 	ctx := context.Background()
 
-	claimed, err := repo.Claim(ctx, "user-1", "i-1/web")
+	claimed, err := repo.Claim(ctx, "user-1", "i-1/web", true)
 	require.NoError(t, err)
 	assert.True(t, claimed)
-	claimed, err = repo.Claim(ctx, "user-1", "i-1/web")
+	claimed, err = repo.Claim(ctx, "user-1", "i-1/web", true)
 	require.NoError(t, err)
 	assert.False(t, claimed, "only the first claim wins")
-	claimed, err = repo.Claim(ctx, "user-2", "i-1/web")
+	claimed, err = repo.Claim(ctx, "user-2", "i-1/web", false)
 	require.NoError(t, err)
 	assert.True(t, claimed, "claims are per user")
 
@@ -113,4 +114,36 @@ func TestDiscoveryRepository_AdminIntegrations(t *testing.T) {
 	require.Len(t, list, 2, "only Docker integrations of current admins")
 	assert.Equal(t, []string{"i-2", "i-1"}, []string{list[0].ID, list[1].ID}, "by name")
 	assert.Equal(t, "user-1", list[0].UserID)
+}
+
+func TestDiscoveryRepository_ReleaseLeavesAPendingClaim(t *testing.T) {
+	db := setupDiscoveryTestDB(t)
+	repo := NewDiscoveryRepository(db)
+	ctx := context.Background()
+	count := func() int {
+		handled, err := repo.List(ctx, "user-1")
+		require.NoError(t, err)
+		return len(handled)
+	}
+
+	_, err := repo.Claim(ctx, "user-1", "i-1/web", true)
+	require.NoError(t, err)
+	require.NoError(t, repo.Release(ctx, "user-1", "i-1/web"))
+	assert.Equal(t, 1, count(), "un-ignoring leaves an add in progress alone")
+
+	// An add that died between Claim and SetService does not hide the container forever
+	_, err = db.Exec(`UPDATE discovered_containers SET created_at = '2000-01-01 00:00:00'`)
+	require.NoError(t, err)
+	require.NoError(t, repo.Release(ctx, "user-1", "i-1/web"))
+	assert.Zero(t, count())
+
+	// A failed add gives its claim back; Unclaim leaves an ignored container ignored
+	_, err = repo.Claim(ctx, "user-1", "i-1/web", true)
+	require.NoError(t, err)
+	require.NoError(t, repo.Unclaim(ctx, "user-1", "i-1/web"))
+	assert.Zero(t, count())
+	_, err = repo.Claim(ctx, "user-1", "i-1/web", false)
+	require.NoError(t, err)
+	require.NoError(t, repo.Unclaim(ctx, "user-1", "i-1/web"))
+	assert.Equal(t, 1, count())
 }

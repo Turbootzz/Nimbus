@@ -361,9 +361,9 @@ After an import, integrations that use credentials show **Needs credentials** un
 Settings → Integrations and are not polled until you enter them. Widgets with masked secrets
 show an error until you edit them and enter the value again.
 
-An export embeds at most 6 MB of images, so the file stays under the 10 MB upload limit. Images
-that are missing or do not fit are left out and counted in `omitted_images`; such a service
-falls back to its emoji, and an import keeps the wallpaper you have.
+An export embeds images only while the file stays under the 10 MB upload limit. Images that are
+missing or do not fit are left out and counted in `omitted_images`; such a service falls back
+to its emoji, and an import keeps the wallpaper you have.
 
 ### Merge or replace
 
@@ -514,12 +514,13 @@ on an entity that something points at. Unknown fields and any other `version` ar
 | `services[].icon_type` | `emoji` (uses `icon`), `image_url` (uses `icon_url`) or `image_upload` (uses `icon_data`: base64 of a JPEG, PNG, GIF, WebP, ICO or SVG up to 512 KB). The file can not name a file on the server. |
 | `services[].position`, `widgets[].position` | Services and widgets share one order. `replace` keeps the positions; `merge` keeps their order and puts them behind your tiles. |
 | `widgets[].type`, `config` | A type and its config from [WIDGETS.md](WIDGETS.md). Where a config lists integrations (the calendar), it lists their refs. `needs_secrets` is informational. |
-| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color: ""` selects the default accent. `group_display` is `tabs` or `sections` and is the one field that does not keep your value when it is left out: without it, groups follow the layout (tabs in classic, sections in canvas). |
+| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color` is a hex color like `#3B82F6` or `#38F`; `""` selects the default accent. `group_display` is `tabs` or `sections` and is the one field that does not keep your value when it is left out: without it, groups follow the layout (tabs in classic, sections in canvas). |
 | `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
 | `omitted_images` | Written by an export, ignored by an import. |
 
-Only `version` is required at the top level; a file with just services is a valid import. For
-the limits: 100 groups, 500 services, 200 widgets and 50 integrations per file.
+Only `version` is required at the top level; a file with just services is a valid import. A
+file is at most 10 MB and holds at most 200 widgets and 50 integrations, the per-user limits.
+
 ## Public Status Page
 
 Nimbus can share the uptime of one group of services on a page that needs no account: `/status`. It is off by default, and while it is off both the page and its API answer `404`, like any address that does not exist.

@@ -307,7 +307,7 @@ func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.D
 	}
 
 	// The claim decides who adds the container when two try at once
-	claimed, err := s.repo.Claim(ctx, userID, req.Key)
+	claimed, err := s.repo.Claim(ctx, userID, req.Key, true)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.D
 	// meanwhile: a claim left behind would hide the container as ignored
 	settle := context.WithoutCancel(ctx)
 	if err != nil {
-		if releaseErr := s.repo.Release(settle, userID, req.Key); releaseErr != nil {
+		if releaseErr := s.repo.Unclaim(settle, userID, req.Key); releaseErr != nil {
 			log.Printf("discovery: %v", releaseErr)
 		}
 		return nil, err
@@ -391,7 +391,7 @@ func (s *DiscoveryService) Ignore(ctx context.Context, userID, key string) error
 	if err := s.checkKey(ctx, userID, key); err != nil {
 		return err
 	}
-	_, err := s.repo.Claim(ctx, userID, key)
+	_, err := s.repo.Claim(ctx, userID, key, false)
 	return err
 }
 
@@ -412,7 +412,7 @@ func (s *DiscoveryService) AutoAddEnabled(ctx context.Context) (bool, error) {
 	return setting.Value == "true", nil
 }
 
-// AutoAdd adds every container labelled nimbus.enable=true that has a URL
+// AutoAdd adds every container labelled nimbus.enable=true that has a nimbus.url
 // label, for each admin's Docker integrations, when the admin setting is on.
 // It never adds a guessed URL, an ignored container, or one it added before
 // (also not after that service was deleted). Returns how many were added,
@@ -448,7 +448,7 @@ func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 				return added, ctx.Err()
 			}
 			candidate := s.candidate(integration, container, "")
-			if _, isHandled := handled[candidate.Key]; isHandled || !candidate.Enabled || candidate.URLGuessed || candidate.URL == "" {
+			if _, isHandled := handled[candidate.Key]; isHandled || !candidate.Enabled || !container.Labels.NimbusURL || candidate.URLGuessed || candidate.URL == "" {
 				continue
 			}
 			_, err := s.Add(ctx, integration.UserID, &models.DiscoveryAddRequest{
