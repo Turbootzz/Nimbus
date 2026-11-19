@@ -34,6 +34,9 @@ func Homepage(data []byte) (dashdoc.Document, []string, error) {
 const maxGroupDepth = 8
 
 func (b *builder) homepageGroup(group string, entries any, depth int) {
+	if len(asList(entries)) == 0 {
+		b.emptyGroup(group)
+	}
 	for _, item := range asList(entries) {
 		for _, name := range sortedKeys(asMap(item)) {
 			switch value := asMap(item)[name].(type) {

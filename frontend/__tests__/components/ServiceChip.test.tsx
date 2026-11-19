@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import GroupForm from '@/components/GroupForm'
@@ -147,6 +147,22 @@ describe('GroupForm tile style', () => {
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'Quick launch', tile_style: 'chips' })
     )
+  })
+
+  it('is a named dialog with named colors, closed by Esc', () => {
+    const onClose = vi.fn()
+    render(<GroupForm onSubmit={vi.fn()} onClose={onClose} />)
+    expect(screen.getByRole('dialog', { name: 'Create Group' })).toBeInTheDocument()
+    const colors = screen.getByRole('group', { name: 'Color' })
+    fireEvent.click(within(colors).getByRole('button', { name: 'Teal' }))
+    expect(within(colors).getByRole('button', { name: 'Teal' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+    expect(screen.getByLabelText('Color code')).toHaveValue('#14b8a6')
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalled()
   })
 
   it('shows the style of the group being edited', () => {

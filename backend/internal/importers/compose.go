@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"github.com/nimbus/backend/internal/dashdoc"
+	"github.com/nimbus/backend/internal/integrations"
 )
 
 // Compose converts a docker-compose file: every service that publishes a TCP
@@ -14,8 +15,10 @@ import (
 // dashboard-icons icon of its image. A compose file doesn't say which machine
 // it runs on, so the caller gives the host.
 //
-// Homepage's labels (homepage.name, .href, .icon, .description, .group) are
-// used when a service has them.
+// The labels Docker discovery reads are used when a service has them:
+// nimbus.* (name, url, icon, group, description, widget), else Homepage's
+// (homepage.name, .href, .icon, .description, .group). A service labelled
+// nimbus.enable=false is skipped, as discovery hides it.
 func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 	tree, err := parse(data)
 	if err != nil {
@@ -32,22 +35,30 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 	b.plainIcons = true
 	for _, name := range sortedKeys(services) {
 		settings := asMap(services[name])
-		labels := composeLabels(settings["labels"])
+		labels, hidden := integrations.ParseDiscoveryLabels(composeLabels(settings["labels"]))
+		if hidden {
+			b.warn("%s: skipped, it is labelled nimbus.enable=false", name)
+			continue
+		}
 		e := entry{
-			name:        labels["homepage.name"],
-			url:         labels["homepage.href"],
-			description: labels["homepage.description"],
-			icon:        labels["homepage.icon"],
-			group:       labels["homepage.group"],
+			name:        labels.Name,
+			url:         labels.URL,
+			description: labels.Description,
+			icon:        labels.Icon,
+			group:       labels.Group,
+			app:         labels.Widget,
 		}
 		if e.name == "" {
 			e.name = displayName(asString(name))
 		}
+		// A dashboard-icons name, from a label or else the image, is its SVG,
+		// as Docker discovery and Nimbus' own icon lookup use
+		slug := integrations.IconSlug(e.icon)
 		if e.icon == "" {
-			if slug := imageSlug(asString(settings["image"])); slug != "" {
-				// The SVG set, like the icons Nimbus looks up itself
-				e.icon = dashboardIconsURL + "svg/" + slug + ".svg"
-			}
+			slug = imageSlug(asString(settings["image"]))
+		}
+		if slug != "" {
+			e.icon = dashboardIconsURL + "svg/" + slug + ".svg"
 		}
 		if e.url == "" {
 			port := publishedPort(asList(settings["ports"]))

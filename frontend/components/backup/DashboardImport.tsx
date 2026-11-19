@@ -35,6 +35,14 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+// What a replace does to the public status page, which shows one group
+export function statusPageNote({ status_page: page }: ImportSummary): string | null {
+  if (!page) return null
+  return page.kept
+    ? `The public status page moves to the group “${page.group}” from the file.`
+    : `The public status page goes offline: the file has no group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+}
+
 // What an import does (or did), per kind of entity
 export function SummaryTable({ summary }: { summary: ImportSummary }) {
   const replace = summary.mode === 'replace'
@@ -84,6 +92,7 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
             under Settings → Integrations.
           </li>
         )}
+        {summary.status_page && <li>{statusPageNote(summary)}</li>}
         {summary.needs_secrets > 0 && (
           <li>
             {plural(summary.needs_secrets, 'widget')}{' '}
@@ -347,7 +356,7 @@ export default function DashboardImport() {
       {confirming && ready && (
         <ConfirmDialog
           title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.`}
+          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
           confirmLabel="Replace"
           onConfirm={apply}
           onCancel={() => setConfirming(false)}

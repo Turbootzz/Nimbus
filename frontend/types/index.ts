@@ -900,6 +900,9 @@ export interface ImportSummary {
   needs_credentials: number
   needs_secrets: number
   custom_css?: string // the custom CSS a replace applies
+  // Set by a replace while the public status page shows one of the user's
+  // groups: kept when the file has a group with that name, which it then shows
+  status_page?: { group: string; kept: boolean }
 }
 
 // One problem in an imported document, e.g. path "services[2].url"
