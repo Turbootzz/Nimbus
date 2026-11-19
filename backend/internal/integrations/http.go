@@ -138,6 +138,14 @@ func pathOnly(path string) string {
 	return p
 }
 
+// clip cuts text from an app down to max characters
+func clip(text string, max int) string {
+	if runes := []rune(text); len(runes) > max {
+		return string(runes[:max])
+	}
+	return text
+}
+
 // percent returns part/total as a whole percentage, 0 when total is 0
 func percent(part, total float64) int {
 	if total <= 0 {

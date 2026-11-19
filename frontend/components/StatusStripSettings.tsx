@@ -73,7 +73,7 @@ export default function StatusStripSettings() {
                 className={selectClass}
               >
                 {!byKey.has(chipKey(chip)) && (
-                  <option value={chipKey(chip)}>Removed integration or widget</option>
+                  <option value={chipKey(chip)}>No longer available</option>
                 )}
                 {[byKey.get(chipKey(chip)), ...unused].flatMap((option) =>
                   option

@@ -5,6 +5,7 @@ package integrations
 import (
 	"context"
 	"net/http"
+	"net/url"
 
 	"github.com/nimbus/backend/internal/models"
 )
@@ -28,6 +29,16 @@ func (example) Meta() Meta {
 			{Key: "items", Label: "Items"},
 			{Key: "used", Label: "Used", Unit: "%"},
 		},
+		// Optional: the kind's own settings. The form shows them and the
+		// service checks what is submitted; no secrets here.
+		Options: []Option{{
+			Key:         "library",
+			Label:       "Library",
+			Help:        "Only count this library. Leave empty for all.",
+			Placeholder: "films",
+			MaxLength:   60,
+			Pattern:     `[a-z0-9\-]+`,
+		}},
 	}
 }
 
@@ -49,7 +60,12 @@ func (example) Fetch(ctx context.Context, conn *Conn) (*Payload, error) {
 		Used  float64 `json:"used"`
 		Total float64 `json:"total"`
 	}
-	if err := getJSON(ctx, conn, "/api/stats", exampleAuth(conn), &stats); err != nil {
+	path := "/api/stats"
+	// "" when the option is not set; escape it wherever it goes
+	if library := conn.Option("library"); library != "" {
+		path += "?library=" + url.QueryEscape(library)
+	}
+	if err := getJSON(ctx, conn, path, exampleAuth(conn), &stats); err != nil {
 		return nil, err
 	}
 	return &Payload{KPIs: map[string]any{

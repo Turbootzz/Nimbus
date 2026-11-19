@@ -62,7 +62,20 @@ func (panicKind) Fetch(context.Context, *integrations.Conn) (*integrations.Paylo
 	panic("boom")
 }
 
+// optionsKind declares options, to exercise their validation
+type optionsKind struct{ fakeKind }
+
+func (optionsKind) Kind() string { return "svc-options" }
+func (optionsKind) Meta() integrations.Meta {
+	return integrations.Meta{Name: "Options", AuthTypes: []string{models.IntegrationAuthNone}, Options: []integrations.Option{
+		{Key: "site", Label: "Site", Required: true, MaxLength: 5},
+		{Key: "entity", Label: "Entity", Placeholder: "sensor.temp", Pattern: `[a-z]+\.[a-z]+`},
+		{Key: "limit", Label: "Limit", Type: integrations.OptionNumber},
+	}}
+}
+
 func init() {
+	integrations.Register(optionsKind{})
 	integrations.Register(fakeKind{})
 	integrations.Register(panicKind{})
 }
@@ -288,6 +301,77 @@ func TestIntegrationService_Validation(t *testing.T) {
 	}
 }
 
+func TestIntegrationService_Options(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+	request := func(options string) *models.IntegrationRequest {
+		return &models.IntegrationRequest{Kind: "svc-options", Name: "Options", BaseURL: "http://10.0.0.5", Options: json.RawMessage(options)}
+	}
+
+	for options, want := range map[string]string{
+		``:                   "Site is required",
+		`{"site":"  "}`:      "Site is required",
+		`{"site":"toolong"}`: "Site must be 5 characters or less",
+		`{"site":5}`:         "Site must be text",
+		`{"site":"a\nb"}`:    "Site is not valid",
+		`{"site":["a"]}`:     "Site must be text",
+		`["site"]`:           "Options must be a JSON object",
+		`{"site":"` + strings.Repeat("a", 17000) + `"}`: "Options are too large",
+		`{"site":"a","entity":"Sensor"}`:                "Entity is not valid; it looks like sensor.temp",
+		`{"site":"a","zzz":"1","b":"1"}`:                `Options has no option "b"`,
+		`{"site":"a","limit":"ten"}`:                    "Limit is not valid",
+		`{"site":"a","limit":10}`:                       "Limit must be text",
+	} {
+		_, err := svc.Create(ctx, "user-1", false, request(options))
+		var vErr *ValidationError
+		require.True(t, errors.As(err, &vErr), "%s: expected ValidationError, got %v", options, err)
+		assert.Equal(t, want, vErr.Message, options)
+	}
+
+	// Kinds without options take none
+	req := apiKeyRequest("http://nas.lan")
+	req.Options = json.RawMessage(`{"node":"pve"}`)
+	_, err := svc.Create(ctx, "user-1", false, req)
+	assert.ErrorContains(t, err, `Fake has no option "node"`)
+
+	// Stored trimmed, without the empty ones
+	created, err := svc.Create(ctx, "user-1", false, request(`{"site":" home ","entity":""}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(created.Options))
+
+	// Postgres hands JSONB back in its own form: a space after : and , keys
+	// by length, characters unescaped, numbers as written. That is no change.
+	for _, c := range []struct {
+		stored, sent string
+		changed      bool
+	}{
+		{`{"site": "home", "entity": "a.b"}`, `{"entity":"a.b","site":"home"}`, false},
+		{`{"site": "a&b <é>"}`, `{"site":"a\u0026b \u003c\u00e9\u003e"}`, false},
+		{`{}`, `{}`, false},
+		{`{"days": 1000, "ratio": 1.0}`, `{"days":1e3,"ratio":1}`, false}, // rows from before options were text
+		{`{"site": "home", "entity": "a.b"}`, `{"site":"work"}`, true},
+		{`{"site": "home"}`, `{"site":"Home"}`, true},
+		{`{"site": "home"}`, `{}`, true},
+		{`{"days": 1}`, `{"days":"1"}`, true},
+	} {
+		before := models.Integration{Options: json.RawMessage(c.stored)}
+		after := models.Integration{Options: json.RawMessage(c.sent)}
+		assert.Equal(t, c.changed, connectionChanged(&before, &after), "%s to %s", c.stored, c.sent)
+	}
+
+	// Omitted options are kept
+	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(updated.Options))
+	updated, err = svc.Update(ctx, created.ID, "user-1", false, request(`{"site":"work","entity":"sensor.temp"}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"work","entity":"sensor.temp"}`, string(updated.Options))
+
+	// Clearing a required option on update is refused
+	_, err = svc.Update(ctx, created.ID, "user-1", false, request(`{}`))
+	assert.ErrorContains(t, err, "Site is required")
+}
+
 func TestIntegrationService_NullOptionsAreIgnored(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	req := apiKeyRequest("http://nas.lan")
@@ -350,6 +434,19 @@ func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
 	assert.Nil(t, moved.LastTestOK, "a new URL invalidates the test result")
 	assert.Nil(t, moved.LastTestAt)
 	assert.Nil(t, repo.items[created.ID].LastTestOK)
+
+	// Without credentials (auth type none) the same holds
+	open, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: server.URL, AuthType: models.IntegrationAuthNone})
+	require.NoError(t, err)
+	assert.Nil(t, open.LastTestOK, "another auth type invalidates the test result")
+	_, err = svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+	renamed, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Open"})
+	require.NoError(t, err)
+	assert.NotNil(t, renamed.LastTestOK, "a rename keeps the test result")
+	moved, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: "http://10.0.0.98"})
+	require.NoError(t, err)
+	assert.Nil(t, moved.LastTestOK)
 }
 
 func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) {
@@ -686,4 +783,35 @@ func TestIntegrationService_SessionIsClosed(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, svc.Delete(ctx, busy.ID, "user-1"))
 	assert.Equal(t, "s-1 at http://new.lan", closed())
+}
+
+func TestIntegrationService_DockerOverHTTPIsReadOnly(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method)
+	}))
+	defer server.Close()
+
+	conn, err := svc.newConn(&models.Integration{Kind: "docker", BaseURL: server.URL}, models.IntegrationCredentials{APIKey: "ptr_token"}, &integrations.State{})
+	require.NoError(t, err)
+	defer conn.Client.CloseIdleConnections()
+
+	resp, err := conn.Client.Get(conn.BaseURL + "/version")
+	require.NoError(t, err)
+	resp.Body.Close()
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+		req, err := http.NewRequest(method, conn.BaseURL+"/containers/x/stop", strings.NewReader("{}"))
+		require.NoError(t, err)
+		_, err = conn.Client.Do(req)
+		assert.ErrorContains(t, err, method+" requests are not allowed")
+	}
+	assert.Equal(t, []string{http.MethodGet}, methods, "nothing but the GET left the process")
+
+	// Other kinds keep a full client (logins are POSTs)
+	conn, err = svc.newConn(&models.Integration{Kind: "svc-fake", BaseURL: server.URL}, models.IntegrationCredentials{}, &integrations.State{})
+	require.NoError(t, err)
+	resp, err = conn.Client.Post(conn.BaseURL+"/login", "text/plain", strings.NewReader(""))
+	require.NoError(t, err)
+	resp.Body.Close()
 }

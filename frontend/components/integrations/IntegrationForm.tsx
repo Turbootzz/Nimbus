@@ -64,6 +64,14 @@ export default function IntegrationForm({
     integration?.auth_type ?? meta?.auth_types[0] ?? 'none'
   )
   const [creds, setCreds] = useState<IntegrationCredentials>({})
+  // Values of the kind's own options, by key
+  const [options, setOptions] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      Object.entries(integration?.options ?? {}).filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string'
+      )
+    )
+  )
   const [verifyTls, setVerifyTls] = useState(integration?.verify_tls ?? true)
   const [refreshSeconds, setRefreshSeconds] = useState(integration?.refresh_seconds ?? 60)
   const [error, setError] = useState<string | null>(null)
@@ -82,6 +90,7 @@ export default function IntegrationForm({
     if (!name.trim() || name === meta?.name) setName(nextMeta?.name ?? '')
     setKind(next)
     setAuthType(nextMeta?.auth_types[0] ?? 'none')
+    setOptions({})
     setTestResult(null)
   }
 
@@ -95,6 +104,18 @@ export default function IntegrationForm({
     return null
   }
 
+  // Every option the kind has, so that clearing one removes it. Kinds
+  // without options send none.
+  const optionsToSend = (): Record<string, string> | undefined => {
+    if (!meta?.options?.length) return undefined
+    return Object.fromEntries(
+      meta.options.flatMap(({ key }) => {
+        const value = options[key]?.trim()
+        return value ? [[key, value]] : []
+      })
+    )
+  }
+
   const buildRequest = (): IntegrationRequest => ({
     ...(isEdit ? {} : { kind }),
     name: name.trim(),
@@ -102,6 +123,7 @@ export default function IntegrationForm({
     auth_type: authType,
     credentials: credentialsFor(authType, creds),
     verify_tls: verifyTls,
+    options: optionsToSend(),
     refresh_seconds: refreshSeconds,
   })
 
@@ -337,6 +359,38 @@ export default function IntegrationForm({
               Credentials are stored encrypted and never sent back to the browser.
             </p>
 
+            {meta?.options?.map((option) => {
+              const id = `integration-option-${option.key}`
+              return (
+                <div key={`${kind}:${option.key}`}>
+                  <label htmlFor={id} className={labelClass}>
+                    {option.label}
+                  </label>
+                  <input
+                    id={id}
+                    type={option.type === 'number' ? 'number' : 'text'}
+                    step="any"
+                    value={options[option.key] ?? ''}
+                    onChange={(e) => setOptions({ ...options, [option.key]: e.target.value })}
+                    placeholder={option.placeholder}
+                    maxLength={option.max_length}
+                    pattern={option.pattern}
+                    title={option.placeholder && `For example ${option.placeholder}`}
+                    required={option.required}
+                    aria-describedby={option.help ? `${id}-help` : undefined}
+                    autoComplete="off"
+                    className={inputClass}
+                    disabled={busy}
+                  />
+                  {option.help && (
+                    <p id={`${id}-help`} className="text-text-muted mt-1 text-xs">
+                      {option.help}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+
             <div>
               <label htmlFor="integration-refresh" className={labelClass}>
                 Refresh every (seconds)
@@ -361,6 +415,13 @@ export default function IntegrationForm({
               description="Turn off for apps with a self-signed certificate"
               disabled={busy}
             />
+            {!verifyTls && (
+              <p role="status" className="text-warning -mt-2 text-xs">
+                Without this check Nimbus can&apos;t tell the app from an impostor, and whoever
+                answers gets the credentials. Only turn it off for a self-signed certificate on a
+                network you trust.
+              </p>
+            )}
 
             {testResult && (
               <p

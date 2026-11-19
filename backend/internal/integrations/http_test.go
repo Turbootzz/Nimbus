@@ -46,6 +46,25 @@ func registered(t *testing.T, kind string) Integration {
 	return impl
 }
 
+// assertUnreachable checks that Test and Fetch on a host where nothing
+// listens name the path and the cause, never the URL
+func assertUnreachable(t *testing.T, impl Integration, testPath string) {
+	t.Helper()
+	closed := httptest.NewServer(http.NotFoundHandler())
+	closed.Close()
+	conn := newTestConn(closed.URL, models.IntegrationCredentials{APIKey: "key", Token: "token"})
+
+	err := impl.Test(context.Background(), conn)
+	require.Error(t, err)
+	assert.True(t, strings.HasPrefix(err.Error(), testPath+" could not be reached: "), err.Error())
+	assert.NotContains(t, err.Error(), closed.URL)
+
+	_, err = impl.Fetch(context.Background(), conn)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), " could not be reached: ")
+	assert.NotContains(t, err.Error(), closed.URL)
+}
+
 func TestDoRequestStatuses(t *testing.T) {
 	server := fakeApp(t, map[string]http.HandlerFunc{
 		"GET /unauthorized": func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusUnauthorized) },

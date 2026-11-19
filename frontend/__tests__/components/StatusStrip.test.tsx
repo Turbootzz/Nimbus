@@ -70,6 +70,20 @@ describe('StatusStrip', () => {
     expect(screen.getAllByText(/·/)).toHaveLength(2)
   })
 
+  it('leaves out a chip whose KPI needs an option that was cleared', () => {
+    const optional: IntegrationKindMeta[] = [
+      { ...kinds[0], kpis: [{ key: 'blocked_percent', label: 'Blocked', option: 'list' }] },
+    ]
+    const props = { strip, snapshots, kinds: optional, widgets, up: 1, down: 0 }
+    const { rerender } = render(
+      <StatusStrip {...props} integrations={[{ ...integrations[0], options: { list: 'ads' } }]} />
+    )
+    expect(screen.getByText('Pi-hole · Blocked')).toBeInTheDocument()
+    rerender(<StatusStrip {...props} integrations={[{ ...integrations[0], options: {} }]} />)
+    expect(screen.queryByText('Pi-hole · Blocked')).not.toBeInTheDocument()
+    expect(screen.getByText('NAS · CPU')).toBeInTheDocument()
+  })
+
   it('mutes old data and hides the pill while no service status is known', () => {
     render(
       <StatusStrip
@@ -165,8 +179,6 @@ describe('StatusStripSettings', () => {
       chips: [{ source: 'integration', id: '33333333-3333-3333-3333-333333333333', kpi: 'x' }],
     }
     render(<StatusStripSettings />)
-    expect(await screen.findByLabelText('Number 1')).toHaveDisplayValue(
-      'Removed integration or widget'
-    )
+    expect(await screen.findByLabelText('Number 1')).toHaveDisplayValue('No longer available')
   })
 })
