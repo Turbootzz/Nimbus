@@ -233,6 +233,7 @@ func TestTransfer_ImportRejects(t *testing.T) {
 		{"unknown field", "/import?mode=merge", `{"version":1,"servces":[]}`, http.StatusBadRequest, `unknown field \"servces\"`},
 		{"a file name for an icon", "/import?mode=merge", `{"version":1,"services":[{"name":"A","url":"http://a.lan","icon_image_path":"../../etc/passwd"}]}`, http.StatusBadRequest, "unknown field"},
 		{"trailing data", "/import?mode=merge", valid + valid, http.StatusBadRequest, "unexpected data"},
+		{"trailing bracket", "/import?mode=merge", valid + "]", http.StatusBadRequest, "unexpected data"},
 		{"too large", "/import?mode=merge", `{"version":1,"services":[{"name":"` + strings.Repeat("a", MaxImportSize) + `"}]}`, http.StatusRequestEntityTooLarge, "maximum size"},
 	}
 	for _, tt := range tests {
