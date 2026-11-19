@@ -1,3 +1,5 @@
+import { useId } from 'react'
+
 interface ToggleProps {
   enabled: boolean
   onChange: (enabled: boolean) => void
@@ -15,13 +17,16 @@ export function Toggle({
   disabled = false,
   id,
 }: ToggleProps) {
-  const labelId = id ? `${id}-label` : undefined
-  const descriptionId = id && description ? `${id}-description` : undefined
+  // Without an id the switch still needs one, or it has no name
+  const generatedId = useId()
+  const switchId = id ?? generatedId
+  const labelId = `${switchId}-label`
+  const descriptionId = description ? `${switchId}-description` : undefined
 
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex-1">
-        <label id={labelId} htmlFor={id} className="text-text-primary text-sm font-medium">
+        <label id={labelId} htmlFor={switchId} className="text-text-primary text-sm font-medium">
           {label}
         </label>
         {description && (
@@ -31,7 +36,7 @@ export function Toggle({
         )}
       </div>
       <button
-        id={id}
+        id={switchId}
         type="button"
         role="switch"
         aria-checked={enabled}
