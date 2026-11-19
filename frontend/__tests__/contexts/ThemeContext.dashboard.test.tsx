@@ -59,6 +59,27 @@ describe('ThemeContext layout of a new browser', () => {
     expect(getLayoutSnapshot()).toBe('canvas')
   })
 
+  it('stops waiting after a while when the preferences do not come', async () => {
+    vi.useFakeTimers()
+    try {
+      let answer: (response: never) => void = () => {}
+      vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+      const { result } = renderHook(() => useTheme(), { wrapper })
+      await act(() => vi.advanceTimersByTimeAsync(4900))
+      expect(result.current.loading).toBe(true)
+      await act(() => vi.advanceTimersByTimeAsync(100))
+      expect(result.current.loading).toBe(false)
+
+      // A late answer still applies
+      await act(async () =>
+        answer({ data: { theme_mode: 'auto', group_display: 'sections' } } as never)
+      )
+      expect(result.current.groupDisplay).toBe('sections')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('stops waiting when the preferences cannot be loaded', async () => {
     vi.mocked(api.getPreferences).mockResolvedValue({ error: { message: 'offline' } })
     await loadTheme()
