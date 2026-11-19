@@ -414,7 +414,7 @@ func TestOddURLsAreSkipped(t *testing.T) {
 func TestLimitsAndDuplicates(t *testing.T) {
 	var config strings.Builder
 	config.WriteString("- " + strings.Repeat("Long ", 20) + ":\n")
-	for i := 0; i < dashdoc.MaxServices+5; i++ {
+	for i := 0; i < MaxServices+5; i++ {
 		// Twice the same service and the same app: refs must stay unique
 		config.WriteString("    - Sonarr:\n        href: http://sonarr.lan\n        icon: fas fa-x\n        widget:\n          type: sonarr\n          url: http://sonarr.lan\n")
 	}
@@ -422,7 +422,7 @@ func TestLimitsAndDuplicates(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, dashdoc.Validate(&result.Document))
 	assertImportable(t, &result.Document)
-	assert.Len(t, result.Document.Services, dashdoc.MaxServices)
+	assert.Len(t, result.Document.Services, MaxServices)
 	assert.Len(t, result.Document.Integrations, 1, "one integration per app")
 	assert.LessOrEqual(t, len(result.Warnings), maxWarnings+1)
 	assert.Contains(t, result.Warnings[len(result.Warnings)-1], "more warnings")
