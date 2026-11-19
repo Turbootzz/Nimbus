@@ -232,14 +232,14 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 		return nil, nil
 	}
 
-	services, err := s.serviceRepo.GetMonitoredByGroupID(ctx, group.ID)
+	services, err := s.serviceRepo.GetMonitoredByGroup(ctx, group)
 	if err != nil {
 		return nil, err
 	}
 
 	// Hour buckets end with the running hour, so the bars line up on the clock
 	since := now.Truncate(time.Hour).Add(-(uptimeHours - 1) * time.Hour)
-	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group.ID, since)
+	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group, since)
 	if err != nil {
 		return nil, err
 	}
