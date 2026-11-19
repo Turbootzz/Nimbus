@@ -27,6 +27,13 @@ func TestValidateAcceptsAValidDocument(t *testing.T) {
 	assert.NoError(t, Validate(&Document{Version: Version}))
 }
 
+// Groups and services have no per-user limit, so whatever an import can hold
+// is valid: 10 MiB of the smallest exported groups (49 bytes) and services (114)
+func TestValidateTakesWhatFitsInAnImport(t *testing.T) {
+	const size = 10 * 1024 * 1024
+	assert.NoError(t, Validate(&Document{Version: Version, Groups: make([]Group, size/49), Services: make([]Service, size/114)}))
+}
+
 func TestValidateReportsWhereTheProblemIs(t *testing.T) {
 	tests := []struct {
 		name   string

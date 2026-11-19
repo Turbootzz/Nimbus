@@ -268,6 +268,23 @@ describe('service hover detail', () => {
     expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
   })
 
+  it('drops a popover that is on its way when edit mode starts', async () => {
+    const chip = (isEditMode: boolean) => (
+      <ServiceChip service={service} openInNewTab={false} isEditMode={isEditMode} />
+    )
+    const { rerender } = render(chip(false))
+    fireEvent.mouseEnter(screen.getByRole('link', { name: /Plex/ }))
+    await act(() => vi.advanceTimersByTimeAsync(100))
+    rerender(chip(true))
+    await act(() => vi.advanceTimersByTimeAsync(1000))
+    expect(api.getServiceMetrics).not.toHaveBeenCalled()
+
+    // Leaving edit mode does not bring it back without a new hover
+    rerender(chip(false))
+    await settle()
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument()
+  })
+
   it.each([
     ['list', <ServiceListItem key="list" service={service} openInNewTab={false} />],
     ['chip', <ServiceChip key="chip" service={service} openInNewTab={false} />],
