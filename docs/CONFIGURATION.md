@@ -437,7 +437,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
 | `services[].icon_type` | `emoji` (uses `icon`), `image_url` (uses `icon_url`) or `image_upload` (uses `icon_data`: base64 of a JPEG, PNG, GIF, WebP, ICO or SVG up to 512 KB). The file can not name a file on the server. |
 | `services[].position`, `widgets[].position` | Services and widgets share one order. `replace` keeps the positions; `merge` keeps their order and puts them behind your tiles. |
 | `widgets[].type`, `config` | A type and its config from [WIDGETS.md](WIDGETS.md). Where a config lists integrations (the calendar), it lists their refs. `needs_secrets` is informational. |
-| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color: ""` selects the default accent. |
+| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color` is a hex color like `#3B82F6` or `#38F`; `""` selects the default accent. |
 | `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
 | `omitted_images` | Written by an export, ignored by an import. |
 

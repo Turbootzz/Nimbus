@@ -132,7 +132,7 @@ type Preferences struct {
 	ThemeBackground *string `json:"theme_background,omitempty"`
 	// WallpaperData is an uploaded background image embedded as base64
 	WallpaperData string `json:"wallpaper_data,omitempty"`
-	// ThemeAccentColor is #RRGGBB; "" goes back to the default accent
+	// ThemeAccentColor is a hex color like #3B82F6 or #38F; "" is the default
 	ThemeAccentColor      *string      `json:"theme_accent_color,omitempty"`
 	OpenInNewTab          *bool        `json:"open_in_new_tab,omitempty"`
 	EnableCardResizing    *bool        `json:"enable_card_resizing,omitempty"`

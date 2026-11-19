@@ -874,8 +874,9 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 	case *in.ThemeAccentColor == "":
 		req.ThemeAccentColor = models.NullableString{Set: true}
 	default:
-		// #RRGGBB only: the column holds 7 characters
-		if !models.IsValidHexColor(*in.ThemeAccentColor) {
+		// What the preferences endpoint takes, within the 7 characters the
+		// column holds
+		if preferencesValidator.Var(*in.ThemeAccentColor, "hexcolor,max=7") != nil {
 			issues.Add("preferences.theme_accent_color", "must be a valid hex color (e.g., #3B82F6)")
 		}
 		req.ThemeAccentColor = models.NullableString{Value: in.ThemeAccentColor, Set: true}
