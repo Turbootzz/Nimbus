@@ -2,6 +2,7 @@ package utils
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -99,10 +100,11 @@ func TestNewSafeClient_VerifyTLS(t *testing.T) {
 }
 
 func TestNewSafeClient_RedirectsKeepCredentialsOnTheSameOriginOnly(t *testing.T) {
-	type seen struct{ apiKey, auth, accept string }
+	type seen struct{ apiKey, auth, accept, body string }
 	got := make(chan seen, 1)
 	record := func(w http.ResponseWriter, r *http.Request) {
-		got <- seen{r.Header.Get("X-API-Key"), r.Header.Get("Authorization"), r.Header.Get("Accept")}
+		body, _ := io.ReadAll(r.Body)
+		got <- seen{r.Header.Get("X-API-Key"), r.Header.Get("Authorization"), r.Header.Get("Accept"), string(body)}
 	}
 	target := httptest.NewServer(http.HandlerFunc(record))
 	defer target.Close()
@@ -117,8 +119,9 @@ func TestNewSafeClient_RedirectsKeepCredentialsOnTheSameOriginOnly(t *testing.T)
 	}))
 	defer origin.Close()
 
-	do := func(method string) error {
-		req, err := http.NewRequest(method, origin.URL, strings.NewReader("password=hunter2"))
+	const form = "password=hunter2"
+	do := func(method, body string) error {
+		req, err := http.NewRequest(method, origin.URL, strings.NewReader(body))
 		require.NoError(t, err)
 		req.Header.Set("X-API-Key", "secret")
 		req.Header.Set("Authorization", "PVEAPIToken=secret")
@@ -129,28 +132,30 @@ func TestNewSafeClient_RedirectsKeepCredentialsOnTheSameOriginOnly(t *testing.T)
 		}
 		return err
 	}
-	all := seen{"secret", "PVEAPIToken=secret", "application/json"}
-	harmless := seen{"", "", "application/json"}
+	all := seen{"secret", "PVEAPIToken=secret", "application/json", form}
+	harmless := seen{"", "", "application/json", ""}
 
 	// The app moving its own path keeps everything, body included
 	location = origin.URL + "/moved"
-	require.NoError(t, do(http.MethodGet))
+	require.NoError(t, do(http.MethodGet, form))
 	assert.Equal(t, all, <-got)
-	require.NoError(t, do(http.MethodPost))
+	require.NoError(t, do(http.MethodPost, form))
 	assert.Equal(t, all, <-got)
 
 	// Another port on the same host can be another app; so can another
 	// name (httptest servers all listen on 127.0.0.1)
 	for _, other := range []string{target.URL, strings.Replace(target.URL, "127.0.0.1", "localhost", 1)} {
 		location = other + "/elsewhere"
-		require.NoError(t, do(http.MethodGet))
+		require.NoError(t, do(http.MethodGet, ""))
 		assert.Equal(t, harmless, <-got, "credentials stay behind, harmless headers go along: %s", other)
 
-		// A 307 would resend the login form
-		err := do(http.MethodPost)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "refused a redirect")
-		assert.Empty(t, got, "the other app was never called")
+		// A 307 would resend the body, whatever the method
+		for _, method := range []string{http.MethodPost, http.MethodGet} {
+			err := do(method, form)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "refused a redirect")
+			assert.Empty(t, got, "the other app was never called")
+		}
 	}
 }
 
@@ -161,8 +166,11 @@ func TestSameService(t *testing.T) {
 	}{
 		{"https://app.lan/api", "https://APP.lan:443/v2", true},
 		{"http://app.lan/api", "http://app.lan:80/v2", true},
-		{"http://app.lan:5000/api", "https://app.lan:5001/api", true}, // upgrade
-		{"http://app.lan/api", "https://app.lan/api", true},
+		{"http://app.lan/api", "https://app.lan/api", true}, // standard upgrade
+		{"http://app.lan:80/api", "https://app.lan:443/api", true},
+		{"http://app.lan:5000/api", "https://app.lan:5001/api", false}, // another port can be another app
+		{"http://app.lan/api", "https://app.lan:8443/api", false},
+		{"http://app.lan:8080/api", "https://app.lan/api", false},
 		{"https://app.lan/api", "http://app.lan/api", false}, // downgrade
 		{"https://app.lan/api", "https://app.lan:8443/api", false},
 		{"http://app.lan:8080/api", "http://app.lan:9000/api", false},
