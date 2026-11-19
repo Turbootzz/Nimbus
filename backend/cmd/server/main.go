@@ -65,6 +65,7 @@ func main() {
 	integrationRepo := repository.NewIntegrationRepository(database)
 	widgetRepo := repository.NewWidgetRepository(database)
 	snapshotRepo := repository.NewSnapshotRepository(database)
+	discoveryRepo := repository.NewDiscoveryRepository(database)
 
 	// Initialize services
 	authService := services.NewAuthService()
@@ -138,6 +139,9 @@ func main() {
 	}
 	integrationService := services.NewIntegrationService(integrationRepo, credentialCipher, dockerSocket)
 
+	// Docker discovery: offers containers as services, reads only the container list
+	discoveryService := services.NewDiscoveryService(integrationService, discoveryRepo, serviceRepo, groupRepo, settingsRepo, handlers.DashboardIconsBase())
+
 	// Initialize widget service
 	widgetService := services.NewWidgetService(widgetRepo, groupRepo, integrationRepo)
 
@@ -176,6 +180,7 @@ func main() {
 	middleware.SetAPITokenRateLimit(getEnvPositiveInt("API_TOKEN_RATE_LIMIT", middleware.DefaultAPITokenRateLimit))
 	integrationHandler := handlers.NewIntegrationHandler(integrationService)
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
+	discoveryHandler := handlers.NewDiscoveryHandler(discoveryService)
 	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
 
 	// Dashboard export/import
@@ -353,6 +358,13 @@ func main() {
 	integrationRoutes.Delete("/:id<guid>", integrationHandler.DeleteIntegration)
 	integrationRoutes.Post("/:id<guid>/test", integrationHandler.TestIntegration)
 
+	// Discovery routes (admin only and session only, like the Docker integration they read)
+	discovery := v1.Group("/discovery", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
+	discovery.Get("/docker", discoveryHandler.DiscoverDocker)
+	discovery.Post("/docker/services", discoveryHandler.AddDiscovered)
+	discovery.Post("/docker/ignored", discoveryHandler.IgnoreDiscovered)
+	discovery.Delete("/docker/ignored", discoveryHandler.UnignoreDiscovered)
+
 	// Widget routes (all protected)
 	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
 	widgetRoutes.Get("/types", widgetHandler.ListTypes) // Must be before /:id routes
@@ -426,6 +438,10 @@ func main() {
 	// Start widget poller
 	widgetPoller.Start()
 
+	// Start discovery worker (auto-adds labelled containers when the admin setting is on)
+	discoveryWorker := workers.NewDiscoveryWorker(discoveryService)
+	discoveryWorker.Start()
+
 	// Start DNS cache cleanup worker
 	dnsCleanup := workers.NewDNSCleanupWorker()
 	dnsCleanup.Start()
@@ -480,6 +496,7 @@ func main() {
 	// connections open and Shutdown waits for them
 	sseHub.Close()
 	widgetPoller.Stop()
+	discoveryWorker.Stop()
 	healthMonitor.Stop()
 	metricsCleanup.Stop()
 	dnsCleanup.Stop()

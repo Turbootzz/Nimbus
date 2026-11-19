@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -85,9 +84,9 @@ func NewServiceFromRequest(req *models.ServiceCreateRequest) (*models.Service, e
 		return nil, invalid("Icon must be %d characters or less", models.MaxServiceIconLen)
 	}
 
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return nil, invalid("Invalid URL format. URL must include scheme (http/https) and host")
+	// http(s) only: the URL becomes a link on the tile and a health check target
+	if err := utils.ValidateServiceURL(req.URL); err != nil {
+		return nil, invalid("Invalid URL. It must start with http:// or https:// and have a host")
 	}
 
 	iconType := req.IconType

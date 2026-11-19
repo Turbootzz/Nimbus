@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -301,12 +300,15 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
-		})
+	// http(s) only: the URL becomes a link on the tile and a health check
+	// target. A stored URL the request leaves alone is not checked again, so
+	// a service from before this rule can still be resized or moved.
+	if req.URL != existingService.URL {
+		if err := utils.ValidateServiceURL(req.URL); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid URL. It must start with http:// or https:// and have a host",
+			})
+		}
 	}
 
 	// Validate group_id belongs to user if provided

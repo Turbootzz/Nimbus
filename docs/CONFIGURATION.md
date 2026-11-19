@@ -134,6 +134,8 @@ To use the socket, mount it and set the variable:
 
 `:ro` does not make the Docker API read-only: anything that can reach the socket can start and stop containers. Nimbus only ever sends `GET` requests over it, and only admins can add a Docker integration. A [socket proxy](https://github.com/Tecnativa/docker-socket-proxy) with only `CONTAINERS=1` limits it further; then use its `http://` address as the integration URL and leave `DOCKER_SOCKET` unset.
 
+The same integration feeds [Docker discovery](INTEGRATIONS.md#docker-discovery), which offers your containers as services and reads `nimbus.*` labels.
+
 Portainer needs no socket and no `DOCKER_SOCKET` either: use `https://<portainer>:9443/api/endpoints/<id>/docker` as the integration URL and sign in with a Portainer access token as the API key. See [Docker through Portainer](INTEGRATIONS.md#docker-through-portainer).
 
 ### Health Checks

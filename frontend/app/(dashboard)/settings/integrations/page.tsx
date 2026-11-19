@@ -1,13 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
 import IntegrationForm from '@/components/integrations/IntegrationForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import type { Integration } from '@/types'
+import { INTEGRATION_PREFILL_KEY } from '@/types'
+import type { DiscoveredIntegration, Integration } from '@/types'
+
+// readPrefill returns what the Discovered tray left in this tab, if anything
+function readPrefill(): DiscoveredIntegration | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(INTEGRATION_PREFILL_KEY) ?? 'null')
+    if (typeof stored?.kind !== 'string' || typeof stored?.base_url !== 'string') return null
+    // Only a plain http(s) address: never one that carries a user or password
+    const address = new URL(stored.base_url)
+    if (!/^https?:$/.test(address.protocol) || address.username || address.password) return null
+    return { kind: stored.kind, name: String(stored.name ?? ''), base_url: stored.base_url }
+  } catch {
+    return null
+  }
+}
 
 function StatusBadge({ integration }: { integration: Integration }) {
   // An imported integration: the file never carries credentials
@@ -33,6 +49,24 @@ export default function IntegrationsPage() {
   const [deleting, setDeleting] = useState<Integration | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  // The Discovered tray leaves the integration a container label asked for;
+  // the form opens filled in and the credentials are still entered here
+  const [linked, setLinked] = useState<DiscoveredIntegration | null>(readPrefill)
+  const linkedKind = kinds.find((k) => k.kind === linked?.kind)
+  const prefill = linked && linkedKind ? { ...linked, name: linked.name || linkedKind.name } : null
+  // Used once: leaving this page without closing the form must not bring it back
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(INTEGRATION_PREFILL_KEY)
+    } catch {
+      // sessionStorage is blocked: there was nothing to read either
+    }
+  }, [])
+  const closeForm = () => {
+    setShowForm(false)
+    setEditing(null)
+    setLinked(null)
+  }
 
   const handleSaved = (saved: Integration) => {
     setIntegrations((prev) =>
@@ -40,8 +74,7 @@ export default function IntegrationsPage() {
         ? prev.map((i) => (i.id === saved.id ? saved : i))
         : [...prev, saved]
     )
-    setShowForm(false)
-    setEditing(null)
+    closeForm()
   }
 
   const handleTest = async (integration: Integration) => {
@@ -179,14 +212,12 @@ export default function IntegrationsPage() {
         </ul>
       )}
 
-      {showForm && (
+      {(showForm || prefill) && (
         <IntegrationForm
           kinds={kinds}
           integration={editing}
-          onClose={() => {
-            setShowForm(false)
-            setEditing(null)
-          }}
+          prefill={prefill}
+          onClose={closeForm}
           onSaved={handleSaved}
         />
       )}

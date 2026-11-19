@@ -825,3 +825,53 @@ export interface ImportIssue {
   path: string
   message: string
 }
+
+// ============================================
+// Docker discovery
+// ============================================
+
+// A container that can become a service. Every text field comes from
+// container labels: render it as plain text only.
+export interface DiscoveredContainer {
+  key: string // stable across re-creates: "<integration id>/<container name>"
+  integration_id: string
+  integration_name: string
+  container: string
+  image: string
+  state: string
+  enabled: boolean // labelled nimbus.enable=true
+  name: string
+  url: string
+  url_guessed: boolean // from a published port, not from a label
+  icon_url: string
+  group: string
+  description: string
+  integration?: DiscoveredIntegration // asked for with nimbus.widget
+  ignored: boolean
+}
+
+// An integration to set up; credentials are entered in the integration form
+export interface DiscoveredIntegration {
+  kind: string
+  name: string
+  base_url: string
+}
+
+// Where the Discovered tray leaves an integration for the integration form.
+// sessionStorage, not the address: a link from elsewhere can't fill the form.
+export const INTEGRATION_PREFILL_KEY = 'nimbus:integration-prefill'
+
+export interface DiscoveryResponse {
+  integrations: number // Docker integrations that were read
+  containers: DiscoveredContainer[]
+  errors: { integration_id: string; integration_name: string; error: string }[]
+}
+
+export interface DiscoveryAddRequest {
+  key: string
+  name: string
+  url: string
+  icon_url?: string
+  group?: string
+  description?: string
+}
