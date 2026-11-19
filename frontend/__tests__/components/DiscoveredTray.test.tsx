@@ -195,6 +195,26 @@ describe('DiscoveredTray', () => {
     expect(screen.queryByRole('button', { name: 'Ignore Sonarr' })).not.toBeInTheDocument()
   })
 
+  it("keeps another container's review open when an add completes", async () => {
+    let finishAdd!: (response: { data: Service }) => void
+    vi.mocked(api.addDiscovered).mockImplementationOnce(
+      () => new Promise((resolve) => (finishAdd = resolve))
+    )
+    render(<DiscoveredTray />)
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Add Sonarr' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Review web' }))
+    const address = screen.getByLabelText('Address')
+    await userEvent.clear(address)
+    await userEvent.type(address, 'https://www.lan')
+
+    await act(async () => finishAdd({ data: { id: 's-1' } as Service }))
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Ignore Sonarr' })).not.toBeInTheDocument()
+    )
+    expect(screen.getByLabelText('Address')).toHaveValue('https://www.lan')
+  })
+
   it('refreshes on demand', async () => {
     render(<DiscoveredTray />)
 

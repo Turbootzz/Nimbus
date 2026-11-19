@@ -152,7 +152,8 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
       without(container.key)
     )
     if (added) {
-      setDraft(null)
+      // Another container's form may be open by now
+      setDraft((current) => (current?.key === container.key ? null : current))
       setSuggestion(container.integration ?? null)
     }
   }
