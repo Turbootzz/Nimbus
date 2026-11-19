@@ -38,13 +38,16 @@ const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       : '[&::-webkit-scrollbar-thumb]:bg-text-muted [&::-webkit-scrollbar-thumb:hover]:bg-text-secondary [scrollbar-width:thin] [scrollbar-color:var(--color-text-muted)_transparent] [&::-webkit-scrollbar]:h-1.5 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent'
 
     // Convert vertical scroll to horizontal for horizontal orientation, while
-    // there is something to scroll. React listens to wheel passively, where
-    // preventDefault can't keep the page from scrolling along.
+    // the strip can move that way; at its ends the page scrolls on. React
+    // listens to wheel passively, where preventDefault can't keep the page
+    // from scrolling along.
     useEffect(() => {
       const el = innerRef.current
       if (orientation !== 'horizontal' || !el) return
       const handleWheel = (e: globalThis.WheelEvent) => {
-        if (e.deltaY === 0 || e.deltaX !== 0 || el.scrollWidth <= el.clientWidth) return
+        if (e.deltaY === 0 || e.deltaX !== 0) return
+        const end = el.scrollWidth - el.clientWidth - 1 // 1px for rounding
+        if (e.deltaY < 0 ? el.scrollLeft <= 0 : el.scrollLeft >= end) return
         e.preventDefault()
         el.scrollLeft += e.deltaY
       }

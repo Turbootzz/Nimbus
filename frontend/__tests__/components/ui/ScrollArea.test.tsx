@@ -28,6 +28,16 @@ describe('ScrollArea', () => {
     expect(el.scrollLeft).toBe(40)
   })
 
+  it('leaves the wheel to the page at the end of the strip', () => {
+    const el = strip(900)
+    el.scrollLeft = 600
+    expect(fireEvent.wheel(el, { deltaY: 40 })).toBe(true)
+    expect(el.scrollLeft).toBe(600)
+    // Back the other way it scrolls the strip again
+    expect(fireEvent.wheel(el, { deltaY: -40 })).toBe(false)
+    expect(el.scrollLeft).toBe(560)
+  })
+
   it('leaves the wheel to the page when there is nothing to scroll', () => {
     const el = strip(300)
     expect(fireEvent.wheel(el, { deltaY: 40 })).toBe(true)
