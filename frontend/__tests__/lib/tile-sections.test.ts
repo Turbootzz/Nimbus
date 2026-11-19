@@ -204,8 +204,19 @@ describe('undoMove', () => {
   const groupOf = (tiles: Tile[], key: string) =>
     tileGroupId(tiles.find((t) => tileKey(t) === key)!)
 
+  it.each([
+    ['a reorder within a section', 'service:a', 'service:b'],
+    ['a move to the front', 'service:gone', 'service:a'],
+    ['a move to another section', 'service:a', 'group-media'],
+  ])('puts every tile back after %s', (_, active, over) => {
+    const shown = moveTile(all, sections, active, over)!.tiles
+    const undone = undoMove(shown, shown, all, active)
+    expect(keys(undone)).toEqual(keys(all))
+    expect(groupOf(undone, active)).toBe(groupOf(all, active))
+  })
+
   it('puts back only the tile whose save failed, after a newer move', () => {
-    const undone = undoMove(afterB, all, 'service:a')
+    const undone = undoMove(afterB, afterA, all, 'service:a')
     expect(keys(undone)).toEqual([
       'service:a',
       'service:m1',
@@ -223,25 +234,21 @@ describe('undoMove', () => {
     const resized = afterA.map((t) =>
       t.kind === 'widget' ? { ...t, widget: { ...t.widget, card_size: '2x2' as const } } : t
     )
-    const undone = undoMove(resized, all, 'service:a')
+    const undone = undoMove(resized, afterA, all, 'service:a')
+    expect(keys(undone)).toEqual(keys(all))
     expect(undone.find((t) => t.kind === 'widget')).toMatchObject({ widget: { card_size: '2x2' } })
   })
 
   it('keeps a group that was saved when only the order failed', () => {
     // The tiles when b was dropped, with the group that was saved
     const saved = afterA.map((t) => (tileKey(t) === 'service:b' ? withGroup(t, groups[1]) : t))
-    const undone = undoMove(afterB, saved, 'service:b')
+    const undone = undoMove(afterB, afterB, saved, 'service:b')
     expect(keys(undone)).toEqual(keys(afterA))
     expect(groupOf(undone, 'service:b')).toBe('media')
   })
 
-  it('puts a tile that was last back at the end', () => {
-    const gone = all.at(-1)!
-    expect(keys(undoMove([gone, ...all.slice(0, -1)], all, 'service:gone'))).toEqual(keys(all))
-  })
-
   it('leaves the tiles alone for an unknown tile', () => {
-    expect(undoMove(afterA, all, 'service:nope')).toBe(afterA)
+    expect(undoMove(afterA, afterA, all, 'service:nope')).toBe(afterA)
   })
 })
 

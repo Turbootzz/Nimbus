@@ -498,7 +498,7 @@ export default function DashboardPage() {
         }
       } catch (error) {
         console.error('Failed to move tile:', error)
-        showTiles(undoMove(tilesRef.current, before, key))
+        showTiles(undoMove(tilesRef.current, order, before, key))
       }
     })
   }

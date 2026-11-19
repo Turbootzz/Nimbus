@@ -235,19 +235,28 @@ export function moveTile(
 }
 
 /**
- * Undoes a move of tile `key` that could not be saved: the tile gets its
- * group in `before` back, and goes ahead of the tile that followed it there.
- * Everything else in `current`, newer moves included, stays as it is.
+ * Undoes a move of tile `key` that could not be saved, on the `current`
+ * tiles: the move showed `shown`, and the tiles were `before` it. The tile
+ * gets its group in `before` back. If nothing moved since, every tile goes
+ * back to its slot; after a newer move, only this tile goes back, ahead of
+ * the tile that followed it, so the newer move stays. Other changes to the
+ * tiles (a new size, a status) stay too.
  */
-export function undoMove(current: Tile[], before: Tile[], key: string): Tile[] {
+export function undoMove(current: Tile[], shown: Tile[], before: Tile[], key: string): Tile[] {
   const tile = current.find((t) => tileKey(t) === key)
   const index = before.findIndex((t) => tileKey(t) === key)
   if (!tile || index === -1) return current
+  const undone = withGroupId(tile, tileGroupId(before[index]))
+
+  const currentKeys = current.map(tileKey)
+  if (currentKeys.join() === shown.map(tileKey).join()) {
+    const byKey = new Map(current.map((t) => [tileKey(t), t]))
+    return before.map((t) => (tileKey(t) === key ? undone : byKey.get(tileKey(t))!))
+  }
 
   const rest = current.filter((t) => t !== tile)
   const restKeys = rest.map(tileKey)
   const next = before.slice(index + 1).find((t) => restKeys.includes(tileKey(t)))
   const at = next ? restKeys.indexOf(tileKey(next)) : rest.length
-  const undone = withGroupId(tile, tileGroupId(before[index]))
   return [...rest.slice(0, at), undone, ...rest.slice(at)]
 }
