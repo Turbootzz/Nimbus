@@ -154,6 +154,35 @@ describe('DashboardImport', () => {
     )
   })
 
+  it('says what a replace does to the public status page', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })
+    render(<DashboardImport />)
+    await user.upload(screen.getByLabelText('Dashboard file'), documentFile())
+    await screen.findByRole('button', { name: 'Import' })
+
+    vi.mocked(api.importDashboard).mockResolvedValue({
+      data: { ...replaceSummary, status_page: { group: 'Media', kept: false } },
+    })
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    expect(
+      await screen.findByText(/status page goes offline: the file has no group “Media”/)
+    ).toBeVisible()
+
+    await user.click(screen.getByRole('button', { name: 'Replace my dashboard' }))
+    expect(
+      within(screen.getByRole('alertdialog')).getByText(/status page goes offline/)
+    ).toBeVisible()
+    await user.keyboard('{Escape}')
+
+    vi.mocked(api.importDashboard).mockResolvedValue({
+      data: { ...replaceSummary, status_page: { group: 'Media', kept: true } },
+    })
+    await user.click(screen.getByRole('radio', { name: /merge/i }))
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    expect(await screen.findByText(/status page moves to the group “Media”/)).toBeVisible()
+  })
+
   it('shows the custom CSS a file brings before it is imported', async () => {
     const user = userEvent.setup()
     vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })

@@ -144,6 +144,16 @@ func (s *StatusPageService) Save(ctx context.Context, userID string, settings mo
 	return settings, nil
 }
 
+// UseGroup points the page at another group of userID and keeps the rest of
+// its settings. A replace import calls it for the group it re-created.
+func (s *StatusPageService) UseGroup(ctx context.Context, userID, groupID string) error {
+	if err := s.settingsRepo.UpdateBatch(ctx, map[string]string{statusPageGroupKey: groupID}, &userID); err != nil {
+		return err
+	}
+	s.Invalidate()
+	return nil
+}
+
 // requireOwnGroup rejects a group that is missing or someone else's, with
 // one message so group IDs cannot be probed
 func (s *StatusPageService) requireOwnGroup(ctx context.Context, userID, groupID string) error {

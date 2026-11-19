@@ -694,6 +694,73 @@ func TestReplaceOnlyTouchesTheUsersOwnRows(t *testing.T) {
 	assert.Equal(t, theirs, toJSON(t, env.export(t, transferUser)))
 }
 
+// fakeStatusPage is a status page that shows one group
+type fakeStatusPage struct{ models.StatusPageSettings }
+
+func (f *fakeStatusPage) Settings(context.Context) (models.StatusPageSettings, error) {
+	return f.StatusPageSettings, nil
+}
+
+func (f *fakeStatusPage) UseGroup(_ context.Context, _, groupID string) error {
+	f.GroupID = groupID
+	return nil
+}
+
+func (e *transferEnv) groupID(t *testing.T, userID, name string) string {
+	t.Helper()
+	var id string
+	require.NoError(t, e.db.QueryRow(`SELECT id FROM groups WHERE user_id = ? AND name = ?`, userID, name).Scan(&id))
+	return id
+}
+
+func TestReplaceKeepsTheStatusPageOnItsGroup(t *testing.T) {
+	env := newTransferEnv(t)
+	env.seedDashboard(t)
+	ctx := context.Background()
+	media := env.groupID(t, transferAdmin, "Media")
+	page := &fakeStatusPage{models.StatusPageSettings{Enabled: true, GroupID: media}}
+	env.svc.SetStatusPage(page)
+	doc := env.export(t, transferAdmin)
+
+	// Another user's replace leaves the page alone
+	summary, err := env.svc.Apply(ctx, transferFresh, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Nil(t, summary.StatusPage)
+	assert.Equal(t, media, page.GroupID)
+
+	preview, err := env.svc.Preview(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, &dashdoc.StatusPageImpact{Group: "Media", Kept: true}, preview.StatusPage)
+	assert.Equal(t, media, page.GroupID, "a preview moves nothing")
+
+	summary, err = env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, preview.StatusPage, summary.StatusPage)
+	recreated := env.groupID(t, transferAdmin, "Media")
+	assert.NotEqual(t, media, recreated, "a replace creates new groups")
+	assert.Equal(t, recreated, page.GroupID, "the page follows its group")
+
+	// A page that is off follows too, but is not worth a note
+	page.Enabled = false
+	summary, err = env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Nil(t, summary.StatusPage)
+	assert.Equal(t, env.groupID(t, transferAdmin, "Media"), page.GroupID)
+
+	// Without a group of that name it stays on the removed one: offline
+	page.Enabled = true
+	for i := range doc.Groups {
+		if doc.Groups[i].Name == "Media" {
+			doc.Groups[i].Name = "Movies"
+		}
+	}
+	before := page.GroupID
+	summary, err = env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, &dashdoc.StatusPageImpact{Group: "Media", Kept: false}, summary.StatusPage)
+	assert.Equal(t, before, page.GroupID)
+}
+
 func TestMergeAddsBehindWhatTheUserHas(t *testing.T) {
 	env := newTransferEnv(t)
 	ctx := context.Background()
