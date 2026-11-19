@@ -54,6 +54,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Compact chips per group for a quick-launch row of links
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
 - Search: press `/` or Ctrl+K to find and open a service
+- Installable app (PWA): add Nimbus to your home screen or desktop; your services list stays readable offline. See [docs/PWA.md](docs/PWA.md)
 - Light/dark mode toggle
 - Accent color themes
 - Drag & drop service tiles
@@ -271,6 +272,7 @@ Run `make help` for all available commands.
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
 | [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
+| [PWA.md](docs/PWA.md) | Install Nimbus as an app, offline behaviour |
 
 ---
 
@@ -290,7 +292,7 @@ Run `make help` for all available commands.
 - [x] Optional landing page
 - [x] Zero-config Docker deployment
 - [ ] Widgets and app integrations (in progress on `dev`)
-- [ ] PWA support
+- [x] PWA support (installable, offline services list)
 
 ---
 
