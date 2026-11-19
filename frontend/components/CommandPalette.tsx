@@ -7,7 +7,8 @@ import { bestScore } from '@/lib/fuzzy'
 import { isValidUrl } from '@/lib/utils/url'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceIcon from '@/components/ServiceIcon'
-import type { Group, Service } from '@/types'
+import { getBoardsSnapshot } from '@/hooks/useBoards'
+import type { Board, Group, Service } from '@/types'
 
 const OPEN_EVENT = 'nimbus:open-palette'
 const MAX_RESULTS = 8
@@ -30,14 +31,23 @@ function isShortcut(e: KeyboardEvent): boolean {
   return e.code === 'KeyK' && (mac ? e.metaKey : e.ctrlKey)
 }
 
-// Search over the user's services: "/" or Cmd/Ctrl+K opens it, arrows pick,
-// Enter opens the service, Esc closes
+// One board's services and groups. The default board is read without a
+// board ID, as before boards existed.
+async function loadBoard(board?: Board) {
+  const id = board && !(board.owned && board.is_default) ? board.id : undefined
+  const [services, groups] = await Promise.all([api.getServices(id), api.getGroups(id)])
+  return { board, services, groups }
+}
+
+// Search over the user's services, on every board they see: "/" or
+// Cmd/Ctrl+K opens it, arrows pick, Enter opens the service, Esc closes
 export default function CommandPalette() {
   const { openInNewTab } = useTheme()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [services, setServices] = useState<Service[]>([])
+  // With more than one board, every service knows its board's name
+  const [services, setServices] = useState<(Service & { board?: string })[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,14 +70,16 @@ export default function CommandPalette() {
     // Fresh on every open: services change while the page is open. Only
     // the latest request counts.
     const request = ++requestRef.current
-    const [servicesResponse, groupsResponse] = await Promise.all([
-      api.getServices(),
-      api.getGroups(),
-    ])
+    const boards = getBoardsSnapshot()
+    const loaded = await Promise.all(boards.length > 1 ? boards.map(loadBoard) : [loadBoard()])
     if (request !== requestRef.current) return
-    if (servicesResponse.data) setServices(servicesResponse.data)
-    if (groupsResponse.data) setGroups(groupsResponse.data)
-    setError(servicesResponse.error?.message ?? null)
+    setServices(
+      loaded.flatMap(({ board, services }) =>
+        (services.data ?? []).map((s) => (board ? { ...s, board: board.name } : s))
+      )
+    )
+    setGroups(loaded.flatMap(({ groups }) => groups.data ?? []))
+    setError(loaded.find(({ services }) => services.error)?.services.error?.message ?? null)
     setLoading(false)
   }, [])
 
@@ -103,6 +115,7 @@ export default function CommandPalette() {
           { text: service.name, weight: 3 },
           { text: service.description, weight: 1.5 },
           { text: group, weight: 1.5 },
+          { text: service.board, weight: 1 },
           { text: service.url, weight: 1 },
         ])
         return { service, group, score }
@@ -206,6 +219,7 @@ export default function CommandPalette() {
                     {service.name}
                   </span>
                   <span className="text-text-muted block truncate text-xs">
+                    {service.board ? `${service.board} · ` : ''}
                     {group ? `${group} · ` : ''}
                     {service.url}
                   </span>

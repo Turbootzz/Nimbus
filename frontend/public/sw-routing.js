@@ -16,6 +16,7 @@ const CACHEABLE_API_PATHS = [
   '/api/v1/widgets',
   '/api/v1/dashboard/data',
   '/api/v1/users/me/preferences',
+  '/api/v1/boards',
 ]
 
 function staticCacheName(version) {

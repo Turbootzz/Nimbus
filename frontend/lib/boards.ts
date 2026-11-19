@@ -70,6 +70,11 @@ export function setLastBoard(param: string) {
   }
 }
 
+// Remembers a board the user chose ('' is the default board, /dashboard)
+export function rememberBoard(board: Board) {
+  setLastBoard(board.owned && board.is_default ? '' : board.id)
+}
+
 // Where /dashboard should go instead, if anywhere: the board the user opened
 // last, or, for someone who never chose and has nothing on their own board
 // yet, the board that is shared with them (what a new user sees first).

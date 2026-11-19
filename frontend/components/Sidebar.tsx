@@ -14,6 +14,7 @@ import {
 import { api } from '@/lib/api'
 import { mainNavigation } from '@/lib/navigation'
 import { isDashboardPath } from '@/lib/boards'
+import BoardSwitcher from '@/components/boards/BoardSwitcher'
 import type { User } from '@/types'
 
 interface SidebarProps {
@@ -133,6 +134,8 @@ export default function Sidebar({
           Add Service
         </span>
       </Link>
+
+      <BoardSwitcher variant="list" collapsed={collapsed} onNavigate={onNavigate} />
     </>
   )
 

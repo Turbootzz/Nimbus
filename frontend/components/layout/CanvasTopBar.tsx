@@ -8,6 +8,7 @@ import UserMenu from '@/components/UserMenu'
 import SearchButton from '@/components/SearchButton'
 import { useTopBarWeather } from '@/lib/dashboard-store'
 import { describeWeather } from '@/lib/weather'
+import BoardSwitcher from '@/components/boards/BoardSwitcher'
 
 // Time and date, rendered after mount so server and browser agree
 function TopBarClock() {
@@ -74,6 +75,7 @@ export default function CanvasTopBar() {
             <NimbusLogo size={28} />
             <span className="text-text-primary hidden text-lg font-semibold sm:inline">Nimbus</span>
           </Link>
+          <BoardSwitcher variant="menu" />
           <TopBarWeather />
         </div>
         <TopBarClock />

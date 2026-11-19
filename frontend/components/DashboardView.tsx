@@ -37,6 +37,7 @@ import type {
 import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
 import {
+  setBoardOnScreen,
   setBoardReadOnly,
   setEditMode,
   setTopBarWeather,
@@ -80,6 +81,18 @@ import {
 
 function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
+}
+
+// The spinner of a board that is loading
+export function DashboardLoading() {
+  return (
+    <div className="flex min-h-96 items-center justify-center">
+      <div className="wallpaper-panel text-center">
+        <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
+        <p className="text-text-secondary">Loading dashboard...</p>
+      </div>
+    </div>
+  )
 }
 
 // A kiosk refetches everything this often, quietly
@@ -127,6 +140,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
   const editModeOn = useEditMode()
   const isEditMode = editModeOn && !readOnly
   useEffect(() => setBoardReadOnly(readOnly), [readOnly])
+  useEffect(() => setBoardOnScreen(board?.id ?? ''), [board?.id])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -332,12 +346,13 @@ export default function DashboardView({ board }: DashboardViewProps) {
   // is all the labels need.
   const { integrations: ownIntegrations, kinds } = useIntegrations()
   const [boardIntegrations, setBoardIntegrations] = useState<BoardIntegration[]>([])
+  const viewedBoard = viewer ? board.id : undefined
   useEffect(() => {
-    if (!viewer || !board) return
-    api.getBoardIntegrations(board.id).then((response) => {
+    if (!viewedBoard) return
+    api.getBoardIntegrations(viewedBoard).then((response) => {
       if (response.data) setBoardIntegrations(response.data)
     })
-  }, [viewer, board])
+  }, [viewedBoard])
   const integrationKpis = useMemo(
     () =>
       Object.fromEntries(
@@ -375,6 +390,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
     () => () => {
       setEditMode(false)
       setBoardReadOnly(false)
+      setBoardOnScreen(null)
       setTopBarWeather(null)
     },
     []
@@ -836,14 +852,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
   // Without a cached choice, tabs or sections is only known once the
   // preferences are in; waiting avoids showing one and then the other
   if (isLoading || (preferencesLoading && enableServiceGrouping && groupDisplay === null)) {
-    return (
-      <div className="flex min-h-96 items-center justify-center">
-        <div className="wallpaper-panel text-center">
-          <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
-          <p className="text-text-secondary">Loading dashboard...</p>
-        </div>
-      </div>
-    )
+    return <DashboardLoading />
   }
 
   const header = (

@@ -8,6 +8,7 @@ import CanvasTopBar from '@/components/layout/CanvasTopBar'
 import CommandPalette from '@/components/CommandPalette'
 import CustomCss from '@/components/CustomCss'
 import ConfigFileBanner from '@/components/ConfigFileBanner'
+import BoardManager from '@/components/boards/BoardManager'
 import {
   subscribeSidebar,
   getSidebarSnapshot,
@@ -125,6 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {!kiosk && <CommandPalette />}
+      {!kiosk && <BoardManager />}
       <CustomCss />
     </div>
   )

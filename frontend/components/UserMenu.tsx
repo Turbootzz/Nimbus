@@ -10,11 +10,13 @@ import {
   ChevronDownIcon,
   CheckIcon,
   PencilSquareIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
-import { toggleEditMode, useEditMode } from '@/lib/dashboard-store'
+import { toggleEditMode, useBoardReadOnly, useEditMode } from '@/lib/dashboard-store'
+import { openBoardManager } from '@/components/boards/BoardManager'
 import InstallAppMenuItem from '@/components/InstallAppMenuItem'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
@@ -33,6 +35,8 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   const triggerRef = useRef<HTMLButtonElement>(null)
   const menuId = useId()
   const isEditMode = useEditMode()
+  // A board someone else shares has no layout to edit
+  const boardReadOnly = useBoardReadOnly()
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
 
@@ -76,6 +80,11 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
     setIsOpen(false)
     triggerRef.current?.focus()
     toggleEditMode()
+  }
+
+  const handleNewBoard = () => {
+    setIsOpen(false)
+    openBoardManager()
   }
 
   const handleProfile = useCallback(() => {
@@ -172,7 +181,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                   </Link>
                 ))}
                 {/* A dashboard locked by a config file can't be edited */}
-                {!user?.config_file?.read_only && (
+                {!user?.config_file?.read_only && !boardReadOnly && (
                   <button
                     type="button"
                     onClick={handleEditLayout}
@@ -221,6 +230,23 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
               <UserIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
               Profile Settings
             </button>
+
+            {/* Boards are managed from the switcher once there are more */}
+            {!user?.config_file?.read_only && (
+              <button
+                type="button"
+                onClick={handleNewBoard}
+                className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                style={{ color: 'var(--color-text-primary)' }}
+                {...menuItemHover}
+              >
+                <Squares2X2Icon
+                  className="mr-3 h-5 w-5"
+                  style={{ color: 'var(--color-text-muted)' }}
+                />
+                New board
+              </button>
+            )}
 
             <InstallAppMenuItem onSelect={() => setIsOpen(false)} />
 
