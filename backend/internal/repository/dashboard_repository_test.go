@@ -121,6 +121,23 @@ func TestDashboardApplyReplaceOnlyWipesTheUser(t *testing.T) {
 	assert.Equal(t, models.IntegrationAuthAPIKey, integration.AuthType)
 }
 
+// A file another user's service points at must survive the replace
+func TestDashboardApplyReplaceKeepsIconsStillInUse(t *testing.T) {
+	db := setupDashboardTestDB(t)
+	repo := NewDashboardRepository(db)
+	ctx := context.Background()
+	_, err := repo.Apply(ctx, "user-1", true, testDashboardRows("old"), testDashboardLimits)
+	require.NoError(t, err)
+	shared := testDashboardRows("other")
+	shared.Services[0].IconImagePath = "old.png"
+	_, err = repo.Apply(ctx, "user-2", true, shared, testDashboardLimits)
+	require.NoError(t, err)
+
+	applied, err := repo.Apply(ctx, "user-1", true, testDashboardRows("new"), testDashboardLimits)
+	require.NoError(t, err)
+	assert.Empty(t, applied.RemovedIcons)
+}
+
 func TestDashboardApplyMergeOffsetsPositionsAndReusesTheDefaultGroup(t *testing.T) {
 	db := setupDashboardTestDB(t)
 	repo := NewDashboardRepository(db)
