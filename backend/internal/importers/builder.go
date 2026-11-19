@@ -170,11 +170,11 @@ func (b *builder) service(e entry) {
 		b.warn("An entry without a name is skipped")
 		return
 	}
-	if _, ok := webURL(e.url); !ok {
+	if err := utils.ValidateServiceURL(e.url); err != nil {
 		if e.url == "" {
 			b.warn("%s: skipped, it has no URL", name)
 		} else {
-			b.warn("%s: skipped, %q is not an http(s) URL Nimbus can link to", name, e.url)
+			b.warn("%s: skipped, %q is not a URL Nimbus can link to: %s", name, e.url, err)
 		}
 		return
 	}

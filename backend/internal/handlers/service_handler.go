@@ -307,7 +307,7 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	if req.URL != existingService.URL {
 		if err := utils.ValidateServiceURL(req.URL); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "Invalid URL. It must start with http:// or https:// and have a host",
+				"error": "Invalid URL: " + err.Error(),
 			})
 		}
 	}

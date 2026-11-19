@@ -408,6 +408,7 @@ func TestOddURLsAreSkipped(t *testing.T) {
 	require.Len(t, result.Document.Integrations, 1)
 	assert.Equal(t, "https://example.com/sonarr", result.Document.Integrations[0].BaseURL, "no login, query or fragment")
 	assert.Len(t, result.Warnings, 6)
+	assert.Contains(t, strings.Join(result.Warnings, "\n"), "Metadata: skipped, \"http://169.254.169.254/latest/meta-data/\" is not a URL Nimbus can link to: cloud metadata endpoints are not allowed")
 	assertImportable(t, &result.Document)
 }
 
