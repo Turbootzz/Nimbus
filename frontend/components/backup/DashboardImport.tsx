@@ -356,7 +356,7 @@ export default function DashboardImport() {
       {confirming && ready && (
         <ConfirmDialog
           title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(preview) ?? ''}`.trim()}
+          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
           confirmLabel="Replace"
           onConfirm={apply}
           onCancel={() => setConfirming(false)}
