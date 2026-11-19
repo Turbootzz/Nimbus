@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nimbus/backend/internal/models"
@@ -44,9 +47,12 @@ func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken,
 		return fmt.Errorf("failed to lock user for token create: %w", err)
 	}
 
+	// read_only mirrors the scopes for versions from before scopes existed
+	token.ReadOnly = !slices.Contains(token.Scopes, models.ScopeWriteServices)
+
 	insert := `
-		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix, read_only, scopes, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING created_at
 	`
 	err = tx.QueryRowContext(ctx, insert,
@@ -56,6 +62,8 @@ func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken,
 		token.TokenHash,
 		token.TokenPrefix,
 		token.ReadOnly,
+		strings.Join(token.Scopes, " "),
+		token.ExpiresAt,
 	).Scan(&token.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create api token: %w", err)
@@ -77,27 +85,36 @@ func (r *APITokenRepository) Create(ctx context.Context, token *models.APIToken,
 	return nil
 }
 
-// GetByTokenHash finds a token by its SHA-256 hash
-func (r *APITokenRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*models.APIToken, error) {
-	query := `
-		SELECT id, user_id, name, token_hash, token_prefix, read_only, last_used_at, created_at
-		FROM api_tokens
-		WHERE token_hash = $1
-	`
+const apiTokenColumns = `id, user_id, name, token_hash, token_prefix, scopes, last_used_at, expires_at, created_at`
 
+// scanAPIToken reads one row of apiTokenColumns
+func scanAPIToken(row rowScanner) (*models.APIToken, error) {
 	token := &models.APIToken{}
-	err := r.db.QueryRowContext(ctx, query, tokenHash).Scan(
+	var scopes string
+	if err := row.Scan(
 		&token.ID,
 		&token.UserID,
 		&token.Name,
 		&token.TokenHash,
 		&token.TokenPrefix,
-		&token.ReadOnly,
+		&scopes,
 		&token.LastUsedAt,
+		&token.ExpiresAt,
 		&token.CreatedAt,
-	)
+	); err != nil {
+		return nil, err
+	}
+	token.Scopes = strings.Fields(scopes)
+	token.ReadOnly = !slices.Contains(token.Scopes, models.ScopeWriteServices)
+	return token, nil
+}
 
-	if err == sql.ErrNoRows {
+// GetByTokenHash finds a token by its SHA-256 hash
+func (r *APITokenRepository) GetByTokenHash(ctx context.Context, tokenHash string) (*models.APIToken, error) {
+	query := `SELECT ` + apiTokenColumns + ` FROM api_tokens WHERE token_hash = $1`
+
+	token, err := scanAPIToken(r.db.QueryRowContext(ctx, query, tokenHash))
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrAPITokenNotFound
 	}
 	if err != nil {
@@ -109,12 +126,7 @@ func (r *APITokenRepository) GetByTokenHash(ctx context.Context, tokenHash strin
 
 // ListByUserID returns all tokens for a user, newest first
 func (r *APITokenRepository) ListByUserID(ctx context.Context, userID string) ([]models.APIToken, error) {
-	query := `
-		SELECT id, user_id, name, token_hash, token_prefix, read_only, last_used_at, created_at
-		FROM api_tokens
-		WHERE user_id = $1
-		ORDER BY created_at DESC, id
-	`
+	query := `SELECT ` + apiTokenColumns + ` FROM api_tokens WHERE user_id = $1 ORDER BY created_at DESC, id`
 
 	rows, err := r.db.QueryContext(ctx, query, userID)
 	if err != nil {
@@ -124,20 +136,11 @@ func (r *APITokenRepository) ListByUserID(ctx context.Context, userID string) ([
 
 	tokens := []models.APIToken{}
 	for rows.Next() {
-		var token models.APIToken
-		if err := rows.Scan(
-			&token.ID,
-			&token.UserID,
-			&token.Name,
-			&token.TokenHash,
-			&token.TokenPrefix,
-			&token.ReadOnly,
-			&token.LastUsedAt,
-			&token.CreatedAt,
-		); err != nil {
+		token, err := scanAPIToken(rows)
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan api token: %w", err)
 		}
-		tokens = append(tokens, token)
+		tokens = append(tokens, *token)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -167,11 +170,13 @@ func (r *APITokenRepository) Delete(ctx context.Context, id, userID string) erro
 	return nil
 }
 
-// UpdateLastUsed stamps the token's last usage time
+// UpdateLastUsed stamps the token's last usage time. The column has no time
+// zone, so store UTC: CURRENT_TIMESTAMP would be the database's local time
+// and break the caller's once-a-minute throttle.
 func (r *APITokenRepository) UpdateLastUsed(ctx context.Context, id string) error {
-	query := `UPDATE api_tokens SET last_used_at = CURRENT_TIMESTAMP WHERE id = $1`
+	query := `UPDATE api_tokens SET last_used_at = $1 WHERE id = $2`
 
-	_, err := r.db.ExecContext(ctx, query, id)
+	_, err := r.db.ExecContext(ctx, query, time.Now().UTC(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update api token last used: %w", err)
 	}
