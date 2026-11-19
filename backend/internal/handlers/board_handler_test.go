@@ -270,6 +270,8 @@ func TestBoards_ReadMatrix(t *testing.T) {
 	for _, board := range []string{"b0000000-0000-0000-0000-00000000dead", "family", "'; DROP TABLE boards; --"} {
 		status, body := f.do(t, boardUserID, http.MethodGet, "/services?board="+url.QueryEscape(board), "")
 		assert.Equal(t, 404, status, "%s: %s", board, body)
+		// The dashboard leaves a board that answers this (BOARD_NOT_FOUND)
+		assert.JSONEq(t, `{"error":"Board not found"}`, body)
 	}
 }
 

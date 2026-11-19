@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
+import BoardManager, { openBoardManager } from '@/components/boards/BoardManager'
 import BoardSwitcher from '@/components/boards/BoardSwitcher'
 import DashboardView from '@/components/DashboardView'
 import ServiceForm from '@/components/ServiceForm'
@@ -11,7 +12,8 @@ import { api } from '@/lib/api'
 import type { Board, Service, Widget } from '@/types'
 
 const replace = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: vi.fn() }) }))
+const push = vi.fn()
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push }) }))
 vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
@@ -25,11 +27,25 @@ vi.mock('@/lib/api', () => ({
     getIntegrationKinds: vi.fn(),
     updateService: vi.fn(),
     updateWidget: vi.fn(),
+    getCurrentUser: vi.fn(),
+    createBoard: vi.fn(),
+    updateBoard: vi.fn(),
+    reorderBoards: vi.fn(),
+    deleteBoard: vi.fn(),
   },
 }))
+// Polls right away instead of waiting for the full fetch to age
+vi.mock('@/lib/polling', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/polling')>()),
+  shouldSkipPoll: () => false,
+}))
 // The live data has its own tests
+let stream: { boardId?: string; onResync: () => Promise<void> | void }
 vi.mock('@/hooks/useDashboardStream', () => ({
-  useDashboardStream: () => ({ snapshots: {} }),
+  useDashboardStream: (options: typeof stream) => {
+    stream = options
+    return { snapshots: {} }
+  },
   snapshotKey: (kind: string, id: string) => `${kind}:${id}`,
 }))
 vi.mock('@/components/DiscoveredTray', () => ({ default: () => <div data-testid="tray" /> }))
@@ -131,7 +147,10 @@ beforeEach(() => {
   vi.mocked(api.getIntegrationKinds).mockResolvedValue({ data: [] })
 })
 
-afterEach(() => act(() => setBoardOnScreen(null)))
+afterEach(() => {
+  vi.useRealTimers()
+  act(() => setBoardOnScreen(null))
+})
 
 describe('BoardSwitcher', () => {
   it('is not there with one board', async () => {
@@ -317,5 +336,81 @@ describe('DashboardView', () => {
     render(<DashboardView />)
     await waitFor(() => expect(api.getBoards).toHaveBeenCalled())
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('refetches a kiosk every five minutes without the spinner', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    window.history.replaceState(null, '', '/board/lab?kiosk=1')
+    render(<DashboardView board={lab} />)
+    expect(await screen.findByText('s1')).toBeInTheDocument()
+    expect(api.getServices).toHaveBeenCalledTimes(1)
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60 * 1000))
+    expect(api.getServices).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument()
+    expect(screen.getByText('s1')).toBeInTheDocument()
+  })
+
+  it('leaves a board that is no longer shared', async () => {
+    render(<DashboardView board={family} />)
+    expect(await screen.findByText('s1')).toBeInTheDocument()
+    expect(stream.boardId).toBe('b-family')
+    vi.mocked(api.getServices).mockResolvedValue({ error: { message: 'Board not found' } })
+    vi.mocked(api.getBoards).mockClear()
+    await act(() => stream.onResync())
+    expect(api.getBoards).toHaveBeenCalled()
+    expect(replace).toHaveBeenCalledWith('/dashboard')
+  })
+})
+
+describe('BoardManager', () => {
+  beforeEach(async () => {
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ data: { role: 'admin' } as never })
+    vi.mocked(api.createBoard).mockResolvedValue({ data: lab })
+    vi.mocked(api.deleteBoard).mockResolvedValue({ data: undefined })
+    await loadBoards([home, lab])
+  })
+
+  const open = async () => {
+    render(<BoardManager />)
+    act(() => openBoardManager())
+    return screen.findByRole('dialog', { name: 'Boards' })
+  }
+
+  it('creates a shared board', async () => {
+    await open()
+    fireEvent.change(screen.getByLabelText('New board'), { target: { value: ' Family ' } })
+    fireEvent.click(await screen.findByLabelText('Share with every user, read-only'))
+    vi.mocked(api.getBoards).mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Create' }))
+    await waitFor(() =>
+      expect(api.createBoard).toHaveBeenCalledWith({ name: 'Family', is_shared: true })
+    )
+    await waitFor(() => expect(api.getBoards).toHaveBeenCalled())
+    expect(screen.getByLabelText('New board')).toHaveValue('')
+  })
+
+  it('deletes a board and moves its tiles, or deletes them too', async () => {
+    await open()
+    expect(screen.queryByRole('button', { name: 'Delete Home' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Lab' }))
+    expect(screen.getByLabelText('Board to move them to')).toHaveValue('b-home')
+    fireEvent.click(screen.getByRole('button', { name: 'Delete board' }))
+    await waitFor(() => expect(api.deleteBoard).toHaveBeenCalledWith('b-lab', 'b-home'))
+    expect(push, 'the board was not on screen').not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Lab' }))
+    fireEvent.click(screen.getByLabelText('Delete them with the board'))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete board' }))
+    await waitFor(() => expect(api.deleteBoard).toHaveBeenLastCalledWith('b-lab', undefined))
+  })
+
+  it('leaves the deleted board when it is on screen', async () => {
+    act(() => setBoardOnScreen('b-lab'))
+    await open()
+    fireEvent.click(screen.getByRole('button', { name: 'Delete Lab' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Delete board' }))
+    await waitFor(() => expect(push).toHaveBeenCalledWith('/dashboard'))
+    expect(store['nimbus-last-board']).toBe('')
   })
 })

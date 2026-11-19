@@ -19,7 +19,7 @@ const DEFAULT_RETURN = { href: '/services', label: 'Services' }
 function NewServiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { boards } = useBoards()
+  const { boards, loaded } = useBoards()
   // A board ID only counts when it is one of the user's own boards; the link
   // back is made from that board, never taken from the URL
   const board = boards.find((b) => b.id === searchParams.get('board') && b.can_edit)
@@ -48,12 +48,15 @@ function NewServiceContent() {
         </p>
       </div>
 
-      <ServiceForm
-        initialGroupId={searchParams.get('group')}
-        boardId={board?.id}
-        cancelHref={returnTarget.href}
-        onSaved={() => router.push(returnTarget.href)}
-      />
+      {/* With a board, its groups are only known once the boards are */}
+      {searchParams.get('board') && !loaded ? null : (
+        <ServiceForm
+          initialGroupId={searchParams.get('group')}
+          boardId={board?.id}
+          cancelHref={returnTarget.href}
+          onSaved={() => router.push(returnTarget.href)}
+        />
+      )}
     </div>
   )
 }

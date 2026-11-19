@@ -23,6 +23,7 @@ import {
 } from '@/lib/layout-store'
 import { isDashboardPath } from '@/lib/boards'
 import { useKiosk } from '@/hooks/useKiosk'
+import { isKioskSearch } from '@/lib/kiosk'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -60,7 +61,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
   useEffect(() => {
     const root = document.documentElement
-    root.toggleAttribute('data-kiosk', kiosk)
+    // From the URL, not this render: while hydrating it is not kiosk yet,
+    // and the attribute ThemeScript set must stay
+    root.toggleAttribute('data-kiosk', dashboard && isKioskSearch(window.location.search))
     if (!dashboard) {
       root.removeAttribute('data-layout')
     } else if (getLayoutSnapshot() === 'canvas') {

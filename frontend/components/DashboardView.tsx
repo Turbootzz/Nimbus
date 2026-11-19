@@ -303,13 +303,18 @@ export default function DashboardView({ board }: DashboardViewProps) {
     }
   }, [selectedGroupId, groupKey])
 
-  // Fetch services and groups; a kiosk refetches now and then, quietly
+  // Fetch services and groups
   useEffect(() => {
     fetchData()
+  }, [])
+
+  // A kiosk refetches now and then, quietly. Keyed on kiosk: a hydrated page
+  // learns it is one only after its first render.
+  useEffect(() => {
     if (!kiosk) return
     const timer = setInterval(() => fetchData(true), KIOSK_REFRESH_MS)
     return () => clearInterval(timer)
-  }, [])
+  }, [kiosk])
 
   // Live updates: health checks and widget data arrive over SSE; while the
   // stream is down the hook falls back to polling every 30 seconds

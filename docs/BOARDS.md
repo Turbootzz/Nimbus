@@ -53,7 +53,9 @@ Add `?kiosk=1` to a board address for a wall screen or a tablet:
 `https://nimbus.example.com/board/family?kiosk=1` (or `/dashboard?kiosk=1`). The page shows the
 tiles and nothing around them: no top bar, sidebar, banners, buttons, search or edit mode.
 Health checks and widget data keep arriving live, and the whole board is fetched again every
-five minutes. A kiosk address never redirects and is not remembered as your last board.
+five minutes. A kiosk address is not remembered as your last board and `/dashboard?kiosk=1`
+does not move on to another board. Only when its board is no longer shared with the kiosk user
+does it fall back to `/dashboard?kiosk=1`.
 
 Kiosk mode still needs a signed-in user. A browser without a session goes to the login page,
 also with `?kiosk=1`.
