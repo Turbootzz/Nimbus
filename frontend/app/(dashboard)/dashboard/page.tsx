@@ -59,9 +59,12 @@ import {
   resolveGroupDisplay,
   sortableOrder,
   splitTiles,
+  tileGroupId,
   tileKey,
   tileStyleOf,
   toTilePositions,
+  undoMove,
+  withGroup,
 } from '@/lib/tiles'
 
 function toStringId(id: string | number): string {
@@ -440,7 +443,7 @@ export default function DashboardPage() {
     if (isTabDrag) return
 
     if (sectioned) {
-      if (activeId !== overId && widgetsLoaded) await dropInSections(activeId, overId)
+      if (activeId !== overId && widgetsLoaded) dropInSections(activeId, overId)
       return
     }
 
@@ -448,7 +451,7 @@ export default function DashboardPage() {
     if (overId.startsWith(GROUP_DROP_PREFIX)) {
       const draggedTile = tiles.find((t) => tileKey(t) === activeId)
       if (draggedTile) {
-        await moveTileToGroup(draggedTile, overId.replace(GROUP_DROP_PREFIX, ''))
+        moveTileToGroup(draggedTile, overId.replace(GROUP_DROP_PREFIX, ''))
       }
       return
     }
@@ -456,47 +459,54 @@ export default function DashboardPage() {
     // Normal reorder within the visible tiles; hidden tiles keep their slots
     if (activeId === overId || !widgetsLoaded) return
     const reordered = reorderTiles(tiles, sortableTiles, activeId, overId)
-    if (reordered) await saveTileOrder(reordered, tiles)
+    if (reordered) saveTileMove(activeId, reordered)
   }
 
+  // Tile moves save one at a time, so they reach the server in the order
+  // they were made. A save that fails undoes its move on the latest tiles.
+  const tileSaves = useRef(Promise.resolve())
+  const tilesRef = useRef(tiles)
+  useEffect(() => {
+    tilesRef.current = tiles
+  }, [tiles])
+
   const showTiles = (order: Tile[]) => {
+    tilesRef.current = order
     const next = splitTiles(order)
     setServices(next.services)
     setWidgets(next.widgets)
   }
 
-  // Shows the new order at once and saves every position, so services and
-  // widgets never share one. On failure the tiles go back to `fallback`.
-  const saveTileOrder = async (order: Tile[], fallback: Tile[]) => {
+  // Shows the move of tile `key` at once, then saves the group it joined, if
+  // any, and every position if the order changed, so services and widgets
+  // never share one
+  const saveTileMove = (key: string, order: Tile[], group?: Group) => {
+    let before = tiles
+    const moved = order.find((tile) => tileKey(tile) === key)
+    const reordered = order.some((tile, i) => tileKey(tile) !== tileKey(tiles[i]))
     showTiles(order)
-    try {
-      const response = await api.reorderTiles({ tiles: toTilePositions(order) })
-      if (response.error) throw new Error(response.error.message)
-    } catch (error) {
-      console.error('Failed to save order:', error)
-      showTiles(fallback)
-    }
+    tileSaves.current = tileSaves.current.then(async () => {
+      try {
+        if (group && moved) {
+          await saveTileGroup(moved, group.is_default ? '' : group.id)
+          // If the order can't be saved, the tile is still in its new group
+          before = before.map((tile) => (tileKey(tile) === key ? moved : tile))
+        }
+        if (reordered) {
+          const response = await api.reorderTiles({ tiles: toTilePositions(tilesRef.current) })
+          if (response.error) throw new Error(response.error.message)
+        }
+      } catch (error) {
+        console.error('Failed to move tile:', error)
+        showTiles(undoMove(tilesRef.current, before, key))
+      }
+    })
   }
 
-  // A drop in sections mode: a reorder, or a move to another section, which
-  // saves the group first and then the positions
-  const dropInSections = async (activeKey: string, overId: string) => {
+  // A drop in sections mode: a reorder, or a move to another section
+  const dropInSections = (activeKey: string, overId: string) => {
     const move = moveTile(tiles, sortableSections, activeKey, overId)
-    if (!move) return
-    if (!move.regrouped) return saveTileOrder(move.tiles, tiles)
-
-    const { tile, group } = move.regrouped
-    showTiles(move.tiles)
-    try {
-      await saveTileGroup(tile, group.is_default ? '' : group.id)
-    } catch (error) {
-      console.error('Failed to move tile to group:', error)
-      showTiles(tiles)
-      return
-    }
-    // If the order can't be saved, the tile is still in its new group
-    const regrouped = tiles.map((t) => (tileKey(t) === activeKey ? tile : t))
-    await saveTileOrder(move.tiles, regrouped)
+    if (move) saveTileMove(activeKey, move.tiles, move.regrouped?.group)
   }
 
   // Saves the group of a service or widget; '' clears it (the default group).
@@ -511,36 +521,17 @@ export default function DashboardPage() {
   }
 
   // Moves a service or widget to another group (dropped on a group tab)
-  const moveTileToGroup = async (tile: Tile, targetGroupId: string) => {
-    // For default group: empty string clears the group (tile becomes ungrouped)
-    // For other groups: set group_id to the target group's ID
-    const isTargetDefault = groups.find((g) => g.id === targetGroupId)?.is_default
-    const newGroupId = isTargetDefault ? '' : targetGroupId
-
-    const currentGroupId = tile.kind === 'service' ? tile.service.group_id : tile.widget.group_id
-    if (isTargetDefault && !currentGroupId) return
-    if (!isTargetDefault && currentGroupId === targetGroupId) return
-
-    // Optimistic update
-    const previousServices = services
-    const previousWidgets = widgets
-    if (tile.kind === 'widget') {
-      setWidgets(
-        widgets.map((w) => (w.id === tile.id ? { ...w, group_id: newGroupId || null } : w))
-      )
-    } else {
-      setServices(
-        services.map((s) => (s.id === tile.id ? { ...s, group_id: newGroupId || undefined } : s))
-      )
-    }
-
-    try {
-      await saveTileGroup(tile, newGroupId)
-    } catch (error) {
-      console.error('Failed to move tile to group:', error)
-      setServices(previousServices)
-      setWidgets(previousWidgets)
-    }
+  const moveTileToGroup = (tile: Tile, targetGroupId: string) => {
+    const group = groups.find((g) => g.id === targetGroupId)
+    // The default group holds the ungrouped tiles
+    const currentGroupId = tileGroupId(tile)
+    if (!group || (group.is_default ? !currentGroupId : currentGroupId === group.id)) return
+    const key = tileKey(tile)
+    saveTileMove(
+      key,
+      tiles.map((t) => (tileKey(t) === key ? withGroup(t, group) : t)),
+      group
+    )
   }
 
   const handleSizeChange = async (id: string, newSize: CardSize) => {

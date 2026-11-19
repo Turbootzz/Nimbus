@@ -164,12 +164,15 @@ export function groupTilesBySection(tiles: Tile[], groups: Group[]): TileSection
   return sections
 }
 
-// The default group holds the ungrouped tiles, so moving there clears the group
-function withGroup(tile: Tile, group: Group): Tile {
-  const groupId = group.is_default ? undefined : group.id
+function withGroupId(tile: Tile, groupId: string | null | undefined): Tile {
   return tile.kind === 'service'
-    ? { ...tile, service: { ...tile.service, group_id: groupId } }
+    ? { ...tile, service: { ...tile.service, group_id: groupId ?? undefined } }
     : { ...tile, widget: { ...tile.widget, group_id: groupId ?? null } }
+}
+
+// The default group holds the ungrouped tiles, so moving there clears the group
+export function withGroup(tile: Tile, group: Group): Tile {
+  return withGroupId(tile, group.is_default ? undefined : group.id)
 }
 
 export interface TileMove {
@@ -229,4 +232,22 @@ export function moveTile(
     tiles: [...rest.slice(0, index), moved, ...rest.slice(index)],
     regrouped: { tile: moved, group: to.group },
   }
+}
+
+/**
+ * Undoes a move of tile `key` that could not be saved: the tile gets its
+ * group in `before` back, and goes ahead of the tile that followed it there.
+ * Everything else in `current`, newer moves included, stays as it is.
+ */
+export function undoMove(current: Tile[], before: Tile[], key: string): Tile[] {
+  const tile = current.find((t) => tileKey(t) === key)
+  const index = before.findIndex((t) => tileKey(t) === key)
+  if (!tile || index === -1) return current
+
+  const rest = current.filter((t) => t !== tile)
+  const restKeys = rest.map(tileKey)
+  const next = before.slice(index + 1).find((t) => restKeys.includes(tileKey(t)))
+  const at = next ? restKeys.indexOf(tileKey(next)) : rest.length
+  const undone = withGroupId(tile, tileGroupId(before[index]))
+  return [...rest.slice(0, at), undone, ...rest.slice(at)]
 }
