@@ -182,6 +182,8 @@ func main() {
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
 	discoveryHandler := handlers.NewDiscoveryHandler(discoveryService)
 	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
+	statusPageService := services.NewStatusPageService(settingsRepo, groupRepo, serviceRepo, statusLogRepo, userRepo, handlers.UploadDir)
+	statusPageHandler := handlers.NewStatusPageHandler(statusPageService)
 
 	// Dashboard export/import
 	transferService := services.NewDashboardTransferService(services.DashboardTransferDeps{
@@ -397,6 +399,9 @@ func main() {
 	setup.Post("/admin", setupHandler.CreateInitialAdmin)
 	setup.Get("/registration-status", settingsHandler.GetPublicRegistrationStatus)
 
+	// Public status page (no auth; off unless an admin enables it)
+	v1.Get("/public/status", statusPageHandler.RateLimit(), statusPageHandler.GetPublic)
+
 	// Admin routes (protected, admin only, session only — API tokens can't
 	// reach admin surfaces like SMTP settings)
 	admin := v1.Group("/admin", sessionAuth, sessionOnly, middleware.AdminOnly())
@@ -408,6 +413,8 @@ func main() {
 	admin.Get("/settings/smtp/status", settingsHandler.GetSMTPStatus)
 	admin.Put("/settings/smtp", settingsHandler.UpdateSMTPSettings)
 	admin.Post("/settings/smtp/test", settingsHandler.TestSMTPConnection)
+	admin.Get("/status-page", statusPageHandler.GetSettings)
+	admin.Put("/status-page", statusPageHandler.UpdateSettings)
 	admin.Get("/settings/:key", settingsHandler.GetSetting)
 	admin.Put("/settings/:key", settingsHandler.UpdateSetting)
 

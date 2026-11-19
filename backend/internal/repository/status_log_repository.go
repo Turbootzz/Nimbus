@@ -5,15 +5,17 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/models"
 )
 
 type StatusLogRepository struct {
-	db *sql.DB
+	db           *sql.DB
+	isPostgreSQL bool
 }
 
-func NewStatusLogRepository(db *sql.DB) *StatusLogRepository {
-	return &StatusLogRepository{db: db}
+func NewStatusLogRepository(sqlDB *sql.DB) *StatusLogRepository {
+	return &StatusLogRepository{db: sqlDB, isPostgreSQL: db.IsPostgreSQL(sqlDB)}
 }
 
 // Create creates a new status log entry
@@ -253,6 +255,42 @@ func (r *StatusLogRepository) GetAggregatedByInterval(ctx context.Context, servi
 	}
 
 	return results, rows.Err()
+}
+
+// GetHourlyUptimeByGroup counts the checks of every service in a group per
+// hour since the given time, in one query. Hour 0 starts at since. Bucketing
+// relative to since keeps it independent of the database time zone.
+func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupID string, since time.Time) ([]models.UptimeBucket, error) {
+	// since is $1 because SQLite numbers parameters in order of appearance
+	hour := `CAST((julianday(l.checked_at) - julianday($1)) * 24 AS INTEGER)`
+	if r.isPostgreSQL {
+		hour = `FLOOR(EXTRACT(EPOCH FROM (l.checked_at - $1::timestamptz)) / 3600)::int`
+	}
+	query := `
+		SELECT l.service_id, ` + hour + ` AS hour,
+			COUNT(*) AS total,
+			COUNT(CASE WHEN l.status = 'online' THEN 1 END) AS online
+		FROM service_status_logs l
+		JOIN services s ON s.id = l.service_id
+		WHERE l.checked_at >= $1 AND s.group_id = $2
+		GROUP BY l.service_id, hour
+	`
+
+	rows, err := r.db.QueryContext(ctx, query, since, groupID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var buckets []models.UptimeBucket
+	for rows.Next() {
+		var b models.UptimeBucket
+		if err := rows.Scan(&b.ServiceID, &b.Hour, &b.Total, &b.Online); err != nil {
+			return nil, err
+		}
+		buckets = append(buckets, b)
+	}
+	return buckets, rows.Err()
 }
 
 // DeleteOlderThan deletes status logs older than the specified time

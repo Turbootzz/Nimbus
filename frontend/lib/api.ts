@@ -37,6 +37,7 @@ import type {
   ChangePasswordRequest,
   SMTPStatusResponse,
   UpdateSMTPSettingsRequest,
+  StatusPageSettings,
   Widget,
   WidgetTypeMeta,
   WidgetCreateRequest,
@@ -734,6 +735,19 @@ class ApiClient {
     data: UpdateSMTPSettingsRequest
   ): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>('/admin/settings/smtp', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getStatusPageSettings(): Promise<ApiResponse<StatusPageSettings>> {
+    return this.request<StatusPageSettings>('/admin/status-page')
+  }
+
+  async updateStatusPageSettings(
+    data: StatusPageSettings
+  ): Promise<ApiResponse<StatusPageSettings>> {
+    return this.request<StatusPageSettings>('/admin/status-page', {
       method: 'PUT',
       body: JSON.stringify(data),
     })

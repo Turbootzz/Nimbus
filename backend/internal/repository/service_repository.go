@@ -184,6 +184,21 @@ func (r *ServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, use
 	return r.queryServices(ctx, query, userID)
 }
 
+// GetMonitoredByGroupID retrieves the services of one group that are health
+// checked: monitoring is on for both the service and the group
+func (r *ServiceRepository) GetMonitoredByGroupID(ctx context.Context, groupID string) ([]*models.Service, error) {
+	query := `
+		SELECT ` + monitoredServiceColumns + `
+		FROM services s
+		JOIN groups g ON s.group_id = g.id
+		WHERE s.group_id = $1
+		  AND s.monitoring_enabled = TRUE
+		  AND g.monitoring_enabled = TRUE
+		ORDER BY s.position ASC, s.created_at DESC
+	`
+	return r.queryServices(ctx, query, groupID)
+}
+
 // Update updates an existing service
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
 	query := `

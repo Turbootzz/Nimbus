@@ -16,6 +16,13 @@ function applyThemeBeforeHydration() {
 
     const root = document.documentElement
 
+    // The public status page follows the visitor's system theme and takes
+    // nothing a signed-in user left in this browser (see isStatusPagePath)
+    if (window.location.pathname === '/status' || window.location.pathname.startsWith('/status/')) {
+      root.classList.add('auto')
+      return
+    }
+
     // Apply theme class
     if (theme === 'auto') {
       root.classList.add('auto')
