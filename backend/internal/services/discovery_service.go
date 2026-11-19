@@ -412,7 +412,7 @@ func (s *DiscoveryService) AutoAddEnabled(ctx context.Context) (bool, error) {
 	return setting.Value == "true", nil
 }
 
-// AutoAdd adds every container labelled nimbus.enable=true that has a URL
+// AutoAdd adds every container labelled nimbus.enable=true that has a nimbus.url
 // label, for each admin's Docker integrations, when the admin setting is on.
 // It never adds a guessed URL, an ignored container, or one it added before
 // (also not after that service was deleted). Returns how many were added,
@@ -448,7 +448,7 @@ func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 				return added, ctx.Err()
 			}
 			candidate := s.candidate(integration, container, "")
-			if _, isHandled := handled[candidate.Key]; isHandled || !candidate.Enabled || candidate.URLGuessed || candidate.URL == "" {
+			if _, isHandled := handled[candidate.Key]; isHandled || !candidate.Enabled || !container.Labels.NimbusURL || candidate.URLGuessed || candidate.URL == "" {
 				continue
 			}
 			_, err := s.Add(ctx, integration.UserID, &models.DiscoveryAddRequest{

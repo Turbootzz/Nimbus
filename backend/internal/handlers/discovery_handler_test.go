@@ -743,3 +743,24 @@ func TestDiscoveryService_AutoAddIsBoundedPerRun(t *testing.T) {
 		assert.Equal(t, want, added)
 	}
 }
+
+// Auto-add takes only an address from nimbus.url; homepage.href is offered in
+// the tray, but someone checks it before it is added
+func TestDiscoveryService_AutoAddNeedsNimbusURL(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, `[{"Id":"1","Names":["/jellyfin"],"Image":"jellyfin/jellyfin","State":"running",
+		"Labels":{"nimbus.enable":"true","homepage.href":"http://jellyfin.lan:8096"}}]`)
+	f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	_, err := db.Exec(`UPDATE system_settings SET value = 'true' WHERE key = 'discovery_auto_add'`)
+	require.NoError(t, err)
+
+	result := discover(t, f.app(discoveryAdminID, "admin"))
+	require.Len(t, result.Containers, 1)
+	assert.Equal(t, "http://jellyfin.lan:8096", result.Containers[0].URL)
+	assert.False(t, result.Containers[0].URLGuessed)
+
+	added, err := f.service.AutoAdd(context.Background())
+	require.NoError(t, err)
+	assert.Zero(t, added)
+}
