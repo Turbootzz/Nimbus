@@ -63,7 +63,10 @@ function TopBarWeather() {
 // a fixed translucency, so it stays readable whatever the card opacity is.
 export default function CanvasTopBar() {
   return (
-    <header className="bg-card/85 border-card-border sticky top-0 z-30 border-b backdrop-blur-md">
+    <header
+      data-canvas-chrome
+      className="bg-card/85 border-card-border sticky top-0 z-30 border-b backdrop-blur-md"
+    >
       <h1 className="sr-only">Dashboard</h1>
       <div className="mx-auto grid h-16 max-w-screen-2xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3 justify-self-start sm:gap-4">

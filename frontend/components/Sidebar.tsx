@@ -13,6 +13,7 @@ import {
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { mainNavigation } from '@/lib/navigation'
+import { isDashboardPath } from '@/lib/boards'
 import type { User } from '@/types'
 
 interface SidebarProps {
@@ -60,9 +61,9 @@ export default function Sidebar({
 
   const isActive = useCallback(
     (href: string) => {
-      // Dashboard should only match exactly to avoid matching /dashboard-something
+      // Dashboard matches every board, but not /dashboard-something
       if (href === '/dashboard') {
-        return pathname === href
+        return isDashboardPath(pathname)
       }
       // Other routes should match if pathname starts with href (e.g., /services matches /services/123)
       return pathname.startsWith(href)

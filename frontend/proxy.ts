@@ -23,7 +23,7 @@ const publicPaths = ['/login', '/register']
 const SHOW_LANDING_PAGE = process.env.SHOW_LANDING_PAGE === 'true'
 
 // Define protected routes that require authentication
-const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
+const protectedPaths = ['/dashboard', '/board', '/services', '/settings', '/admin']
 
 // fail-fast validation
 const JWT_SECRET = process.env.JWT_SECRET

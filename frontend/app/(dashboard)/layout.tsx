@@ -20,6 +20,8 @@ import {
   useLayoutMode,
   useLayoutPending,
 } from '@/lib/layout-store'
+import { isDashboardPath } from '@/lib/boards'
+import { useKiosk } from '@/hooks/useKiosk'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -41,9 +43,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     getSidebarServerSnapshot
   )
   const pathname = usePathname()
-  // Canvas is only for the dashboard; every other page keeps the sidebar
-  const canvas = useLayoutMode() === 'canvas' && pathname === '/dashboard'
+  // Canvas is only for a board; every other page keeps the sidebar
+  const dashboard = isDashboardPath(pathname)
+  const canvas = useLayoutMode() === 'canvas' && dashboard
   const layoutPending = useLayoutPending()
+  // Kiosk: a board and nothing around it, for a wall screen
+  const kiosk = useKiosk() && dashboard
 
   // Clean up the pre-hydration sidebar attribute once React takes over. The
   // layout one follows the stored choice, not this render: during hydration
@@ -54,7 +59,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
   useEffect(() => {
     const root = document.documentElement
-    if (pathname !== '/dashboard') {
+    root.toggleAttribute('data-kiosk', kiosk)
+    if (!dashboard) {
       root.removeAttribute('data-layout')
     } else if (getLayoutSnapshot() === 'canvas') {
       root.setAttribute('data-layout', 'canvas')
@@ -63,7 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       root.removeAttribute('data-layout')
     }
-  }, [canvas, layoutPending, pathname])
+  }, [canvas, layoutPending, dashboard, kiosk])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>
@@ -77,7 +83,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen">
       {/* Mobile sidebar backdrop */}
-      {!canvas && isSidebarOpen && (
+      {!canvas && !kiosk && isSidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/50 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
@@ -85,7 +91,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Sidebar */}
-      {!canvas && (
+      {!canvas && !kiosk && (
         <Sidebar
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
@@ -98,12 +104,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div
         data-main-content
         className={
-          canvas
+          canvas || kiosk
             ? ''
             : `transition-all duration-300 ${isDesktopCollapsed ? 'lg:pl-16' : 'lg:pl-52'}`
         }
       >
-        {canvas ? (
+        {kiosk ? null : canvas ? (
           <CanvasTopBar />
         ) : (
           <Header onMenuClick={() => setIsSidebarOpen(true)} title={pageTitle} />
@@ -113,12 +119,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main
           className={canvas ? 'mx-auto max-w-screen-2xl p-4 sm:p-6 lg:p-8' : 'p-4 sm:p-6 lg:p-8'}
         >
-          <ConfigFileBanner />
+          {!kiosk && <ConfigFileBanner />}
           {children}
         </main>
       </div>
 
-      <CommandPalette />
+      {!kiosk && <CommandPalette />}
       <CustomCss />
     </div>
   )
