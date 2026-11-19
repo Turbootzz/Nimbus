@@ -444,10 +444,13 @@ func TestRecheckService(t *testing.T) {
 	assert.Equal(t, []string{"svc-sonarr"}, data.checked)
 	assert.Equal(t, "online", status.Service.Status, "returns the status after the check")
 
-	// Not for services Nimbus does not monitor, and never for another user's
-	_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: "Router"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "monitoring is disabled")
+	// Not for services Nimbus does not monitor (by their group's setting or
+	// their own), and never for another user's
+	for _, unmonitored := range []string{"Router", "Printer"} {
+		_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: unmonitored})
+		require.Error(t, err, unmonitored)
+		assert.Contains(t, err.Error(), "monitoring is disabled", unmonitored)
+	}
 	_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: "svc-bob"})
 	require.Error(t, err)
 	assert.Equal(t, []string{"svc-sonarr"}, data.checked)

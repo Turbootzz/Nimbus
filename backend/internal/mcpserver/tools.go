@@ -185,7 +185,7 @@ func (t *tools) register(server *mcp.Server) {
 	notDestructive := false
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "recheck_service",
-		Description: "Run a health check for one service now and return its new status. Needs a token with the write:services scope.",
+		Description: "Run a health check for one service now and return its new status. Needs a token with the write:services scope. A service that is not monitored (status not_monitored: monitoring is off for it or its group) cannot be checked.",
 		Annotations: &mcp.ToolAnnotations{DestructiveHint: &notDestructive, IdempotentHint: true},
 	}, t.recheckService)
 
@@ -618,7 +618,7 @@ func (t *tools) recheckService(ctx context.Context, req *mcp.CallToolRequest, in
 		return nil, ServiceStatus{}, fmt.Errorf("%q is on a board that is shared with you; only its owner can run a check", service.Name)
 	}
 	if !service.MonitoringEnabled {
-		return nil, ServiceStatus{}, fmt.Errorf("monitoring is disabled for %q, so it cannot be checked", service.Name)
+		return nil, ServiceStatus{}, fmt.Errorf("monitoring is disabled for %q or its group, so it cannot be checked", service.Name)
 	}
 
 	if err := t.deps.Health.CheckService(ctx, service); err != nil {

@@ -391,7 +391,7 @@ func TestReplaceMovesTheStatusPageOnlyOnItsBoard(t *testing.T) {
 	lab := env.addBoard(t, boards, transferAdmin, "Lab", false)
 	var labGroup string
 	require.NoError(t, env.db.QueryRow(`SELECT id FROM groups WHERE board_id = ? AND name = 'Lab apps'`, lab.ID).Scan(&labGroup))
-	page := &fakeStatusPage{models.StatusPageSettings{Enabled: true, GroupID: labGroup}}
+	page := &fakeStatusPage{StatusPageSettings: models.StatusPageSettings{Enabled: true, GroupID: labGroup}}
 	env.svc.SetStatusPage(page)
 
 	// A document without the Lab board leaves its groups, and the page, alone

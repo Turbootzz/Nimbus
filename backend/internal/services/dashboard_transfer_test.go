@@ -696,14 +696,21 @@ func TestReplaceOnlyTouchesTheUsersOwnRows(t *testing.T) {
 	assert.Equal(t, theirs, toJSON(t, env.export(t, transferUser)))
 }
 
-// fakeStatusPage is a status page that shows one group
-type fakeStatusPage struct{ models.StatusPageSettings }
+// fakeStatusPage is a status page that shows one group; failing makes
+// UseGroup fail
+type fakeStatusPage struct {
+	models.StatusPageSettings
+	failing bool
+}
 
 func (f *fakeStatusPage) Settings(context.Context) (models.StatusPageSettings, error) {
 	return f.StatusPageSettings, nil
 }
 
 func (f *fakeStatusPage) UseGroup(_ context.Context, _, groupID string) error {
+	if f.failing {
+		return errors.New("database is down")
+	}
 	f.GroupID = groupID
 	return nil
 }
@@ -720,7 +727,7 @@ func TestReplaceKeepsTheStatusPageOnItsGroup(t *testing.T) {
 	env.seedDashboard(t)
 	ctx := context.Background()
 	media := env.groupID(t, transferAdmin, "Media")
-	page := &fakeStatusPage{models.StatusPageSettings{Enabled: true, GroupID: media}}
+	page := &fakeStatusPage{StatusPageSettings: models.StatusPageSettings{Enabled: true, GroupID: media}}
 	env.svc.SetStatusPage(page)
 	doc := env.export(t, transferAdmin)
 
@@ -761,6 +768,35 @@ func TestReplaceKeepsTheStatusPageOnItsGroup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, &dashdoc.StatusPageImpact{Group: "Media", Kept: false}, summary.StatusPage)
 	assert.Equal(t, before, page.GroupID)
+}
+
+// The page belongs to an admin: the replace of a demoted owner leaves it
+func TestReplaceOfANonAdminLeavesTheStatusPage(t *testing.T) {
+	env := newTransferEnv(t)
+	ctx := context.Background()
+	group := env.addGroup(t, transferUser, "Media", 0, true)
+	page := &fakeStatusPage{StatusPageSettings: models.StatusPageSettings{Enabled: true, GroupID: group}}
+	env.svc.SetStatusPage(page)
+
+	doc := &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Ref: "media", Name: "Media", Default: true}}}
+	summary, err := env.svc.Apply(ctx, transferUser, doc, dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Nil(t, summary.StatusPage)
+	assert.Equal(t, group, page.GroupID)
+}
+
+// A page that could not be moved shows the removed group, and the summary says so
+func TestReplaceSaysWhenTheStatusPageCouldNotMove(t *testing.T) {
+	env := newTransferEnv(t)
+	env.seedDashboard(t)
+	media := env.groupID(t, transferAdmin, "Media")
+	page := &fakeStatusPage{StatusPageSettings: models.StatusPageSettings{Enabled: true, GroupID: media}, failing: true}
+	env.svc.SetStatusPage(page)
+
+	summary, err := env.svc.Apply(context.Background(), transferAdmin, reparse(t, env.export(t, transferAdmin)), dashdoc.ModeReplace)
+	require.NoError(t, err, "the import itself is done")
+	assert.Equal(t, &dashdoc.StatusPageImpact{Group: "Media", Kept: false}, summary.StatusPage)
+	assert.Equal(t, media, page.GroupID)
 }
 
 func TestMergeAddsBehindWhatTheUserHas(t *testing.T) {

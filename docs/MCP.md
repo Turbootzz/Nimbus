@@ -8,15 +8,17 @@ Nimbus holds no LLM keys and calls no AI service. It only answers the requests y
 
 | Tool | What it returns |
 |---|---|
-| `list_services` | All services with their status, optionally for one group |
+| `list_services` | All services with their status, optionally for one group, and how many are online, offline, unknown and not monitored |
 | `get_service_status` | One service (by ID or name) with its latest health checks and their errors |
 | `get_uptime` | Uptime percentage and response times over `1h`, `24h`, `7d` or `30d` |
 | `search_services` | Services whose name, description, URL or group contains a text |
 | `get_widget_data` | Settings and latest data of one widget |
 | `list_integrations` | Connected apps and whether their connection works. No URLs, no credentials |
-| `recheck_service` | Runs a health check now. The only tool that changes anything, see below |
+| `recheck_service` | Runs a health check now, for a service that is monitored. The only tool that changes anything, see below |
 
 There is also one resource, `nimbus://dashboard`: a short text summary with the status counts, the offline services, the groups, the widgets and the integrations.
+
+Services are reported as the dashboard shows them. A service is `not_monitored` when monitoring is off for it or for its group; its last stored status is stale, so it is not given. Services without a group belong to your default group.
 
 Everything is limited to the user who owns the token. An assistant sees no more than that user sees in Nimbus, with the same masking of secrets, and nothing of other users.
 
@@ -195,3 +197,4 @@ Clients that only start local programs (stdio) can use `mcp-remote` as in the Cl
 | `405` | The client sent `GET`. That is normal for clients probing for a stream; they continue with `POST` |
 | `429` | Rate limit. Wait a minute or raise `API_TOKEN_RATE_LIMIT` |
 | "this API token is read-only" | `recheck_service` needs a token that also has `write:services` |
+| "monitoring is disabled for ..." | `recheck_service` only checks a monitored service. Turn monitoring on for the service and its group |

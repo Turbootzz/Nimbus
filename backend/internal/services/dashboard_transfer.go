@@ -482,7 +482,8 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	p.useStoredGroups(stored)
 	replace := mode == dashdoc.ModeReplace
 	var move *statusPageMove
-	if replace {
+	// The page shows an admin's group: a non-admin's replace never moves it
+	if replace && user.Role == "admin" {
 		if move, err = s.statusPageMove(ctx, userID, p.rows.Groups, boards); err != nil {
 			return nil, err
 		}
@@ -561,6 +562,7 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	if move != nil && move.to != nil {
 		if err := s.statusPage.UseGroup(ctx, userID, move.to.ID); err != nil {
 			log.Printf("Import: failed to keep the status page on group %q: %v", move.from, err)
+			move.to = nil // it shows the removed group: offline
 		}
 	}
 	return move.note(p.summary(mode, false, applied.Scope)), nil

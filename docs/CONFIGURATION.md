@@ -372,7 +372,7 @@ falls back to its emoji, and an import keeps the wallpaper you have.
 | Mode | What it does |
 |---|---|
 | `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
-| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). |
+| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). When the [public status page](#public-status-page) shows one of your groups, it moves to the file's group with the same name, or goes offline when the file has none; the preview says which. |
 
 An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
 touches the dashboard of the user who imports. Everything in the file is checked like a normal
@@ -594,7 +594,7 @@ Turn it on under **Settings → Admin → Public status page**:
 | Setting | Description |
 |---------|-------------|
 | Enable the status page | Makes `/status` reachable for anyone who can reach your Nimbus |
-| Group to show | One of **your own** groups (groups are personal). Only services with monitoring on appear |
+| Group to show | One of **your own** groups (groups are personal). Your default group includes your services without a group, as on the dashboard. Only services with monitoring on appear |
 | Title | Heading and browser title of the page; `Status` when empty |
 | Logo | Optional image next to the title (JPG, PNG, GIF or WEBP, up to 512 KB) |
 | Show links | Off by default. When on, each service name links to its URL and icons loaded from a URL are shown. Only `http(s)` URLs are shown, and without the user name and password a URL may carry |
