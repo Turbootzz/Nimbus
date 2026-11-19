@@ -94,7 +94,8 @@ export default function ServiceForm({
 
       setGroupsLoading(true)
       try {
-        const response = await api.getGroups(boardId)
+        // A service is edited with the groups of the board it is on
+        const response = await api.getGroups(service?.board_id ?? boardId)
         if (response.error) {
           setError(`Failed to load groups: ${response.error.message}`)
           return
@@ -121,7 +122,7 @@ export default function ServiceForm({
     }
 
     fetchGroups()
-  }, [enableServiceGrouping, initialGroupId, isEdit, boardId])
+  }, [enableServiceGrouping, initialGroupId, isEdit, boardId, service?.board_id])
 
   const setSaving = (next: boolean) => {
     setIsSaving(next)

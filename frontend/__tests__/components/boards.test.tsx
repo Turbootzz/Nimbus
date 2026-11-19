@@ -215,6 +215,24 @@ describe('moving a tile to another board', () => {
     })
   })
 
+  it('edits a service with the groups of its own board', async () => {
+    await loadBoards([home, lab])
+    theme.enableServiceGrouping = true
+    try {
+      render(
+        <ServiceForm
+          service={{ ...service, board_id: 'b-lab' }}
+          variant="modal"
+          onSaved={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      )
+      await waitFor(() => expect(api.getGroups).toHaveBeenCalledWith('b-lab'))
+    } finally {
+      theme.enableServiceGrouping = false
+    }
+  })
+
   it('leaves the board alone when it is not changed', async () => {
     await loadBoards([home, lab])
     vi.mocked(api.updateService).mockResolvedValue({ data: service })

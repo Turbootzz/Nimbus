@@ -242,6 +242,12 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                 Share with every user, read-only
               </label>
             )}
+            {isAdmin && (
+              <p className="text-text-muted text-xs">
+                Every user sees all tiles of a shared board, also admin-only widgets such as Docker
+                containers, system stats and custom API data.
+              </p>
+            )}
           </form>
         </div>
       </div>
