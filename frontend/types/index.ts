@@ -46,8 +46,39 @@ export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
 export type CardScale = 'small' | 'medium' | 'large'
 export type ViewMode = 'grid' | 'list'
 
+// Board types. A board is one dashboard: its own groups, services and
+// widgets. Every user has a default board (/dashboard).
+export interface Board {
+  id: string
+  name: string
+  slug: string // /board/<slug>
+  position: number
+  is_default: boolean
+  is_shared: boolean // every user sees it; only its owner edits it
+  visibility: 'all'
+  owned: boolean // false for a board someone else shares
+  can_edit: boolean
+}
+
+// Omitted fields keep their value. Without a slug a new board gets one from
+// its name.
+export interface BoardRequest {
+  name?: string
+  slug?: string
+  is_shared?: boolean
+}
+
+// What a viewer of a shared board learns about an integration on it: enough
+// to label its numbers (see kpisForIntegration)
+export interface BoardIntegration {
+  id: string
+  kind: string
+  options: Record<string, boolean>
+}
+
 export interface Service {
   id: string
+  board_id?: string
   name: string
   url: string
   icon?: string
@@ -74,6 +105,7 @@ export interface ServiceCreateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  board_id?: string // the default board when omitted
   integration_id?: string
   monitoring_enabled?: boolean
 }
@@ -87,6 +119,7 @@ export interface ServiceUpdateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  board_id?: string // another board moves the service there, ungrouped
   integration_id?: string // '' unlinks, omitted keeps the link
   monitoring_enabled?: boolean
 }
@@ -190,6 +223,7 @@ export interface IntegrationPayload {
 // Widget types (dashboard tiles that are not links)
 export interface Widget {
   id: string
+  board_id?: string
   type: string
   title: string
   group_id: string | null
@@ -222,6 +256,7 @@ export interface WidgetCreateRequest {
   type: string
   title?: string
   group_id?: string
+  board_id?: string // the default board when omitted
   integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
@@ -231,6 +266,7 @@ export interface WidgetCreateRequest {
 export interface WidgetUpdateRequest {
   title?: string
   group_id?: string
+  board_id?: string // another board moves the widget there, ungrouped
   integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
@@ -426,6 +462,7 @@ export type TileStyle = 'cards' | 'chips'
 
 export interface Group {
   id: string
+  board_id?: string
   name: string
   color: string
   position: number
@@ -438,6 +475,7 @@ export interface Group {
 
 export interface GroupCreateRequest {
   name: string
+  board_id?: string // the default board when omitted
   color?: string
   monitoring_enabled?: boolean
   tile_style?: TileStyle
