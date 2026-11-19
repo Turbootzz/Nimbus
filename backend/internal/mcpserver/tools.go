@@ -25,19 +25,24 @@ type ServiceInfo struct {
 	URL               string `json:"url"`
 	Description       string `json:"description,omitempty"`
 	Group             string `json:"group,omitempty"`
-	Status            string `json:"status" jsonschema:"online, offline or unknown"`
+	Status            string `json:"status" jsonschema:"online, offline, unknown (not checked yet) or not_monitored"`
 	ResponseTimeMs    *int   `json:"response_time_ms,omitempty"`
-	MonitoringEnabled bool   `json:"monitoring_enabled" jsonschema:"false means Nimbus does not health check this service"`
+	MonitoringEnabled bool   `json:"monitoring_enabled" jsonschema:"false means Nimbus does not health check this service, because of its own setting or its group's"`
 }
 
 // ServiceList is a list of services with a status count
 type ServiceList struct {
-	Services []ServiceInfo `json:"services"`
-	Total    int           `json:"total"`
-	Online   int           `json:"online"`
-	Offline  int           `json:"offline"`
-	Unknown  int           `json:"unknown"`
+	Services     []ServiceInfo `json:"services"`
+	Total        int           `json:"total"`
+	Online       int           `json:"online"`
+	Offline      int           `json:"offline"`
+	Unknown      int           `json:"unknown"`
+	NotMonitored int           `json:"not_monitored"`
 }
+
+// statusNotMonitored is the status of a service Nimbus does not check: its
+// stored status is stale
+const statusNotMonitored = "not_monitored"
 
 // CheckInfo is one past health check
 type CheckInfo struct {
@@ -186,7 +191,9 @@ func (t *tools) register(server *mcp.Server) {
 }
 
 // userServices loads the caller's services and the names of their groups.
-// Services are always loaded by owner, never by ID alone.
+// Services are always loaded by owner, never by ID alone. They are shown as
+// on the dashboard: monitored only when their group is too, and ungrouped
+// ones in the default group.
 func (t *tools) userServices(ctx context.Context, userID string) ([]*models.Service, map[string]string, error) {
 	services, err := t.deps.Services.GetAllByUserID(ctx, userID)
 	if err != nil {
@@ -197,8 +204,22 @@ func (t *tools) userServices(ctx context.Context, userID string) ([]*models.Serv
 		return nil, nil, internalError("load groups", err)
 	}
 	groupNames := make(map[string]string, len(groups))
+	paused := map[string]bool{}
+	var defaultGroup *string
 	for _, group := range groups {
 		groupNames[group.ID] = group.Name
+		paused[group.ID] = !group.MonitoringEnabled
+		if group.IsDefault {
+			defaultGroup = &group.ID
+		}
+	}
+	for _, service := range services {
+		if service.GroupID == nil {
+			// Its own flag alone decides, as for the health checker
+			service.GroupID = defaultGroup
+		} else if paused[*service.GroupID] {
+			service.MonitoringEnabled = false
+		}
 	}
 	return services, groupNames, nil
 }
@@ -219,6 +240,9 @@ func serviceInfo(service *models.Service, groupNames map[string]string) ServiceI
 		ResponseTimeMs:    service.ResponseTime,
 		MonitoringEnabled: service.MonitoringEnabled,
 	}
+	if !service.MonitoringEnabled {
+		info.Status, info.ResponseTimeMs = statusNotMonitored, nil
+	}
 	if service.GroupID != nil {
 		info.Group = groupNames[*service.GroupID]
 	}
@@ -228,12 +252,15 @@ func serviceInfo(service *models.Service, groupNames map[string]string) ServiceI
 func serviceList(services []*models.Service, groupNames map[string]string) ServiceList {
 	list := ServiceList{Services: make([]ServiceInfo, 0, len(services)), Total: len(services)}
 	for _, service := range services {
-		list.Services = append(list.Services, serviceInfo(service, groupNames))
-		switch service.Status {
+		info := serviceInfo(service, groupNames)
+		list.Services = append(list.Services, info)
+		switch info.Status {
 		case models.StatusOnline:
 			list.Online++
 		case models.StatusOffline:
 			list.Offline++
+		case statusNotMonitored:
+			list.NotMonitored++
 		default:
 			list.Unknown++
 		}
@@ -561,7 +588,7 @@ func (t *tools) readDashboard(ctx context.Context, req *mcp.ReadResourceRequest)
 
 	list := serviceList(services, groupNames)
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Nimbus dashboard\n\n%d services: %d online, %d offline, %d unknown.\n", list.Total, list.Online, list.Offline, list.Unknown)
+	fmt.Fprintf(&b, "# Nimbus dashboard\n\n%d services: %d online, %d offline, %d unknown, %d not monitored.\n", list.Total, list.Online, list.Offline, list.Unknown, list.NotMonitored)
 
 	if list.Offline > 0 {
 		b.WriteString("\n## Offline\n")

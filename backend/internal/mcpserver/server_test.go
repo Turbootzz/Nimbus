@@ -153,7 +153,7 @@ func TestMCP_SmokeWithSDKClient(t *testing.T) {
 	// "What's down?"
 	var services ServiceList
 	call(t, session, "list_services", nil, &services)
-	assert.Equal(t, 5, services.Total)
+	assert.Equal(t, 6, services.Total)
 	var offline []string
 	for _, service := range services.Services {
 		if service.Status == models.StatusOffline {
@@ -203,7 +203,7 @@ func TestMCP_SmokeWithSDKClient(t *testing.T) {
 	read, err := session.ReadResource(ctx, &mcp.ReadResourceParams{URI: DashboardURI})
 	require.NoError(t, err)
 	require.Len(t, read.Contents, 1)
-	assert.Contains(t, read.Contents[0].Text, "5 services: 3 online, 1 offline, 1 unknown.")
+	assert.Contains(t, read.Contents[0].Text, "6 services: 3 online, 1 offline, 0 unknown, 2 not monitored.")
 	assert.Equal(t, "private", read.CacheScope)
 }
 
