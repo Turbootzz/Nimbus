@@ -36,9 +36,9 @@ boards dialog. Everyone then finds it in their switcher.
 - Only its owner, the admin who shared it, edits it. Other users, other admins included, see it
   read-only: no edit mode, no add buttons, no moving or resizing.
 - Viewers see what the tiles show: names, links, status, uptime on hover, widget data and live
-  numbers. They don't see integration credentials, addresses of the apps behind the live
-  numbers, widget secrets, or what a failed check or fetch ran into (that shows as a general
-  error).
+  numbers. They don't see integration credentials, a user name and password in a link,
+  addresses of the apps behind the live numbers, widget secrets, or what a failed check or
+  fetch ran into (that shows as a general error).
 - A new user whose own board is still empty opens the shared board on their first visit.
 - Unsharing, or deleting, the board takes it away from viewers at once: an open dashboard moves
   to their own board within a minute.
