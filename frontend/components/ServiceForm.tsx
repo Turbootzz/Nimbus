@@ -12,6 +12,8 @@ import { Toggle } from '@/components/ui/Toggle'
 import type { IconType, Group, Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { ReadOnlyNote } from '@/components/ConfigFileBanner'
 
 interface ServiceFormProps {
   // Edits this service when set, otherwise creates a new one
@@ -47,6 +49,8 @@ export default function ServiceForm({
   const isModal = variant === 'modal'
   const { enableServiceGrouping } = useTheme()
   const [isSaving, setIsSaving] = useState(false)
+  // Locked by a config file: saving would be refused
+  const readOnly = useConfigFile()?.read_only ?? false
   const [error, setError] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
@@ -344,12 +348,13 @@ export default function ServiceForm({
           )}
           <button
             type="submit"
-            disabled={isSaving}
+            disabled={isSaving || readOnly}
             className="bg-primary hover:bg-primary-hover rounded-md px-6 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitLabel}
           </button>
         </div>
+        {readOnly && <ReadOnlyNote />}
       </form>
     </>
   )

@@ -6,6 +6,7 @@ import { api } from '@/lib/api'
 import type { Service } from '@/types'
 
 // The real IconSelector and EmojiPicker: this is about the picker on top of the modal
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
     updateService: vi.fn(),

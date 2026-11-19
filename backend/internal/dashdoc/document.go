@@ -35,6 +35,10 @@ const (
 	// ModeReplace deletes the user's groups, services, widgets and
 	// integrations first, and applies the document's preferences
 	ModeReplace Mode = "replace"
+	// ModeSync makes the dashboard match the document while keeping the rows
+	// they share (services.DashboardTransferService.Sync). It is how a config
+	// file is applied and can't be asked for over HTTP.
+	ModeSync Mode = "sync"
 )
 
 // ParseMode reads a mode from user input
@@ -87,6 +91,18 @@ type Integration struct {
 	// NeedsCredentials tells the reader that credentials must be entered
 	// after an import. Informational: an import derives it from auth_type.
 	NeedsCredentials bool `json:"needs_credentials,omitempty"`
+	// Credentials are only read from a config file (NIMBUS_CONFIG_FILE): an
+	// import over HTTP refuses them and an export never writes them
+	Credentials *Credentials `json:"credentials,omitempty"`
+}
+
+// Credentials are the secrets of an integration; which fields are used
+// depends on its auth type
+type Credentials struct {
+	APIKey   string `json:"api_key,omitempty"`
+	Username string `json:"username,omitempty"`
+	Password string `json:"password,omitempty"`
+	Token    string `json:"token,omitempty"`
 }
 
 // Service is a link tile. Its icon is an emoji (Icon), an image URL
@@ -185,8 +201,10 @@ type Chip struct {
 // Count is what an import does to one kind of entity
 type Count struct {
 	Created int `json:"created"`
-	// Removed is how many existing rows a replace deletes
+	// Removed is how many existing rows a replace or sync deletes
 	Removed int `json:"removed"`
+	// Updated is how many existing rows a sync changes
+	Updated int `json:"updated,omitempty"`
 }
 
 // Summary is the result of an import, or of its dry run

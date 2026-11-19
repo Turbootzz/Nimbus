@@ -1,0 +1,126 @@
+# Source: the examples of https://gethomepage.dev/configs/services/ and of the
+# service widgets under https://gethomepage.dev/widgets/services/ (sonarr,
+# radarr, jellyfin, pihole, adguard-home, qbittorrent, proxmox, homeassistant,
+# uptime-kuma), put together in one services.yaml. Hosts, keys and passwords
+# are the placeholders the documentation uses.
+- Media:
+    - Emby:
+        icon: emby.png
+        href: http://emby.host.or.ip/
+        description: Movies & TV Shows
+        widgets:
+          - type: emby
+            url: http://emby.host.or.ip
+            key: apikeyapikeyapikeyapikeyapikey
+          - type: uptimekuma
+            url: http://uptimekuma.host.or.ip:port
+            slug: statuspageslug
+
+    - Sonarr:
+        icon: sonarr.png
+        href: http://sonarr.host.or.ip
+        description: Series management
+        widget:
+          type: sonarr
+          fields: ["wanted", "queued"]
+          url: http://sonarr.host.or.ip
+          key: ${SONARR_API_KEY}
+          enableQueue: true
+
+    - Radarr:
+        icon: radarr.png
+        href: http://radarr.host/
+        description: Movie management
+        widget:
+          type: radarr
+          url: http://radarr.host.or.ip
+          key: apikeyapikeyapikeyapikeyapikey
+
+    - Jellyfin:
+        icon: si-jellyfin-#a712a2
+        href: http://jellyfin.host.or.ip:8096
+        widget:
+          type: jellyfin
+          url: http://jellyfin.host.or.ip:8096
+          key: apikeyapikeyapikeyapikeyapikey
+          version: 2
+          enableBlocks: true
+
+    - Downloads:
+        - qBittorrent:
+            icon: sh-qbittorrent.svg
+            href: http://qbittorrent.host.or.ip
+            widget:
+              type: qbittorrent
+              url: http://qbittorrent.host.or.ip
+              username: username
+              password: password
+
+- Network:
+    - Pi-hole:
+        icon: pi-hole.png
+        href: http://pi.hole.or.ip/admin
+        widget:
+          type: pihole
+          url: http://pi.hole.or.ip
+          version: 6
+          key: yourpiholeapikey
+
+    - AdGuard Home:
+        icon: adguard-home
+        href: http://adguard.host.or.ip
+        widget:
+          type: adguard
+          url: http://adguard.host.or.ip
+          username: admin
+          password: password
+
+    - Uptime Kuma:
+        icon: uptime-kuma.png
+        href: http://uptimekuma.host.or.ip:port
+        widget:
+          type: uptimekuma
+          url: http://uptimekuma.host.or.ip:port
+          slug: statuspageslug
+
+    - UptimeRobot:
+        icon: uptimekuma.png
+        href: https://uptimerobot.com/
+        widget:
+          type: uptimerobot
+          url: https://api.uptimerobot.com
+          key: ${UPTIMEROBOT_API_KEY}
+          headers:
+            User-Agent: homepage
+            X-Auth-Key: your-secret-here
+
+- Home:
+    - Proxmox:
+        icon: proxmox.png
+        href: https://proxmox.host.or.ip:8006
+        widget:
+          type: proxmox
+          url: https://proxmox.host.or.ip:8006
+          username: api_token_id
+          password: api_token_secret
+          node: pve-1
+
+    - Home Assistant:
+        icon: home-assistant.png
+        widget:
+          type: homeassistant
+          url: http://homeassistant.host.or.ip:8123
+          key: access_token
+          custom:
+            - state: sensor.total_power
+            - state: sensor.total_energy_today
+              label: energy today
+
+    - Service:
+        icon: mdi-flask-outline
+        href: http://service.host/
+        description: My cool service
+
+    - Local icon:
+        icon: /icons/myicon.png
+        href: http://localhost/

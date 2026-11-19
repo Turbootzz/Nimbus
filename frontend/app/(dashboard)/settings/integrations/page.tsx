@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
+import { useConfigFile } from '@/hooks/useConfigFile'
 import IntegrationForm from '@/components/integrations/IntegrationForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { INTEGRATION_PREFILL_KEY } from '@/types'
@@ -43,6 +44,8 @@ function StatusBadge({ integration }: { integration: Integration }) {
 }
 
 export default function IntegrationsPage() {
+  // Locked by a config file: integrations can be tested, not changed
+  const readOnly = useConfigFile()?.read_only ?? false
   const { integrations, setIntegrations, kinds, isLoading, error } = useIntegrations()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Integration | null>(null)
@@ -137,7 +140,7 @@ export default function IntegrationsPage() {
             to show live numbers on the tile.
           </p>
         </div>
-        {kinds.length > 0 && (
+        {kinds.length > 0 && !readOnly && (
           <button
             onClick={() => {
               setEditing(null)
@@ -191,21 +194,25 @@ export default function IntegrationsPage() {
                 >
                   {testingId === integration.id ? 'Testing...' : 'Test'}
                 </button>
-                <button
-                  onClick={() => {
-                    setEditing(integration)
-                    setShowForm(true)
-                  }}
-                  className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setDeleting(integration)}
-                  className="text-error hover:bg-error/10 rounded-md px-3 py-1.5 text-sm transition-colors"
-                >
-                  Delete
-                </button>
+                {!readOnly && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditing(integration)
+                        setShowForm(true)
+                      }}
+                      className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleting(integration)}
+                      className="text-error hover:bg-error/10 rounded-md px-3 py-1.5 text-sm transition-colors"
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
               </div>
             </li>
           ))}

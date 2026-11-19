@@ -50,7 +50,9 @@ import type {
   IntegrationKindMeta,
   IntegrationRequest,
   IntegrationTestResult,
+  ConvertResult,
   DashboardDocument,
+  ImportFormat,
   ImportMode,
   ImportSummary,
   DiscoveryResponse,
@@ -544,13 +546,35 @@ class ApiClient {
 
   // document is the file's text as is; the server validates it. A dry run
   // changes nothing and tells what the import would do.
+  // With matchGroups a merge puts tiles into the user's group of the same
+  // name instead of adding a second one.
   async importDashboard(
     document: string,
     mode: ImportMode,
-    dryRun = false
+    dryRun = false,
+    matchGroups = false
   ): Promise<ApiResponse<ImportSummary>> {
-    const query = new URLSearchParams({ mode, ...(dryRun ? { dry_run: '1' } : {}) })
+    const query = new URLSearchParams({
+      mode,
+      ...(dryRun ? { dry_run: '1' } : {}),
+      ...(matchGroups ? { match_groups: '1' } : {}),
+    })
     return this.request<ImportSummary>(`/import?${query}`, { method: 'POST', body: document })
+  }
+
+  // Turns the config of another dashboard into a document to import; nothing
+  // is changed. host is where docker-compose ports are reached.
+  async convertConfig(
+    config: string,
+    format: ImportFormat | 'auto',
+    host: string
+  ): Promise<ApiResponse<ConvertResult>> {
+    const query = new URLSearchParams({ format, host })
+    return this.request<ConvertResult>(`/import/convert?${query}`, {
+      method: 'POST',
+      body: config,
+      headers: { 'Content-Type': 'text/plain' },
+    })
   }
 
   // ============================================

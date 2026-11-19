@@ -1,0 +1,17 @@
+# Source: https://github.com/gethomepage/homepage/blob/main/docs/configs/bookmarks.md
+---
+- Developer:
+    - Github:
+        - abbr: GH
+          href: https://github.com/
+
+- Social:
+    - Reddit:
+        - icon: reddit.png
+          href: https://reddit.com/
+          description: The front page of the internet
+
+- Entertainment:
+    - YouTube:
+        - abbr: YT
+          href: https://youtube.com/

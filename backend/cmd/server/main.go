@@ -15,6 +15,7 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/nimbus/backend/internal/config"
+	"github.com/nimbus/backend/internal/configfile"
 	"github.com/nimbus/backend/internal/db"
 	"github.com/nimbus/backend/internal/handlers"
 	"github.com/nimbus/backend/internal/mcpserver"
@@ -201,6 +202,29 @@ func main() {
 	transferService.SetPoller(widgetPoller)
 	transferHandler := handlers.NewDashboardTransferHandler(transferService)
 
+	// Config-file mode: one admin's dashboard follows NIMBUS_CONFIG_FILE.
+	// Created after the auto-setup above, so its admin can be the owner.
+	configFile, err := config.GetConfigFile()
+	if err != nil {
+		log.Fatalf("Failed to load environment: %v", err)
+	}
+	var configWatcher *configfile.Watcher
+	if configFile.Path != "" {
+		configWatcher = configfile.NewWatcher(configfile.Options{
+			Path: configFile.Path, Prune: configFile.Prune, ReadOnly: configFile.ReadOnly, Settle: configfile.DefaultSettle,
+		}, transferService, userRepo)
+		authHandler.SetConfigFile(configWatcher)
+		// Auto-add leaves a dashboard alone that the file would undo it on
+		discoveryService.SetManaged(configWatcher.OwnsServices)
+	}
+	// NIMBUS_CONFIG_READONLY: the owner can't edit what the file manages
+	lockDashboard := middleware.ConfigReadOnly(func(userID string) bool {
+		return configWatcher != nil && configWatcher.Locks(userID)
+	})
+	lockPreferences := middleware.ConfigReadOnly(func(userID string) bool {
+		return configWatcher != nil && configWatcher.LocksPreferences(userID)
+	})
+
 	// Create fiber app
 	app := fiber.New(fiber.Config{
 		AppName:   "Nimbus API",
@@ -284,7 +308,7 @@ func main() {
 	v1.Get("/services/:id<guid>/status-logs", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadMetrics), metricsHandler.GetRecentStatusLogs)
 
 	// Service routes (all protected)
-	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
+	services := v1.Group("/services", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices), lockDashboard)
 	services.Post("/", serviceHandler.CreateService)
 	services.Get("/", serviceHandler.GetServices)
 	// Sets service positions exactly as given. Services share their position
@@ -299,7 +323,7 @@ func main() {
 	services.Post("/:id<guid>/check", serviceHandler.CheckService)
 
 	// Group routes (all protected)
-	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices))
+	groups := v1.Group("/groups", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices), lockDashboard)
 	groups.Post("/", groupHandler.CreateGroup)
 	groups.Get("/", groupHandler.GetGroups)
 	groups.Put("/reorder", groupHandler.ReorderGroups) // Must be before /:id routes
@@ -331,7 +355,7 @@ func main() {
 	// Avatar, wallpaper and preferences (protected, session only)
 	users := v1.Group("/users/me", sessionAuth, sessionOnly)
 	users.Put("/avatar", uploadHandler.UploadAvatar)
-	users.Put("/wallpaper", preferencesHandler.UploadWallpaper)
+	users.Put("/wallpaper", lockPreferences, preferencesHandler.UploadWallpaper)
 
 	// Metrics routes (protected)
 	metrics := v1.Group("/metrics", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadMetrics))
@@ -351,7 +375,7 @@ func main() {
 
 	// Integration routes (protected; session auth only so a leaked API token
 	// can't point an integration elsewhere and exfiltrate its credentials)
-	integrationRoutes := v1.Group("/integrations", sessionAuth, sessionOnly)
+	integrationRoutes := v1.Group("/integrations", sessionAuth, sessionOnly, lockDashboard)
 	integrationRoutes.Get("/kinds", integrationHandler.ListKinds)
 	integrationRoutes.Post("/test", integrationHandler.TestUnsavedIntegration)
 	integrationRoutes.Post("/", integrationHandler.CreateIntegration)
@@ -364,12 +388,12 @@ func main() {
 	// Discovery routes (admin only and session only, like the Docker integration they read)
 	discovery := v1.Group("/discovery", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo), middleware.RequireSessionAuth(), middleware.AdminOnly())
 	discovery.Get("/docker", discoveryHandler.DiscoverDocker)
-	discovery.Post("/docker/services", discoveryHandler.AddDiscovered)
+	discovery.Post("/docker/services", lockDashboard, discoveryHandler.AddDiscovered)
 	discovery.Post("/docker/ignored", discoveryHandler.IgnoreDiscovered)
 	discovery.Delete("/docker/ignored", discoveryHandler.UnignoreDiscovered)
 
 	// Widget routes (all protected)
-	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
+	widgetRoutes := v1.Group("/widgets", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets), lockDashboard)
 	widgetRoutes.Get("/types", widgetHandler.ListTypes) // Must be before /:id routes
 	widgetRoutes.Post("/", widgetHandler.CreateWidget)
 	widgetRoutes.Get("/", widgetHandler.ListWidgets)
@@ -379,7 +403,7 @@ func main() {
 	widgetRoutes.Post("/:id<guid>/refresh", widgetHandler.RefreshWidget)
 
 	// Dashboard routes (all protected); services and widgets share one order
-	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets))
+	dashboard := v1.Group("/dashboard", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadWidgets), lockDashboard)
 	dashboard.Put("/reorder", widgetHandler.ReorderTiles)
 	dashboard.Get("/data", dashboardHandler.Data)
 	// Session only: an open stream would outlive the token's revocation,
@@ -387,12 +411,14 @@ func main() {
 	dashboard.Get("/stream", sessionOnly, dashboardHandler.Stream)
 
 	users.Get("/preferences", preferencesHandler.GetPreferences)
-	users.Put("/preferences", preferencesHandler.UpdatePreferences)
+	users.Put("/preferences", lockPreferences, preferencesHandler.UpdatePreferences)
 
 	// Dashboard export/import (session only, like the integrations it reads
 	// and replaces)
 	v1.Get("/export", sessionAuth, sessionOnly, transferHandler.Export)
-	v1.Post("/import", sessionAuth, sessionOnly, transferHandler.Import)
+	v1.Post("/import", sessionAuth, sessionOnly, lockDashboard, transferHandler.Import)
+	// Turns another dashboard's config into a document; it writes nothing
+	v1.Post("/import/convert", sessionAuth, sessionOnly, transferHandler.Convert)
 
 	// Setup routes (public - for first-time setup)
 	setup := v1.Group("/setup")
@@ -450,6 +476,11 @@ func main() {
 	discoveryWorker := workers.NewDiscoveryWorker(discoveryService)
 	discoveryWorker.Start()
 
+	// Apply the config file now and whenever it changes
+	if configWatcher != nil {
+		configWatcher.Start()
+	}
+
 	// Start DNS cache cleanup worker
 	dnsCleanup := workers.NewDNSCleanupWorker()
 	dnsCleanup.Start()
@@ -503,6 +534,9 @@ func main() {
 	// Stop workers; close the dashboard streams first, or they keep
 	// connections open and Shutdown waits for them
 	sseHub.Close()
+	if configWatcher != nil {
+		configWatcher.Stop()
+	}
 	widgetPoller.Stop()
 	discoveryWorker.Stop()
 	healthMonitor.Stop()

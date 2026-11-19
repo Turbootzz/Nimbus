@@ -17,18 +17,22 @@ interface DraggableServiceManagementCardProps {
   // Effective monitoring state (accounts for the group's monitoring flag too).
   // Defaults to service.monitoring_enabled when not provided.
   isMonitored?: boolean
+  // Locked by a config file: no drag handle, Edit or Delete
+  readOnly?: boolean
 }
 
 export function DraggableServiceManagementCard({
   service,
   onDelete,
   isMonitored,
+  readOnly = false,
 }: DraggableServiceManagementCardProps) {
   const { openInNewTab } = useTheme()
   const monitored = isMonitored ?? service.monitoring_enabled
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: service.id,
+    disabled: readOnly,
   })
 
   const style = {
@@ -51,6 +55,7 @@ export function DraggableServiceManagementCard({
           <div
             {...attributes}
             {...listeners}
+            hidden={readOnly}
             className="bg-card-hover order-2 cursor-grab touch-none rounded p-1.5 opacity-100 transition-opacity active:cursor-grabbing md:opacity-0 md:group-hover:opacity-100"
             title="Drag to reorder"
           >
@@ -108,6 +113,7 @@ export function DraggableServiceManagementCard({
 
       {/* Actions */}
       <div
+        hidden={readOnly}
         className="mt-auto flex items-center gap-2 border-t pt-4"
         style={{ borderColor: 'var(--color-card-border)' }}
       >

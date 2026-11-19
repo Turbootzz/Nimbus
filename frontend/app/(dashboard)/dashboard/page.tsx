@@ -48,6 +48,7 @@ import WidgetCard from '@/components/widgets/WidgetCard'
 import WidgetModal from '@/components/widgets/WidgetModal'
 import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { useConfigFile } from '@/hooks/useConfigFile'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import { createCollisionDetection } from '@/lib/tile-collision'
 import {
@@ -93,7 +94,11 @@ export default function DashboardPage() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   // Shared with the canvas top bar, whose user menu also toggles it
-  const isEditMode = useEditMode()
+  // A dashboard locked by a config file never enters edit mode, which is
+  // what shows every edit, delete, add-group and drag control
+  const readOnly = useConfigFile()?.read_only ?? false
+  const editModeOn = useEditMode()
+  const isEditMode = editModeOn && !readOnly
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -745,6 +750,7 @@ export default function DashboardPage() {
 
   const header = (
     <DashboardHeader
+      readOnly={readOnly}
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
@@ -816,7 +822,7 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <DiscoveredTray variant="link" />
+      {!readOnly && <DiscoveredTray variant="link" />}
       {statusStrip.enabled && (
         <StatusStrip
           strip={statusStrip}
@@ -918,13 +924,15 @@ export default function DashboardPage() {
           <p className="text-text-secondary mb-4">
             Add a service or a widget to this group to see it here.
           </p>
-          <Link
-            href={addServiceHref}
-            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Add Service
-          </Link>
+          {!readOnly && (
+            <Link
+              href={addServiceHref}
+              className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Service
+            </Link>
+          )}
         </div>
       )}
 

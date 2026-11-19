@@ -6,6 +6,9 @@ import IntegrationSelector from '@/components/integrations/IntegrationSelector'
 import { api } from '@/lib/api'
 import { kinds, makeIntegration } from './fixtures'
 
+// What the config file locks; null: no config file
+const configFile = vi.hoisted(() => ({ status: null as { read_only: boolean } | null }))
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => configFile.status }))
 vi.mock('@/lib/api', () => ({
   api: {
     getIntegrations: vi.fn(),
@@ -18,7 +21,19 @@ vi.mock('@/lib/api', () => ({
 describe('IntegrationsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    configFile.status = null
     vi.mocked(api.getIntegrationKinds).mockResolvedValue({ data: kinds })
+  })
+
+  it('only tests integrations on a dashboard a config file locks', async () => {
+    configFile.status = { read_only: true }
+    vi.mocked(api.getIntegrations).mockResolvedValue({ data: [makeIntegration()] })
+    render(<IntegrationsPage />)
+
+    expect(await screen.findByText('Test')).toBeInTheDocument()
+    for (const control of ['Add Integration', 'Edit', 'Delete']) {
+      expect(screen.queryByText(control)).not.toBeInTheDocument()
+    }
   })
 
   it('lists integrations with their status and tests one', async () => {

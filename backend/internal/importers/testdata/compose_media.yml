@@ -1,0 +1,61 @@
+# A media stack as the linuxserver.io images document it
+# (https://docs.linuxserver.io/images/docker-sonarr/#docker-compose and the
+# pages of the other images), with the port syntaxes of the Compose file
+# reference (https://docs.docker.com/reference/compose-file/services/#ports).
+services:
+  sonarr:
+    image: lscr.io/linuxserver/sonarr:latest
+    container_name: sonarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+    volumes:
+      - /path/to/sonarr/data:/config
+    ports:
+      - 8989:8989
+    restart: unless-stopped
+
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    ports:
+      - "127.0.0.1:8123:8123/tcp"
+
+  jellyfin:
+    image: jellyfin/jellyfin@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+    ports:
+      - target: 8096
+        published: "8096"
+        protocol: tcp
+
+  pihole:
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/udp"
+      - "8443:443"
+    labels:
+      - homepage.group=Network
+      - homepage.name=Pi-hole
+      - homepage.description=DNS
+
+  traefik:
+    image: traefik:v3.1
+    ports:
+      - "80:80"
+      - "443:443"
+    labels:
+      homepage.href: https://proxy.example.com
+      homepage.icon: mdi-router
+
+  whoami:
+    image: traefik/whoami
+    ports:
+      - "80"
+
+  db:
+    image: postgres:16
+    volumes:
+      - db:/var/lib/postgresql/data
+
+volumes:
+  db:

@@ -304,3 +304,32 @@ func clearEnv() {
 		os.Unsetenv(v)
 	}
 }
+
+func TestGetConfigFile(t *testing.T) {
+	tests := []struct {
+		name, path, mode, readOnly string
+		want                       ConfigFile
+		wantErr                    bool
+	}{
+		{name: "off", want: ConfigFile{Prune: true}},
+		{name: "replace is the default", path: "/config/nimbus.yaml", want: ConfigFile{Path: "/config/nimbus.yaml", Prune: true}},
+		{name: "merge", path: "/c.yaml", mode: "Merge", readOnly: "true", want: ConfigFile{Path: "/c.yaml", ReadOnly: true}},
+		{name: "read-only as 1", path: "/c.yaml", mode: "replace", readOnly: "1", want: ConfigFile{Path: "/c.yaml", Prune: true, ReadOnly: true}},
+		{name: "a mistyped mode never becomes replace", path: "/c.yaml", mode: "merg", wantErr: true},
+		{name: "a mistyped read-only", path: "/c.yaml", readOnly: "yes please", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("NIMBUS_CONFIG_FILE", tt.path)
+			t.Setenv("NIMBUS_CONFIG_MODE", tt.mode)
+			t.Setenv("NIMBUS_CONFIG_READONLY", tt.readOnly)
+			got, err := GetConfigFile()
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("GetConfigFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("GetConfigFile() = %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}

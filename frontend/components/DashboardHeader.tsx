@@ -1,7 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { PlusIcon, PencilIcon, CheckIcon, Squares2X2Icon } from '@heroicons/react/24/outline'
+import {
+  PlusIcon,
+  PencilIcon,
+  CheckIcon,
+  Squares2X2Icon,
+  LockClosedIcon,
+} from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import GroupTabs from '@/components/GroupTabs'
 
@@ -19,6 +25,8 @@ interface DashboardHeaderProps {
   isDraggingTab: boolean
   addServiceHref: string
   onAddWidget: () => void
+  // The dashboard is locked by a config file: no edit or add buttons
+  readOnly?: boolean
 }
 
 export default function DashboardHeader({
@@ -35,6 +43,7 @@ export default function DashboardHeader({
   isDraggingTab,
   addServiceHref,
   onAddWidget,
+  readOnly = false,
 }: DashboardHeaderProps) {
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -54,39 +63,46 @@ export default function DashboardHeader({
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        {isEditMode ? (
+      {readOnly ? (
+        <p className="text-text-muted wallpaper-panel inline-flex shrink-0 items-center gap-2 text-sm">
+          <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
+          Read-only: managed by config file
+        </p>
+      ) : (
+        <div className="flex shrink-0 items-center gap-2">
+          {isEditMode ? (
+            <button
+              onClick={onToggleEditMode}
+              className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
+            >
+              <CheckIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Done</span>
+            </button>
+          ) : (
+            <button
+              onClick={onToggleEditMode}
+              className="border-card-border text-text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
+            >
+              <PencilIcon className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
           <button
-            onClick={onToggleEditMode}
-            className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
-          >
-            <CheckIcon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Done</span>
-          </button>
-        ) : (
-          <button
-            onClick={onToggleEditMode}
+            onClick={onAddWidget}
             className="border-card-border text-text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
           >
-            <PencilIcon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Edit</span>
+            <Squares2X2Icon className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Widget</span>
           </button>
-        )}
-        <button
-          onClick={onAddWidget}
-          className="border-card-border text-text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
-        >
-          <Squares2X2Icon className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Add Widget</span>
-        </button>
-        <Link
-          href={addServiceHref}
-          className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
-        >
-          <PlusIcon className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Add Service</span>
-        </Link>
-      </div>
+          <Link
+            href={addServiceHref}
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
+          >
+            <PlusIcon className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Add Service</span>
+          </Link>
+        </div>
+      )}
     </div>
   )
 }
