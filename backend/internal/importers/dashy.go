@@ -22,7 +22,12 @@ func Dashy(data []byte) (dashdoc.Document, []string, error) {
 	skippedWidgets := 0
 	for _, section := range sections {
 		skippedWidgets += len(asList(asMap(section)["widgets"]))
-		for _, item := range asList(asMap(section)["items"]) {
+		items := asList(asMap(section)["items"])
+		if len(items) == 0 {
+			// A group is only made for the links in it
+			b.warn("Section %q: skipped, it has no items", asString(asMap(section)["name"]))
+		}
+		for _, item := range items {
 			settings := asMap(item)
 			icon := asString(settings["icon"])
 			// Dashy fetches or draws these itself; Nimbus shows its default

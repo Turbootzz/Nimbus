@@ -269,12 +269,13 @@ func TestDashy(t *testing.T) {
 
 	warned(t, result.Warnings, "Docs", "far fa-book")
 	warned(t, result.Warnings, "2 Dashy widgets")
+	warned(t, result.Warnings, `Section "Latest Updates"`, "no items")
 }
 
 func TestCompose(t *testing.T) {
 	result := convert(t, "compose_media.yml", FormatCompose)
 	doc := result.Document
-	assert.Equal(t, []string{"Home Assistant", "Jellyfin", "Pi-hole", "Sonarr", "Traefik"}, serviceNames(doc))
+	assert.Equal(t, []string{"Home Assistant", "Jellyfin", "Pi-hole", "Movies", "Sonarr", "Traefik"}, serviceNames(doc))
 
 	sonarr := find(t, doc, "Sonarr")
 	assert.Equal(t, "http://nas.lan:8989", sonarr.URL)
@@ -288,10 +289,20 @@ func TestCompose(t *testing.T) {
 	pihole := find(t, doc, "Pi-hole")
 	assert.Equal(t, "https://nas.lan:8443", pihole.URL)
 	assert.Equal(t, "Network", groupOf(doc, pihole))
-	assert.Equal(t, "DNS", pihole.Description)
+	assert.Equal(t, "Blocks ads", pihole.Description, "nimbus.* wins over homepage.*")
 	traefik := find(t, doc, "Traefik")
 	assert.Equal(t, "https://proxy.example.com", traefik.URL)
 	assert.Contains(t, traefik.IconURL, "@mdi/svg@latest/svg/router.svg")
+
+	// The labels of Docker discovery
+	movies := find(t, doc, "Movies")
+	assert.Equal(t, "http://nas.lan:7878", movies.URL)
+	assert.Equal(t, "Media", groupOf(doc, movies))
+	assert.Contains(t, movies.IconURL, "dashboard-icons/png/radarr.png")
+	require.Len(t, doc.Integrations, 1)
+	assert.Equal(t, "radarr", doc.Integrations[0].Kind)
+	assert.Equal(t, doc.Integrations[0].Ref, movies.IntegrationRef)
+	warned(t, result.Warnings, "watchtower", "nimbus.enable=false")
 
 	warned(t, result.Warnings, "db", "publishes no TCP port")
 	warned(t, result.Warnings, "whoami", "publishes no TCP port")

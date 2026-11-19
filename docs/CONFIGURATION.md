@@ -401,7 +401,7 @@ It is a `merge`: nothing you have is changed or deleted.
 | [Homarr](https://homarr.dev) 0.x | A board config, `data/configs/<board>.json` | Categories as groups, apps as services, an app's integration when Nimbus has that app. Homarr's widgets are not converted. Homarr 1.x has no documented board export yet and is not supported. |
 | [Homer](https://github.com/bastienwirtz/homer) | `config.yml` | Service groups and their items; an item's `type` (PiHole, Sonarr, ...) becomes an integration when Nimbus has that app. Navbar links are not converted. |
 | [Dashy](https://dashy.to) | `conf.yml` | Sections as groups, items as services. Dashy's widgets are not converted. |
-| docker-compose | `docker-compose.yml` | Every service that publishes a TCP port: named after the service, with the icon of its image (registry, organisation, tag and digest are ignored), linking to the first published port. `homepage.*` labels (`name`, `href`, `icon`, `description`, `group`) are used when present. |
+| docker-compose | `docker-compose.yml` | Every service that publishes a TCP port: named after the service, with the icon of its image (registry, organisation, tag and digest are ignored), linking to the first published port. The [Docker discovery labels](INTEGRATIONS.md#labels) are used when present: `nimbus.*` (`name`, `url`, `icon`, `group`, `description`, `widget`), else `homepage.*` (`name`, `href`, `icon`, `description`, `group`); `nimbus.enable=false` skips the service. |
 
 Good to know:
 
