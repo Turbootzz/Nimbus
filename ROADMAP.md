@@ -6,12 +6,12 @@ Want something that is not here? Open an idea in [Discussions](https://github.co
 
 | Phase | Theme | Status |
 |---|---|---|
-| [v1.3 Quick wins](https://github.com/Turbootzz/Nimbus/milestone/1) | Small features with a visible effect | Partly shipped in 2.0.0, rest in progress |
-| [v2.0 Widgets & integrations](https://github.com/Turbootzz/Nimbus/milestone/2) | Widgets, live numbers from your apps, canvas layout | Released as [2.0.0](https://github.com/Turbootzz/Nimbus/releases/tag/v2.0.0) on 2026-10-06 |
-| [v2.1 Discovery & MCP](https://github.com/Turbootzz/Nimbus/milestone/3) | Less typing to set up, access for AI assistants | In progress |
-| [v2.2 Polish & reach](https://github.com/Turbootzz/Nimbus/milestone/4) | Boards, theming, languages, app stores | Mostly planned |
+| [v1.3 Quick wins](https://github.com/Turbootzz/Nimbus/milestone/1) | Small features with a visible effect | Partly shipped in 2.0.0, the rest in review |
+| [v2.0 Widgets & integrations](https://github.com/Turbootzz/Nimbus/milestone/2) | Widgets, live numbers from your apps, canvas layout | Released as [2.0.0](https://github.com/Turbootzz/Nimbus/releases/tag/v2.0.0) on 2026-10-06, follow-ups in review |
+| [v2.1 Discovery & MCP](https://github.com/Turbootzz/Nimbus/milestone/3) | Less typing to set up, access for AI assistants | In review, community integrations planned |
+| [v2.2 Polish & reach](https://github.com/Turbootzz/Nimbus/milestone/4) | Boards, theming, languages, app stores | In review, store submissions planned |
 
-"In progress" below means there is an open pull request; it has not shipped yet.
+"In review" below means the work is done in an open pull request; it ships in the next release once merged. What it adds is listed under [Unreleased](CHANGELOG.md#unreleased) in the changelog.
 
 ## v1.3 Quick wins
 
@@ -22,7 +22,7 @@ Shipped in 2.0.0:
 - Command palette and search with `/` or Ctrl/⌘+K ([#197](https://github.com/Turbootzz/Nimbus/issues/197))
 - Wallpaper upload with blur, dim and glass cards ([#199](https://github.com/Turbootzz/Nimbus/issues/199))
 
-In progress:
+In review for the next release:
 
 - Dashboard export and import as JSON ([#198](https://github.com/Turbootzz/Nimbus/issues/198), [PR #285](https://github.com/Turbootzz/Nimbus/pull/285))
 - Groups as stacked sections, next to tabs ([#200](https://github.com/Turbootzz/Nimbus/issues/200), [PR #287](https://github.com/Turbootzz/Nimbus/pull/287))
@@ -46,7 +46,7 @@ Shipped in 2.0.0:
 - Status strip with key numbers ([#222](https://github.com/Turbootzz/Nimbus/issues/222))
 - Contributor guide and template for new integrations ([#223](https://github.com/Turbootzz/Nimbus/issues/223))
 
-In progress:
+In review for the next release:
 
 - Docker through Portainer with an API key ([#267](https://github.com/Turbootzz/Nimbus/issues/267), [PR #281](https://github.com/Turbootzz/Nimbus/pull/281))
 - Per-app options, finishing Proxmox VE, Uptime Kuma and Home Assistant ([#216](https://github.com/Turbootzz/Nimbus/issues/216), [#218](https://github.com/Turbootzz/Nimbus/issues/218), [#219](https://github.com/Turbootzz/Nimbus/issues/219), [PR #284](https://github.com/Turbootzz/Nimbus/pull/284))
@@ -56,32 +56,33 @@ In progress:
 
 [Milestone](https://github.com/Turbootzz/Nimbus/milestone/3)
 
-In progress:
+In review for the next release:
 
 - Edit services from the dashboard ([#271](https://github.com/Turbootzz/Nimbus/issues/271), [PR #282](https://github.com/Turbootzz/Nimbus/pull/282))
 - Find services from Docker containers and their labels (`nimbus.*` and `homepage.*`) ([#224](https://github.com/Turbootzz/Nimbus/issues/224), [PR #288](https://github.com/Turbootzz/Nimbus/pull/288))
+- Importers for Homepage, Homarr 0.x, Homer, Dashy and docker-compose files ([#225](https://github.com/Turbootzz/Nimbus/issues/225), [PR #292](https://github.com/Turbootzz/Nimbus/pull/292))
+- Config-file mode with `NIMBUS_CONFIG_FILE` ([#226](https://github.com/Turbootzz/Nimbus/issues/226), [PR #292](https://github.com/Turbootzz/Nimbus/pull/292))
 - Scoped API tokens ([#227](https://github.com/Turbootzz/Nimbus/issues/227), [PR #286](https://github.com/Turbootzz/Nimbus/pull/286))
-- MCP server at `/mcp` ([#228](https://github.com/Turbootzz/Nimbus/issues/228), [PR #286](https://github.com/Turbootzz/Nimbus/pull/286)), with a guide for Claude, Open WebUI and Home Assistant ([#229](https://github.com/Turbootzz/Nimbus/issues/229))
+- MCP server at `/mcp` ([#228](https://github.com/Turbootzz/Nimbus/issues/228)), with a guide for Claude, Open WebUI and Home Assistant ([#229](https://github.com/Turbootzz/Nimbus/issues/229)) ([PR #286](https://github.com/Turbootzz/Nimbus/pull/286))
 
 Planned:
 
-- Importers for Homepage, Homarr, Homer, Dashy and docker-compose files ([#225](https://github.com/Turbootzz/Nimbus/issues/225))
-- Config-file mode with `NIMBUS_CONFIG_FILE` ([#226](https://github.com/Turbootzz/Nimbus/issues/226))
 - More integrations from the community wishlist ([#196](https://github.com/Turbootzz/Nimbus/issues/196)): pick one and open a pull request
 
 ## v2.2 Polish & reach
 
 [Milestone](https://github.com/Turbootzz/Nimbus/milestone/4)
 
-In progress:
+In review for the next release:
 
+- Multiple boards, a board the admin shares with everyone, kiosk mode ([#230](https://github.com/Turbootzz/Nimbus/issues/230))
+- Public status page ([#231](https://github.com/Turbootzz/Nimbus/issues/231), [PR #290](https://github.com/Turbootzz/Nimbus/pull/290))
+- Theme presets, font choice and custom CSS ([#232](https://github.com/Turbootzz/Nimbus/issues/232), [PR #291](https://github.com/Turbootzz/Nimbus/pull/291))
 - Notifications to ntfy, Gotify, Telegram and Pushover ([#233](https://github.com/Turbootzz/Nimbus/issues/233), [PR #283](https://github.com/Turbootzz/Nimbus/pull/283))
+- Translations: Dutch, German, French and Spanish ([#234](https://github.com/Turbootzz/Nimbus/issues/234))
+- Helm chart and app store listing files ([#235](https://github.com/Turbootzz/Nimbus/issues/235)): the chart is in [`charts/nimbus`](charts/nimbus) and the listings are in [`distribution/`](distribution/README.md)
+- Research: SQLite as a second database backend ([#236](https://github.com/Turbootzz/Nimbus/issues/236)). The findings, an estimate and a recommendation are in [docs/SQLITE.md](docs/SQLITE.md); whether to build it is not decided yet.
 
 Planned:
 
-- Multiple boards, a shared board from the admin, kiosk mode ([#230](https://github.com/Turbootzz/Nimbus/issues/230))
-- Public status page ([#231](https://github.com/Turbootzz/Nimbus/issues/231))
-- Theme presets, font choice and custom CSS ([#232](https://github.com/Turbootzz/Nimbus/issues/232))
-- Translations: Dutch, German, French and Spanish ([#234](https://github.com/Turbootzz/Nimbus/issues/234))
-- App store listings and a Helm chart ([#235](https://github.com/Turbootzz/Nimbus/issues/235)). The chart is in [`charts/nimbus`](charts/nimbus) and the listing files are in [`distribution/`](distribution/README.md); submitting them to the stores is still to do.
-- Research: SQLite as a second database backend ([#236](https://github.com/Turbootzz/Nimbus/issues/236))
+- Submitting the listings to the app stores (Unraid, Runtipi, CasaOS, Umbrel, TrueNAS) ([#235](https://github.com/Turbootzz/Nimbus/issues/235))

@@ -255,6 +255,7 @@ Run `make help` for all available commands.
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [charts/nimbus](charts/nimbus) | Helm chart for Kubernetes |
 | [distribution/](distribution/README.md) | Portainer template and app store listings |
+| [SQLITE.md](docs/SQLITE.md) | Research: could Nimbus run on SQLite instead of PostgreSQL |
 
 ---
 
