@@ -34,10 +34,21 @@ vi.mock('@/hooks/useDashboardStream', () => ({
 }))
 vi.mock('@/components/DiscoveredTray', () => ({ default: () => <div data-testid="tray" /> }))
 vi.mock('@/components/ServicesGrid', () => ({
-  default: ({ tiles }: { tiles: { id: string }[] }) => (
+  default: ({
+    tiles,
+    onEditService,
+  }: {
+    tiles: { id: string; kind: string; service?: unknown }[]
+    onEditService?: (service: unknown) => void
+  }) => (
     <ul>
       {tiles.map((tile) => (
-        <li key={tile.id}>{tile.id}</li>
+        <li key={tile.id}>
+          {tile.id}
+          {onEditService && tile.service !== undefined && (
+            <button onClick={() => onEditService(tile.service)}>Edit {tile.id}</button>
+          )}
+        </li>
       ))}
     </ul>
   ),
@@ -271,6 +282,18 @@ describe('DashboardView', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByText(/Read-only/)).not.toBeInTheDocument()
+  })
+
+  it('drops a service moved to another board from the default board', async () => {
+    await loadBoards([home, lab])
+    vi.mocked(api.updateService).mockResolvedValue({ data: { ...service, board_id: 'b-lab' } })
+    store['nimbus-last-board'] = ''
+    render(<DashboardView />)
+    fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Edit s1' }))
+    fireEvent.change(await screen.findByLabelText('Board'), { target: { value: 'b-lab' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await waitFor(() => expect(screen.queryByText('s1')).not.toBeInTheDocument())
   })
 
   it('sends a new user with an empty board to the shared board', async () => {

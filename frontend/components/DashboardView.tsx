@@ -46,7 +46,7 @@ import {
 } from '@/lib/dashboard-store'
 import { refreshBoards, useBoards } from '@/hooks/useBoards'
 import { useKiosk } from '@/hooks/useKiosk'
-import { BOARD_NOT_FOUND, boardHref, getLastBoard, homeRedirect } from '@/lib/boards'
+import { BOARD_NOT_FOUND, boardHref, defaultBoard, getLastBoard, homeRedirect } from '@/lib/boards'
 import StatusStrip from '@/components/StatusStrip'
 import DiscoveredTray from '@/components/DiscoveredTray'
 import ServiceCard from '@/components/ServiceCard'
@@ -324,12 +324,12 @@ export default function DashboardView({ board }: DashboardViewProps) {
       } else if (response.error?.message === BOARD_NOT_FOUND) {
         // The board was unshared or deleted while open
         await refreshBoards()
-        router.replace('/dashboard')
+        router.replace(kiosk ? '/dashboard?kiosk=1' : '/dashboard')
       }
     } catch (error) {
       console.error('Failed to poll health:', error)
     }
-  }, [boardId, router])
+  }, [boardId, kiosk, router])
 
   const applyServiceStatus = useCallback((event: ServiceStatusEvent) => {
     setServices((prev) =>
@@ -693,7 +693,9 @@ export default function DashboardView({ board }: DashboardViewProps) {
   }, [])
 
   // A tile saved onto another board leaves this one
-  const isElsewhere = (tileBoard?: string) => !!board && !!tileBoard && tileBoard !== board.id
+  const shownBoardId = board?.id ?? defaultBoard(boards)?.id
+  const isElsewhere = (tileBoard?: string) =>
+    !!shownBoardId && !!tileBoard && tileBoard !== shownBoardId
 
   const handleWidgetSaved = (saved: Widget) => {
     setWidgets((prev) =>
@@ -710,18 +712,14 @@ export default function DashboardView({ board }: DashboardViewProps) {
   const closeServiceModal = useCallback(() => setEditingService(null), [])
 
   // The response is the whole service, health included
-  const handleServiceSaved = useCallback(
-    (saved: Service) => {
-      const moved = !!board && !!saved.board_id && saved.board_id !== board.id
-      setServices((prev) =>
-        moved
-          ? prev.filter((s) => s.id !== saved.id)
-          : prev.map((s) => (s.id === saved.id ? saved : s))
-      )
-      setEditingService(null)
-    },
-    [board]
-  )
+  const handleServiceSaved = (saved: Service) => {
+    setServices((prev) =>
+      isElsewhere(saved.board_id)
+        ? prev.filter((s) => s.id !== saved.id)
+        : prev.map((s) => (s.id === saved.id ? saved : s))
+    )
+    setEditingService(null)
+  }
 
   const handleWidgetSizeChange = async (widget: Widget, size: CardSize) => {
     if (resizingId) return

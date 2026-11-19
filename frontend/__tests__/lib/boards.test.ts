@@ -76,7 +76,7 @@ describe('boards', () => {
     expect(moveTargets([home, family], home.id)).toEqual([])
     expect(moveTargets(boards, home.id)).toEqual([media])
     expect(moveTargets(boards, media.id)).toEqual([home])
-    expect(moveTargets(boards)).toEqual([media], 'no board ID is the default board')
+    expect(moveTargets(boards), 'no board ID is the default board').toEqual([media])
   })
 
   it('remembers the default board as /dashboard itself', () => {
