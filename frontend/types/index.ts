@@ -772,3 +772,36 @@ export interface SystemSettingsResponse {
 export interface UpdateSettingRequest {
   value: string
 }
+
+// Dashboard export/import (docs/CONFIGURATION.md describes the document)
+export type ImportMode = 'merge' | 'replace'
+
+export interface DashboardDocument {
+  version: number
+  // Uploaded images an export left out because they were missing or too large
+  omitted_images?: number
+  [key: string]: unknown
+}
+
+export interface ImportCount {
+  created: number
+  removed: number
+}
+
+export interface ImportSummary {
+  mode: ImportMode
+  dry_run: boolean
+  groups: ImportCount
+  services: ImportCount
+  widgets: ImportCount
+  integrations: ImportCount
+  preferences: boolean
+  needs_credentials: number
+  needs_secrets: number
+}
+
+// One problem in an imported document, e.g. path "services[2].url"
+export interface ImportIssue {
+  path: string
+  message: string
+}

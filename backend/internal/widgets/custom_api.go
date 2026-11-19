@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -71,7 +72,22 @@ func (customAPI) Meta() Meta {
 	}
 }
 
-func (customAPI) Validate(config json.RawMessage) (json.RawMessage, error) {
+func (w customAPI) Validate(config json.RawMessage) (json.RawMessage, error) {
+	return w.validate(config, false)
+}
+
+// ValidateMasked accepts header values that are still masked (MaskedConfig)
+func (w customAPI) ValidateMasked(config json.RawMessage) (json.RawMessage, error) {
+	return w.validate(config, true)
+}
+
+// HasMasks reports a header whose value is still masked
+func (customAPI) HasMasks(config json.RawMessage) bool {
+	cfg, _ := decodeConfig[customAPIConfig](config)
+	return slices.ContainsFunc(cfg.Headers, func(h customAPIHeader) bool { return h.Value == redactedHeaderValue })
+}
+
+func (customAPI) validate(config json.RawMessage, allowMasked bool) (json.RawMessage, error) {
 	cfg, err := decodeConfig[customAPIConfig](config)
 	if err != nil {
 		return nil, err
@@ -101,7 +117,7 @@ func (customAPI) Validate(config json.RawMessage) (json.RawMessage, error) {
 			return nil, fmt.Errorf("header %d needs a valid name", i+1)
 		case strings.EqualFold(h.Name, "Host"):
 			return nil, fmt.Errorf("header %d: put the host in the URL instead", i+1)
-		case h.Value == redactedHeaderValue:
+		case h.Value == redactedHeaderValue && !allowMasked:
 			return nil, fmt.Errorf("enter the value of header %d again", i+1)
 		case len(h.Value) > maxCustomAPIHeaderBytes || !httpguts.ValidHeaderFieldValue(h.Value):
 			return nil, fmt.Errorf("header %d has an invalid value", i+1)
@@ -190,10 +206,14 @@ func (customAPI) Unredact(config, stored json.RawMessage) json.RawMessage {
 	return out
 }
 
-func (customAPI) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
+func (w customAPI) Fetch(ctx context.Context, req *FetchRequest) (any, error) {
 	cfg, err := decodeConfig[customAPIConfig](req.Config)
 	if err != nil || cfg.URL == "" {
 		return nil, errors.New("widget has no URL")
+	}
+	// An imported widget: never send the mask as if it were the secret
+	if w.HasMasks(req.Config) {
+		return nil, errors.New("edit this widget and enter its header values again; an import does not carry them")
 	}
 
 	header := http.Header{}

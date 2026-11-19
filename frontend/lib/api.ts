@@ -47,6 +47,9 @@ import type {
   IntegrationKindMeta,
   IntegrationRequest,
   IntegrationTestResult,
+  DashboardDocument,
+  ImportMode,
+  ImportSummary,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -474,6 +477,25 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  // ============================================
+  // Dashboard export/import
+  // ============================================
+
+  async exportDashboard(): Promise<ApiResponse<DashboardDocument>> {
+    return this.request<DashboardDocument>('/export')
+  }
+
+  // document is the file's text as is; the server validates it. A dry run
+  // changes nothing and tells what the import would do.
+  async importDashboard(
+    document: string,
+    mode: ImportMode,
+    dryRun = false
+  ): Promise<ApiResponse<ImportSummary>> {
+    const query = new URLSearchParams({ mode, ...(dryRun ? { dry_run: '1' } : {}) })
+    return this.request<ImportSummary>(`/import?${query}`, { method: 'POST', body: document })
   }
 
   // ============================================

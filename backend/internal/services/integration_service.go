@@ -97,6 +97,41 @@ func (s *IntegrationService) Delete(ctx context.Context, id, userID string) erro
 	return nil
 }
 
+// errMissingCredentials is what polling an imported integration reports
+// until the user enters its credentials
+var errMissingCredentials = errors.New("credentials are missing; enter them in Settings > Integrations")
+
+// missingCredentials reports an integration that needs credentials and has
+// none, as a dashboard import leaves it. Connecting anyway would fail at the
+// app, and repeated failed logins can get Nimbus banned there.
+func missingCredentials(integration *models.Integration, blob []byte) bool {
+	return integration.AuthType != models.IntegrationAuthNone && blob == nil
+}
+
+// forgetUser prepares what Delete does around the delete, for all of the
+// user's integrations: a dashboard replace deletes them itself. Call the
+// returned func once they are gone.
+func (s *IntegrationService) forgetUser(ctx context.Context, userID string) (func(), error) {
+	list, err := s.repo.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	closers := make([]func(), 0, len(list))
+	for i := range list {
+		if closeSession := s.sessionCloser(ctx, &list[i]); closeSession != nil {
+			closers = append(closers, closeSession)
+		}
+	}
+	return func() {
+		for _, integration := range list {
+			s.states.Delete(integration.ID)
+		}
+		for _, closeSession := range closers {
+			closeSession()
+		}
+	}, nil
+}
+
 // sessionCloser prepares ending the session the integration's kind keeps on
 // its app (integrations.Closer), with its current URL and credentials; nil
 // when there is none. The returned func logs out in the background, so an
@@ -209,6 +244,9 @@ func (s *IntegrationService) Conn(ctx context.Context, integration *models.Integ
 	if err != nil {
 		return nil, err
 	}
+	if missingCredentials(integration, blob) {
+		return nil, errMissingCredentials
+	}
 	creds, err := s.decryptCredentials(blob, integration.ID)
 	if err != nil {
 		log.Printf("integration %s: %v", integration.ID, err)
@@ -264,6 +302,8 @@ func (s *IntegrationService) TestSaved(ctx context.Context, id, userID string) (
 	switch {
 	case !ok:
 		result.Error = fmt.Sprintf("Integration kind %q is not available", current.Kind)
+	case missingCredentials(current, blob):
+		result.Error = "Credentials are missing. Enter them to connect."
 	case decryptErr != nil:
 		log.Printf("integration %s: %v", id, decryptErr)
 		result.Error = "Stored credentials cannot be decrypted (was ENCRYPTION_KEY changed?). Enter them again to fix this."
@@ -291,6 +331,27 @@ type integrationInput struct {
 // buildInput validates req. current is the stored integration on update and
 // nil otherwise; on update, empty request fields keep the stored value.
 func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current *models.Integration, isAdmin bool) (*integrationInput, error) {
+	impl, in, err := s.buildIntegration(req, current, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+	creds, err := resolveCredentials(in.AuthType, req.Credentials, current)
+	if err != nil {
+		return nil, err
+	}
+	return &integrationInput{impl: impl, integration: *in, creds: creds}, nil
+}
+
+// buildImported validates an integration of a dashboard document the way
+// Create does, except for credentials: a document never carries them. The
+// user enters them afterwards; until then Conn refuses to connect.
+func (s *IntegrationService) buildImported(req *models.IntegrationRequest, isAdmin bool) (*models.Integration, error) {
+	_, in, err := s.buildIntegration(req, nil, isAdmin)
+	return in, err
+}
+
+// buildIntegration validates everything in req but the credentials
+func (s *IntegrationService) buildIntegration(req *models.IntegrationRequest, current *models.Integration, isAdmin bool) (integrations.Integration, *models.Integration, error) {
 	in := models.Integration{VerifyTLS: true, RefreshSeconds: defaultRefreshSeconds}
 	if current != nil {
 		in = *current
@@ -298,38 +359,38 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 
 	if kind := strings.TrimSpace(req.Kind); kind != "" {
 		if current != nil && kind != current.Kind {
-			return nil, invalid("Kind cannot be changed")
+			return nil, nil, invalid("Kind cannot be changed")
 		}
 		in.Kind = kind
 	}
 	impl, ok := integrations.Get(in.Kind)
 	if !ok {
-		return nil, invalid("Unknown integration kind")
+		return nil, nil, invalid("Unknown integration kind")
 	}
 	meta := impl.Meta()
 	if meta.AdminOnly && !isAdmin {
-		return nil, invalid("Only admins can set up %s integrations", meta.Name)
+		return nil, nil, invalid("Only admins can set up %s integrations", meta.Name)
 	}
 
 	if name := strings.TrimSpace(req.Name); name != "" {
 		in.Name = name
 	}
 	if in.Name == "" {
-		return nil, invalid("Name is required")
+		return nil, nil, invalid("Name is required")
 	}
 	if utf8.RuneCountInString(in.Name) > 100 {
-		return nil, invalid("Name must be 100 characters or less")
+		return nil, nil, invalid("Name must be 100 characters or less")
 	}
 
 	if rawURL := strings.TrimSpace(req.BaseURL); rawURL != "" {
 		baseURL, err := normalizeBaseURL(rawURL, meta, s.dockerSocket)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		in.BaseURL = baseURL
 	}
 	if in.BaseURL == "" {
-		return nil, invalid("Base URL is required")
+		return nil, nil, invalid("Base URL is required")
 	}
 
 	if authType := strings.TrimSpace(req.AuthType); authType != "" {
@@ -339,11 +400,11 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		in.AuthType = meta.AuthTypes[0]
 	}
 	if !slices.Contains(meta.AuthTypes, in.AuthType) {
-		return nil, invalid("Auth type %q is not supported by %s", in.AuthType, meta.Name)
+		return nil, nil, invalid("Auth type %q is not supported by %s", in.AuthType, meta.Name)
 	}
 	// Checked on the merged values, so changing only the URL is caught too
 	if strings.HasPrefix(in.BaseURL, unixScheme) && in.AuthType != models.IntegrationAuthNone {
-		return nil, invalid("A unix socket takes no credentials; sign in with none")
+		return nil, nil, invalid("A unix socket takes no credentials; sign in with none")
 	}
 
 	if req.VerifyTLS != nil {
@@ -353,23 +414,19 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		in.RefreshSeconds = *req.RefreshSeconds
 	}
 	if in.RefreshSeconds < minRefreshSeconds || in.RefreshSeconds > maxRefreshSeconds {
-		return nil, invalid("Refresh interval must be between %d and %d seconds", minRefreshSeconds, maxRefreshSeconds)
+		return nil, nil, invalid("Refresh interval must be between %d and %d seconds", minRefreshSeconds, maxRefreshSeconds)
 	}
 
 	// On update, omitted options keep the stored ones
 	if given := optionsGiven(req.Options); given || current == nil {
 		options, err := validateOptions(meta, req.Options)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		in.Options = options
 	}
 
-	creds, err := resolveCredentials(in.AuthType, req.Credentials, current)
-	if err != nil {
-		return nil, err
-	}
-	return &integrationInput{impl: impl, integration: in, creds: creds}, nil
+	return impl, &in, nil
 }
 
 func optionsGiven(raw json.RawMessage) bool {

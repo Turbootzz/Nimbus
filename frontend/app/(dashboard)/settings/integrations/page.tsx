@@ -10,6 +10,10 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Integration } from '@/types'
 
 function StatusBadge({ integration }: { integration: Integration }) {
+  // An imported integration: the file never carries credentials
+  if (integration.auth_type !== 'none' && !integration.has_credentials) {
+    return <span className="text-warning text-xs">Needs credentials: edit to enter them</span>
+  }
   if (integration.last_test_ok === null) {
     return <span className="text-text-muted text-xs">Not tested</span>
   }

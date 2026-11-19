@@ -139,84 +139,9 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.Name == "" || req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name and URL are required",
-		})
-	}
-
-	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
-		})
-	}
-
-	// Validate and set icon fields
-	iconType := req.IconType
-	if iconType == "" {
-		iconType = models.IconTypeEmoji
-	}
-
-	// Validate icon_type
-	if iconType != models.IconTypeEmoji && iconType != models.IconTypeImageUpload && iconType != models.IconTypeImageURL {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid icon_type. Must be 'emoji', 'image_upload', or 'image_url'",
-		})
-	}
-
-	// Set default emoji if emoji type and no icon provided
-	icon := req.Icon
-	if iconType == models.IconTypeEmoji && icon == "" {
-		icon = models.DefaultIcon
-	}
-
-	// Validate icon_image_path for image types
-	iconImagePath := strings.TrimSpace(req.IconImagePath)
-	if iconType == models.IconTypeImageUpload {
-		if iconImagePath == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path is required for image_upload type",
-			})
-		}
-		// Prevent path traversal attacks - only allow filename, no path separators
-		if strings.Contains(iconImagePath, "..") || strings.Contains(iconImagePath, "/") || strings.Contains(iconImagePath, "\\") {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path must be a filename only, no path separators allowed",
-			})
-		}
-	}
-	if iconType == models.IconTypeImageURL {
-		if iconImagePath == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path (URL) is required for image_url type",
-			})
-		}
-		// Validate URL format (no SSRF risk since browser renders the URL, not the server)
-		if err := utils.ValidateIconURL(iconImagePath); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
-			})
-		}
-	}
-
-	// Validate and set card_size
-	cardSize := req.CardSize
-	if cardSize == "" {
-		cardSize = models.DefaultCardSize
-	}
-	if !models.IsValidCardSize(cardSize) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
-		})
-	}
-
-	// Default monitoring to enabled
-	monitoringEnabled := true
-	if req.MonitoringEnabled != nil {
-		monitoringEnabled = *req.MonitoringEnabled
+	service, err := services.NewServiceFromRequest(&req)
+	if err != nil {
+		return serviceError(c, err, "create service", nil)
 	}
 
 	// Validate group_id belongs to user if provided
@@ -234,23 +159,9 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		}
 	}
 
-	// Create service
-	service := &models.Service{
-		UserID:            userID,
-		Name:              req.Name,
-		URL:               req.URL,
-		Icon:              icon,
-		IconType:          iconType,
-		IconImagePath:     iconImagePath,
-		Description:       req.Description,
-		Status:            models.StatusUnknown, // Initial status
-		CardSize:          cardSize,
-		GroupID:           req.GroupID,
-		IntegrationID:     integrationID,
-		MonitoringEnabled: monitoringEnabled,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
-	}
+	service.UserID = userID
+	service.GroupID = req.GroupID
+	service.IntegrationID = integrationID
 
 	if err := h.serviceRepo.Create(c.Context(), service); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

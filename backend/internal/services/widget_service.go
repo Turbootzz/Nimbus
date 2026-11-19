@@ -32,15 +32,23 @@ type GroupGetter interface {
 	GetByID(ctx context.Context, id string) (*models.Group, error)
 }
 
+// IntegrationGetter is the part of IntegrationRepository the widget service needs
+type IntegrationGetter interface {
+	GetByID(ctx context.Context, id, userID string) (*models.Integration, error)
+}
+
 // WidgetService handles widget CRUD and the shared tile order
 type WidgetService struct {
 	repo         repository.WidgetRepositoryInterface
 	groups       GroupGetter
-	integrations repository.IntegrationRepositoryInterface
+	integrations IntegrationGetter
 	poller       Poller
+	// allowMasked accepts configs whose secrets are still masked; only a
+	// dashboard import sets it (widgets.MaskedConfig)
+	allowMasked bool
 }
 
-func NewWidgetService(repo repository.WidgetRepositoryInterface, groups GroupGetter, integrations repository.IntegrationRepositoryInterface) *WidgetService {
+func NewWidgetService(repo repository.WidgetRepositoryInterface, groups GroupGetter, integrations IntegrationGetter) *WidgetService {
 	return &WidgetService{repo: repo, groups: groups, integrations: integrations}
 }
 
@@ -290,7 +298,11 @@ func (s *WidgetService) validateConfig(widgetType widgets.WidgetType, config jso
 	if secret, ok := widgetType.(widgets.SecretConfig); ok && current != nil {
 		config = secret.Unredact(config, current.Config)
 	}
-	normalised, err := widgetType.Validate(config)
+	validate := widgetType.Validate
+	if masked, ok := widgetType.(widgets.MaskedConfig); ok && s.allowMasked {
+		validate = masked.ValidateMasked
+	}
+	normalised, err := validate(config)
 	if err != nil {
 		return nil, invalid("Invalid config: %s", err.Error())
 	}
