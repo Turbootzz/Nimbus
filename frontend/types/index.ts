@@ -411,6 +411,9 @@ export interface TileReorderRequest {
 }
 
 // Group types
+// cards: full tiles; chips: one-line links for a quick-launch group
+export type TileStyle = 'cards' | 'chips'
+
 export interface Group {
   id: string
   name: string
@@ -418,6 +421,7 @@ export interface Group {
   position: number
   is_default: boolean
   monitoring_enabled: boolean
+  tile_style?: TileStyle // cards when missing
   created_at: string
   updated_at?: string
 }
@@ -426,12 +430,14 @@ export interface GroupCreateRequest {
   name: string
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupUpdateRequest {
   name?: string
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupPosition {
@@ -473,6 +479,7 @@ export interface UserPreferences {
   card_opacity: number // %, 0-100
   card_blur: number // px, 0-40
   layout_mode: LayoutMode
+  group_display: GroupDisplay | null // null follows the layout
   status_strip: StatusStrip
   updated_at?: string
 }
@@ -501,6 +508,9 @@ export interface StatusStrip {
 // classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
 export type LayoutMode = 'classic' | 'canvas'
 
+// tabs: one group at a time; sections: all groups stacked under a header
+export type GroupDisplay = 'tabs' | 'sections'
+
 export interface PreferencesUpdateRequest {
   theme_mode?: 'light' | 'dark' | 'auto'
   theme_background?: string | null
@@ -515,6 +525,7 @@ export interface PreferencesUpdateRequest {
   card_opacity?: number
   card_blur?: number
   layout_mode?: LayoutMode
+  group_display?: GroupDisplay
   status_strip?: StatusStrip
 }
 
@@ -584,6 +595,9 @@ export interface MetricsResponse {
   min_response_time: number
   max_response_time: number
   data_points: MetricDataPoint[]
+  last_checked_at?: string // latest check, also when older than the range
+  last_error?: string // latest failed check within the range
+  last_error_at?: string
 }
 
 export type TimeRangeOption = '1h' | '6h' | '24h' | '7d' | '30d'

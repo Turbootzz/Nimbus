@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Toggle } from '@/components/ui/Toggle'
-import type { Group, GroupCreateRequest, GroupUpdateRequest } from '@/types'
+import type { Group, GroupCreateRequest, GroupUpdateRequest, TileStyle } from '@/types'
 
 interface GroupFormProps {
   group?: Group | null // If provided, edit mode; otherwise create mode
@@ -26,6 +26,11 @@ const presetColors = [
   '#64748b', // Slate
 ]
 
+const tileStyles: { value: TileStyle; label: string; description: string }[] = [
+  { value: 'cards', label: 'Cards', description: 'Full tiles with status and details' },
+  { value: 'chips', label: 'Chips', description: 'One line each, for many quick links' },
+]
+
 // Get initial custom color value
 const getInitialCustomColor = (groupColor: string | undefined) => {
   const color = groupColor || '#6366f1'
@@ -37,6 +42,7 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
   const [color, setColor] = useState(group?.color || '#6366f1')
   const [customColor, setCustomColor] = useState(() => getInitialCustomColor(group?.color))
   const [monitoringEnabled, setMonitoringEnabled] = useState(group?.monitoring_enabled ?? true)
+  const [tileStyle, setTileStyle] = useState<TileStyle>(group?.tile_style ?? 'cards')
   const [error, setError] = useState<string | null>(null)
 
   const isEditMode = !!group
@@ -64,19 +70,12 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
     }
 
     try {
-      if (isEditMode) {
-        await onSubmit({
-          name: trimmedName,
-          color,
-          monitoring_enabled: monitoringEnabled,
-        } as GroupUpdateRequest)
-      } else {
-        await onSubmit({
-          name: trimmedName,
-          color,
-          monitoring_enabled: monitoringEnabled,
-        } as GroupCreateRequest)
-      }
+      await onSubmit({
+        name: trimmedName,
+        color,
+        monitoring_enabled: monitoringEnabled,
+        tile_style: tileStyle,
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save group')
     }
@@ -208,6 +207,34 @@ export default function GroupForm({ group, onSubmit, onClose, isLoading = false 
               </span>
             </div>
           </div>
+
+          {/* Tile style */}
+          <fieldset className="mb-4" disabled={isLoading}>
+            <legend className="text-text-primary mb-2 block text-sm font-medium">Tile style</legend>
+            <div className="grid grid-cols-2 gap-2">
+              {tileStyles.map((style) => (
+                <label
+                  key={style.value}
+                  className={`has-focus-visible:ring-primary cursor-pointer rounded-md border p-2 transition-colors has-focus-visible:ring-2 ${
+                    tileStyle === style.value
+                      ? 'border-primary'
+                      : 'border-card-border hover:border-text-muted'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="tile_style"
+                    value={style.value}
+                    checked={tileStyle === style.value}
+                    onChange={() => setTileStyle(style.value)}
+                    className="sr-only"
+                  />
+                  <span className="text-text-primary block text-sm font-medium">{style.label}</span>
+                  <span className="text-text-muted block text-xs">{style.description}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           {/* Monitoring Toggle */}
           <div className="mb-4">

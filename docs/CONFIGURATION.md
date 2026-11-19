@@ -361,7 +361,7 @@ to its emoji, and an import keeps the wallpaper you have.
 | Mode | What it does |
 |---|---|
 | `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
-| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value. |
+| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). |
 
 An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
 touches the dashboard of the user who imports. Everything in the file is checked like a normal
@@ -430,7 +430,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
 {
   "version": 1,
   "groups": [
-    { "ref": "media", "name": "Media", "color": "#0ea5e9", "default": true, "monitoring_enabled": true }
+    { "ref": "media", "name": "Media", "color": "#0ea5e9", "default": true, "monitoring_enabled": true, "tile_style": "cards" }
   ],
   "integrations": [
     {
@@ -484,6 +484,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
     "card_opacity": 80,
     "card_blur": 12,
     "layout_mode": "canvas",
+    "group_display": "sections",
     "card_scale": "medium",
     "view_mode": "grid",
     "open_in_new_tab": true,
@@ -499,12 +500,12 @@ on an entity that something points at. Unknown fields and any other `version` ar
 
 | Field | Notes |
 |---|---|
-| `groups` | Ordered as listed. At most one has `default: true`. `color` is `#RRGGBB`. |
+| `groups` | Ordered as listed. At most one has `default: true`. `color` is `#RRGGBB`. `tile_style` is `cards` or `chips`; left out, the group gets cards. |
 | `integrations[].kind` | A kind from [INTEGRATIONS.md](INTEGRATIONS.md). `auth_type` defaults to the kind's first one. `needs_credentials` is informational. |
 | `services[].icon_type` | `emoji` (uses `icon`), `image_url` (uses `icon_url`) or `image_upload` (uses `icon_data`: base64 of a JPEG, PNG, GIF, WebP, ICO or SVG up to 512 KB). The file can not name a file on the server. |
 | `services[].position`, `widgets[].position` | Services and widgets share one order. `replace` keeps the positions; `merge` keeps their order and puts them behind your tiles. |
 | `widgets[].type`, `config` | A type and its config from [WIDGETS.md](WIDGETS.md). Where a config lists integrations (the calendar), it lists their refs. `needs_secrets` is informational. |
-| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color` is a hex color like `#3B82F6` or `#38F`; `""` selects the default accent. |
+| `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color` is a hex color like `#3B82F6` or `#38F`; `""` selects the default accent. `group_display` is `tabs` or `sections` and is the one field that does not keep your value when it is left out: without it, groups follow the layout (tabs in classic, sections in canvas). |
 | `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
 | `omitted_images` | Written by an export, ignored by an import. |
 

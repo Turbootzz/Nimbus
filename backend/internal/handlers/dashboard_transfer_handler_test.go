@@ -29,6 +29,7 @@ const transferTestSchema = `
 	CREATE TABLE groups (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT, position INTEGER DEFAULT 0,
 		is_default INTEGER DEFAULT 0, monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+		tile_style TEXT NOT NULL DEFAULT 'cards' CHECK (tile_style IN ('cards', 'chips')),
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 	CREATE UNIQUE INDEX idx_groups_default_per_user ON groups(user_id) WHERE is_default = TRUE;
@@ -60,6 +61,7 @@ const transferTestSchema = `
 		view_mode TEXT NOT NULL DEFAULT 'grid', wallpaper_blur INTEGER NOT NULL DEFAULT 0,
 		wallpaper_dim INTEGER NOT NULL DEFAULT 0, card_opacity INTEGER NOT NULL DEFAULT 100,
 		card_blur INTEGER NOT NULL DEFAULT 0, layout_mode TEXT NOT NULL DEFAULT 'canvas',
+		group_display TEXT CHECK (group_display IN ('tabs', 'sections')),
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -150,7 +152,7 @@ func transferTestDocument() string {
 	image := base64.StdEncoding.EncodeToString(tinyPNG)
 	return `{
 		"version": 1,
-		"groups": [{"ref": "media", "name": "Media", "color": "#ff0000", "default": true}],
+		"groups": [{"ref": "media", "name": "Media", "color": "#ff0000", "default": true, "tile_style": "chips"}],
 		"integrations": [{"ref": "sonarr", "kind": "handler-fake", "name": "Sonarr", "base_url": "http://192.168.1.10:8989"}],
 		"services": [
 			{"name": "Sonarr", "url": "http://192.168.1.10:8989", "position": 0, "group_ref": "media",
@@ -160,6 +162,7 @@ func transferTestDocument() string {
 		"widgets": [{"ref": "note", "type": "markdown", "title": "Note", "position": 1, "config": {"content": "hi"}}],
 		"preferences": {
 			"theme_mode": "dark",
+			"group_display": "sections",
 			"wallpaper_data": "` + image + `",
 			"status_strip": {"enabled": true, "chips": [{"source": "integration", "ref": "sonarr", "kpi": "queued"}]}
 		}
@@ -202,6 +205,8 @@ func TestTransfer_ImportExportRoundTrip(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 	assert.Regexp(t, `^attachment; filename="nimbus-dashboard-\d{4}-\d{2}-\d{2}\.json"$`, header.Get("Content-Disposition"))
 	assert.NotContains(t, string(first), firstIcons[0])
+	assert.Contains(t, string(first), `"tile_style":"chips"`)
+	assert.Contains(t, string(first), `"group_display":"sections"`)
 
 	// Importing the export replaces the dashboard by an identical one
 	status, _, body = transferRequest(t, app, http.MethodPost, "/import?mode=replace", string(first))

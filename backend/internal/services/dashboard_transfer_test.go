@@ -42,6 +42,7 @@ const transferSchema = `
 		position INTEGER DEFAULT 0,
 		is_default INTEGER DEFAULT 0,
 		monitoring_enabled INTEGER NOT NULL DEFAULT 1,
+		tile_style TEXT NOT NULL DEFAULT 'cards' CHECK (tile_style IN ('cards', 'chips')),
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -113,6 +114,7 @@ const transferSchema = `
 		card_opacity INTEGER NOT NULL DEFAULT 100,
 		card_blur INTEGER NOT NULL DEFAULT 0,
 		layout_mode TEXT NOT NULL DEFAULT 'canvas',
+		group_display TEXT CHECK (group_display IN ('tabs', 'sections')),
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -259,6 +261,8 @@ func (e *transferEnv) seedDashboard(t *testing.T) {
 	ctx := context.Background()
 	defaultGroup := e.addGroup(t, transferAdmin, "Services", 0, true)
 	media := e.addGroup(t, transferAdmin, "Media", 3, false)
+	_, err := e.db.Exec(`UPDATE groups SET tile_style = 'chips' WHERE id = ?`, media)
+	require.NoError(t, err)
 
 	sonarr, err := e.integrations.Create(ctx, transferAdmin, true, &models.IntegrationRequest{
 		Kind: "sonarr", Name: "Sonarr", BaseURL: "http://192.168.1.10:8989",
@@ -306,6 +310,7 @@ func (e *transferEnv) seedDashboard(t *testing.T) {
 		WallpaperBlur:    new(4),
 		CardOpacity:      new(80),
 		LayoutMode:       new("classic"),
+		GroupDisplay:     new("sections"),
 		StatusStrip: &models.StatusStrip{Enabled: true, Chips: []models.StatusChip{
 			{Source: "integration", ID: sonarr.ID, KPI: "queue"},
 			{Source: "widget", ID: api.ID, KPI: "Temp"},
@@ -367,8 +372,10 @@ func TestExportUsesRefsAndCarriesNoSecrets(t *testing.T) {
 	}
 
 	require.Len(t, doc.Groups, 2)
-	assert.Equal(t, dashdoc.Group{Ref: "services", Name: "Services", Color: "#ff0000", Default: true, MonitoringEnabled: new(true)}, doc.Groups[0])
+	assert.Equal(t, dashdoc.Group{Ref: "services", Name: "Services", Color: "#ff0000", Default: true, MonitoringEnabled: new(true), TileStyle: "cards"}, doc.Groups[0])
 	assert.Equal(t, "media", doc.Groups[1].Ref)
+	assert.Equal(t, "chips", doc.Groups[1].TileStyle)
+	assert.Equal(t, new("sections"), doc.Preferences.GroupDisplay)
 
 	require.Len(t, doc.Integrations, 2)
 	assert.Equal(t, "plain", doc.Integrations[0].Ref)
@@ -528,6 +535,37 @@ func TestRoundTripIntoEmptyAccount(t *testing.T) {
 	assert.Equal(t, toJSON(t, first), toJSON(t, env.export(t, transferFresh)))
 	// The source account is untouched
 	assert.Equal(t, toJSON(t, first), toJSON(t, env.export(t, transferAdmin)))
+}
+
+// An export from before tile styles and the group display has neither field
+func TestImportWithoutTileStyleAndGroupDisplay(t *testing.T) {
+	env := newTransferEnv(t)
+	env.seedDashboard(t)
+	ctx := context.Background()
+	groupDisplay := func() *string {
+		prefs, err := env.preferences.GetByUserID(ctx, transferAdmin)
+		require.NoError(t, err)
+		return prefs.GroupDisplay
+	}
+	doc := func(raw string) *dashdoc.Document {
+		var d dashdoc.Document
+		require.NoError(t, json.Unmarshal([]byte(raw), &d))
+		return &d
+	}
+
+	// No preferences at all: they stay as they are
+	_, err := env.svc.Apply(ctx, transferAdmin, doc(`{"version": 1, "groups": [{"name": "Old"}]}`), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, "cards", env.export(t, transferAdmin).Groups[0].TileStyle)
+	assert.Equal(t, new("sections"), groupDisplay())
+
+	// Preferences without group_display: the groups follow the layout
+	_, err = env.svc.Apply(ctx, transferAdmin, doc(`{"version": 1, "preferences": {"theme_mode": "light"}}`), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Nil(t, groupDisplay())
+	exported := env.export(t, transferAdmin)
+	assert.Nil(t, exported.Preferences.GroupDisplay)
+	assert.NotContains(t, toJSON(t, exported), "group_display")
 }
 
 func TestImportedIntegrationHasNoCredentialsAndIsNotPolled(t *testing.T) {
@@ -750,6 +788,8 @@ func TestInvalidDocuments(t *testing.T) {
 		{"unknown version", &dashdoc.Document{Version: 2}, "version"},
 		{"missing version", &dashdoc.Document{}, "version"},
 		{"group without name", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Ref: "g"}}}, "groups[0]"},
+		{"group tile style", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Name: "G", TileStyle: "grid"}}}, "groups[0]"},
+		{"group display", prefs(dashdoc.Preferences{GroupDisplay: new("grid")}), "preferences"},
 		{"group color", &dashdoc.Document{Version: 1, Groups: []dashdoc.Group{{Name: "G", Color: "red"}}}, "groups[0]"},
 		{"unknown integration kind", &dashdoc.Document{Version: 1, Integrations: []dashdoc.Integration{{Kind: "nope", Name: "X", BaseURL: "http://192.168.1.2"}}}, "integrations[0]"},
 		{"integration url with credentials", &dashdoc.Document{Version: 1, Integrations: []dashdoc.Integration{{Kind: "svc-fake", Name: "X", BaseURL: "http://user:pass@192.168.1.2"}}}, "integrations[0]"},

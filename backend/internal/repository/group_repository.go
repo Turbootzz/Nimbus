@@ -29,6 +29,10 @@ func NewGroupRepository(sqlDB *sql.DB) *GroupRepository {
 
 // Create creates a new group with auto-assigned position
 func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error {
+	// The column only takes a known style
+	if group.TileStyle == "" {
+		group.TileStyle = models.TileStyleCards
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -57,8 +61,8 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 	}
 
 	query := `
-		INSERT INTO groups (user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO groups (user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 		RETURNING id
 	`
 
@@ -71,6 +75,7 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 		group.Position,
 		group.IsDefault,
 		group.MonitoringEnabled,
+		group.TileStyle,
 		group.CreatedAt,
 		group.UpdatedAt,
 	).Scan(&group.ID)
@@ -85,7 +90,7 @@ func (r *GroupRepository) Create(ctx context.Context, group *models.Group) error
 func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group, error) {
 	group := &models.Group{}
 	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at
+		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
 		FROM groups
 		WHERE id = $1
 	`
@@ -98,6 +103,7 @@ func (r *GroupRepository) GetByID(ctx context.Context, id string) (*models.Group
 		&group.Position,
 		&group.IsDefault,
 		&group.MonitoringEnabled,
+		&group.TileStyle,
 		&group.CreatedAt,
 		&group.UpdatedAt,
 	)
@@ -120,7 +126,7 @@ func (r *GroupRepository) CountByUserID(ctx context.Context, userID string) (int
 // GetAllByUserID retrieves all groups for a specific user ordered by position
 func (r *GroupRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Group, error) {
 	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at
+		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
 		FROM groups
 		WHERE user_id = $1
 		ORDER BY position ASC, created_at ASC
@@ -143,6 +149,7 @@ func (r *GroupRepository) GetAllByUserID(ctx context.Context, userID string) ([]
 			&group.Position,
 			&group.IsDefault,
 			&group.MonitoringEnabled,
+			&group.TileStyle,
 			&group.CreatedAt,
 			&group.UpdatedAt,
 		)
@@ -159,7 +166,7 @@ func (r *GroupRepository) GetAllByUserID(ctx context.Context, userID string) ([]
 func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string) (*models.Group, error) {
 	group := &models.Group{}
 	query := `
-		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at
+		SELECT id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at
 		FROM groups
 		WHERE user_id = $1 AND is_default = TRUE
 	`
@@ -172,6 +179,7 @@ func (r *GroupRepository) GetDefaultByUserID(ctx context.Context, userID string)
 		&group.Position,
 		&group.IsDefault,
 		&group.MonitoringEnabled,
+		&group.TileStyle,
 		&group.CreatedAt,
 		&group.UpdatedAt,
 	)
@@ -194,6 +202,7 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 		Position:          0,
 		IsDefault:         true,
 		MonitoringEnabled: true,
+		TileStyle:         models.TileStyleCards,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}
@@ -201,14 +210,14 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 	if r.isPostgreSQL {
 		// Use INSERT ... ON CONFLICT for atomic upsert
 		query := `
-			INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, created_at, updated_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+			INSERT INTO groups (id, user_id, name, color, position, is_default, monitoring_enabled, tile_style, created_at, updated_at)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 			ON CONFLICT (user_id) WHERE is_default = TRUE
 			DO NOTHING
 		`
 		result, err := r.db.ExecContext(ctx, query,
 			group.ID, group.UserID, group.Name, group.Color,
-			group.Position, group.IsDefault, group.MonitoringEnabled, group.CreatedAt, group.UpdatedAt,
+			group.Position, group.IsDefault, group.MonitoringEnabled, group.TileStyle, group.CreatedAt, group.UpdatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -247,12 +256,12 @@ func (r *GroupRepository) EnsureDefaultGroup(ctx context.Context, userID string)
 	return group, nil
 }
 
-// Update updates an existing group (name, color, and monitoring_enabled)
+// Update updates an existing group (name, color, monitoring_enabled and tile_style)
 func (r *GroupRepository) Update(ctx context.Context, group *models.Group) error {
 	query := `
 		UPDATE groups
-		SET name = $1, color = $2, monitoring_enabled = $3, updated_at = $4
-		WHERE id = $5 AND user_id = $6
+		SET name = $1, color = $2, monitoring_enabled = $3, tile_style = $4, updated_at = $5
+		WHERE id = $6 AND user_id = $7
 	`
 
 	result, err := r.db.ExecContext(
@@ -261,6 +270,7 @@ func (r *GroupRepository) Update(ctx context.Context, group *models.Group) error
 		group.Name,
 		group.Color,
 		group.MonitoringEnabled,
+		group.TileStyle,
 		group.UpdatedAt,
 		group.ID,
 		group.UserID,

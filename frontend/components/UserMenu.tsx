@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -8,15 +8,19 @@ import {
   ArrowRightOnRectangleIcon,
   UserIcon,
   ChevronDownIcon,
+  CheckIcon,
+  PencilSquareIcon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
+import { toggleEditMode, useEditMode } from '@/lib/dashboard-store'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
 interface UserMenuProps {
   // The canvas layout has no sidebar, so its menu links to the main pages
+  // and toggles the dashboard's edit mode
   withNavigation?: boolean
 }
 
@@ -25,6 +29,9 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
+  const isEditMode = useEditMode()
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
 
@@ -55,6 +62,21 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
     router.push('/login')
   }, [router])
 
+  // Escape closes the menu and hands the focus back to its button
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape' && isOpen) {
+      event.stopPropagation()
+      setIsOpen(false)
+      triggerRef.current?.focus()
+    }
+  }
+
+  const handleEditLayout = () => {
+    setIsOpen(false)
+    triggerRef.current?.focus()
+    toggleEditMode()
+  }
+
   const handleProfile = useCallback(() => {
     setIsOpen(false)
     router.push('/settings/profile')
@@ -74,9 +96,14 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   }
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={menuRef} onKeyDown={handleKeyDown}>
       {/* User button */}
       <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-3 rounded-md p-2 transition-colors"
         style={{
@@ -117,6 +144,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       {/* Dropdown menu */}
       {isOpen && (
         <div
+          id={menuId}
           className="absolute right-0 mt-2 w-56 rounded-md border shadow-lg"
           style={{
             backgroundColor: 'var(--color-card)',
@@ -142,6 +170,23 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     {item.name}
                   </Link>
                 ))}
+                <button
+                  type="button"
+                  onClick={handleEditLayout}
+                  className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                  style={{ color: 'var(--color-text-primary)' }}
+                  {...menuItemHover}
+                >
+                  {isEditMode ? (
+                    <CheckIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-success)' }} />
+                  ) : (
+                    <PencilSquareIcon
+                      className="mr-3 h-5 w-5"
+                      style={{ color: 'var(--color-text-muted)' }}
+                    />
+                  )}
+                  {isEditMode ? 'Done editing' : 'Edit layout'}
+                </button>
                 {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
                   <a
                     href="https://nimbusapp.dev"

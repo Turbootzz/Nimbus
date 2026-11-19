@@ -109,6 +109,7 @@ type UserPreferences struct {
 	CardOpacity           int         `json:"card_opacity" db:"card_opacity"`     // %, 0-100
 	CardBlur              int         `json:"card_blur" db:"card_blur"`           // px, 0-40
 	LayoutMode            string      `json:"layout_mode" db:"layout_mode"`       // "classic" or "canvas"
+	GroupDisplay          *string     `json:"group_display" db:"group_display"`   // "tabs" or "sections"; nil follows the layout
 	StatusStrip           StatusStrip `json:"status_strip" db:"status_strip"`
 	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
@@ -129,7 +130,11 @@ type PreferencesUpdateRequest struct {
 	CardOpacity           *int           `json:"card_opacity" validate:"omitempty,min=0,max=100"`
 	CardBlur              *int           `json:"card_blur" validate:"omitempty,min=0,max=40"`
 	LayoutMode            *string        `json:"layout_mode" validate:"omitempty,oneof=classic canvas"`
-	StatusStrip           *StatusStrip   `json:"status_strip"`
+	GroupDisplay          *string        `json:"group_display" validate:"omitempty,oneof=tabs sections"`
+	// FollowLayout clears group_display when it is not given. Set by a
+	// dashboard import only, never read from a request.
+	FollowLayout bool         `json:"-"`
+	StatusStrip  *StatusStrip `json:"status_strip"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -147,6 +152,7 @@ type PreferencesResponse struct {
 	CardOpacity           int         `json:"card_opacity"`
 	CardBlur              int         `json:"card_blur"`
 	LayoutMode            string      `json:"layout_mode"`
+	GroupDisplay          *string     `json:"group_display"` // null: tabs in classic, sections in canvas
 	StatusStrip           StatusStrip `json:"status_strip"`
 	UpdatedAt             time.Time   `json:"updated_at"`
 }
@@ -167,6 +173,7 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		CardOpacity:           p.CardOpacity,
 		CardBlur:              p.CardBlur,
 		LayoutMode:            p.LayoutMode,
+		GroupDisplay:          p.GroupDisplay,
 		StatusStrip:           p.StatusStrip,
 		UpdatedAt:             p.UpdatedAt,
 	}

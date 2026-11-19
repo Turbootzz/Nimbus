@@ -163,6 +163,7 @@ describe('ServiceListItem', () => {
       // Drag handle has cursor-grab class
       const dragHandle = document.querySelector('.cursor-grab')
       expect(dragHandle).toBeInTheDocument()
+      expect(dragHandle).toHaveAttribute('aria-label', 'Move Test Service')
     })
 
     it('should not show drag handle when not in edit mode', () => {

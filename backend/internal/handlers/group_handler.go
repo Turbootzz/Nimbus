@@ -114,7 +114,7 @@ func (h *GroupHandler) GetGroup(c *fiber.Ctx) error {
 	return c.JSON(group.ToResponse())
 }
 
-// UpdateGroup handles group updates (name and color only)
+// UpdateGroup handles group updates (name, color, monitoring and tile style)
 func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
@@ -170,6 +170,16 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 			})
 		}
 		existingGroup.Color = req.Color
+	}
+
+	// Validate and apply tile style if provided
+	if req.TileStyle != "" {
+		if !models.IsValidTileStyle(req.TileStyle) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid tile style. Must be cards or chips",
+			})
+		}
+		existingGroup.TileStyle = req.TileStyle
 	}
 
 	// Update monitoring_enabled if provided

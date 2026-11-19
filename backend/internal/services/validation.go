@@ -46,6 +46,14 @@ func NewGroupFromRequest(req *models.GroupCreateRequest) (*models.Group, error) 
 		return nil, invalid("Invalid color format. Must be hex format #RRGGBB")
 	}
 
+	tileStyle := req.TileStyle
+	if tileStyle == "" {
+		tileStyle = models.TileStyleCards
+	}
+	if !models.IsValidTileStyle(tileStyle) {
+		return nil, invalid("Invalid tile style. Must be cards or chips")
+	}
+
 	// Default monitoring to enabled
 	monitoringEnabled := true
 	if req.MonitoringEnabled != nil {
@@ -57,6 +65,7 @@ func NewGroupFromRequest(req *models.GroupCreateRequest) (*models.Group, error) 
 		Name:              req.Name,
 		Color:             color,
 		MonitoringEnabled: monitoringEnabled,
+		TileStyle:         tileStyle,
 		CreatedAt:         now,
 		UpdatedAt:         now,
 	}, nil

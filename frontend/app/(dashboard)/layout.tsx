@@ -12,7 +12,12 @@ import {
   getSidebarServerSnapshot,
   setSidebarCollapsed,
 } from '@/lib/sidebar-store'
-import { getLayoutSnapshot, useLayoutMode } from '@/lib/layout-store'
+import {
+  getLayoutPendingSnapshot,
+  getLayoutSnapshot,
+  useLayoutMode,
+  useLayoutPending,
+} from '@/lib/layout-store'
 
 // Route title configuration (ordered by specificity - more specific routes first)
 const routeTitles: { path: string; title: string; exact?: boolean }[] = [
@@ -36,21 +41,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
   // Canvas is only for the dashboard; every other page keeps the sidebar
   const canvas = useLayoutMode() === 'canvas' && pathname === '/dashboard'
+  const layoutPending = useLayoutPending()
 
   // Clean up the pre-hydration sidebar attribute once React takes over. The
-  // canvas one follows the stored choice, not this render: during hydration
-  // this render is still classic, and the canvas follows right after.
+  // layout one follows the stored choice, not this render: during hydration
+  // this render is still classic, and the canvas follows right after. While
+  // the choice is unknown the dashboard stays hidden (globals.css).
   useEffect(() => {
     document.documentElement.removeAttribute('data-sidebar-collapsed')
   }, [])
   useEffect(() => {
     const root = document.documentElement
-    if (getLayoutSnapshot() === 'canvas' && pathname === '/dashboard') {
+    if (pathname !== '/dashboard') {
+      root.removeAttribute('data-layout')
+    } else if (getLayoutSnapshot() === 'canvas') {
       root.setAttribute('data-layout', 'canvas')
+    } else if (getLayoutPendingSnapshot()) {
+      root.setAttribute('data-layout', 'pending')
     } else {
       root.removeAttribute('data-layout')
     }
-  }, [canvas, pathname])
+  }, [canvas, layoutPending, pathname])
 
   const pageTitle = useMemo(() => {
     const route = routeTitles.find((r) =>

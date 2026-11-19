@@ -89,7 +89,8 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			EnableServiceGrouping: true,
 			CardScale:             "medium",
 			ViewMode:              "grid",
-			CardOpacity:           100,
+			CardOpacity:           75,
+			CardBlur:              12,
 			LayoutMode:            "canvas",
 			StatusStrip:           models.StatusStrip{Chips: []models.StatusChip{}},
 			UpdatedAt:             time.Time{}, // Zero value for time
