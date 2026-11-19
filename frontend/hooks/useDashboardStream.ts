@@ -35,6 +35,9 @@ function mergeNewer(current: SnapshotMap, loaded: Snapshot[]): SnapshotMap {
 }
 
 interface DashboardStreamOptions {
+  // The board to follow; the user's default board when undefined. A change
+  // does not reconnect: the dashboard remounts per board.
+  boardId?: string
   // A health check finished for one of the user's services
   onServiceStatus: (event: ServiceStatusEvent) => void
   // Refetch services; called while the stream is down and after it recovers
@@ -46,7 +49,7 @@ interface DashboardStreamOptions {
  * /dashboard/stream. Reconnects with backoff (1s to 30s) and polls every 30s
  * while disconnected.
  */
-export function useDashboardStream({ onServiceStatus, onResync }: DashboardStreamOptions) {
+export function useDashboardStream({ boardId, onServiceStatus, onResync }: DashboardStreamOptions) {
   const [snapshots, setSnapshots] = useState<SnapshotMap>({})
   const [connected, setConnected] = useState(false)
 
@@ -56,7 +59,12 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
     handlers.current = { onServiceStatus, onResync }
   })
 
+  // Read once, like the board itself (see boardId)
+  const board = useRef(boardId)
+
   useEffect(() => {
+    const boardId = board.current
+    const query = boardId ? `?board=${encodeURIComponent(boardId)}` : ''
     let source: EventSource | null = null
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let loadTimer: ReturnType<typeof setTimeout> | undefined
@@ -69,7 +77,7 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
     const loadData = async () => {
       clearTimeout(loadTimer)
       try {
-        const response = await api.getDashboardData()
+        const response = await api.getDashboardData(boardId)
         if (closed) return
         if (response.data) {
           const loaded = response.data
@@ -95,7 +103,9 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
 
     const connect = () => {
       if (closed) return
-      source = new EventSource(`${getApiUrl()}/dashboard/stream`, { withCredentials: true })
+      source = new EventSource(`${getApiUrl()}/dashboard/stream${query}`, {
+        withCredentials: true,
+      })
 
       source.addEventListener('hello', () => {
         setConnected(true)

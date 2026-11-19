@@ -3,6 +3,9 @@ import type { Board } from '@/types'
 // Pure rules for boards: which pages are a dashboard, how a board is found
 // from its URL and linked to, and when the switcher shows.
 
+// What the API answers for a board the user may not see (anymore)
+export const BOARD_NOT_FOUND = 'Board not found'
+
 // The pages that show a board: /dashboard (the default board) and
 // /board/<slug>. They share the canvas layout and the kiosk view.
 export function isDashboardPath(pathname: string): boolean {

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import type { Widget, WidgetTypeMeta } from '@/types'
+import BoardSelect from '@/components/boards/BoardSelect'
 import { getWidgetDefinition, widgetConfig } from '@/components/widgets/registry'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
 import IntegrationSelector from '@/components/integrations/IntegrationSelector'
@@ -16,6 +17,8 @@ interface WidgetModalProps {
   widget?: Widget | null
   // Group for a new widget
   groupId?: string | null
+  // Board for a new widget; the default board when undefined
+  boardId?: string
   onClose: () => void
   onSaved: (widget: Widget) => void
 }
@@ -58,6 +61,7 @@ export default function WidgetModal({
   types,
   widget,
   groupId,
+  boardId,
   onClose,
   onSaved,
 }: WidgetModalProps) {
@@ -69,6 +73,8 @@ export default function WidgetModal({
     return definition ? widgetConfig(definition, widget) : {}
   })
   const [integrationId, setIntegrationId] = useState(widget?.integration_id ?? '')
+  // Another board moves the widget there; '' keeps it where it is
+  const [moveTo, setMoveTo] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   // Esc closes, except while a save is running
@@ -99,12 +105,18 @@ export default function WidgetModal({
     const integration = wantedKinds.length > 0 ? { integration_id: integrationId } : {}
     try {
       const response = widget
-        ? await api.updateWidget(widget.id, { title: title.trim(), config, ...integration })
+        ? await api.updateWidget(widget.id, {
+            title: title.trim(),
+            config,
+            ...integration,
+            ...(moveTo && { board_id: moveTo }),
+          })
         : await api.createWidget({
             type,
             title: title.trim(),
             config,
             group_id: groupId || undefined,
+            board_id: boardId,
             ...integration,
           })
       if (response.error || !response.data) {
@@ -231,6 +243,15 @@ export default function WidgetModal({
                 disabled={isSaving}
                 meta={types.find((t) => t.type === type)}
               />
+              {widget && (
+                <BoardSelect
+                  id="widget-board"
+                  currentBoardId={widget.board_id}
+                  value={moveTo}
+                  onChange={setMoveTo}
+                  disabled={isSaving}
+                />
+              )}
             </div>
 
             <div className="border-card-border flex justify-end gap-2 border-t p-4">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ServerIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   DndContext,
   DragEndEvent,
@@ -20,6 +21,8 @@ import { snapshotKey, useDashboardStream } from '@/hooks/useDashboardStream'
 import { kpisForIntegration } from '@/lib/kpis'
 import { useIntegrations } from '@/hooks/useIntegrations'
 import type {
+  Board,
+  BoardIntegration,
   Service,
   CardSize,
   Group,
@@ -33,7 +36,16 @@ import type {
 } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
-import { setEditMode, setTopBarWeather, toggleEditMode, useEditMode } from '@/lib/dashboard-store'
+import {
+  setBoardReadOnly,
+  setEditMode,
+  setTopBarWeather,
+  toggleEditMode,
+  useEditMode,
+} from '@/lib/dashboard-store'
+import { refreshBoards, useBoards } from '@/hooks/useBoards'
+import { useKiosk } from '@/hooks/useKiosk'
+import { BOARD_NOT_FOUND, boardHref, getLastBoard, homeRedirect } from '@/lib/boards'
 import StatusStrip from '@/components/StatusStrip'
 import DiscoveredTray from '@/components/DiscoveredTray'
 import ServiceCard from '@/components/ServiceCard'
@@ -70,7 +82,18 @@ function toStringId(id: string | number): string {
   return typeof id === 'string' ? id : String(id)
 }
 
-export default function DashboardView() {
+// A kiosk refetches everything this often, quietly
+const KIOSK_REFRESH_MS = 5 * 60 * 1000
+
+interface DashboardViewProps {
+  // The board to show; the user's default board (/dashboard) when undefined.
+  // Mount one view per board (key it by board ID).
+  board?: Board
+}
+
+// One board: its tiles, groups and live data, editable when it is the
+// user's own. /dashboard and /board/<slug> both show it.
+export default function DashboardView({ board }: DashboardViewProps) {
   const {
     openInNewTab,
     enableCardResizing,
@@ -82,6 +105,12 @@ export default function DashboardView() {
     loading: preferencesLoading,
   } = useTheme()
   const layoutMode = useLayoutMode()
+  const router = useRouter()
+  const kiosk = useKiosk()
+  // The default board is read without a board ID, exactly as before boards
+  // existed (and as the offline cache stores it)
+  const boardId = board && !(board.owned && board.is_default) ? board.id : undefined
+  const viewer = !!board && !board.owned
   const [services, setServices] = useState<Service[]>([])
   const [widgets, setWidgets] = useState<Widget[]>([])
   // Reordering saves every tile, so it waits until widgets are loaded
@@ -91,11 +120,13 @@ export default function DashboardView() {
   const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   // Shared with the canvas top bar, whose user menu also toggles it
-  // A dashboard locked by a config file never enters edit mode, which is
-  // what shows every edit, delete, add-group and drag control
-  const readOnly = useConfigFile()?.read_only ?? false
+  // A dashboard locked by a config file, a board someone else shares and a
+  // kiosk never enter edit mode, which is what shows every edit, delete,
+  // add-group and drag control
+  const readOnly = (useConfigFile()?.read_only ?? false) || viewer || kiosk
   const editModeOn = useEditMode()
   const isEditMode = editModeOn && !readOnly
+  useEffect(() => setBoardReadOnly(readOnly), [readOnly])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [resizingId, setResizingId] = useState<string | null>(null)
   const [isDraggingTab, setIsDraggingTab] = useState(false)
@@ -238,26 +269,32 @@ export default function DashboardView() {
     })
   )
 
+  // Every board remembers its own group
+  const groupKey = boardId ? `selectedGroupId:${boardId}` : 'selectedGroupId'
+
   // Load selected group from localStorage
   useEffect(() => {
-    const saved = localStorage.getItem('selectedGroupId')
+    const saved = localStorage.getItem(groupKey)
     if (saved) {
       setSelectedGroupId(saved)
     }
-  }, [])
+  }, [groupKey])
 
   // Save selected group to localStorage
   useEffect(() => {
     if (selectedGroupId) {
-      localStorage.setItem('selectedGroupId', selectedGroupId)
+      localStorage.setItem(groupKey, selectedGroupId)
     } else {
-      localStorage.removeItem('selectedGroupId')
+      localStorage.removeItem(groupKey)
     }
-  }, [selectedGroupId])
+  }, [selectedGroupId, groupKey])
 
-  // Fetch services and groups
+  // Fetch services and groups; a kiosk refetches now and then, quietly
   useEffect(() => {
     fetchData()
+    if (!kiosk) return
+    const timer = setInterval(() => fetchData(true), KIOSK_REFRESH_MS)
+    return () => clearInterval(timer)
   }, [])
 
   // Live updates: health checks and widget data arrive over SSE; while the
@@ -266,15 +303,19 @@ export default function DashboardView() {
     // Skip if we just did a full fetch (within last 5 seconds)
     if (shouldSkipPoll(lastPollTime.current)) return
     try {
-      const response = await api.getServices()
+      const response = await api.getServices(boardId)
       if (response.data) {
         // Only update status and response_time to avoid disrupting UI state
         setServices((prev) => mergeServicesHealth(prev, response.data!))
+      } else if (response.error?.message === BOARD_NOT_FOUND) {
+        // The board was unshared or deleted while open
+        await refreshBoards()
+        router.replace('/dashboard')
       }
     } catch (error) {
       console.error('Failed to poll health:', error)
     }
-  }, [])
+  }, [boardId, router])
 
   const applyServiceStatus = useCallback((event: ServiceStatusEvent) => {
     setServices((prev) =>
@@ -286,14 +327,30 @@ export default function DashboardView() {
     )
   }, [])
 
-  // KPI definitions per integration, for service tiles linked to one
-  const { integrations, kinds } = useIntegrations()
+  // KPI definitions per integration, for service tiles linked to one. A
+  // viewer gets the kinds of the owner's integrations on the board, which
+  // is all the labels need.
+  const { integrations: ownIntegrations, kinds } = useIntegrations()
+  const [boardIntegrations, setBoardIntegrations] = useState<BoardIntegration[]>([])
+  useEffect(() => {
+    if (!viewer || !board) return
+    api.getBoardIntegrations(board.id).then((response) => {
+      if (response.data) setBoardIntegrations(response.data)
+    })
+  }, [viewer, board])
   const integrationKpis = useMemo(
-    () => Object.fromEntries(integrations.map((i) => [i.id, kpisForIntegration(i, kinds)])),
-    [integrations, kinds]
+    () =>
+      Object.fromEntries(
+        (viewer ? boardIntegrations : ownIntegrations).map((i) => [
+          i.id,
+          kpisForIntegration(i, kinds),
+        ])
+      ),
+    [viewer, boardIntegrations, ownIntegrations, kinds]
   )
 
   const { snapshots } = useDashboardStream({
+    boardId,
     onServiceStatus: applyServiceStatus,
     onResync: resyncServices,
   })
@@ -317,10 +374,26 @@ export default function DashboardView() {
   useEffect(
     () => () => {
       setEditMode(false)
+      setBoardReadOnly(false)
       setTopBarWeather(null)
     },
     []
   )
+
+  // /dashboard opens the board the user chose last, or, on a first visit
+  // with nothing on their own board, the board shared with them. Once, on
+  // arrival; never in a kiosk, whose URL says which board it shows.
+  const { boards, loaded: boardsLoaded } = useBoards()
+  const homeChecked = useRef(false)
+  useEffect(() => {
+    if (board || kiosk || homeChecked.current || !boardsLoaded) return
+    const lastBoard = getLastBoard()
+    // An empty board is only known once it is loaded
+    if (lastBoard === null && isLoading) return
+    homeChecked.current = true
+    const target = homeRedirect(boards, lastBoard, services.length + widgets.length === 0)
+    if (target) router.replace(boardHref(target, boards))
+  }, [board, kiosk, boards, boardsLoaded, isLoading, services, widgets, router])
 
   // Auto-select default group when groups load
   useEffect(() => {
@@ -345,14 +418,15 @@ export default function DashboardView() {
     }
   }, [groups, selectedGroupId])
 
-  const fetchData = async () => {
-    setIsLoading(true)
+  // silent: keep showing the board while it loads (kiosk refresh)
+  const fetchData = async (silent = false) => {
+    if (!silent) setIsLoading(true)
     try {
       const [servicesResponse, groupsResponse, widgetsResponse, widgetTypesResponse] =
         await Promise.all([
-          api.getServices(),
-          api.getGroups(),
-          api.getWidgets(),
+          api.getServices(boardId),
+          api.getGroups(boardId),
+          api.getWidgets(boardId),
           api.getWidgetTypes(),
         ])
 
@@ -602,11 +676,16 @@ export default function DashboardView() {
     setShowWidgetModal(true)
   }, [])
 
+  // A tile saved onto another board leaves this one
+  const isElsewhere = (tileBoard?: string) => !!board && !!tileBoard && tileBoard !== board.id
+
   const handleWidgetSaved = (saved: Widget) => {
     setWidgets((prev) =>
-      prev.some((w) => w.id === saved.id)
-        ? prev.map((w) => (w.id === saved.id ? saved : w))
-        : [...prev, saved]
+      isElsewhere(saved.board_id)
+        ? prev.filter((w) => w.id !== saved.id)
+        : prev.some((w) => w.id === saved.id)
+          ? prev.map((w) => (w.id === saved.id ? saved : w))
+          : [...prev, saved]
     )
     setShowWidgetModal(false)
     setEditingWidget(null)
@@ -615,10 +694,18 @@ export default function DashboardView() {
   const closeServiceModal = useCallback(() => setEditingService(null), [])
 
   // The response is the whole service, health included
-  const handleServiceSaved = useCallback((saved: Service) => {
-    setServices((prev) => prev.map((s) => (s.id === saved.id ? saved : s)))
-    setEditingService(null)
-  }, [])
+  const handleServiceSaved = useCallback(
+    (saved: Service) => {
+      const moved = !!board && !!saved.board_id && saved.board_id !== board.id
+      setServices((prev) =>
+        moved
+          ? prev.filter((s) => s.id !== saved.id)
+          : prev.map((s) => (s.id === saved.id ? saved : s))
+      )
+      setEditingService(null)
+    },
+    [board]
+  )
 
   const handleWidgetSizeChange = async (widget: Widget, size: CardSize) => {
     if (resizingId) return
@@ -661,8 +748,9 @@ export default function DashboardView() {
     const params = new URLSearchParams()
     if (tabbed && selectedGroupId) params.set('group', selectedGroupId)
     params.set('from', 'dashboard')
+    if (boardId) params.set('board', boardId)
     return `/services/new?${params.toString()}`
-  }, [tabbed, selectedGroupId])
+  }, [tabbed, selectedGroupId, boardId])
 
   // Sections have no tabs to drag, so a group swaps places with its neighbour
   const handleMoveGroup = (group: Group, direction: -1 | 1) => {
@@ -684,6 +772,7 @@ export default function DashboardView() {
       } else {
         const response = await api.createGroup({
           name: data.name!,
+          board_id: boardId,
           color: data.color,
           monitoring_enabled: data.monitoring_enabled,
           tile_style: data.tile_style,
@@ -760,6 +849,9 @@ export default function DashboardView() {
   const header = (
     <DashboardHeader
       readOnly={readOnly}
+      readOnlyNote={
+        kiosk ? null : viewer ? 'Read-only: shared board' : 'Read-only: managed by config file'
+      }
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
@@ -831,12 +923,14 @@ export default function DashboardView() {
 
   return (
     <div>
-      {!readOnly && <DiscoveredTray variant="link" />}
+      {/* Discovered services are added to the default board */}
+      {!readOnly && !boardId && <DiscoveredTray variant="link" />}
       {statusStrip.enabled && (
         <StatusStrip
-          strip={statusStrip}
+          // The strip's chips are the user's own; a viewer sees only the pill
+          strip={viewer ? { ...statusStrip, chips: [] } : statusStrip}
           snapshots={snapshots}
-          integrations={integrations}
+          integrations={ownIntegrations}
           kinds={kinds}
           widgets={widgets}
           up={allStatuses.up}
@@ -964,6 +1058,7 @@ export default function DashboardView() {
           types={widgetTypes}
           widget={editingWidget}
           groupId={tabbed ? selectedGroupId : null}
+          boardId={boardId}
           onClose={() => {
             setShowWidgetModal(false)
             setEditingWidget(null)
@@ -976,6 +1071,7 @@ export default function DashboardView() {
       {editingService && (
         <ServiceModal
           service={editingService}
+          boardId={boardId}
           onClose={closeServiceModal}
           onSaved={handleServiceSaved}
         />
