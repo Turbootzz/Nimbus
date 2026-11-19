@@ -441,8 +441,8 @@ on an entity that something points at. Unknown fields and any other `version` ar
 | `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
 | `omitted_images` | Written by an export, ignored by an import. |
 
-Only `version` is required at the top level; a file with just services is a valid import. For
-the limits: 100 groups, 500 services, 200 widgets and 50 integrations per file.
+Only `version` is required at the top level; a file with just services is a valid import. A
+file is at most 10 MB and holds at most 200 widgets and 50 integrations, the per-user limits.
 
 ---
 

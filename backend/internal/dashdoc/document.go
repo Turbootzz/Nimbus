@@ -13,9 +13,12 @@ import "encoding/json"
 const Version = 1
 
 // Limits of one document. Integrations and widgets match the per-user limits.
+// Groups and services have none, so their caps sit above what fits in a
+// 10 MiB import (an exported group takes at least 49 bytes, a service 114):
+// they never refuse an export, only a document of near-empty entries.
 const (
-	MaxGroups       = 100
-	MaxServices     = 500
+	MaxGroups       = 250_000
+	MaxServices     = 100_000
 	MaxWidgets      = 200
 	MaxIntegrations = 50
 	MaxPosition     = 1_000_000
