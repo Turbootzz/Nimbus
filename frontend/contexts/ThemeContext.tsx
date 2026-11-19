@@ -69,6 +69,10 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 const noStatusStrip: StatusStrip = { enabled: false, chips: [] }
 
+// How long the dashboard waits for the preferences before it shows with the
+// cached or default ones, like the CSS fallback in globals.css
+const PREFERENCES_WAIT_MS = 5000
+
 // parseGroupDisplay reads the cached choice; anything else is no choice
 function parseGroupDisplay(raw: string | null | undefined): GroupDisplay | null {
   return raw === 'tabs' || raw === 'sections' ? raw : null
@@ -166,6 +170,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       } else if (e.key === 'statusStrip' && e.newValue) {
         setStatusStripState(parseStatusStrip(e.newValue))
       } else if (e.key === 'groupDisplay') {
+        // Newer than a first load that is still running
+        changedRef.current.add('groupDisplay')
         setGroupDisplayState(parseGroupDisplay(e.newValue))
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)
@@ -179,6 +185,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
+    // Known now, or not coming (in time): stop holding the dashboard back.
+    // A late answer still applies.
+    const settle = () => {
+      settleLayout()
+      setLoading(false)
+    }
+    const giveUp = setTimeout(settle, PREFERENCES_WAIT_MS)
+
     const loadPreferences = async () => {
       // Step 1: Load from localStorage immediately (fast, prevents flash)
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null
@@ -280,13 +294,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           if (process.env.NODE_ENV === 'development') throw error
         }
       } finally {
-        // Known now, or not coming: stop hiding the dashboard
-        settleLayout()
-        setLoading(false)
+        clearTimeout(giveUp)
+        settle()
       }
     }
 
     loadPreferences()
+    return () => clearTimeout(giveUp)
   }, [])
 
   // Apply theme to document
