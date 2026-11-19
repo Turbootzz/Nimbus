@@ -114,6 +114,7 @@ const discoverySchema = `
 		user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 		discovery_key TEXT NOT NULL,
 		service_id TEXT REFERENCES services(id) ON DELETE SET NULL,
+		pending BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		PRIMARY KEY (user_id, discovery_key)
 	);
@@ -763,4 +764,37 @@ func TestDiscoveryService_AutoAddNeedsNimbusURL(t *testing.T) {
 	added, err := f.service.AutoAdd(context.Background())
 	require.NoError(t, err)
 	assert.Zero(t, added)
+}
+
+// Un-ignoring while an add is in progress leaves its claim, so a second add
+// can't add the same container again
+func TestDiscoveryService_UnignoreDuringAnAddKeepsItsClaim(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, discoveryContainers)
+	integration := f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	repo := repository.NewDiscoveryRepository(db)
+	ctx := context.Background()
+	key := integration.ID + "/web"
+
+	// The first add has claimed the container, its service is not created yet
+	claimed, err := repo.Claim(ctx, discoveryAdminID, key, true)
+	require.NoError(t, err)
+	require.True(t, claimed)
+
+	require.NoError(t, f.service.Unignore(ctx, discoveryAdminID, key))
+	_, err = f.service.Add(ctx, discoveryAdminID, &models.DiscoveryAddRequest{Key: key, Name: "Web", URL: "http://web.lan"})
+	assert.ErrorIs(t, err, services.ErrDiscoveryHandled)
+
+	// The first add finishes
+	_, err = db.Exec(`INSERT INTO services (id, user_id, name, url, status, created_at, updated_at)
+		VALUES ('s-1', $1, 'Web', 'http://web.lan', 'unknown', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`, discoveryAdminID)
+	require.NoError(t, err)
+	require.NoError(t, repo.SetService(ctx, discoveryAdminID, key, "s-1"))
+
+	var count, linked int
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM services`).Scan(&count))
+	require.NoError(t, db.QueryRow(`SELECT COUNT(*) FROM discovered_containers WHERE service_id = 's-1' AND NOT pending`).Scan(&linked))
+	assert.Equal(t, 1, count, "the container became one service")
+	assert.Equal(t, 1, linked)
 }

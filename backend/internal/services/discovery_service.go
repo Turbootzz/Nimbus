@@ -307,7 +307,7 @@ func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.D
 	}
 
 	// The claim decides who adds the container when two try at once
-	claimed, err := s.repo.Claim(ctx, userID, req.Key)
+	claimed, err := s.repo.Claim(ctx, userID, req.Key, true)
 	if err != nil {
 		return nil, err
 	}
@@ -319,7 +319,7 @@ func (s *DiscoveryService) Add(ctx context.Context, userID string, req *models.D
 	// meanwhile: a claim left behind would hide the container as ignored
 	settle := context.WithoutCancel(ctx)
 	if err != nil {
-		if releaseErr := s.repo.Release(settle, userID, req.Key); releaseErr != nil {
+		if releaseErr := s.repo.Unclaim(settle, userID, req.Key); releaseErr != nil {
 			log.Printf("discovery: %v", releaseErr)
 		}
 		return nil, err
@@ -391,7 +391,7 @@ func (s *DiscoveryService) Ignore(ctx context.Context, userID, key string) error
 	if err := s.checkKey(ctx, userID, key); err != nil {
 		return err
 	}
-	_, err := s.repo.Claim(ctx, userID, key)
+	_, err := s.repo.Claim(ctx, userID, key, false)
 	return err
 }
 
