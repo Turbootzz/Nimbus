@@ -28,6 +28,18 @@ type BoardReader struct {
 	Live     *LiveDataService
 }
 
+// ServicesForViewer strips the credentials (https://user:password@host) from
+// the links of services someone else's shared board shows, as the public
+// status page does
+func ServicesForViewer(list []*models.Service) {
+	for _, service := range list {
+		service.URL = publicURL(service.URL)
+		if service.IconType == models.IconTypeImageURL {
+			service.IconImagePath = publicURL(service.IconImagePath)
+		}
+	}
+}
+
 // List returns the boards the user sees
 func (r *BoardReader) List(ctx context.Context, userID string) ([]*models.Board, error) {
 	return r.Boards.List(ctx, userID)
@@ -43,6 +55,9 @@ func (r *BoardReader) Read(ctx context.Context, userID, ref string) (*BoardConte
 	content := &BoardContent{Board: access.Board, CanEdit: access.CanEdit}
 	if content.Services, err = r.Services.GetAllByBoardID(ctx, access.Board.ID); err != nil {
 		return nil, err
+	}
+	if !access.CanEdit {
+		ServicesForViewer(content.Services)
 	}
 	if content.Groups, err = r.Groups.GetAllByBoardID(ctx, access.Board.ID); err != nil {
 		return nil, err

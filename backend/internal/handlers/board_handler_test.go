@@ -119,7 +119,7 @@ func newBoardFixture(t *testing.T, pingInterval time.Duration) *boardFixture {
 			('` + sharedIntegrationID + `', '` + boardAdminID + `', 'handler-fake', 'Sonarr', 'http://sonarr.lan:8989', '{"library":"tv","empty":""}'),
 			('` + privateIntegrationID + `', '` + boardAdminID + `', 'handler-fake', 'Proxmox', 'http://pve.lan:8006', '{}');
 		INSERT INTO services (id, user_id, board_id, name, url, integration_id, position) VALUES
-			('` + sharedServiceID + `', '` + boardAdminID + `', '` + sharedBoardID + `', 'Jellyfin', 'http://jellyfin.lan', '` + sharedIntegrationID + `', 1),
+			('` + sharedServiceID + `', '` + boardAdminID + `', '` + sharedBoardID + `', 'Jellyfin', 'http://admin:pw@jellyfin.lan', '` + sharedIntegrationID + `', 1),
 			('` + privateServiceID + `', '` + boardAdminID + `', '` + privateBoardID + `', 'Proxmox', 'http://pve.lan', '` + privateIntegrationID + `', 2);
 		INSERT INTO widgets (id, user_id, board_id, type, title, config, position) VALUES
 			('` + sharedWidgetID + `', '` + boardAdminID + `', '` + sharedBoardID + `', 'rss', 'News', '{"url":"https://feeds.test/private?key=s3cret"}', 3),
@@ -176,6 +176,7 @@ func newBoardFixture(t *testing.T, pingInterval time.Duration) *boardFixture {
 	app.Post("/services/:id/check", serviceHandler.CheckService)
 	app.Get("/groups", groupHandler.GetGroups)
 	app.Post("/groups", groupHandler.CreateGroup)
+	app.Put("/groups/reorder", groupHandler.ReorderGroups)
 	app.Get("/groups/:id", groupHandler.GetGroup)
 	app.Put("/groups/:id", groupHandler.UpdateGroup)
 	app.Delete("/groups/:id", groupHandler.DeleteGroup)
@@ -290,6 +291,7 @@ func TestBoards_WriteMatrix(t *testing.T) {
 		{"create group on the board", "POST", "/groups", `{"name":"New","board_id":"` + sharedBoardID + `"}`, 201},
 		{"update group", "PUT", "/groups/" + sharedGroupID, `{"name":"Renamed"}`, 200},
 		{"delete group", "DELETE", "/groups/" + sharedGroupID, "", 403}, // a default group
+		{"reorder groups", "PUT", "/groups/reorder", `{"groups":[{"id":"` + sharedGroupID + `","position":1}]}`, 200},
 		{"create widget on the board", "POST", "/widgets", `{"type":"clock","board_id":"` + sharedBoardID + `"}`, 201},
 		{"update widget", "PUT", "/widgets/" + sharedWidgetID, `{"title":"Renamed"}`, 200},
 		{"refresh widget", "POST", "/widgets/" + sharedWidgetID + "/refresh", "", 202},
@@ -328,7 +330,7 @@ func snapshotBoards(t *testing.T, f *boardFixture) string {
 	var out []string
 	for _, query := range []string{
 		`SELECT id || '|' || name || '|' || slug || '|' || position || '|' || is_shared FROM boards WHERE user_id = ? ORDER BY id`,
-		`SELECT id || '|' || name || '|' || board_id FROM groups WHERE user_id = ? ORDER BY id`,
+		`SELECT id || '|' || name || '|' || board_id || '|' || position FROM groups WHERE user_id = ? ORDER BY id`,
 		`SELECT id || '|' || name || '|' || board_id || '|' || position || '|' || COALESCE(group_id, '') FROM services WHERE user_id = ? ORDER BY id`,
 		`SELECT id || '|' || title || '|' || board_id || '|' || position FROM widgets WHERE user_id = ? ORDER BY id`,
 	} {
@@ -347,8 +349,11 @@ func snapshotBoards(t *testing.T, f *boardFixture) string {
 
 func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	f := newBoardFixture(t, time.Minute)
+	// A feed that partly loaded, then not at all: both errors may quote the admin's network
+	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceWidget, ID: sharedWidgetID, UserID: boardAdminID},
+		map[string]any{"items": []string{}, "failed": []string{"feeds.test: dial tcp 10.0.0.9:443: connection refused"}}, nil)
 	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceWidget, ID: sharedWidgetID, UserID: boardAdminID}, nil,
-		assert.AnError) // an error that would quote the admin's network
+		assert.AnError)
 	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceIntegration, ID: sharedIntegrationID, UserID: boardAdminID}, map[string]int{"queued": 2}, nil)
 	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceWidget, ID: privateWidgetID, UserID: boardAdminID}, map[string]int{"n": 1}, nil)
 	f.live.Record(services.LiveSource{Kind: models.SnapshotSourceIntegration, ID: privateIntegrationID, UserID: boardAdminID}, map[string]int{"vms": 9}, nil)
@@ -366,8 +371,12 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	status, body = f.do(t, boardUserID, http.MethodGet, "/services?board="+sharedBoardID, "")
 	require.Equal(t, 200, status)
 	assert.Contains(t, body, "Jellyfin")
+	assert.Contains(t, body, `"url":"http://jellyfin.lan"`, "the link without the credentials in it")
+	assert.NotContains(t, body, "pw@")
 	assert.NotContains(t, body, "Proxmox")
 	assert.NotContains(t, body, boardAdminID)
+	_, body = f.do(t, boardAdminID, http.MethodGet, "/services?board="+sharedBoardID, "")
+	assert.Contains(t, body, "admin:pw@jellyfin.lan", "the owner gets the URL they saved")
 
 	status, body = f.do(t, boardUserID, http.MethodGet, "/widgets?board="+sharedBoardID, "")
 	require.Equal(t, 200, status)
@@ -388,7 +397,11 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.Equal(t, sharedIntegrationID, snaps[0].SourceID)
 	assert.Equal(t, sharedWidgetID, snaps[1].SourceID)
 	assert.Equal(t, services.ViewerErrorMessage, snaps[1].Error)
+	assert.JSONEq(t, `{"items":[],"failed":["`+services.ViewerErrorMessage+`"]}`, string(snaps[1].Payload))
 	assert.NotContains(t, body, assert.AnError.Error())
+	assert.NotContains(t, body, "10.0.0.9")
+	_, body = f.do(t, boardAdminID, http.MethodGet, "/dashboard/data?board="+sharedBoardID, "")
+	assert.Contains(t, body, "10.0.0.9", "the owner sees what went wrong")
 	// The viewer's own data, without a board, is their own (nothing here)
 	_, body = f.do(t, boardUserID, http.MethodGet, "/dashboard/data", "")
 	assert.JSONEq(t, `[]`, body)
@@ -407,6 +420,12 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	status, body = f.do(t, boardUserID, http.MethodPost, "/services", `{"name":"Mine","url":"http://mine.lan","group_id":"`+sharedGroupID+`"}`)
 	assert.Equal(t, 403, status, body)
 	assert.Equal(t, 0, f.count(t, `SELECT COUNT(*) FROM services WHERE user_id = ?`, boardUserID))
+
+	// A tile is read through a board only when the board's owner owns it too
+	_, err := f.db.Exec(`INSERT INTO services (id, user_id, board_id, name, url) VALUES ('d0000000-0000-0000-0000-0000000000ff', ?, ?, 'Stray', 'http://stray.lan')`, boardUserID, sharedBoardID)
+	require.NoError(t, err)
+	status, _ = f.do(t, boardOtherAdminID, http.MethodGet, "/services/d0000000-0000-0000-0000-0000000000ff/status-logs", "")
+	assert.Equal(t, 403, status)
 }
 
 func TestBoards_SharedNeedsAnAdminOwner(t *testing.T) {
@@ -508,6 +527,13 @@ func TestBoards_ManageOwnBoards(t *testing.T) {
 	assert.Equal(t, 400, status, body)
 	status, body = f.do(t, boardUserID, http.MethodPost, "/widgets", `{"type":"clock","board_id":"`+sharedBoardID+`"}`)
 	assert.Equal(t, 400, status, body)
+	// Nor move a tile of their own onto someone else's board
+	status, body = f.do(t, boardUserID, http.MethodPut, "/services/"+plex.ID, `{"name":"Plex","url":"http://plex.lan","board_id":"`+sharedBoardID+`"}`)
+	assert.Equal(t, 404, status, body)
+	status, body = f.do(t, boardUserID, http.MethodPut, "/widgets/"+clock.ID, `{"board_id":"`+sharedBoardID+`"}`)
+	assert.Equal(t, 400, status, body)
+	assert.Zero(t, f.count(t, `SELECT COUNT(*) FROM services WHERE board_id = ? AND user_id = ?`, sharedBoardID, boardUserID)+
+		f.count(t, `SELECT COUNT(*) FROM widgets WHERE board_id = ? AND user_id = ?`, sharedBoardID, boardUserID))
 
 	// Reorder, rename, share
 	_, body = f.do(t, boardUserID, http.MethodGet, "/boards", "")
@@ -700,6 +726,7 @@ func TestBoards_ReaderGivesAViewerTheViewerVersion(t *testing.T) {
 		assert.False(t, content.CanEdit)
 		require.Len(t, content.Services, 1)
 		assert.Equal(t, "Jellyfin", content.Services[0].Name)
+		assert.Equal(t, "http://jellyfin.lan", content.Services[0].URL)
 		require.Len(t, content.Widgets, 1)
 		assert.NotContains(t, string(content.Widgets[0].Config), "s3cret")
 		require.Len(t, content.Snapshots, 1)

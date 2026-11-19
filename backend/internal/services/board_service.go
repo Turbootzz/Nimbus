@@ -114,8 +114,9 @@ func (s *BoardService) CanRead(ctx context.Context, userID, ownerID, boardID str
 	if s == nil || boardID == "" {
 		return false
 	}
-	_, err := s.Resolve(ctx, userID, boardID)
-	return err == nil
+	// The tile must also be the board owner's, not only on a visible board
+	access, err := s.Resolve(ctx, userID, boardID)
+	return err == nil && access.Board.UserID == ownerID
 }
 
 // List returns the boards the user sees: their own, then shared ones

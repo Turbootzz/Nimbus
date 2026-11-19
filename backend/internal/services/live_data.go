@@ -416,10 +416,24 @@ func ServiceKey(id string) string {
 	return "service:" + id
 }
 
-// ForViewer is the snapshot as a viewer of a shared board gets it
+// ForViewer is the snapshot as a viewer of a shared board gets it. Its
+// errors are generic, also those of the sources a partly loaded calendar or
+// feed lists under "failed". The payload is copied: the cache shares it.
 func ForViewer(snap models.Snapshot) models.Snapshot {
 	if snap.Error != "" {
 		snap.Error = ViewerErrorMessage
+	}
+	var payload map[string]json.RawMessage
+	var failed []string
+	if json.Unmarshal(snap.Payload, &payload) != nil || json.Unmarshal(payload["failed"], &failed) != nil || len(failed) == 0 {
+		return snap
+	}
+	for i := range failed {
+		failed[i] = ViewerErrorMessage
+	}
+	payload["failed"], _ = json.Marshal(failed)
+	if raw, err := json.Marshal(payload); err == nil {
+		snap.Payload = raw
 	}
 	return snap
 }

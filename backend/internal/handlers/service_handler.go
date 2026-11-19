@@ -214,21 +214,24 @@ func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 		return serviceError(c, err, "retrieve services", boardNotFound)
 	}
 
-	var services []*models.Service
+	var list []*models.Service
 	if board.Board == nil {
-		services, err = h.serviceRepo.GetAllByUserID(c.Context(), userID)
+		list, err = h.serviceRepo.GetAllByUserID(c.Context(), userID)
 	} else {
-		services, err = h.serviceRepo.GetAllByBoardID(c.Context(), board.Board.ID)
+		list, err = h.serviceRepo.GetAllByBoardID(c.Context(), board.Board.ID)
 	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve services",
 		})
 	}
+	if !board.CanEdit {
+		services.ServicesForViewer(list)
+	}
 
 	// Convert to response format
-	response := make([]models.ServiceResponse, 0, len(services))
-	for _, service := range services {
+	response := make([]models.ServiceResponse, 0, len(list))
+	for _, service := range list {
 		response = append(response, service.ToResponse())
 	}
 
