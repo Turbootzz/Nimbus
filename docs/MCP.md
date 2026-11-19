@@ -20,7 +20,15 @@ There is also one resource, `nimbus://dashboard`: a short text summary with the 
 
 Services are reported as the dashboard shows them. A service is `not_monitored` when monitoring is off for it or for its group; its last stored status is stale, so it is not given. Services without a group belong to your default group.
 
+The tools and the resource read your default [board](BOARDS.md) unless a tool gets `board`, see [Boards](#boards).
+
 Everything is limited to the user who owns the token. An assistant sees no more than that user sees in Nimbus, with the same masking of secrets, and nothing of other users.
+
+## Boards
+
+Every tool about services or widgets takes an optional `board`: its name, its address name (`media` for `/board/media`) or its ID. Without it, a tool reads your default board, as before boards existed. The `nimbus://dashboard` resource describes the default board and, when you see more than one, lists the boards by name and address name.
+
+A board an admin shares with everyone can be read by every user's assistant, read-only: `recheck_service` refuses a service on it, and what a failed check ran into is shown as a general error. A board you can't see answers like one that does not exist, and the error lists the boards you can use.
 
 ## 1. Create a token
 

@@ -22,6 +22,7 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
 - [Prometheus Integration](#prometheus-integration)
 - [Dashboard Export and Import](#dashboard-export-and-import)
   - [Import from another dashboard](#import-from-another-dashboard)
+  - [Boards in the file](#boards-in-the-file)
 - [Public Status Page](#public-status-page)
 - [Config File](#config-file)
 - [Production Deployment](#production-deployment)
@@ -242,7 +243,7 @@ Each token only gets the scopes you select.
 
 | Scope | Grants |
 |-------|--------|
-| `read:services` | Read services and groups |
+| `read:services` | Read services, groups and the list of boards |
 | `read:metrics` | Read uptime metrics, status history and the Prometheus export |
 | `read:widgets` | Read widgets (secrets masked) and the dashboard data |
 | `write:services` | Create, change, delete, reorder and recheck services and groups. Includes `read:services` |
@@ -258,6 +259,8 @@ Each token only gets the scopes you select.
   integration credentials, or make Nimbus send requests to an address of its choosing other
   than the health check of a service.
 - A token never has admin rights, also when its owner is an admin.
+- Lists are about the default board unless they get `?board=<id>`; see
+  [BOARDS.md](BOARDS.md#api-export-and-mcp). Managing boards needs a browser session.
 - `mcp` only opens `/mcp`. It gives no access to the REST API.
 
 ### Expiry and revocation
@@ -372,7 +375,7 @@ falls back to its emoji, and an import keeps the wallpaper you have.
 | Mode | What it does |
 |---|---|
 | `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
-| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). When the [public status page](#public-status-page) shows one of your groups, it moves to the file's group with the same name, or goes offline when the file has none; the preview says which. |
+| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. With more than one board: all of them on your default board and on the boards the file lists, and the integrations no tile on another board uses (see [Boards in the file](#boards-in-the-file)). Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). When the [public status page](#public-status-page) shows one of your groups, it moves to the file's group with the same name, or goes offline when the file has none; the preview says which. |
 
 An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
 touches the dashboard of the user who imports. Everything in the file is checked like a normal
@@ -585,6 +588,32 @@ on an entity that something points at. Unknown fields and any other `version` ar
 
 Only `version` is required at the top level; a file with just services is a valid import. For
 the limits: 100 groups, 500 services, 200 widgets and 50 integrations per file.
+
+### Boards in the file
+
+An export of a dashboard with one [board](BOARDS.md) has no board fields at all, byte for byte
+the file it was before boards existed. With more boards, the file lists them and says where each
+group, service and widget is:
+
+```json
+{
+  "version": 1,
+  "boards": [{ "ref": "family", "name": "Family", "slug": "family", "shared": true }],
+  "groups": [{ "ref": "kids", "name": "Kids", "board_ref": "family" }],
+  "services": [{ "name": "Plex", "url": "http://plex.lan", "board_ref": "family", "group_ref": "kids" }]
+}
+```
+
+| Field | Notes |
+|---|---|
+| `boards` | Your boards next to the default one, at most 20. `slug` is the address name (`/board/<slug>`): lowercase letters, digits and single dashes, at most 40; left out, it follows the name. `shared` shares the board with every user, read-only; from a non-admin it is imported as a private board. |
+| `board_ref` | On a group, service or widget: the board it is on. Left out: the default board. A service or widget can only be in a group on its own board. |
+
+A file works on your default board and the boards it lists, and leaves your other boards alone.
+An import finds a listed board you already have by its `slug` and creates the others. `merge`
+adds to those boards, `replace` empties and refills them, and a [config file](#config-file) in
+`replace` mode prunes only there. Converters for other dashboards always fill the default
+board.
 ## Public Status Page
 
 Nimbus can share the uptime of one group of services on a page that needs no account: `/status`. It is off by default, and while it is off both the page and its API answer `404`, like any address that does not exist.
@@ -594,7 +623,7 @@ Turn it on under **Settings → Admin → Public status page**:
 | Setting | Description |
 |---------|-------------|
 | Enable the status page | Makes `/status` reachable for anyone who can reach your Nimbus |
-| Group to show | One of **your own** groups (groups are personal). Your default group includes your services without a group, as on the dashboard. Only services with monitoring on appear |
+| Group to show | One of **your own** groups (groups are personal), from your default [board](BOARDS.md). Your default group includes your services without a group, as on the dashboard. Only services with monitoring on appear |
 | Title | Heading and browser title of the page; `Status` when empty |
 | Logo | Optional image next to the title (JPG, PNG, GIF or WEBP, up to 512 KB) |
 | Show links | Off by default. When on, each service name links to its URL and icons loaded from a URL are shown. Only `http(s)` URLs are shown, and without the user name and password a URL may carry |
@@ -630,7 +659,8 @@ the dashboard of its **owner**, everyone else is untouched.
 ### The file
 
 The file is a [dashboard document](#document-shape-version-1), the same shape an export
-downloads, with two additions:
+downloads. It can list [boards](#boards-in-the-file) too; the file then manages the owner's
+default board and those, and leaves the owner's other boards alone. It has two additions:
 
 - `owner`: the email address of an existing **admin**, written exactly as that admin signs in
   with it (upper and lower case count). Nimbus never creates users from the file.
