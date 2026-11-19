@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -216,6 +217,43 @@ func TestTransfer_ImportExportRoundTrip(t *testing.T) {
 	assert.NotEqual(t, firstWallpapers, wallpapers)
 }
 
+// Whatever an export holds, the browser saves a file an import takes: images
+// that would make it too large are left out
+func TestTransfer_LargeExportStaysImportable(t *testing.T) {
+	require.Equal(t, services.MaxDocumentSize, MaxImportSize)
+	app, db := setupTransferTestApp(t, integrationOwnerID)
+	addService := func(id, description, icon string) {
+		iconType := models.IconTypeEmoji
+		if icon != "" {
+			iconType = models.IconTypeImageUpload
+		}
+		_, err := db.Exec(`INSERT INTO services (id, user_id, name, url, icon, icon_type, icon_image_path, description, status, created_at, updated_at)
+			VALUES (?, ?, ?, 'http://a.lan', '🔗', ?, ?, ?, 'unknown', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+			id, integrationOwnerID, "Service "+id, iconType, icon, description)
+		require.NoError(t, err)
+	}
+	// 4 MiB of text and 6 MiB of icons: 12 MiB with every icon as base64
+	addService("text", strings.Repeat("a", 4*1024*1024), "")
+	icon := append(append([]byte{}, tinyPNG...), make([]byte, MaxUploadSize-len(tinyPNG))...)
+	for i := range 12 {
+		name, _, err := NewUploadStore(nil).Save(services.ImageIcon, icon)
+		require.NoError(t, err)
+		addService(fmt.Sprint(i), "", name)
+	}
+
+	status, _, body := transferRequest(t, app, http.MethodGet, "/export", "")
+	require.Equal(t, http.StatusOK, status)
+	var doc dashdoc.Document
+	require.NoError(t, json.Unmarshal(body, &doc))
+	saved, err := json.MarshalIndent(&doc, "", "  ")
+	require.NoError(t, err)
+
+	assert.LessOrEqual(t, len(saved), MaxImportSize)
+	assert.Equal(t, 4, doc.OmittedImages)
+	status, _, body = transferRequest(t, app, http.MethodPost, "/import?mode=replace&dry_run=1", string(saved))
+	assert.Equal(t, http.StatusOK, status, string(body))
+}
+
 func TestTransfer_ImportRejects(t *testing.T) {
 	app, db := setupTransferTestApp(t, integrationOwnerID)
 	valid := `{"version":1,"services":[{"name":"A","url":"http://a.lan"}]}`
@@ -233,6 +271,7 @@ func TestTransfer_ImportRejects(t *testing.T) {
 		{"unknown field", "/import?mode=merge", `{"version":1,"servces":[]}`, http.StatusBadRequest, `unknown field \"servces\"`},
 		{"a file name for an icon", "/import?mode=merge", `{"version":1,"services":[{"name":"A","url":"http://a.lan","icon_image_path":"../../etc/passwd"}]}`, http.StatusBadRequest, "unknown field"},
 		{"trailing data", "/import?mode=merge", valid + valid, http.StatusBadRequest, "unexpected data"},
+		{"trailing bracket", "/import?mode=merge", valid + "]", http.StatusBadRequest, "unexpected data"},
 		{"too large", "/import?mode=merge", `{"version":1,"services":[{"name":"` + strings.Repeat("a", MaxImportSize) + `"}]}`, http.StatusRequestEntityTooLarge, "maximum size"},
 	}
 	for _, tt := range tests {

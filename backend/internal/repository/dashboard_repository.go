@@ -202,7 +202,7 @@ func (rows *DashboardRows) useDefaultGroup(existingID string) {
 }
 
 // wipeDashboard deletes the user's tiles, integrations and groups, and
-// returns the uploaded icon files the services used
+// returns the uploaded icon files the services used that no service left uses
 func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, error) {
 	rows, err := tx.QueryContext(ctx,
 		`SELECT icon_image_path FROM services WHERE user_id = $1 AND icon_type = $2 AND icon_image_path <> ''`,
@@ -230,7 +230,26 @@ func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string) ([]string, er
 			return nil, fmt.Errorf("failed to delete %s: %w", table, err)
 		}
 	}
-	return icons, nil
+	return unusedIcons(ctx, tx, icons)
+}
+
+// unusedIcons leaves out the icon files a service still uses: services can
+// share a file, also with other users
+func unusedIcons(ctx context.Context, tx *sql.Tx, icons []string) ([]string, error) {
+	var unused []string
+	for _, icon := range icons {
+		var inUse bool
+		err := tx.QueryRowContext(ctx,
+			`SELECT EXISTS (SELECT 1 FROM services WHERE icon_type = $1 AND icon_image_path = $2)`,
+			models.IconTypeImageUpload, icon).Scan(&inUse)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check service icon: %w", err)
+		}
+		if !inUse {
+			unused = append(unused, icon)
+		}
+	}
+	return unused, nil
 }
 
 func insertGroup(ctx context.Context, tx *sql.Tx, group *models.Group) error {
