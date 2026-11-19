@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import DiscoveredTray from '@/components/DiscoveredTray'
 import { api } from '@/lib/api'
@@ -174,6 +174,25 @@ describe('DiscoveredTray', () => {
     expect(screen.getByText('<b>bold</b>')).toBeInTheDocument()
     expect(root.querySelector('img, b')).toBeNull()
     expect(screen.getByText('Portainer: credentials were rejected')).toBeInTheDocument()
+  })
+
+  it('drops a refresh that read the containers before an ignore completed', async () => {
+    let finishRefresh!: (response: { data: DiscoveryResponse }) => void
+    vi.mocked(api.getDockerDiscovery)
+      .mockResolvedValueOnce(discovery([labelled, guessed, ignoredOne]))
+      .mockImplementationOnce(() => new Promise((resolve) => (finishRefresh = resolve)))
+    vi.mocked(api.ignoreDiscovered).mockResolvedValue({ data: undefined })
+    render(<DiscoveredTray />)
+
+    const refresh = await screen.findByRole('button', { name: /refresh/i })
+    await userEvent.click(refresh)
+    await userEvent.click(screen.getByRole('button', { name: 'Ignore Sonarr' }))
+    expect(await screen.findByRole('button', { name: 'Ignored (2)' })).toBeInTheDocument()
+
+    await act(async () => finishRefresh(discovery([labelled, guessed, ignoredOne])))
+    await waitFor(() => expect(refresh).toBeEnabled())
+    expect(screen.getByRole('button', { name: 'Ignored (2)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ignore Sonarr' })).not.toBeInTheDocument()
   })
 
   it('refreshes on demand', async () => {
