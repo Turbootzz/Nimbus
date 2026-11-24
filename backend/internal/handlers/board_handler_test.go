@@ -595,6 +595,38 @@ func TestBoards_ManageOwnBoards(t *testing.T) {
 	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE user_id = ?`, boardUserID), "the default board's service stays")
 }
 
+// A rename that read the board before an unshare edits the board as stored,
+// so it can't share the board again
+func TestBoards_UpdateAppliesToTheStoredBoard(t *testing.T) {
+	f := newBoardFixture(t, time.Minute)
+	boards, ctx := repository.NewBoardRepository(f.db), context.Background()
+	read, err := boards.GetByID(ctx, sharedBoardID)
+	require.NoError(t, err)
+	require.True(t, read.IsShared)
+
+	_, err = boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		b.IsShared = false
+		return nil
+	})
+	require.NoError(t, err)
+	renamed, err := boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		assert.False(t, b.IsShared, "the stored flag, not the one read before")
+		b.Name = read.Name + " night"
+		return nil
+	})
+	require.NoError(t, err)
+	assert.False(t, renamed.IsShared)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM boards WHERE id = ? AND name = 'Family night' AND is_shared = 0`, sharedBoardID))
+
+	// A refused edit changes nothing
+	_, err = boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		b.Name = "Gone"
+		return assert.AnError
+	})
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Zero(t, f.count(t, `SELECT COUNT(*) FROM boards WHERE name = 'Gone'`))
+}
+
 func TestBoards_Limit(t *testing.T) {
 	f := newBoardFixture(t, time.Minute)
 	for i := 1; i < models.MaxBoardsPerUser; i++ { // the default board is the first

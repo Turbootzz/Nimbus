@@ -237,38 +237,45 @@ func insertBoard(ctx context.Context, tx *sql.Tx, board *models.Board, autoSlug 
 	return nil
 }
 
-// Update saves the name, slug and shared flag of the user's board
-func (r *BoardRepository) Update(ctx context.Context, board *models.Board) error {
+// Update changes the user's board: apply edits the board as stored, in the
+// transaction that holds the user lock, so an edit never writes back what
+// another one changed meanwhile (a rename re-sharing a board just unshared)
+func (r *BoardRepository) Update(ctx context.Context, id, userID string, apply func(*models.Board) error) (*models.Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := lockUser(ctx, tx, board.UserID); err != nil {
-		return err
+	if err := lockUser(ctx, tx, userID); err != nil {
+		return nil, err
 	}
-	taken, err := slugTaken(ctx, tx, board.UserID, board.Slug, board.ID)
+	board, err := scanBoard(tx.QueryRowContext(ctx, `SELECT `+boardColumns+` FROM boards b WHERE b.id = $1 AND b.user_id = $2`, id, userID))
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if err := apply(board); err != nil {
+		return nil, err
+	}
+	taken, err := slugTaken(ctx, tx, userID, board.Slug, board.ID)
+	if err != nil {
+		return nil, err
 	}
 	if taken {
-		return ErrBoardSlugTaken
+		return nil, ErrBoardSlugTaken
 	}
-	result, err := tx.ExecContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE boards SET name = $1, slug = $2, is_shared = $3, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $4 AND user_id = $5`,
-		board.Name, board.Slug, board.IsShared, board.ID, board.UserID)
+		WHERE id = $4 AND user_id = $5
+		RETURNING updated_at`,
+		board.Name, board.Slug, board.IsShared, board.ID, userID).Scan(&board.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("failed to update board: %w", err)
-	}
-	if err := requireAffected(result, ErrBoardNotFound); err != nil {
-		return err
+		return nil, fmt.Errorf("failed to update board: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit board: %w", err)
+		return nil, fmt.Errorf("failed to commit board: %w", err)
 	}
-	return nil
+	return board, nil
 }
 
 // Reorder puts the user's boards in the order of ids. It fails with

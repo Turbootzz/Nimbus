@@ -178,11 +178,10 @@ func (s *BoardService) Update(ctx context.Context, userID string, isAdmin bool, 
 	if err != nil {
 		return nil, err
 	}
-	board := access.Board
-	if err := applyBoardRequest(board, req, isAdmin); err != nil {
-		return nil, err
-	}
-	if err := s.repo.Update(ctx, board); err != nil {
+	board, err := s.repo.Update(ctx, access.Board.ID, userID, func(board *models.Board) error {
+		return applyBoardRequest(board, req, isAdmin)
+	})
+	if err != nil {
 		return nil, boardWriteError(err)
 	}
 	return board, nil

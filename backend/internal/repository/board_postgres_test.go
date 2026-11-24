@@ -218,10 +218,18 @@ func TestBoardsMigrationOnPostgres(t *testing.T) {
 	assert.Equal(t, sharedGroup.ID, scope.DefaultGroups[shared.ID])
 
 	// Update, reorder, delete
-	shared.Name, shared.Slug = "Family night", "family-2"
-	assert.ErrorIs(t, boards.Update(ctx, shared), ErrBoardSlugTaken)
-	shared.Slug = "night"
-	require.NoError(t, boards.Update(ctx, shared))
+	rename := func(slug string) func(*models.Board) error {
+		return func(b *models.Board) error {
+			b.Name, b.Slug = "Family night", slug
+			return nil
+		}
+	}
+	_, err = boards.Update(ctx, shared.ID, admin, rename("family-2"))
+	assert.ErrorIs(t, err, ErrBoardSlugTaken)
+	updated, err := boards.Update(ctx, shared.ID, admin, rename("night"))
+	require.NoError(t, err)
+	assert.Equal(t, "night", updated.Slug)
+	assert.True(t, updated.IsShared)
 	adminHome, err := boards.EnsureDefault(ctx, admin)
 	require.NoError(t, err)
 	require.NoError(t, boards.Reorder(ctx, admin, []string{twin.ID, shared.ID, adminHome.ID}))
