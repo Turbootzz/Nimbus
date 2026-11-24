@@ -313,6 +313,18 @@ func TestCompose(t *testing.T) {
 	assert.Equal(t, "http://localhost:8989", find(t, result.Document, "Sonarr").URL)
 }
 
+// A URL label too long to keep is no reason to link to a published port
+func TestComposeSkipsADroppedURLLabel(t *testing.T) {
+	for _, label := range []string{"nimbus.url", "homepage.href"} {
+		config := "services:\n  app:\n    image: nginx\n    ports: [\"8080:80\"]\n    labels:\n" +
+			"      " + label + ": https://app.example.com/" + strings.Repeat("a", 2048) + "\n"
+		result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+		require.NoError(t, err, label)
+		assert.Empty(t, result.Document.Services, label)
+		warned(t, result.Warnings, "app: skipped", "URL label is too long")
+	}
+}
+
 func TestConvertChecksItsInput(t *testing.T) {
 	compose := fixture(t, "compose_media.yml")
 	for _, host := range []string{"http://nas.lan", "nas.lan:8080", "nas lan", "a/b", "-nas", "nas.lan?x=1", "user@nas", strings.Repeat("a", 300)} {

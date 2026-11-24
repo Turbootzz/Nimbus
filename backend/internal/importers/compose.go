@@ -35,7 +35,8 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 	b.plainIcons = true
 	for _, name := range sortedKeys(services) {
 		settings := asMap(services[name])
-		labels, hidden := integrations.ParseDiscoveryLabels(composeLabels(settings["labels"]))
+		raw := composeLabels(settings["labels"])
+		labels, hidden := integrations.ParseDiscoveryLabels(raw)
 		if hidden {
 			b.warn("%s: skipped, it is labelled nimbus.enable=false", name)
 			continue
@@ -61,6 +62,11 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 			e.icon = dashboardIconsURL + "svg/" + slug + ".svg"
 		}
 		if e.url == "" {
+			// The labels name a URL, but one too long to keep
+			if strings.TrimSpace(raw["nimbus.url"]+raw["homepage.href"]) != "" {
+				b.warn("%s: skipped, its URL label is too long", name)
+				continue
+			}
 			port := publishedPort(asList(settings["ports"]))
 			if port == 0 {
 				b.warn("%s: skipped, it publishes no TCP port", name)
