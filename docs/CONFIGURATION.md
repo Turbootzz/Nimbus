@@ -18,6 +18,7 @@ This guide covers all configuration options for Nimbus, including OAuth setup, P
   - [Google OAuth](#google-oauth)
   - [GitHub OAuth](#github-oauth)
   - [Discord OAuth](#discord-oauth)
+- [API Tokens](#api-tokens)
 - [Prometheus Integration](#prometheus-integration)
 - [Dashboard Export and Import](#dashboard-export-and-import)
 - [Production Deployment](#production-deployment)
@@ -104,6 +105,7 @@ CORS_ORIGINS=https://nimbus.example.com,https://www.nimbus.example.com
 | `JWT_SECRET` | *required* | Secret for signing JWT tokens (min 32 chars) |
 | `JWT_EXPIRY` | `24h` | Token expiration (e.g., `24h`, `7d`, `30d`) |
 | `BCRYPT_COST` | `10` | Password hashing cost (10-12 recommended) |
+| `API_TOKEN_RATE_LIMIT` | `600` | Requests per minute one [API token](#api-tokens) may make |
 
 ### Encryption Key
 
@@ -213,6 +215,62 @@ If not set, falls back to `JWT_SECRET`.
 
 ---
 
+## API Tokens
+
+Personal access tokens let scripts, other dashboards and AI assistants use the Nimbus API
+without your password. Create them under **Settings → API Tokens**. A token is shown once,
+starts with `nimbus_` and is sent as a bearer token:
+
+```bash
+curl -H "Authorization: Bearer nimbus_..." http://localhost:3000/api/v1/services
+```
+
+### Scopes
+
+Each token only gets the scopes you select.
+
+| Scope | Grants |
+|-------|--------|
+| `read:services` | Read services and groups |
+| `read:metrics` | Read uptime metrics, status history and the Prometheus export |
+| `read:widgets` | Read widgets (secrets masked) and the dashboard data |
+| `write:services` | Create, change, delete, reorder and recheck services and groups. Includes `read:services` |
+| `mcp` | Use the [MCP endpoint](MCP.md) at `/mcp` |
+
+- `GET` requests need the read scope of what they read.
+- A token can only change services and groups, and needs `write:services` for that. Widgets
+  and the dashboard layout are read-only for tokens.
+- A request outside the token's scopes gets `403`.
+- Everything else never accepts a token, whatever its scopes: account settings, preferences,
+  uploads, the icon lookup, webhooks, integrations, token management, the live dashboard
+  stream and the admin pages. A leaked token cannot create tokens, read webhook URLs or
+  integration credentials, or make Nimbus send requests to an address of its choosing other
+  than the health check of a service.
+- A token never has admin rights, also when its owner is an admin.
+- `mcp` only opens `/mcp`. It gives no access to the REST API.
+
+### Expiry and revocation
+
+A token can expire after 7, 30, 90 or 365 days, or never. An expired or revoked token gets
+`401`. Creating and revoking a token is recorded in the activity log (the
+`user_activity_logs` table).
+
+### Rate limit
+
+Each token may make `API_TOKEN_RATE_LIMIT` requests per minute (default `600`), counted over
+the REST API and `/mcp` together. Above that Nimbus answers `429` with a `Retry-After` header.
+Browser sessions are not limited.
+
+### Tokens created before scopes
+
+Tokens made before scopes existed keep working: a read-only token has the three read scopes,
+a full-access token also has `write:services`. They are bound by the rules above, so they
+no longer reach webhooks, preferences or uploads, a full-access token no longer edits
+widgets, and an admin's token no longer has admin rights. None of them has `mcp`; create a
+new token for that.
+
+---
+
 ## Prometheus Integration
 
 Export service metrics in Prometheus format for monitoring and alerting.
@@ -256,6 +314,15 @@ docker run -d \
   -v $(pwd)/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
   prom/prometheus:latest
 ```
+
+### Using an API token instead
+
+`PROMETHEUS_API_KEY` is one key for the whole instance and can read every user's metrics. An
+[API token](#api-tokens) with the `read:metrics` scope is the safer choice: it only reads your
+own metrics (also when you are an admin), can expire and can be revoked on its own.
+Put the token in `credentials`. Both keep working side by side, so keep `PROMETHEUS_API_KEY`
+set until every scrape that uses it has moved to a personal API token, then remove it. To
+scrape several users with one credential, keep `PROMETHEUS_API_KEY`.
 
 ### Available Metrics
 
@@ -537,6 +604,9 @@ DISCORD_REDIRECT_URL=http://localhost:3000/api/v1/auth/oauth/discord/callback
 
 # Prometheus (optional)
 PROMETHEUS_API_KEY=
+
+# API tokens: requests per minute per token (optional)
+# API_TOKEN_RATE_LIMIT=600
 
 # Production
 # COOKIE_SECURE=true

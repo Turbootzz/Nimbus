@@ -5,8 +5,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/nimbus/backend/internal/models"
 
@@ -25,6 +27,8 @@ const apiTokenTestSchema = `
 		token_hash TEXT NOT NULL UNIQUE,
 		token_prefix TEXT NOT NULL,
 		read_only INTEGER NOT NULL DEFAULT 1,
+		scopes TEXT NOT NULL DEFAULT '',
+		expires_at TIMESTAMP,
 		last_used_at TIMESTAMP,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -53,7 +57,7 @@ func createTestToken(t *testing.T, repo *APITokenRepository, userID, name, hash 
 		Name:        name,
 		TokenHash:   hash,
 		TokenPrefix: "nimbus_abcde",
-		ReadOnly:    readOnly,
+		Scopes:      models.LegacyScopes(readOnly),
 	}
 	if err := repo.Create(context.Background(), token, 10); err != nil {
 		t.Fatalf("Failed to create token: %v", err)
@@ -312,5 +316,69 @@ func TestAPITokenRepository_UpdateLastUsed(t *testing.T) {
 	}
 	if got.LastUsedAt == nil {
 		t.Error("expected LastUsedAt to be set")
+	}
+}
+
+func TestAPITokenRepository_ScopesAndExpiry(t *testing.T) {
+	db := setupAPITokenTestDB(t)
+	defer db.Close()
+	repo := NewAPITokenRepository(db)
+	ctx := context.Background()
+
+	expiresAt := time.Now().Add(time.Hour).UTC().Truncate(time.Second)
+	scoped := &models.APIToken{
+		UserID:      "user-1",
+		Name:        "Scoped",
+		TokenHash:   "hash-scoped",
+		TokenPrefix: "nimbus_abcde",
+		Scopes:      []string{models.ScopeReadServices, models.ScopeWriteServices, models.ScopeMCP},
+		ExpiresAt:   &expiresAt,
+	}
+	if err := repo.Create(ctx, scoped, 10); err != nil {
+		t.Fatalf("Failed to create token: %v", err)
+	}
+	if scoped.ReadOnly {
+		t.Error("a token with write:services is not read-only")
+	}
+
+	got, err := repo.GetByTokenHash(ctx, "hash-scoped")
+	if err != nil {
+		t.Fatalf("GetByTokenHash failed: %v", err)
+	}
+	if want := []string{models.ScopeReadServices, models.ScopeWriteServices, models.ScopeMCP}; !slices.Equal(got.Scopes, want) {
+		t.Errorf("scopes = %v, want %v", got.Scopes, want)
+	}
+	if got.ReadOnly {
+		t.Error("expected read_only false")
+	}
+	if got.ExpiresAt == nil || !got.ExpiresAt.Equal(expiresAt) {
+		t.Errorf("expires_at = %v, want %v", got.ExpiresAt, expiresAt)
+	}
+
+	// Read scopes only, no expiry
+	plain := createTestToken(t, repo, "user-1", "Plain", "hash-plain", true)
+	list, err := repo.ListByUserID(ctx, "user-1")
+	if err != nil {
+		t.Fatalf("ListByUserID failed: %v", err)
+	}
+	for _, token := range list {
+		if token.ID != plain.ID {
+			continue
+		}
+		if !token.ReadOnly || token.ExpiresAt != nil || !slices.Equal(token.Scopes, models.ReadScopes()) {
+			t.Errorf("unexpected plain token: %+v", token)
+		}
+	}
+
+	// A row from before the migration backfill has no scopes at all
+	if _, err := db.Exec(`INSERT INTO api_tokens (id, user_id, name, token_hash, token_prefix) VALUES ('legacy', 'user-2', 'Old', 'hash-legacy', 'nimbus_abcde')`); err != nil {
+		t.Fatalf("Failed to insert legacy token: %v", err)
+	}
+	legacy, err := repo.GetByTokenHash(ctx, "hash-legacy")
+	if err != nil {
+		t.Fatalf("GetByTokenHash failed: %v", err)
+	}
+	if len(legacy.Scopes) != 0 {
+		t.Errorf("expected no scopes, got %v", legacy.Scopes)
 	}
 }

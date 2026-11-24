@@ -14,6 +14,7 @@ import (
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Max bytes to drain from response body for connection reuse (1MB)
@@ -279,7 +280,7 @@ func (h *HealthCheckService) performCheck(ctx context.Context, service *models.S
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, service.URL, nil)
 	if err != nil {
-		errorMsg := err.Error()
+		errorMsg := utils.WithoutURL(err).Error()
 		return checkResult{status: models.StatusOffline, errorMessage: &errorMsg}
 	}
 
@@ -289,7 +290,7 @@ func (h *HealthCheckService) performCheck(ctx context.Context, service *models.S
 	responseTime := int(time.Since(start).Milliseconds())
 
 	if err != nil {
-		errorMsg := err.Error()
+		errorMsg := utils.WithoutURL(err).Error()
 		return checkResult{status: models.StatusOffline, responseTime: &responseTime, errorMessage: &errorMsg}
 	}
 	defer resp.Body.Close()

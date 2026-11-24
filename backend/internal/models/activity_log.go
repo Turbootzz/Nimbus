@@ -24,4 +24,6 @@ const (
 	ActionInvitationSent  = "invitation_sent"
 	ActionInvitationUsed  = "invitation_used"
 	ActionSettingChanged  = "setting_changed"
+	ActionAPITokenCreated = "api_token_created"
+	ActionAPITokenRevoked = "api_token_revoked"
 )

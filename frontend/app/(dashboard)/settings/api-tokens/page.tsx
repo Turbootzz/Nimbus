@@ -2,16 +2,24 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
-import { Toggle } from '@/components/ui/Toggle'
 import { ThemedInput } from '@/components/ui/ThemedInput'
-import type { ApiToken } from '@/types'
+import {
+  DEFAULT_SCOPES,
+  EXPIRY_OPTIONS,
+  SCOPE_OPTIONS,
+  expiryFromDays,
+  isExpired,
+  toggleScope,
+} from '@/lib/api-tokens'
+import type { ApiToken, ApiTokenScope } from '@/types'
 
 export default function ApiTokensPage() {
   const [tokens, setTokens] = useState<ApiToken[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [readOnly, setReadOnly] = useState(true)
+  const [scopes, setScopes] = useState<ApiTokenScope[]>(DEFAULT_SCOPES)
+  const [expiryDays, setExpiryDays] = useState(0)
   const [creating, setCreating] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -39,18 +47,23 @@ export default function ApiTokensPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || creating) return
+    if (!name.trim() || scopes.length === 0 || creating) return
 
     setCreating(true)
     setError(null)
     try {
-      const response = await api.createApiToken({ name: name.trim(), read_only: readOnly })
+      const response = await api.createApiToken({
+        name: name.trim(),
+        scopes,
+        expires_at: expiryFromDays(expiryDays),
+      })
       if (response.data) {
         setCreatedToken(response.data.token)
         setCopied(false)
         setTokens([response.data.api_token, ...tokens])
         setName('')
-        setReadOnly(true)
+        setScopes(DEFAULT_SCOPES)
+        setExpiryDays(0)
       } else if (response.error) {
         setError(response.error.message)
       }
@@ -113,13 +126,19 @@ export default function ApiTokensPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500">
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500"
+        >
           {error}
         </div>
       )}
 
       {createdToken && (
-        <div className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4">
+        <div
+          role="status"
+          className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4"
+        >
           <p className="text-text-primary mb-2 text-sm font-semibold">
             Token created. You won&apos;t be able to see this token again — copy it now.
           </p>
@@ -146,21 +165,73 @@ export default function ApiTokensPage() {
           <ThemedInput
             type="text"
             placeholder="Token name (e.g. Hearth dashboard)"
+            aria-label="Token name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
             required
           />
-          <Toggle
-            id="token-read-only"
-            enabled={readOnly}
-            onChange={setReadOnly}
-            label="Read-only"
-            description="Token can only read data, never modify anything"
-          />
+          <fieldset>
+            <legend className="text-text-primary mb-2 text-sm font-medium">Scopes</legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SCOPE_OPTIONS.map((option) => (
+                <label
+                  key={option.scope}
+                  className="border-card-border flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(option.scope)}
+                    onChange={(e) => setScopes(toggleScope(scopes, option.scope, e.target.checked))}
+                    aria-describedby={`scope-${option.scope}-description`}
+                    className="accent-primary mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="text-text-primary block text-sm font-medium">
+                      {option.label}{' '}
+                      <code className="text-text-muted text-xs font-normal">{option.scope}</code>
+                    </span>
+                    <span
+                      id={`scope-${option.scope}-description`}
+                      className="text-text-muted block text-xs"
+                    >
+                      {option.description}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {scopes.length === 0 && (
+              <p className="mt-2 text-xs text-red-500">Select at least one scope.</p>
+            )}
+          </fieldset>
+          <div>
+            <label
+              htmlFor="token-expiry"
+              className="text-text-primary mb-2 block text-sm font-medium"
+            >
+              Expires
+            </label>
+            <select
+              id="token-expiry"
+              value={expiryDays}
+              onChange={(e) => setExpiryDays(Number(e.target.value))}
+              className="border-card-border focus:border-primary w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none sm:w-48"
+              style={{
+                backgroundColor: 'var(--color-background)',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              {EXPIRY_OPTIONS.map((option) => (
+                <option key={option.days} value={option.days}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
-            disabled={creating || !name.trim()}
+            disabled={creating || !name.trim() || scopes.length === 0}
             className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {creating ? 'Creating…' : 'Create Token'}
@@ -180,23 +251,32 @@ export default function ApiTokensPage() {
               className="glass-card border-card-border flex items-center justify-between gap-4 rounded-lg border p-4"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-text-primary font-medium">{token.name}</span>
-                  {token.read_only && (
-                    <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
-                      read-only
+                  {isExpired(token) && (
+                    <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-500">
+                      expired
                     </span>
                   )}
+                  {token.scopes.map((scope) => (
+                    <span
+                      key={scope}
+                      className="bg-primary/10 text-primary rounded-full px-2 py-0.5 font-mono text-xs"
+                    >
+                      {scope}
+                    </span>
+                  ))}
                 </div>
                 <p className="text-text-muted mt-1 font-mono text-xs">{token.token_prefix}…</p>
                 <p className="text-text-secondary mt-1 text-xs">
                   Created {formatDate(token.created_at)} · Last used{' '}
-                  {formatDate(token.last_used_at)}
+                  {formatDate(token.last_used_at)} · Expires {formatDate(token.expires_at)}
                 </p>
               </div>
               <button
                 onClick={() => handleRevoke(token)}
                 disabled={revokingId !== null}
+                aria-label={`Revoke ${token.name}`}
                 className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {revokingId === token.id ? 'Revoking…' : 'Revoke'}

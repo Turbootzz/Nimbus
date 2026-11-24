@@ -695,18 +695,24 @@ export interface WebhookTestResult {
 }
 
 // API token types (personal access tokens)
+export type ApiTokenScope =
+  'read:services' | 'read:metrics' | 'read:widgets' | 'write:services' | 'mcp'
+
 export interface ApiToken {
   id: string
   name: string
   token_prefix: string
-  read_only: boolean
+  scopes: ApiTokenScope[]
+  read_only: boolean // derived: no write:services scope
   last_used_at: string | null
+  expires_at: string | null
   created_at: string
 }
 
 export interface ApiTokenCreateRequest {
   name: string
-  read_only: boolean
+  scopes: ApiTokenScope[]
+  expires_at?: string // ISO timestamp; omit for a token that never expires
 }
 
 export interface ApiTokenCreateResponse {
