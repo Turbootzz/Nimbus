@@ -18,6 +18,8 @@ import { mainNavigation } from '@/lib/navigation'
 import { toggleEditMode, useEditMode } from '@/lib/dashboard-store'
 import InstallAppMenuItem from '@/components/InstallAppMenuItem'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import type { User } from '@/types'
 
 interface UserMenuProps {
@@ -36,6 +38,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   const isEditMode = useEditMode()
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
+  const editable = canEdit(useConfigFile())
 
   useEffect(() => {
     // Fetch current user
@@ -176,8 +179,9 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     {item.name}
                   </Link>
                 ))}
-                {/* A dashboard locked by a config file can't be edited */}
-                {!user?.config_file?.read_only && (
+                {/* A dashboard locked by a config file can't be edited, nor
+                    one whose status has not loaded */}
+                {editable && (
                   <button
                     type="button"
                     onClick={handleEditLayout}

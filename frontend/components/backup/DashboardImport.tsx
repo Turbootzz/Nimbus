@@ -5,6 +5,7 @@ import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { ReadOnlyNote } from '@/components/ConfigFileBanner'
 import type { ApiError, ImportIssue, ImportMode, ImportSummary } from '@/types'
 
@@ -112,7 +113,8 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
 
 export default function DashboardImport() {
   // Locked by a config file: only the preview works
-  const readOnly = useConfigFile()?.read_only ?? false
+  const configFile = useConfigFile()
+  const readOnly = configFile?.read_only ?? false
   const fileInput = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<{ name: string; text: string } | null>(null)
   const [mode, setMode] = useState<ImportMode>('merge')
@@ -332,7 +334,7 @@ export default function DashboardImport() {
             <button
               type="button"
               onClick={() => (mode === 'replace' ? setConfirming(true) : apply())}
-              disabled={busy || readOnly}
+              disabled={busy || !canEdit(configFile)}
               className={`focus-visible:ring-primary mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${
                 mode === 'replace' ? 'bg-error hover:bg-error/80' : 'bg-primary hover:bg-primary/90'
               }`}

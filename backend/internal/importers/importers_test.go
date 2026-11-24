@@ -249,7 +249,8 @@ func TestHomer(t *testing.T) {
 	pihole := find(t, doc, "Pi-hole")
 	require.NotNil(t, integrationOf(doc, pihole))
 	assert.Equal(t, "pihole", integrationOf(doc, pihole).Kind)
-	assert.Equal(t, "http://192.168.0.151/admin", integrationOf(doc, pihole).BaseURL)
+	assert.Equal(t, "http://192.168.0.151/admin", pihole.URL, "the link is the web UI")
+	assert.Equal(t, "http://192.168.0.151", integrationOf(doc, pihole).BaseURL, "the API is beside /admin")
 
 	warned(t, result.Warnings, "Another one", "skipped", `"#"`)
 	warned(t, result.Warnings, "Awesome app", "assets/tools/sample.png")
@@ -333,6 +334,34 @@ func TestComposeIconLabelWithPrefix(t *testing.T) {
 	assert.Equal(t, dashboardIconsURL+"svg/radarr.svg", find(t, result.Document, "Radarr").IconURL)
 }
 
+// A URL label loses its login and query, as in the other importers
+func TestComposeURLLabelWithoutSecrets(t *testing.T) {
+	config := "services:\n  app:\n    image: nginx\n    labels:\n      nimbus.url: https://admin:pw@app.lan/x?token=abc\n"
+	result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, "https://app.lan/x", find(t, result.Document, "App").URL)
+	assert.NotContains(t, strings.Join(result.Warnings, "\n"), "pw")
+}
+
+func TestComposeGuessesNoPortFromARange(t *testing.T) {
+	config := `
+services:
+  web:
+    image: nginx
+    ports:
+      - target: 80
+        published: "8080-8090"
+  api:
+    image: whoami
+    ports: ["9000-9001:80-81"]
+`
+	result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Api"}, serviceNames(result.Document))
+	assert.Equal(t, "http://nas.lan:9000", find(t, result.Document, "Api").URL)
+	warned(t, result.Warnings, "web", "skipped", "Docker picks its port from a range")
+}
+
 func TestConvertChecksItsInput(t *testing.T) {
 	compose := fixture(t, "compose_media.yml")
 	for _, host := range []string{"http://nas.lan", "nas.lan:8080", "nas lan", "a/b", "-nas", "nas.lan?x=1", "user@nas", strings.Repeat("a", 300)} {
@@ -392,13 +421,28 @@ func TestIconURL(t *testing.T) {
 
 func TestPublishedPortAndImageSlug(t *testing.T) {
 	ports := map[string]int{
-		"8080:80": 8080, "127.0.0.1:8081:80": 8081, "[::1]:8082:80/tcp": 8082, "9000-9005:80-85": 9000,
+		"8080:80": 8080, "127.0.0.1:8081:80": 8081, "[::1]:8082:80/tcp": 8082, "9000-9005:80-85": 9000, "9000-9000:80": 9000,
 		"80": 0, "53:53/udp": 0, "${PORT}:80": 0, "0:80": 0, "99999:80": 0, "": 0, ":": 0, "a:b:c:d": 0,
 	}
 	for port, want := range ports {
-		assert.Equal(t, want, publishedPort([]any{port}), port)
+		got, ranged := publishedPort([]any{port})
+		assert.Equal(t, want, got, port)
+		assert.False(t, ranged, port)
 	}
-	assert.Equal(t, 8443, publishedPort([]any{nil, 5, "53:53/udp", map[string]any{"published": 8443, "target": 443}}))
+	port, _ := publishedPort([]any{nil, 5, "53:53/udp", map[string]any{"published": 8443, "target": 443}})
+	assert.Equal(t, 8443, port)
+	port, _ = publishedPort([]any{map[string]any{"published": "8080-8081", "target": "80-81"}})
+	assert.Equal(t, 8080, port, "a range onto as many container ports is fixed")
+
+	// Docker picks a port of the range when the container starts
+	for _, item := range []any{"8080-8090:80", "127.0.0.1:8080-8090:80/tcp", map[string]any{"published": "8080-8090", "target": 80}} {
+		port, ranged := publishedPort([]any{item})
+		assert.Zero(t, port, item)
+		assert.True(t, ranged, item)
+	}
+	port, ranged := publishedPort([]any{"8080-8090:80", "9090:90"})
+	assert.Equal(t, 9090, port, "a fixed port next to the range")
+	assert.False(t, ranged)
 
 	images := map[string]string{
 		"sonarr": "sonarr", "postgres:16": "postgres", "lscr.io/linuxserver/sonarr:latest": "sonarr",
@@ -432,15 +476,51 @@ func TestOddURLsAreSkipped(t *testing.T) {
         href: http://169.254.169.254/latest/meta-data/
     - Good:
         href: https://example.com
+    - Route:
+        href: http://router.lan/#/status
+    - Secret FTP:
+        href: ftp://admin:ftpsecret@files.lan/?token=ftptoken
+    - Broken:
+        href: http://admin:brokensecret@host.or.ip:port/?key=brokentoken
+    - No scheme:
+        href: admin:hunter1@nas.lan/x
+    - No scheme with port:
+        href: admin:hunter2@nas.lan:8080/x
+    - No slashes:
+        href: http:admin:hunter3@nas.lan
+    - Pi-hole:
+        href: https://proxy.lan/pihole/admin/
+        widget:
+          type: pihole
 `
 	result, err := Convert(FormatHomepage, []byte(config), Options{})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Login", "Good"}, serviceNames(result.Document))
-	require.Len(t, result.Document.Integrations, 1)
-	assert.Equal(t, "https://example.com/sonarr", result.Document.Integrations[0].BaseURL, "no login, query or fragment")
-	assert.Len(t, result.Warnings, 6)
-	assert.Contains(t, strings.Join(result.Warnings, "\n"), "Metadata: skipped, \"http://169.254.169.254/latest/meta-data/\" is not a URL Nimbus can link to: cloud metadata endpoints are not allowed")
-	assertImportable(t, &result.Document)
+	doc := result.Document
+	assert.Equal(t, []string{"Login", "Good", "Route", "Pi-hole"}, serviceNames(doc))
+	require.Len(t, doc.Integrations, 2)
+	assert.Equal(t, "https://example.com/sonarr", doc.Integrations[0].BaseURL, "no login, query or fragment")
+	assertImportable(t, &doc)
+
+	// A login or query can hold a secret; a fragment stays as it is
+	assert.Equal(t, "https://example.com/path#frag", find(t, doc, "Login").URL)
+	assert.Equal(t, "http://router.lan/#/status", find(t, doc, "Route").URL)
+	warned(t, result.Warnings, "Login", "login and query of its URL are left out")
+	// A warning quotes no login or query either, or nothing of a URL that doesn't parse
+	warned(t, result.Warnings, "Secret FTP", "skipped", `"ftp://files.lan/"`)
+	warned(t, result.Warnings, "Broken", "skipped", "(not shown)")
+	warned(t, result.Warnings, "No scheme:", "skipped", "(not shown)")
+	warned(t, result.Warnings, "Variable", `"{{HOMEPAGE_VAR_URL}}"`)
+	warned(t, result.Warnings, `Metadata: skipped, "http://169.254.169.254/latest/meta-data/" is not a URL Nimbus can link to: cloud metadata endpoints are not allowed`)
+	all := strings.Join(result.Warnings, "\n")
+	for _, secret := range []string{"user:pass", "=abc", "ftpsecret", "ftptoken", "brokensecret", "brokentoken", "hunter"} {
+		assert.NotContains(t, all, secret)
+	}
+	assert.Len(t, result.Warnings, 12)
+
+	// Behind a proxy prefix, Pi-hole's API is beside its /admin web UI
+	pihole := find(t, doc, "Pi-hole")
+	assert.Equal(t, "https://proxy.lan/pihole/admin/", pihole.URL)
+	assert.Equal(t, "https://proxy.lan/pihole", integrationOf(doc, pihole).BaseURL)
 }
 
 func TestIntegrationOnAMetadataAddressSaysWhy(t *testing.T) {

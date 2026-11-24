@@ -13,6 +13,7 @@ import type { IconType, Group, Service } from '@/types'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { ReadOnlyNote } from '@/components/ConfigFileBanner'
 
 interface ServiceFormProps {
@@ -50,7 +51,8 @@ export default function ServiceForm({
   const { enableServiceGrouping } = useTheme()
   const [isSaving, setIsSaving] = useState(false)
   // Locked by a config file: saving would be refused
-  const readOnly = useConfigFile()?.read_only ?? false
+  const configFile = useConfigFile()
+  const readOnly = configFile?.read_only ?? false
   const [error, setError] = useState('')
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
@@ -348,7 +350,7 @@ export default function ServiceForm({
           )}
           <button
             type="submit"
-            disabled={isSaving || readOnly}
+            disabled={isSaving || !canEdit(configFile)}
             className="bg-primary hover:bg-primary-hover rounded-md px-6 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitLabel}

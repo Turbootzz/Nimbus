@@ -193,9 +193,13 @@ type ConfigFile struct {
 	ReadOnly bool
 }
 
-// GetConfigFile reads the config-file mode from the environment
+// GetConfigFile reads the config-file mode from the environment. Without
+// NIMBUS_CONFIG_FILE the mode is off and its other settings don't matter.
 func GetConfigFile() (ConfigFile, error) {
 	file := ConfigFile{Path: GetEnvOrDefault("NIMBUS_CONFIG_FILE", "")}
+	if file.Path == "" {
+		return ConfigFile{}, nil
+	}
 	switch mode := strings.ToLower(GetEnvOrDefault("NIMBUS_CONFIG_MODE", "replace")); mode {
 	case "replace":
 		file.Prune = true

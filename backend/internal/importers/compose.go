@@ -67,7 +67,11 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 				b.warn("%s: skipped, its URL label is too long", name)
 				continue
 			}
-			port := publishedPort(asList(settings["ports"]))
+			port, ranged := publishedPort(asList(settings["ports"]))
+			if ranged {
+				b.warn("%s: skipped, Docker picks its port from a range when it starts", name)
+				continue
+			}
 			if port == 0 {
 				b.warn("%s: skipped, it publishes no TCP port", name)
 				continue
@@ -120,31 +124,51 @@ func imageSlug(image string) string {
 // publishedPort returns the first TCP port a service publishes on the host,
 // or 0. Ports come as "8080:80", "127.0.0.1:8080:80/tcp", "8080-8090:80-90",
 // or as a map with published and target; a bare "80" is not published on a
-// port anyone can know.
-func publishedPort(ports []any) int {
+// port anyone can know, and neither is a range of host ports for fewer
+// container ports ("8080-8090:80"): Docker picks one when the container
+// starts. ranged reports such a range when no port was found.
+func publishedPort(ports []any) (port int, ranged bool) {
 	for _, item := range ports {
-		published, protocol := "", ""
+		published, target, protocol := "", "", ""
 		if long := asMap(item); long != nil {
-			published, protocol = asString(long["published"]), asString(long["protocol"])
+			published, target, protocol = asString(long["published"]), asString(long["target"]), asString(long["protocol"])
 		} else {
 			short, proto, _ := strings.Cut(asString(item), "/")
 			protocol = proto
 			// [ip:]published:target; the IP may be a bracketed IPv6 address
 			parts := strings.Split(short[strings.LastIndex(short, "]")+1:], ":")
 			if len(parts) >= 2 {
-				published = parts[len(parts)-2]
+				published, target = parts[len(parts)-2], parts[len(parts)-1]
 			}
 		}
 		if protocol != "" && !strings.EqualFold(protocol, "tcp") {
 			continue
 		}
+		if size := rangeSize(published); size > 1 && size != rangeSize(target) {
+			ranged = true
+			continue
+		}
 		// The first port of a range
 		published, _, _ = strings.Cut(published, "-")
 		if port, err := strconv.Atoi(published); err == nil && port > 0 && port <= 65535 {
-			return port
+			return port, false
 		}
 	}
-	return 0
+	return 0, ranged
+}
+
+// rangeSize is how many ports "8080-8090" or "8080" names; 0 for neither
+func rangeSize(ports string) int {
+	first, last, isRange := strings.Cut(ports, "-")
+	if !isRange {
+		last = first
+	}
+	from, err := strconv.Atoi(first)
+	to, err2 := strconv.Atoi(last)
+	if err != nil || err2 != nil || to < from {
+		return 0
+	}
+	return to - from + 1
 }
 
 // portURL is where a published port is reached; the usual TLS ports get https
