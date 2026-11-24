@@ -16,7 +16,7 @@ func StripURLSecrets(value any) any {
 		case err == nil && u.Host != "" && (u.RawQuery != "" || u.User != nil):
 			u.RawQuery, u.User, u.Fragment = "", nil, ""
 			return u.String()
-		case err != nil && urlStart.MatchString(v):
+		case err != nil && loneURL.MatchString(v):
 			// A URL that doesn't parse (a bad escape such as #%zz) is dropped,
 			// not passed on with its secrets
 			return ""
@@ -26,8 +26,9 @@ func StripURLSecrets(value any) any {
 	})
 }
 
-// urlStart is a string that starts as a URL with a host: scheme:// or //
-var urlStart = regexp.MustCompile(`^\s*(?:[a-zA-Z][a-zA-Z0-9+.-]*:)?//`)
+// loneURL is a string that is one URL with a host (scheme:// or //), not
+// text that has one in it
+var loneURL = regexp.MustCompile(`^\s*(?:[a-zA-Z][a-zA-Z0-9+.-]*:)?//\S*\s*$`)
 
 // userInfo is the user info of a URL anywhere in a text (scheme://user:pw@,
 // or //user:pw@ at the start or after a space, quote or bracket), up to the

@@ -35,8 +35,10 @@ func TestStripURLSecrets(t *testing.T) {
 		"relative": "//u:pw@feeds.lan/rss?apikey=s3cret",
 		"plain":    "https://feeds.lan/rss",
 		// Passes a save that checks with url.ParseRequestURI, fails url.Parse
-		"bad":    []any{"https://u:pw@feeds.lan/rss?apikey=s3cret#%zz", " https://u:pw@feeds.lan/?apikey=s3cret"},
-		"note":   "100% done? See [NAS](http://root:pw@nas.lan/?tab=1)",
+		"bad":  []any{"https://u:pw@feeds.lan/rss?apikey=s3cret#%zz", " https://u:pw@feeds.lan/?apikey=s3cret"},
+		"note": "100% done? See [NAS](http://root:pw@nas.lan/?tab=1)",
+		// Text over more lines doesn't parse either, and stays
+		"notes":  []any{"https://wiki.lan/runbook\nstep two", "// todo\nhttp://root:pw@nas.lan"},
 		"number": 2,
 	}
 	assert.Equal(t, map[string]any{
@@ -45,6 +47,7 @@ func TestStripURLSecrets(t *testing.T) {
 		"plain":    "https://feeds.lan/rss",
 		"bad":      []any{"", ""},
 		"note":     "100% done? See [NAS](http://nas.lan/?tab=1)",
+		"notes":    []any{"https://wiki.lan/runbook\nstep two", "// todo\nhttp://nas.lan"},
 		"number":   2,
 	}, StripURLSecrets(config))
 }
