@@ -169,6 +169,9 @@ func TestBoardsMigrationOnPostgres(t *testing.T) {
 	assert.Greater(t, position, clock.Position)
 	_, err = boards.MoveTile(ctx, full, models.TileKindService, jellyfin.ID, home.ID)
 	assert.ErrorIs(t, err, ErrTileNotFound, "someone else's tile does not move")
+	// Nor is it reordered: not found (404), as on the other by-id routes
+	assert.ErrorIs(t, groups.UpdatePositions(ctx, full, map[string]int{media.ID: 0}), sql.ErrNoRows)
+	assert.ErrorIs(t, services.UpdatePositions(ctx, full, map[string]int{jellyfin.ID: 0}), sql.ErrNoRows)
 
 	onBoard, err := services.GetAllByBoardID(ctx, shared.ID)
 	require.NoError(t, err)

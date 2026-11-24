@@ -19,6 +19,15 @@ interface BoardSwitcherProps {
   onNavigate?: () => void
 }
 
+// Marks a shared board, for its owner and its viewers alike: a viewer may
+// have a board of their own with the same name
+function SharedMark({ board }: { board: Board }) {
+  const t = useTranslations('boards.switcher')
+  return board.is_shared ? (
+    <span className="text-text-muted shrink-0 text-xs"> · {t('shared')}</span>
+  ) : null
+}
+
 // Switches between the boards the user sees. Nothing shows with one board:
 // the dashboard then looks as it did before boards existed.
 export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardSwitcherProps) {
@@ -86,9 +95,17 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
                   {board.name.charAt(0).toUpperCase()}
                 </span>
               ) : (
-                <span className="truncate">{board.name}</span>
+                <>
+                  <span className="truncate">{board.name}</span>
+                  <SharedMark board={board} />
+                </>
               )}
-              {collapsed && <span className="sr-only">{board.name}</span>}
+              {collapsed && (
+                <span className="sr-only">
+                  {board.name}
+                  <SharedMark board={board} />
+                </span>
+              )}
             </Link>
           )
         })}
@@ -108,7 +125,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
   return (
     <div
       ref={rootRef}
-      className="relative"
+      className="relative min-w-0"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && open) {
           e.stopPropagation()
@@ -124,7 +141,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen(!open)}
-        className="text-text-primary hover:bg-card-border focus-visible:ring-primary flex max-w-40 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:max-w-56"
+        className="text-text-primary hover:bg-card-border focus-visible:ring-primary flex w-full max-w-40 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:max-w-56"
       >
         <span className="sr-only">{t('current')} </span>
         <span className="truncate">{active?.name ?? t('title')}</span>
@@ -146,7 +163,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
               }`}
             >
               {board.name}
-              {!board.owned && <span className="text-text-muted text-xs"> · {t('shared')}</span>}
+              <SharedMark board={board} />
             </Link>
           ))}
           {!locked && (

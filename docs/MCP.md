@@ -156,7 +156,7 @@ With [Caddy](https://caddyserver.com), next to Nimbus:
 }
 ```
 
-Then add the integration in Home Assistant with the URL `http://<caddy-host>:8787/mcp`. This proxy setup is untested: it relies on Home Assistant skipping its OAuth sign-in when the server does not ask for one.
+Then add the integration in Home Assistant with the URL `http://<caddy-host>:8787/mcp`, and let your conversation agent use it: open **Settings → Devices & services**, open the integration of the conversation agent, select the cogwheel next to the agent and, under the AI tools, select the MCP server. This proxy setup is untested: it relies on Home Assistant skipping its OAuth sign-in when the server does not ask for one.
 
 Anyone who can reach that port can use the token, without knowing it. Only expose the port to Home Assistant, and use a token with just the `mcp` scope.
 

@@ -353,8 +353,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
   }, [])
 
   // KPI definitions per integration, for service tiles linked to one. A
-  // viewer gets the kinds of the owner's integrations on the board, which
-  // is all the labels need.
+  // viewer gets them with the owner's integrations on the board.
   const { integrations: ownIntegrations, kinds } = useIntegrations()
   const [boardIntegrations, setBoardIntegrations] = useState<BoardIntegration[]>([])
   const viewedBoard = viewer ? board.id : undefined
@@ -367,10 +366,9 @@ export default function DashboardView({ board }: DashboardViewProps) {
   const integrationKpis = useMemo(
     () =>
       Object.fromEntries(
-        (viewer ? boardIntegrations : ownIntegrations).map((i) => [
-          i.id,
-          kpisForIntegration(i, kinds),
-        ])
+        viewer
+          ? boardIntegrations.map((i) => [i.id, kpisForIntegration(i, [i])])
+          : ownIntegrations.map((i) => [i.id, kpisForIntegration(i, kinds)])
       ),
     [viewer, boardIntegrations, ownIntegrations, kinds]
   )

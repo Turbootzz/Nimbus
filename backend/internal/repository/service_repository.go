@@ -379,7 +379,7 @@ func (r *ServiceRepository) bulkUpdatePositionsPostgreSQL(ctx context.Context, u
 
 	// Verify all services were updated
 	if int(rowsAffected) != len(positions) {
-		return fmt.Errorf("expected to update %d services, but updated %d (service not found or access denied)", len(positions), rowsAffected)
+		return fmt.Errorf("expected to update %d services, but updated %d: %w", len(positions), rowsAffected, sql.ErrNoRows)
 	}
 
 	return tx.Commit()

@@ -306,7 +306,7 @@
       "unreadable": "No se pudo leer el archivo",
       "replaceWarning": {
         "title": "Reemplazar elimina tu panel actual.",
-        "body": "Se eliminan todos tus grupos, servicios, widgets e integraciones, incluidas las credenciales guardadas con tus integraciones y el historial de estado de tus servicios, y se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero si quieres poder volver atrás."
+        "body": "Se eliminan los grupos, servicios y widgets de tu tablero predeterminado y de los tableros que incluye el archivo, junto con el historial de estado de esos servicios. También se eliminan tus integraciones y sus credenciales guardadas, salvo las que los mosaicos de tus otros tableros siguen usando. Los demás tableros se quedan como están. Se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero si quieres poder volver atrás."
       },
       "customCss": {
         "title": "Este archivo trae CSS personalizado (léelo antes de importar)",
@@ -319,7 +319,7 @@
       "openDashboard": "Abrir el panel",
       "confirm": {
         "title": "¿Reemplazar tu panel?",
-        "message": "Esto elimina {count, plural, one {# elemento existente} other {# elementos existentes}}, las credenciales guardadas con tus integraciones y el historial de estado de tus servicios, sobrescribe tus preferencias y después importa el archivo. No se puede deshacer.",
+        "message": "Esto elimina {count, plural, one {# elemento existente} other {# elementos existentes}}, con las credenciales y el historial de estado asociados, sobrescribe tus preferencias y después importa el archivo. No se puede deshacer.",
         "confirm": "Reemplazar"
       },
       "statusPage": {

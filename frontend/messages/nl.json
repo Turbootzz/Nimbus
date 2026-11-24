@@ -306,7 +306,7 @@
       "unreadable": "Het bestand kon niet worden gelezen",
       "replaceWarning": {
         "title": "Vervangen verwijdert je huidige dashboard.",
-        "body": "Al je groepen, services, widgets en integraties worden verwijderd, inclusief de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, en je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je terug wilt kunnen."
+        "body": "De groepen, services en widgets op je standaardboard en op de boards die in het bestand staan worden verwijderd, met de statusgeschiedenis van die services. Ook je integraties en hun opgeslagen inloggegevens worden verwijderd, behalve integraties die nog door tegels op je andere boards worden gebruikt. Andere boards blijven zoals ze zijn. Je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je terug wilt kunnen."
       },
       "customCss": {
         "title": "Dit bestand bevat eigen CSS (lees het voordat je importeert)",
@@ -319,7 +319,7 @@
       "openDashboard": "Dashboard openen",
       "confirm": {
         "title": "Je dashboard vervangen?",
-        "message": "Dit verwijdert {count, plural, one {# bestaand item} other {# bestaande items}}, de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, overschrijft je voorkeuren en importeert daarna het bestand. Dit kan niet ongedaan worden gemaakt.",
+        "message": "Dit verwijdert {count, plural, one {# bestaand item} other {# bestaande items}}, met de inloggegevens en statusgeschiedenis die erbij horen, overschrijft je voorkeuren en importeert daarna het bestand. Dit kan niet ongedaan worden gemaakt.",
         "confirm": "Vervangen"
       },
       "statusPage": {

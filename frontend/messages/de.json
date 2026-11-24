@@ -306,7 +306,7 @@
       "unreadable": "Die Datei konnte nicht gelesen werden",
       "replaceWarning": {
         "title": "Ersetzen löscht dein aktuelles Dashboard.",
-        "body": "Alle deine Gruppen, Dienste, Widgets und Integrationen werden gelöscht, einschließlich der bei deinen Integrationen gespeicherten Zugangsdaten und des Statusverlaufs deiner Dienste, und deine Einstellungen werden überschrieben. Das kann nicht rückgängig gemacht werden. Exportiere zuerst, wenn du einen Weg zurück haben willst."
+        "body": "Die Gruppen, Dienste und Widgets auf deinem Standard-Board und auf den Boards, die in der Datei stehen, werden gelöscht, samt dem Statusverlauf dieser Dienste. Auch deine Integrationen und ihre gespeicherten Zugangsdaten werden gelöscht, außer denen, die noch von Kacheln auf deinen anderen Boards genutzt werden. Andere Boards bleiben, wie sie sind. Deine Einstellungen werden überschrieben. Das kann nicht rückgängig gemacht werden. Exportiere zuerst, wenn du einen Weg zurück haben willst."
       },
       "customCss": {
         "title": "Diese Datei bringt eigenes CSS mit (lies es, bevor du importierst)",
@@ -319,7 +319,7 @@
       "openDashboard": "Dashboard öffnen",
       "confirm": {
         "title": "Dein Dashboard ersetzen?",
-        "message": "Dies löscht {count, plural, one {# vorhandenes Element} other {# vorhandene Elemente}}, die bei deinen Integrationen gespeicherten Zugangsdaten und den Statusverlauf deiner Dienste, überschreibt deine Einstellungen und importiert dann die Datei. Das kann nicht rückgängig gemacht werden.",
+        "message": "Dies löscht {count, plural, one {# vorhandenes Element} other {# vorhandene Elemente}} samt den zugehörigen Zugangsdaten und dem Statusverlauf, überschreibt deine Einstellungen und importiert dann die Datei. Das kann nicht rückgängig gemacht werden.",
         "confirm": "Ersetzen"
       },
       "statusPage": {

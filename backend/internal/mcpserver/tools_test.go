@@ -403,6 +403,37 @@ func TestGetWidgetData_NoSecrets(t *testing.T) {
 	}
 }
 
+func TestServices_NoURLSecrets(t *testing.T) {
+	data := newFakeData()
+	data.services[alice] = append(data.services[alice], &models.Service{
+		ID: "svc-nas", UserID: alice, Name: "NAS", URL: "https://USERSECRET:PASSSECRET@nas.lan/status?apikey=QUERYSECRET",
+		Status: models.StatusOffline, MonitoringEnabled: true,
+	})
+	tools := &tools{data.deps()}
+	ctx := context.Background()
+
+	_, list, err := tools.listServices(ctx, requestAs(alice), listServicesInput{})
+	require.NoError(t, err)
+	_, found, err := tools.searchServices(ctx, requestAs(alice), searchInput{Q: "nas.lan"})
+	require.NoError(t, err)
+	_, status, err := tools.getServiceStatus(ctx, requestAs(alice), serviceInput{Service: "NAS"})
+	require.NoError(t, err)
+	dashboard, err := tools.readDashboard(ctx, &mcp.ReadResourceRequest{
+		Extra: &mcp.RequestExtra{TokenInfo: &auth.TokenInfo{UserID: alice}},
+	})
+	require.NoError(t, err)
+
+	out, err := json.Marshal([]any{list, found, status, dashboard})
+	require.NoError(t, err)
+	assert.NotContains(t, string(out), "SECRET")
+	assert.Contains(t, string(out), "https://nas.lan/status")
+
+	// Nor can a search find the secret
+	_, found, err = tools.searchServices(ctx, requestAs(alice), searchInput{Q: "QUERYSECRET"})
+	require.NoError(t, err)
+	assert.Empty(t, found.Services)
+}
+
 func TestListIntegrations_NoSecretsOrURLs(t *testing.T) {
 	tools := &tools{newFakeData().deps()}
 

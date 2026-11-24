@@ -71,11 +71,13 @@ export interface BoardRequest {
 }
 
 // What a viewer of a shared board learns about an integration on it: enough
-// to label its numbers (see kpisForIntegration)
+// to label its numbers (see kpisForIntegration). kpis are its kind's, as a
+// viewer may not get an admin-only kind from /integrations/kinds.
 export interface BoardIntegration {
   id: string
   kind: string
   options: Record<string, boolean>
+  kpis?: Kpi[]
 }
 
 export interface Service {

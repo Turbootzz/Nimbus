@@ -67,10 +67,10 @@ describe('useDashboardStream', () => {
     vi.clearAllMocks()
   })
 
-  const setup = () => {
+  const setup = (boardId?: string) => {
     const onServiceStatus = vi.fn()
     const onResync = vi.fn()
-    const hook = renderHook(() => useDashboardStream({ onServiceStatus, onResync }))
+    const hook = renderHook(() => useDashboardStream({ boardId, onServiceStatus, onResync }))
     return { ...hook, onServiceStatus, onResync }
   }
 
@@ -170,6 +170,41 @@ describe('useDashboardStream', () => {
 
     expect(result.current.snapshots['widget:w1'].payload).toEqual({ t: 'live' })
     expect(result.current.snapshots['widget:w2'].payload).toEqual({ t: 2 })
+  })
+
+  it('stops quietly when the board is gone, and lets the view move on', async () => {
+    vi.useFakeTimers()
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const { onResync } = setup('b-family')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    vi.mocked(api.getDashboardData).mockResolvedValue({ error: { message: 'Board not found' } })
+
+    // The server ends the stream of an unshared board; the 404 is asked for
+    FakeEventSource.latest().fail()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60000)
+    })
+    expect(onResync).toHaveBeenCalled()
+    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(error).not.toHaveBeenCalled()
+    error.mockRestore()
+  })
+
+  it('keeps polling for the view when the board is gone on arrival', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getDashboardData).mockResolvedValue({ error: { message: 'Board not found' } })
+    const { onResync } = setup('b-family')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(FakeEventSource.latest().closed).toBe(true)
+    const calls = onResync.mock.calls.length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000)
+    })
+    expect(onResync.mock.calls.length).toBeGreaterThan(calls)
   })
 
   it('retries loading data after a failure', async () => {

@@ -384,6 +384,18 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.NotContains(t, body, "s3cret", "keys in the URL of a feed the server fetches are not for viewers")
 	assert.NotContains(t, body, "Passwords")
 	assert.NotContains(t, body, boardAdminID)
+	// Links the browser renders keep all but a user name and password
+	_, err := f.db.Exec(`INSERT INTO widgets (id, user_id, board_id, type, title, config) VALUES
+		('e0000000-0000-0000-0000-0000000000f1', ?, ?, 'bookmarks', 'Links', '{"items":[{"name":"NAS","url":"http://admin:pw@nas.lan/?tab=1"}]}'),
+		('e0000000-0000-0000-0000-0000000000f2', ?, ?, 'markdown', 'Note', '{"content":"[NAS](http://admin:pw@nas.lan)"}')`,
+		boardAdminID, sharedBoardID, boardAdminID, sharedBoardID)
+	require.NoError(t, err)
+	_, body = f.do(t, boardUserID, http.MethodGet, "/widgets?board="+sharedBoardID, "")
+	assert.Contains(t, body, `"url":"http://nas.lan/?tab=1"`)
+	assert.Contains(t, body, `[NAS](http://nas.lan)`)
+	assert.NotContains(t, body, "pw@")
+	_, err = f.db.Exec(`DELETE FROM widgets WHERE title IN ('Links', 'Note')`)
+	require.NoError(t, err)
 	// The owner still gets the config they saved
 	_, body = f.do(t, boardAdminID, http.MethodGet, "/widgets?board="+sharedBoardID, "")
 	assert.Contains(t, body, "s3cret")
@@ -405,9 +417,10 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	_, body = f.do(t, boardUserID, http.MethodGet, "/dashboard/data", "")
 	assert.JSONEq(t, `[]`, body)
 
+	// With the KPIs of the kind: /integrations/kinds lacks admin-only kinds
 	status, body = f.do(t, boardUserID, http.MethodGet, "/boards/"+sharedBoardID+"/integrations", "")
 	require.Equal(t, 200, status)
-	assert.JSONEq(t, `[{"id":"`+sharedIntegrationID+`","kind":"handler-fake","options":{"library":true}}]`, body)
+	assert.JSONEq(t, `[{"id":"`+sharedIntegrationID+`","kind":"handler-fake","options":{"library":true},"kpis":[{"key":"queued","label":"Queued"}]}]`, body)
 
 	// By ID, the admin's tiles stay the admin's
 	for _, path := range []string{"/services/" + sharedServiceID, "/groups/" + sharedGroupID, "/widgets/" + sharedWidgetID} {
@@ -421,7 +434,7 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.Equal(t, 0, f.count(t, `SELECT COUNT(*) FROM services WHERE user_id = ?`, boardUserID))
 
 	// A tile is read through a board only when the board's owner owns it too
-	_, err := f.db.Exec(`INSERT INTO services (id, user_id, board_id, name, url) VALUES ('d0000000-0000-0000-0000-0000000000ff', ?, ?, 'Stray', 'http://stray.lan')`, boardUserID, sharedBoardID)
+	_, err = f.db.Exec(`INSERT INTO services (id, user_id, board_id, name, url) VALUES ('d0000000-0000-0000-0000-0000000000ff', ?, ?, 'Stray', 'http://stray.lan')`, boardUserID, sharedBoardID)
 	require.NoError(t, err)
 	status, _ = f.do(t, boardOtherAdminID, http.MethodGet, "/services/d0000000-0000-0000-0000-0000000000ff/status-logs", "")
 	assert.Equal(t, 403, status)

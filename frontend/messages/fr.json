@@ -306,7 +306,7 @@
       "unreadable": "Le fichier n’a pas pu être lu",
       "replaceWarning": {
         "title": "Remplacer supprime votre tableau de bord actuel.",
-        "body": "Tous vos groupes, services, widgets et intégrations sont supprimés, y compris les identifiants enregistrés avec vos intégrations et l’historique d’état de vos services, et vos préférences sont écrasées. Cette action est irréversible. Exportez d’abord si vous voulez pouvoir revenir en arrière."
+        "body": "Les groupes, services et widgets de votre board par défaut et des boards listés dans le fichier sont supprimés, avec l’historique d’état de ces services. Vos intégrations et leurs identifiants enregistrés le sont aussi, sauf celles que des tuiles de vos autres boards utilisent encore. Les autres boards restent tels quels. Vos préférences sont écrasées. Cette action est irréversible. Exportez d’abord si vous voulez pouvoir revenir en arrière."
       },
       "customCss": {
         "title": "Ce fichier apporte du CSS personnalisé (lisez-le avant d’importer)",
@@ -319,7 +319,7 @@
       "openDashboard": "Ouvrir le tableau de bord",
       "confirm": {
         "title": "Remplacer votre tableau de bord ?",
-        "message": "Cela supprime {count, plural, one {# élément existant} other {# éléments existants}}, les identifiants enregistrés avec vos intégrations et l’historique d’état de vos services, écrase vos préférences, puis importe le fichier. Cette action est irréversible.",
+        "message": "Cela supprime {count, plural, one {# élément existant} other {# éléments existants}}, ainsi que les identifiants et l’historique d’état associés, écrase vos préférences, puis importe le fichier. Cette action est irréversible.",
         "confirm": "Remplacer"
       },
       "statusPage": {

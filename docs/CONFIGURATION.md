@@ -334,9 +334,9 @@ docker run -d \
 `PROMETHEUS_API_KEY` is one key for the whole instance and can read every user's metrics. An
 [API token](#api-tokens) with the `read:metrics` scope is the safer choice: it only reads your
 own metrics (also when you are an admin), can expire and can be revoked on its own.
-Put the token in `credentials` and leave `PROMETHEUS_API_KEY` unset. Both keep working, so
-you can switch whenever you like. To scrape several users with one credential, keep
-`PROMETHEUS_API_KEY`.
+Put the token in `credentials`. Both keep working side by side, so keep `PROMETHEUS_API_KEY`
+set until every scrape that uses it has moved to a personal API token, then remove it. To
+scrape several users with one credential, keep `PROMETHEUS_API_KEY`.
 
 ### Available Metrics
 
@@ -375,7 +375,7 @@ to its emoji, and an import keeps the wallpaper you have.
 | Mode | What it does |
 |---|---|
 | `merge` | Adds the file's groups, services, widgets and integrations to what you have. New tiles go behind your existing ones, the file's default group becomes your own default group, and your preferences are kept. Importing the same file twice adds everything twice. |
-| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. With more than one board: all of them on your default board and on the boards the file lists, and the integrations no tile on another board uses (see [Boards in the file](#boards-in-the-file)). Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). When the [public status page](#public-status-page) shows one of your groups, it moves to the file's group with the same name, or goes offline when the file has none; the preview says which. |
+| `replace` | Deletes **all** your groups, services, widgets and integrations and creates the file's instead. With more than one board: all of them on your default board and on the boards the file lists, and the integrations no tile on another board uses (see [Boards in the file](#boards-in-the-file)). An integration in the file with the kind and name of one that stays uses that one, as it is, instead of becoming a second. Saved integration credentials and the status and response-time history of your services go with them; webhook logs of the old services stay but no longer point at a service. Preferences in the file overwrite yours; fields the file leaves out keep their value, except `group_display` (see below). When the [public status page](#public-status-page) shows one of your groups, it moves to the file's group with the same name, or goes offline when the file has none; the preview says which. |
 
 An import is all or nothing: if any part of the file is refused, nothing changes. It only ever
 touches the dashboard of the user who imports. Everything in the file is checked like a normal

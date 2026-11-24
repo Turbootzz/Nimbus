@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
+import { BOARD_NOT_FOUND } from '@/lib/boards'
 import { getApiUrl } from '@/lib/utils/api-url'
 import type { ServiceStatusEvent, Snapshot } from '@/types'
 
@@ -72,6 +73,8 @@ export function useDashboardStream({ boardId, onServiceStatus, onResync }: Dashb
     let retryDelay = MIN_RETRY_MS
     let failures = 0
     let closed = false
+    // The board was unshared or deleted: nothing to follow anymore
+    let gone = false
 
     // Retries on failure, or polled widgets would wait for their next fetch
     const loadData = async () => {
@@ -82,6 +85,18 @@ export function useDashboardStream({ boardId, onServiceStatus, onResync }: Dashb
         if (response.data) {
           const loaded = response.data
           setSnapshots((current) => mergeNewer(current, loaded))
+          return
+        }
+        if (response.error?.message === BOARD_NOT_FOUND) {
+          // Stop retrying; the view moves to another board (onResync)
+          if (!gone) {
+            gone = true
+            source?.close()
+            clearTimeout(retryTimer)
+            handlers.current.onResync()
+            // Polling stays as the fallback, should that resync be skipped
+            if (!pollTimer) pollTimer = setInterval(resync, FALLBACK_POLL_MS)
+          }
           return
         }
         console.error('Failed to load dashboard data:', response.error?.message)
@@ -102,7 +117,7 @@ export function useDashboardStream({ boardId, onServiceStatus, onResync }: Dashb
     }
 
     const connect = () => {
-      if (closed) return
+      if (closed || gone) return
       source = new EventSource(`${getApiUrl()}/dashboard/stream${query}`, {
         withCredentials: true,
       })
@@ -130,6 +145,8 @@ export function useDashboardStream({ boardId, onServiceStatus, onResync }: Dashb
         source?.close()
         setConnected(false)
         failures++
+        // EventSource hides a 404 too: ask whether the board is still there
+        if (failures === 1 && boardId) loadData()
         if (failures === AUTH_CHECK_AFTER_ERRORS) api.getCurrentUser()
         if (!pollTimer) pollTimer = setInterval(resync, FALLBACK_POLL_MS)
         retryTimer = setTimeout(connect, retryDelay)

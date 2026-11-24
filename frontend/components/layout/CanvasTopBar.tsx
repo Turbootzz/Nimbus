@@ -48,7 +48,7 @@ function TopBarWeather() {
   const label = info.location ? t('weatherIn', { condition, location: info.location }) : condition
   return (
     <p
-      className="text-text-primary flex min-w-0 items-center gap-1.5 text-sm font-medium"
+      className="text-text-primary flex shrink-0 items-center gap-1.5 text-sm font-medium"
       title={label}
     >
       <span aria-hidden="true">{icon}</span>
@@ -74,7 +74,7 @@ export default function CanvasTopBar() {
     >
       <h1 className="sr-only">{t('heading')}</h1>
       <div className="mx-auto grid h-16 max-w-screen-2xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center gap-3 justify-self-start sm:gap-4">
+        <div className="flex max-w-full min-w-0 items-center gap-3 justify-self-start sm:gap-4">
           <Link href="/dashboard" className="flex shrink-0 items-center gap-2">
             <NimbusLogo size={28} />
             <span className="text-text-primary hidden text-lg font-semibold sm:inline">Nimbus</span>

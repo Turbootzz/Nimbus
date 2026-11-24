@@ -306,7 +306,7 @@
       "unreadable": "The file could not be read",
       "replaceWarning": {
         "title": "Replace deletes your current dashboard.",
-        "body": "All your groups, services, widgets and integrations are deleted, including the credentials saved with your integrations and the status history of your services, and your preferences are overwritten. This cannot be undone. Export first if you want a way back."
+        "body": "The groups, services and widgets on your default board and on the boards the file lists are deleted, with the status history of those services. So are your integrations and their saved credentials, except those that tiles on your other boards still use. Other boards stay as they are. Your preferences are overwritten. This cannot be undone. Export first if you want a way back."
       },
       "customCss": {
         "title": "This file brings custom CSS (read it before you import)",
@@ -319,7 +319,7 @@
       "openDashboard": "Open the dashboard",
       "confirm": {
         "title": "Replace your dashboard?",
-        "message": "This deletes {count, plural, one {# existing item} other {# existing items}}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.",
+        "message": "This deletes {count, plural, one {# existing item} other {# existing items}}, with the credentials and status history they hold, overwrites your preferences, then imports the file. It cannot be undone.",
         "confirm": "Replace"
       },
       "statusPage": {
