@@ -75,11 +75,11 @@ Planned:
 
 In review for the next release:
 
-- Multiple boards, a board the admin shares with everyone, kiosk mode ([#230](https://github.com/Turbootzz/Nimbus/issues/230))
+- Multiple boards, a board the admin shares with everyone, kiosk mode ([#230](https://github.com/Turbootzz/Nimbus/issues/230), [PR #295](https://github.com/Turbootzz/Nimbus/pull/295))
 - Public status page ([#231](https://github.com/Turbootzz/Nimbus/issues/231), [PR #290](https://github.com/Turbootzz/Nimbus/pull/290))
 - Theme presets, font choice and custom CSS ([#232](https://github.com/Turbootzz/Nimbus/issues/232), [PR #291](https://github.com/Turbootzz/Nimbus/pull/291))
 - Notifications to ntfy, Gotify, Telegram and Pushover ([#233](https://github.com/Turbootzz/Nimbus/issues/233), [PR #283](https://github.com/Turbootzz/Nimbus/pull/283))
-- Translations: Dutch, German, French and Spanish ([#234](https://github.com/Turbootzz/Nimbus/issues/234))
+- Translations: Dutch, German, French and Spanish, machine-made for now ([#234](https://github.com/Turbootzz/Nimbus/issues/234), [PR #296](https://github.com/Turbootzz/Nimbus/pull/296))
 - Helm chart and app store listing files ([#235](https://github.com/Turbootzz/Nimbus/issues/235)): the chart is in [`charts/nimbus`](charts/nimbus) and the listings are in [`distribution/`](distribution/README.md)
 - Research: SQLite as a second database backend ([#236](https://github.com/Turbootzz/Nimbus/issues/236)). The findings, an estimate and a recommendation are in [docs/SQLITE.md](docs/SQLITE.md); whether to build it is not decided yet.
 
