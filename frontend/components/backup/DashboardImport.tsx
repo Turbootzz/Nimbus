@@ -35,12 +35,17 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
-// What a replace does to the public status page, which shows one group
-export function statusPageNote({ status_page: page }: ImportSummary): string | null {
+// What a replace does to the public status page, which shows one group.
+// After an import the page may have failed to move too, so no cause is given.
+export function statusPageNote({
+  status_page: page,
+  dry_run: dryRun,
+}: ImportSummary): string | null {
   if (!page) return null
-  return page.kept
-    ? `The public status page moves to the group “${page.group}” from the file.`
-    : `The public status page goes offline: the file has no group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+  if (page.kept) return `The public status page moves to the group “${page.group}” from the file.`
+  return dryRun
+    ? `The public status page goes offline: the file has no group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+    : `The public status page is offline: it no longer shows the group “${page.group}”. Choose a group again under Settings → Admin Settings.`
 }
 
 // What an import does (or did), per kind of entity
