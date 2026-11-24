@@ -411,6 +411,10 @@ Good to know:
 - **Secrets are never taken over.** API keys, passwords and tokens in the config are dropped, and
   a `${VAR}` or `{{HOMEPAGE_VAR_...}}` is never resolved. Imported integrations show **Needs
   credentials** until you enter them under Settings → Integrations.
+- **Links lose their login and query.** A login (`https://user:pass@...`) or a query
+  (`?token=...`, but also `?view=list`) can hold a secret, so both are left out of every imported
+  link, with a warning that names the service; a `#fragment` is kept. Add a query back on the
+  service in Nimbus when the link needs it. Warnings never show a login or query either.
 - **Integrations** are created for AdGuard Home, Home Assistant, Jellyfin, Pi-hole, Proxmox VE,
   qBittorrent, Radarr, Sonarr and Uptime Kuma. Other widget types are listed as a warning and
   the service is imported as a plain link.
@@ -421,7 +425,9 @@ Good to know:
   shows in the browser, where the default icon takes its place.
 - **docker-compose host**: a compose file doesn't say which machine it runs on. The wizard asks
   for the host and defaults to the one you opened Nimbus on; links become `http://<host>:<port>`
-  (`https` for 443, 8443 and 9443).
+  (`https` for 443, 8443 and 9443). A range of host ports for one container port
+  (`8080-8090:80`) is skipped with a warning: Docker picks the port when the container starts.
+  Give such a service a `homepage.href` label.
 - An entry the import would refuse (no URL, a URL that is not `http(s)`, a placeholder like
   `host.or.ip:port`) is skipped with a warning instead of failing the import.
 
@@ -439,7 +445,11 @@ any other, with `match_groups=1` so a group in the document goes into your group
 name instead of becoming a second one:
 
 ```bash
+# Preview: what the import would add, changes nothing
 POST /api/v1/import?mode=merge&match_groups=1&dry_run=1
+
+# Import
+POST /api/v1/import?mode=merge&match_groups=1
 ```
 
 `match_groups` only looks at your own groups and only applies to a `merge`. A name matches when
@@ -797,7 +807,7 @@ credentials.
 | Group | its name; the group with `default: true` is always your default group |
 | Integration | `kind` and `name` |
 | Service | `name` and `url`, otherwise `name` alone (so a new URL keeps the history) |
-| Widget | `type` and `title` |
+| Widget | `type` and `title`; widgets that share them by `position` first |
 
 Names, titles and URLs must be the same apart from spaces around them; upper and lower case
 count, so `sonarr` is not `Sonarr`. Entries that share a key are matched in order: the first
@@ -826,8 +836,9 @@ dashboard is managed by a config file, and the UI shows a banner and hides or di
 edit controls (edit mode, add buttons, the discovered-containers tray, editing integrations,
 saving a service, importing).
 Health checks, widget refreshes, connection tests and the import preview keep working. The lock
-applies once the owner is known, so not while Nimbus waits for that admin or when the very
-first read of the file fails.
+applies once a file naming the owner has been applied, so not while Nimbus waits for that admin
+or before the first apply succeeds. A file that is not applied moves neither the owner nor the
+lock, also when it names another admin.
 
 ### Together with other features
 
@@ -849,7 +860,8 @@ first read of the file fails.
 A file that can't be read, parsed or validated never stops the server and changes nothing. The
 error is logged with what is wrong (the entry and field, or the missing variable), the
 dashboard stays as the last good file left it, and the file is applied again as soon as you
-fix it:
+fix it. A file that would take the owner over the limit of 50 integrations or 200 widgets is
+tried again at every check instead, as removing some in the UI makes room:
 
 ```
 Config file: not applied, the dashboard stays as it is: environment variable not set or empty: SONARR_API_KEY
@@ -861,8 +873,10 @@ or more. The line about an applied file
 holds counts only, and an error names the entry (`widgets[2]`) and says what is wrong; where
 that explanation would quote a value, a feed URL for example, it is replaced by
 `(not shown: the message quotes a value of the file)`. Unknown fields are refused, like in an
-import, so a typo is reported instead of ignored; the name of such a field, or of a YAML
-anchor that doesn't exist, is the one thing from the file an error does show.
+import, so a typo is reported instead of ignored; the name of such a field is the one thing
+from the file an error does show. A YAML or JSON syntax error gives its line, when the parser
+knows it, and the parser's description, unless that description quotes the file (an alias, a
+value with a tag, a key that is there twice): then the description is left out.
 
 ---
 

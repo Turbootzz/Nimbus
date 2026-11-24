@@ -12,6 +12,7 @@ import {
   PencilSquareIcon,
   Squares2X2Icon,
 } from '@heroicons/react/24/outline'
+import { onUserUpdated } from '@/lib/user-events'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
@@ -19,6 +20,8 @@ import { toggleEditMode, useBoardReadOnly, useEditMode } from '@/lib/dashboard-s
 import { openBoardManager } from '@/components/boards/BoardManager'
 import InstallAppMenuItem from '@/components/InstallAppMenuItem'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import type { User } from '@/types'
 
 interface UserMenuProps {
@@ -39,6 +42,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   const boardReadOnly = useBoardReadOnly()
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
+  const editable = canEdit(useConfigFile())
 
   useEffect(() => {
     // Fetch current user
@@ -50,6 +54,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       setIsLoading(false)
     }
     fetchUser()
+    const stopListening = onUserUpdated(setUser)
 
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -59,7 +64,10 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      stopListening()
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [])
 
   const handleSignOut = useCallback(() => {
@@ -180,8 +188,10 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     {item.name}
                   </Link>
                 ))}
-                {/* A dashboard locked by a config file can't be edited */}
-                {!user?.config_file?.read_only && !boardReadOnly && (
+                {/* A dashboard locked by a config file can't be edited, nor
+                    one whose status has not loaded or a board someone else
+                    shares */}
+                {editable && !boardReadOnly && (
                   <button
                     type="button"
                     onClick={handleEditLayout}
@@ -232,7 +242,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
             </button>
 
             {/* Boards are managed from the switcher once there are more */}
-            {!user?.config_file?.read_only && (
+            {editable && (
               <button
                 type="button"
                 onClick={handleNewBoard}

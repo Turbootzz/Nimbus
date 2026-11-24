@@ -62,7 +62,10 @@ type Watcher struct {
 	opts   Options
 	syncer Syncer
 	users  Users
-	stop   chan struct{}
+	// ctx ends with Stop, so a check that waits on the database doesn't
+	// hold up the shutdown
+	ctx    context.Context
+	cancel context.CancelFunc
 	done   chan struct{}
 
 	mu sync.RWMutex
@@ -86,7 +89,8 @@ func NewWatcher(opts Options, syncer Syncer, users Users) *Watcher {
 	if opts.Lookup == nil {
 		opts.Lookup = os.LookupEnv
 	}
-	return &Watcher{opts: opts, syncer: syncer, users: users, stop: make(chan struct{}), done: make(chan struct{})}
+	ctx, cancel := context.WithCancel(context.Background())
+	return &Watcher{opts: opts, syncer: syncer, users: users, ctx: ctx, cancel: cancel, done: make(chan struct{})}
 }
 
 // Start applies the file and then keeps checking it
@@ -101,18 +105,19 @@ func (w *Watcher) Start() {
 		ticker := time.NewTicker(w.opts.Interval)
 		defer ticker.Stop()
 		for {
-			w.Check(context.Background())
+			w.Check(w.ctx)
 			select {
 			case <-ticker.C:
-			case <-w.stop:
+			case <-w.ctx.Done():
 				return
 			}
 		}
 	}()
 }
 
+// Stop ends a check that is running and waits for it
 func (w *Watcher) Stop() {
-	close(w.stop)
+	w.cancel()
 	<-w.done
 }
 
@@ -170,7 +175,7 @@ func (w *Watcher) Check(ctx context.Context) {
 	if same {
 		return
 	}
-	if !w.settled(hash) {
+	if !w.settled(ctx, hash) {
 		return
 	}
 	// retry leaves the content to be tried again at the next check
@@ -201,18 +206,23 @@ func (w *Watcher) Check(ctx context.Context) {
 		finish(true)
 		return
 	}
+	summary, err := w.syncer.Sync(ctx, owner.ID, &file.Document, w.opts.Prune)
+	if err != nil {
+		if ctx.Err() == nil {
+			w.say("not applied, the dashboard stays as it is: %s", file.Reason(err))
+		}
+		// A file that is not valid stays that way; anything else may pass,
+		// a limit too once the owner has fewer widgets or integrations
+		var invalid *dashdoc.ValidationError
+		finish(!errors.As(err, &invalid) || errors.Is(err, repository.ErrWidgetLimitReached) ||
+			errors.Is(err, repository.ErrIntegrationLimitReached))
+		return
+	}
+	// Only a file that is applied decides whose dashboard it manages and
+	// what that locks
 	w.mu.Lock()
 	w.ownerID, w.ownerEmail, w.preferences = owner.ID, file.Owner, file.Preferences != nil
 	w.mu.Unlock()
-
-	summary, err := w.syncer.Sync(ctx, owner.ID, &file.Document, w.opts.Prune)
-	if err != nil {
-		w.say("not applied, the dashboard stays as it is: %s", file.Reason(err))
-		// A file that is not valid stays that way; anything else may pass
-		var invalid *dashdoc.ValidationError
-		finish(!errors.As(err, &invalid))
-		return
-	}
 	finish(false)
 	w.say("applied for %s: %s", file.Owner, describe(summary))
 }
@@ -242,13 +252,13 @@ func (w *Watcher) forgetLostOwner() {
 
 // settled reports whether the file still has the content with that hash
 // after Options.Settle
-func (w *Watcher) settled(hash [sha256.Size]byte) bool {
+func (w *Watcher) settled(ctx context.Context, hash [sha256.Size]byte) bool {
 	if w.opts.Settle <= 0 {
 		return true
 	}
 	select {
 	case <-time.After(w.opts.Settle):
-	case <-w.stop:
+	case <-ctx.Done():
 		return false
 	}
 	data, err := read(w.opts.Path)

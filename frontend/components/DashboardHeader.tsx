@@ -26,7 +26,8 @@ interface DashboardHeaderProps {
   addServiceHref: string
   onAddWidget: () => void
   // The dashboard is locked by a config file, shared by someone else or in
-  // a kiosk: no edit or add buttons, but readOnlyNote (none when null)
+  // a kiosk: no edit or add buttons, but readOnlyNote (none when null, the
+  // config file note when undefined)
   readOnly?: boolean
   readOnlyNote?: string | null
 }
@@ -46,8 +47,9 @@ export default function DashboardHeader({
   addServiceHref,
   onAddWidget,
   readOnly = false,
-  readOnlyNote = 'Read-only: managed by config file',
+  readOnlyNote,
 }: DashboardHeaderProps) {
+  const note = readOnlyNote === undefined ? 'Read-only: managed by config file' : readOnlyNote
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
@@ -67,10 +69,10 @@ export default function DashboardHeader({
       </div>
 
       {readOnly ? (
-        readOnlyNote && (
+        note && (
           <p className="text-text-muted wallpaper-panel inline-flex shrink-0 items-center gap-2 text-sm">
             <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
-            {readOnlyNote}
+            {note}
           </p>
         )
       ) : (

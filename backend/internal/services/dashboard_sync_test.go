@@ -257,8 +257,47 @@ func TestImportRefusesCredentials(t *testing.T) {
 	}
 	assert.Zero(t, env.count(t, "integrations", transferAdmin))
 
-	_, err := env.svc.Apply(context.Background(), transferAdmin, doc, dashdoc.ModeSync)
-	assert.Error(t, err, "sync is not an import mode")
+	// Sync is not an import mode, also for a document without credentials
+	valid := &dashdoc.Document{Version: dashdoc.Version, Services: []dashdoc.Service{{Name: "Plex", URL: "https://plex.example.com"}}}
+	_, err := env.svc.Apply(context.Background(), transferAdmin, valid, dashdoc.ModeSync)
+	var invalidMode *ValidationError
+	require.ErrorAs(t, err, &invalidMode)
+	assert.Equal(t, "Mode must be merge or replace", invalidMode.Message)
+	assert.Zero(t, env.count(t, "services", transferAdmin))
+}
+
+func TestSyncTellsALimitApartFromAMistakeInTheDocument(t *testing.T) {
+	env := newTransferEnv(t)
+	full := &dashdoc.Document{Version: dashdoc.Version}
+	for i := range maxIntegrationsPerUser {
+		full.Integrations = append(full.Integrations, dashdoc.Integration{Kind: "sonarr", Name: fmt.Sprintf("Sonarr %d", i), BaseURL: "http://192.168.1.10:8989"})
+	}
+	env.sync(t, transferFresh, full, false)
+
+	// Without prune the integrations the user has stay, so one more is too many
+	more := &dashdoc.Document{Version: dashdoc.Version, Integrations: []dashdoc.Integration{{Kind: "radarr", Name: "Radarr", BaseURL: "http://192.168.1.12:7878"}}}
+	_, err := env.svc.Sync(context.Background(), transferFresh, more, false)
+	assert.Equal(t, []string{"integrations"}, issuePaths(t, err), "it reads like a mistake in the document")
+	assert.ErrorIs(t, err, repository.ErrIntegrationLimitReached, "but the watcher can tell it may pass later")
+	assert.Equal(t, maxIntegrationsPerUser, env.count(t, "integrations", transferFresh))
+
+	_, err = env.svc.Sync(context.Background(), transferFresh, &dashdoc.Document{Version: dashdoc.Version, Services: []dashdoc.Service{{Name: "Broken", URL: "not a url"}}}, false)
+	assert.NotErrorIs(t, err, repository.ErrIntegrationLimitReached)
+	assert.NotErrorIs(t, err, repository.ErrWidgetLimitReached)
+}
+
+func TestSyncKeepsWidgetsWithTheSameTypeAndTitleApart(t *testing.T) {
+	env := newTransferEnv(t)
+	// In the file the widget at position 1 comes first
+	doc := &dashdoc.Document{Version: dashdoc.Version, Widgets: []dashdoc.Widget{
+		{Type: "markdown", Title: "Notes", Position: 1, Config: json.RawMessage(`{"content":"second"}`)},
+		{Type: "markdown", Title: "Notes", Position: 0, Config: json.RawMessage(`{"content":"first"}`)},
+	}}
+	env.sync(t, transferFresh, doc, true)
+	before := env.dump(t, transferFresh)
+
+	assertNothingChanged(t, env.sync(t, transferFresh, doc, true))
+	assert.Equal(t, before, env.dump(t, transferFresh), "each widget keeps its row")
 }
 
 func TestExportNeverCarriesCredentials(t *testing.T) {

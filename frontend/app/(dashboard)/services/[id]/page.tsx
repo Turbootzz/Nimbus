@@ -8,6 +8,7 @@ import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/re
 import { Service, MetricsResponse, TimeRangeOption } from '@/types'
 import { api } from '@/lib/api'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import UptimeChart from '@/components/graphs/UptimeChart'
 import MetricsCard from '@/components/graphs/MetricsCard'
 import ServiceIcon from '@/components/ServiceIcon'
@@ -17,8 +18,8 @@ import { getResponseTimeColor } from '@/lib/status-utils'
 const API_URL = getApiUrl()
 
 export default function ServiceDetailPage() {
-  // Locked by a config file: the service can be looked at, not changed
-  const readOnly = useConfigFile()?.read_only ?? false
+  // Locked by a config file, or not known yet: the service can be looked at, not changed
+  const readOnly = !canEdit(useConfigFile())
   const params = useParams()
   const router = useRouter()
   const serviceId = params.id as string

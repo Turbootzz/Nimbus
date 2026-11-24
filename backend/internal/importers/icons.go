@@ -111,6 +111,6 @@ func (b *builder) icon(service *dashdoc.Service, icon string) {
 			service.IconType, service.IconURL = models.IconTypeImageURL, resolved
 			return
 		}
-		b.warn("%s: the icon %q can't be imported (a local file or an icon set Nimbus doesn't know); the default icon is used", service.Name, icon)
+		b.warn("%s: the icon %s can't be imported (a local file or an icon set Nimbus doesn't know); the default icon is used", service.Name, quoteURL(icon))
 	}
 }
