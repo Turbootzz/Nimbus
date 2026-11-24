@@ -3,6 +3,7 @@ package importers
 import (
 	"fmt"
 	"net/url"
+	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -161,6 +162,31 @@ func webURL(raw string) (*url.URL, bool) {
 	return parsed, err == nil
 }
 
+// withoutSecrets returns raw without its login and query, which can hold a
+// password or key, and whether it had either; "" when raw doesn't parse
+func withoutSecrets(raw string) (string, bool) {
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", false
+	}
+	if parsed.User == nil && parsed.RawQuery == "" {
+		return raw, false
+	}
+	parsed.User, parsed.RawQuery, parsed.ForceQuery = nil, "", false
+	return parsed.String(), true
+}
+
+// quoteURL quotes a URL for a warning, without its login and query
+func quoteURL(raw string) string {
+	if !strings.ContainsAny(raw, "@?") {
+		return strconv.Quote(raw)
+	}
+	if clean, _ := withoutSecrets(raw); clean != "" {
+		return strconv.Quote(clean)
+	}
+	return "(not shown)"
+}
+
 // entry is a link as another dashboard describes it
 type entry struct {
 	name, url, description, icon, group string
@@ -177,11 +203,12 @@ func (b *builder) service(e entry) {
 		b.warn("An entry without a name is skipped")
 		return
 	}
-	if _, ok := webURL(e.url); !ok {
+	link, secret := withoutSecrets(e.url)
+	if _, ok := webURL(link); !ok {
 		if e.url == "" {
 			b.warn("%s: skipped, it has no URL", name)
 		} else {
-			b.warn("%s: skipped, %q is not an http(s) URL Nimbus can link to", name, e.url)
+			b.warn("%s: skipped, %s is not an http(s) URL Nimbus can link to", name, quoteURL(e.url))
 		}
 		return
 	}
@@ -189,10 +216,13 @@ func (b *builder) service(e entry) {
 		b.warn("%s: skipped, at most %d services can be imported", name, MaxServices)
 		return
 	}
+	if secret {
+		b.warn("%s: the login and query of its URL are left out, they can hold a secret", name)
+	}
 	service := dashdoc.Service{
 		Ref:         b.ref("service", name),
 		Name:        name,
-		URL:         e.url,
+		URL:         link,
 		Description: e.description,
 		Position:    len(b.doc.Services),
 		GroupRef:    b.group(e.group),
@@ -219,11 +249,15 @@ func (b *builder) integration(name, app, rawURL string) string {
 	}
 	parsed, ok := webURL(rawURL)
 	if !ok {
-		b.warn("%s: the %s integration is skipped, %q is not an http(s) URL", name, kind, rawURL)
+		b.warn("%s: the %s integration is skipped, %s is not an http(s) URL", name, kind, quoteURL(rawURL))
 		return ""
 	}
 	// A base URL holds no login, query or fragment
 	parsed.User, parsed.RawQuery, parsed.Fragment = nil, "", ""
+	if kind == "pihole" {
+		// Dashboards link to Pi-hole's web UI under /admin; its API is beside it
+		parsed.Path, parsed.RawPath = strings.TrimSuffix(strings.TrimRight(parsed.Path, "/"), "/admin"), ""
+	}
 	baseURL := strings.TrimRight(parsed.String(), "/")
 
 	id := kind + " " + baseURL
