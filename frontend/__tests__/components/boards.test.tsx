@@ -179,7 +179,7 @@ describe('BoardSwitcher', () => {
     expect(store['nimbus-last-board']).toBe('')
   })
 
-  it('marks its owner\'s shared board too', async () => {
+  it("marks its owner's shared board too", async () => {
     await loadBoards([home, { ...lab, is_shared: true }])
     render(<BoardSwitcher variant="list" collapsed />)
     expect(screen.getByRole('link', { name: 'Lab · shared' })).toBeInTheDocument()
