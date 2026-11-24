@@ -42,7 +42,7 @@ function TopBarWeather() {
   const where = info.location ? ` in ${info.location}` : ''
   return (
     <p
-      className="text-text-primary flex min-w-0 items-center gap-1.5 text-sm font-medium"
+      className="text-text-primary flex shrink-0 items-center gap-1.5 text-sm font-medium"
       title={`${now.label}${where}`}
     >
       <span aria-hidden="true">{now.icon}</span>
