@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import OfflineServices from '@/components/OfflineServices'
 
+// The language comes from the request (i18n/request.ts), which would make
+// this page dynamic and uncacheable; static, it is in English
+export const dynamic = 'force-static'
+
 export const metadata: Metadata = {
   title: 'Offline',
   robots: { index: false },
