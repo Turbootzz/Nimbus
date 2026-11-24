@@ -189,6 +189,39 @@ func TestImportLeavesBoardsTheDocumentDoesNotListAlone(t *testing.T) {
 	assert.Equal(t, "Family night", renamed.Name)
 }
 
+func TestReplaceUsesAnIntegrationAnotherBoardKeeps(t *testing.T) {
+	env, boards := newBoardTransferEnv(t)
+	ctx := context.Background()
+	env.seedDashboard(t)
+	lab := env.addBoard(t, boards, transferAdmin, "Lab", false)
+	sonarr := env.id(t, "integrations", "name", "Sonarr")
+	_, err := env.db.Exec(`UPDATE services SET integration_id = ? WHERE board_id = ? AND name = 'Lab service'`, sonarr, lab.ID)
+	require.NoError(t, err)
+
+	// A file from before boards with the same Sonarr, at another address
+	doc := &dashdoc.Document{
+		Version:      1,
+		Integrations: []dashdoc.Integration{{Ref: "s", Kind: "sonarr", Name: "Sonarr", BaseURL: "http://10.0.0.99:8989"}},
+		Services:     []dashdoc.Service{{Name: "Series", URL: "http://192.168.1.10:8989", IntegrationRef: "s"}},
+	}
+	preview, err := env.svc.Preview(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, 0, preview.Integrations.Created, "the kept Sonarr is used, not added again")
+	assert.Equal(t, 0, preview.NeedsCredentials, "the kept Sonarr has its credentials")
+	summary, err := env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, preview.Integrations, summary.Integrations)
+
+	var count int
+	var linked, baseURL string
+	require.NoError(t, env.db.QueryRow(`SELECT COUNT(*) FROM integrations WHERE kind = 'sonarr'`).Scan(&count))
+	assert.Equal(t, 1, count)
+	require.NoError(t, env.db.QueryRow(`SELECT integration_id FROM services WHERE name = 'Series'`).Scan(&linked))
+	assert.Equal(t, sonarr, linked)
+	require.NoError(t, env.db.QueryRow(`SELECT base_url FROM integrations WHERE id = ?`, sonarr).Scan(&baseURL))
+	assert.Equal(t, "http://192.168.1.10:8989", baseURL, "the file doesn't move its credentials elsewhere")
+}
+
 func TestDocumentBoardsAreValidated(t *testing.T) {
 	env, _ := newBoardTransferEnv(t)
 	ctx := context.Background()

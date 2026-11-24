@@ -502,11 +502,16 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 	if err != nil {
 		return nil, err
 	}
+	replace := mode == dashdoc.ModeReplace
 	var stored *storedDashboard
-	if opts.MatchGroups && mode == dashdoc.ModeMerge {
-		if stored, err = s.matchGroupNames(ctx, userID, doc, boards); err != nil {
-			return nil, err
-		}
+	switch {
+	case opts.MatchGroups && mode == dashdoc.ModeMerge:
+		stored, err = s.matchGroupNames(ctx, userID, doc, boards)
+	case replace:
+		stored, err = s.matchKeptIntegrations(ctx, userID, doc, boards)
+	}
+	if err != nil {
+		return nil, err
 	}
 	// Planned before the transaction: validating URLs looks up their hosts
 	p, err := s.plan(ctx, user, doc, mode, stored, boards)
@@ -514,7 +519,7 @@ func (s *DashboardTransferService) run(ctx context.Context, userID string, doc *
 		return nil, err
 	}
 	p.useStoredGroups(stored)
-	replace := mode == dashdoc.ModeReplace
+	p.useKeptIntegrations(stored)
 	var move *statusPageMove
 	// The page shows an admin's group: a non-admin's replace never moves it
 	if replace && user.Role == "admin" {

@@ -147,10 +147,7 @@ func (d *storedDashboard) match(doc *dashdoc.Document) {
 	d.matchGroups(doc, true)
 	b := d.boards
 
-	d.integration = map[int]*models.Integration{}
-	pair(d.integration, map[*models.Integration]bool{}, doc.Integrations, d.integrations,
-		func(i dashdoc.Integration) string { return key(i.Kind, i.Name) },
-		func(i *models.Integration) string { return key(i.Kind, i.Name) })
+	d.matchIntegrations(doc, d.integrations)
 
 	d.service = map[int]*models.Service{}
 	takenServices := map[*models.Service]bool{}
@@ -165,6 +162,14 @@ func (d *storedDashboard) match(doc *dashdoc.Document) {
 	pair(d.widget, map[*models.Widget]bool{}, doc.Widgets, d.widgets,
 		func(w dashdoc.Widget) string { return key(b.id(w.BoardRef), w.Type, w.Title) },
 		func(w *models.Widget) string { return key(b.of(w.BoardID), w.Type, w.Title) })
+}
+
+// matchIntegrations matches the document's integrations to rows by kind and name
+func (d *storedDashboard) matchIntegrations(doc *dashdoc.Document, rows []*models.Integration) {
+	d.integration = map[int]*models.Integration{}
+	pair(d.integration, map[*models.Integration]bool{}, doc.Integrations, rows,
+		func(i dashdoc.Integration) string { return key(i.Kind, i.Name) },
+		func(i *models.Integration) string { return key(i.Kind, i.Name) })
 }
 
 // loadGroups loads the user's groups on the boards the document works on
@@ -230,6 +235,48 @@ func (s *DashboardTransferService) matchGroupNames(ctx context.Context, userID s
 	}
 	stored.matchGroups(doc, false)
 	return stored, nil
+}
+
+// matchKeptIntegrations is the matching of a replace: it keeps the
+// integrations tiles on other boards use, and the document's integration of
+// the same kind and name uses the kept one instead of being a second
+func (s *DashboardTransferService) matchKeptIntegrations(ctx context.Context, userID string, doc *dashdoc.Document, boards *docBoards) (*storedDashboard, error) {
+	stored, err := s.loadStored(ctx, userID, boards)
+	if err != nil {
+		return nil, err
+	}
+	var kept []*models.Integration
+	for _, integration := range stored.integrations {
+		if stored.usedElsewhere[integration.ID] {
+			kept = append(kept, integration)
+		}
+	}
+	stored.matchIntegrations(doc, kept)
+	return stored, nil
+}
+
+// useKeptIntegrations takes the integrations a replace matched out of the
+// plan: the document's tiles point at the kept row, which stays as it is.
+// The file doesn't get to change its URL: its saved credentials go there.
+func (p *importPlan) useKeptIntegrations(stored *storedDashboard) {
+	if stored == nil {
+		return
+	}
+	kept := map[string]bool{}
+	for _, integration := range stored.integration {
+		kept[integration.ID] = true
+	}
+	rows := p.rows.Integrations[:0]
+	for _, integration := range p.rows.Integrations {
+		switch {
+		case !kept[integration.ID]:
+			rows = append(rows, integration)
+		case integration.AuthType != models.IntegrationAuthNone:
+			p.created.NeedsCredentials-- // the kept one has its own
+		}
+	}
+	p.rows.Integrations = rows
+	p.created.Integrations.Created = len(rows)
 }
 
 // useStoredGroups takes the groups a merge matched out of the plan: their
