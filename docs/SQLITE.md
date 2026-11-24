@@ -2,7 +2,7 @@
 
 Research for [#236](https://github.com/Turbootzz/Nimbus/issues/236): can Nimbus run on SQLite behind the existing repository layer, so that a single container needs no database server? This is a decision document with an estimate. Nothing here is a product commitment.
 
-Measured on 2026-11-18 against `develop` (34 migrations, 14 repositories).
+Measured on 2026-11-18 against `develop` (`aa3657f`) plus the Next.js bump, commit `8a7ae2e` (34 migrations, 14 repositories). For what was added since, see [Since the audit](#since-the-audit).
 
 ---
 
@@ -32,7 +32,7 @@ Two facts shape everything below:
 
 ### Repository layer
 
-All 14 non-test files in `backend/internal/repository/` (3,759 lines, 120 SQL statements, 333 `$n` placeholders). Counts are SQL occurrences; comments and Go code are excluded.
+All 15 non-test files in `backend/internal/repository/` at `8a7ae2e` (14 repositories and `interface.go`; 3,742 lines, 120 SQL statements, 333 `$n` placeholders). Counts are SQL occurrences; comments and Go code are excluded.
 
 Statements are classified by the constructs they use, and each construct was checked on `modernc.org/sqlite` 1.62.0 (SQLite 3.54.1) for behaviour, not just syntax. Not every statement was executed. As a second check, the 99 statements that are a single string literal were prepared against the SQLite schema of the prototype: 97 succeed, and the 2 that fail are the `unnest` queries that already have a fallback. All 99 prepare on Postgres. The other 21 statements are assembled from fragments in Go and were not prepared; the scenario under [Prototype](#prototype) executes some of them.
 
@@ -137,6 +137,17 @@ What follows from this:
 - **The fallbacks have drifted.** On Postgres the default group is created at position 0. The SQLite fallback goes through `Create` and puts it after the existing groups. The end-to-end comparison found this.
 - **The fallbacks cannot simply be removed.** The `ON CONFLICT` statement runs fine on real SQLite, so the branch is unnecessary. Removing it made `TestGroupHandler_GetGroups` fail, because that test's table has no partial unique index. The hand-written schemas hold the branches in place.
 - **A green suite says little about production SQLite.** The two drivers differ. `mattn` binds `$n` by order of appearance, so the one out-of-order statement (`status_log:182`, `$4` before `$1`) would bind wrongly there. Time handling differs too.
+
+### Since the audit
+
+Checked by reading and grep on this branch, not executed like the rest of this section.
+
+- **New repository files:** `board_repository.go`, `dashboard_repository.go`, `dashboard_sync.go` and `discovery_repository.go` (19 non-test files now). None of the Postgres-only constructs from the table above appear in them (`FOR UPDATE`, `unnest`, `::` casts, `date_trunc` / `EXTRACT` / `interval`, `pq.*`, JSONB operators). They use `ON CONFLICT ... DO NOTHING` (2), `RETURNING` (2, timestamps only), transactions (7), `TRUE` / `FALSE`, `COALESCE` and `CAST(... AS TEXT)`.
+- **Changed repositories:** `GroupRepository.Create` now adds `FOR UPDATE` only on Postgres, so the one "needs a new branch" item is done. The new `GetHourlyUptimeByGroup` has a SQLite expression (`julianday`) next to the Postgres one (`EXTRACT(EPOCH ...)`). `GetAggregatedByInterval` still needs the rewrite.
+- **Migrations 035 to 039, 041 and 042** (040 is not on this branch; 41 in total). By inspection, not run: 036, 037, 038, 039 and 042 need only the regex rules, and 035 (`ALTER COLUMN ... SET DEFAULT`) and 041 (`ALTER COLUMN board_id SET NOT NULL` on `groups`, `services` and `widgets`) need a hand rewrite. That makes 9 of 41: the 7 measured above plus these 2. The prototype's SQLite baseline stops at migration 34.
+- **Tests:** `board_postgres_test.go` runs migration 041 and the board queries on a real Postgres, but only when `NIMBUS_TEST_POSTGRES_DSN` is set. CI does not set it.
+
+The recommendation does not change. The new queries are portable; the schema side, already the main cost, has two more migrations to rewrite by hand.
 
 ---
 
