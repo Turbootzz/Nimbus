@@ -66,7 +66,7 @@
       "saveFailed": "Kan de statuspagina niet opslaan",
       "loading": "Laden...",
       "enable": "Statuspagina inschakelen",
-      "enableDescription": "Iedereen die deze Nimbus kan bereiken, kan /status openen zonder in te loggen. Staat hij uit, dan bestaat de pagina niet.",
+      "enableDescription": "Iedereen die deze Nimbus kan bereiken, kan /status openen zonder in te loggen. Staat dit uit, dan bestaat de pagina niet.",
       "group": "Groep om te tonen",
       "chooseGroup": "Kies een groep",
       "groupMissing": "De gekozen groep is niet van jou of bestaat niet meer. Kies een van je eigen groepen om de pagina te tonen.",
@@ -289,7 +289,7 @@
       "fileLabel": "Dashboardbestand",
       "chooseFile": "Bestand kiezen",
       "noFile": "Geen bestand gekozen",
-      "howToImport": "Hoe importeren",
+      "howToImport": "Hoe wil je importeren?",
       "modes": {
         "merge": {
           "label": "Samenvoegen",
@@ -306,7 +306,7 @@
       "unreadable": "Het bestand kon niet worden gelezen",
       "replaceWarning": {
         "title": "Vervangen verwijdert je huidige dashboard.",
-        "body": "Al je groepen, services, widgets en integraties worden verwijderd, inclusief de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, en je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je een weg terug wilt."
+        "body": "Al je groepen, services, widgets en integraties worden verwijderd, inclusief de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, en je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je terug wilt kunnen."
       },
       "customCss": {
         "title": "Dit bestand bevat eigen CSS (lees het voordat je importeert)",
@@ -324,7 +324,7 @@
       },
       "statusPage": {
         "kept": "De openbare statuspagina gaat over naar de groep “{group}” uit het bestand.",
-        "offline": "De openbare statuspagina gaat offline: het bestand heeft geen groep “{group}”. Kies opnieuw een groep onder Instellingen → Beheer."
+        "offline": "De openbare statuspagina gaat offline: het bestand heeft geen groep “{group}”. Kies opnieuw een groep onder Instellingen → Beheerinstellingen."
       },
       "summary": {
         "willDo": "Deze import gaat",
@@ -598,7 +598,7 @@
   "integrations": {
     "page": {
       "title": "Integraties",
-      "description": "Koppel Nimbus aan je apps. Koppel een integratie aan een service op de <link>bewerkpagina</link> ervan om live cijfers op de tegel te tonen.",
+      "description": "Verbind Nimbus met je apps. Koppel een integratie aan een service op de <link>bewerkpagina</link> ervan om live cijfers op de tegel te tonen.",
       "add": "Integratie toevoegen",
       "emptyTitle": "Nog geen integraties",
       "supportedApps": "Ondersteunde apps: {apps}.",
@@ -795,7 +795,7 @@
       "onOffline": "Als een service offline gaat",
       "onOnline": "Als een service weer online komt",
       "retries": "Nieuwe pogingen",
-      "retriesHint": "Voor offline-meldingen: controleer opnieuw voor het versturen om valse meldingen te voorkomen.",
+      "retriesHint": "Voor offline-meldingen: eerst opnieuw controleren voordat er iets wordt verstuurd, om valse meldingen te voorkomen.",
       "retryCount": "Pogingen (0-5)",
       "retryDelay": "Wachttijd (10-300 s)",
       "cancel": "Annuleren",
@@ -1000,7 +1000,7 @@
         },
         "apiTokens": {
           "title": "API-tokens",
-          "description": "Maak tokens aan voor programmatische toegang tot de API"
+          "description": "Maak tokens aan voor toegang tot de API vanuit scripts en apps"
         },
         "backup": {
           "title": "Exporteren & importeren",
@@ -1099,7 +1099,7 @@
         "title": "Linkgedrag",
         "description": "Kies hoe links naar services openen",
         "newTab": "Services openen in nieuw tabblad",
-        "newTabDescription": "Als dit aan staat, opent een klik op een service die in een nieuw tabblad"
+        "newTabDescription": "Als dit aan staat, opent een service in een nieuw tabblad als je erop klikt"
       },
       "resizing": {
         "title": "Formaat van kaarten",
@@ -1136,7 +1136,7 @@
       },
       "gallery": {
         "title": "Thema",
-        "description": "Een thema bepaalt elke kleur, licht of donker, en heeft een eigen accent. Je kunt er nog steeds een andere accentkleur bovenop kiezen. Kies je een modus die het thema niet heeft, dan ga je terug naar Standaard.",
+        "description": "Een thema bepaalt elke kleur, licht of donker, en heeft een eigen accent. Je kunt er nog steeds een andere accentkleur bovenop kiezen. Kies je een modus die het thema niet heeft, dan valt het terug op Standaard.",
         "muted": "Gedempt",
         "default": "Standaard",
         "dark": "Donker",
@@ -1150,7 +1150,7 @@
         "import": "Thema importeren",
         "fileLabel": "Themabestand",
         "tooLarge": "Dit bestand is te groot voor een thema",
-        "willSet": "Dit bestand stelt in",
+        "willSet": "Dit bestand wijzigt",
         "fields": {
           "themePreset": "thema",
           "themeMode": "themamodus",
@@ -1239,7 +1239,7 @@
       },
       "statusStrip": {
         "title": "Statusbalk",
-        "description": "Een rij met belangrijke cijfers bovenaan het dashboard, met of alle services online zijn.",
+        "description": "Een rij met belangrijke cijfers bovenaan het dashboard, en of alle services online zijn.",
         "show": "Statusbalk tonen",
         "loading": "Je integraties en widgets laden...",
         "number": "Cijfer {number}",
@@ -1328,7 +1328,7 @@
       "delete": "Widget verwijderen",
       "updateFailed": "Laatste update mislukt: {error}",
       "outOfDate": "Deze gegevens zijn mogelijk verouderd",
-      "loadFailed": "Kon niet laden: {error}",
+      "loadFailed": "Laden mislukt: {error}",
       "loading": "Laden",
       "unsupported": "Dit widgettype ({type}) wordt niet ondersteund door deze versie van Nimbus."
     },
@@ -1472,7 +1472,7 @@
       }
     },
     "weather": {
-      "detail": "{condition} · voelt als {temperature}",
+      "detail": "{condition} · gevoelstemperatuur {temperature}",
       "wind": "wind {speed} {unit}",
       "form": {
         "chosenPlace": "Gekozen plaats",

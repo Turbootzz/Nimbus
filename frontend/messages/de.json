@@ -638,7 +638,7 @@
       "savedPlaceholder": "Gespeichert; leer lassen zum Beibehalten",
       "credentialsNote": "Zugangsdaten werden verschlüsselt gespeichert und nie an den Browser zurückgeschickt.",
       "forExample": "Zum Beispiel {value}",
-      "refresh": "Aktualisieren alle (Sekunden)",
+      "refresh": "Aktualisierungsintervall (Sekunden)",
       "verifyTls": "TLS-Zertifikat prüfen",
       "verifyTlsHint": "Für Apps mit selbstsigniertem Zertifikat ausschalten",
       "verifyTlsWarning": "Ohne diese Prüfung kann Nimbus die App nicht von einem Betrüger unterscheiden, und wer auch immer antwortet, erhält die Zugangsdaten. Schalte sie nur für ein selbstsigniertes Zertifikat in einem Netzwerk aus, dem du vertraust.",

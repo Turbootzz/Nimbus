@@ -638,7 +638,7 @@
       "savedPlaceholder": "Enregistré ; laissez vide pour conserver",
       "credentialsNote": "Les identifiants sont stockés chiffrés et ne sont jamais renvoyés au navigateur.",
       "forExample": "Par exemple {value}",
-      "refresh": "Actualiser toutes les (secondes)",
+      "refresh": "Intervalle d’actualisation (secondes)",
       "verifyTls": "Vérifier le certificat TLS",
       "verifyTlsHint": "Désactivez pour les applications avec un certificat auto-signé",
       "verifyTlsWarning": "Sans cette vérification, Nimbus ne peut pas distinguer l’application d’un imposteur, et quiconque répond reçoit les identifiants. Désactivez-la uniquement pour un certificat auto-signé sur un réseau de confiance.",
