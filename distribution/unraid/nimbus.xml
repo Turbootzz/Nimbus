@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>nimbus</Name>
+  <Repository>turboot/nimbus</Repository>
+  <Registry>https://hub.docker.com/r/turboot/nimbus</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Turbootzz/Nimbus/discussions</Support>
+  <Project>https://github.com/Turbootzz/Nimbus</Project>
+  <Overview>Nimbus is a self-hosted, multi-user dashboard for your homelab. It checks whether your services are online, shows widgets next to them and puts live numbers from your apps (Sonarr, Radarr, qBittorrent, Pi-hole, AdGuard Home, Proxmox, Jellyfin, Home Assistant, Uptime Kuma) on their tiles.&#xD;
+&#xD;
+Nimbus needs PostgreSQL. Install the "nimbus-postgres" template from the same repository first and use the same database password in both.&#xD;
+&#xD;
+Create your account when you first open Nimbus; the first account becomes the admin. The uploads folder also holds the generated secrets, so include it in your appdata backup.</Overview>
+  <Category>Productivity: Tools:Utilities Network:Management</Category>
+  <WebUI>http://[IP]:[PORT:3000]</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/Turbootzz/Nimbus/main/distribution/unraid/nimbus.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Turbootzz/Nimbus/main/frontend/public/images/logo-square.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires>The nimbus-postgres container</Requires>
+  <Config Name="WebUI" Target="3000" Default="3000" Mode="tcp" Description="Port of the web interface" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+  <Config Name="Uploads" Target="/app/backend/uploads" Default="/mnt/user/appdata/nimbus/uploads" Mode="rw" Description="Icons, avatars, wallpapers and the generated JWT_SECRET and ENCRYPTION_KEY. Back it up." Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/nimbus/uploads</Config>
+  <Config Name="Database host" Target="DB_HOST" Default="" Mode="" Description="IP address of your Unraid server, or the container name nimbus-postgres when both containers are on the same custom Docker network" Type="Variable" Display="always" Required="true" Mask="false"/>
+  <Config Name="Database port" Target="DB_PORT" Default="5432" Mode="" Description="Host port of the nimbus-postgres container" Type="Variable" Display="always" Required="true" Mask="false">5432</Config>
+  <Config Name="Database password" Target="DB_PASSWORD" Default="" Mode="" Description="The password you set in the nimbus-postgres container. Letters, digits, - and _ only." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Public URL" Target="FRONTEND_URL" Default="" Mode="" Description="The address you open Nimbus at, for example https://nimbus.example.com. Used in password reset emails and OAuth redirects." Type="Variable" Display="advanced" Required="false" Mask="false"/>
+  <Config Name="Database user" Target="DB_USER" Default="nimbus" Mode="" Description="Database user" Type="Variable" Display="advanced" Required="false" Mask="false">nimbus</Config>
+  <Config Name="Database name" Target="DB_NAME" Default="nimbus" Mode="" Description="Database name" Type="Variable" Display="advanced" Required="false" Mask="false">nimbus</Config>
+  <Config Name="JWT secret" Target="JWT_SECRET" Default="" Mode="" Description="Signs sessions, at least 32 characters. Leave empty and Nimbus generates one in the uploads folder." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+  <Config Name="Encryption key" Target="ENCRYPTION_KEY" Default="" Mode="" Description="Encrypts integration credentials (openssl rand -base64 32). Leave empty and Nimbus generates one in the uploads folder." Type="Variable" Display="advanced" Required="false" Mask="true"/>
+</Container>

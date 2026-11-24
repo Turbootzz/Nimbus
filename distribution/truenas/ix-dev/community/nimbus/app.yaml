@@ -1,0 +1,48 @@
+app_version: 2.0.0
+capabilities:
+- description: Nimbus is able to change file ownership arbitrarily
+  name: CHOWN
+- description: Nimbus is able to bypass file permission checks
+  name: DAC_OVERRIDE
+- description: Nimbus is able to change group ID of processes
+  name: SETGID
+- description: Nimbus is able to change user ID of processes
+  name: SETUID
+categories:
+- productivity
+changelog_url: https://github.com/Turbootzz/Nimbus/releases
+date_added: '2026-11-18'
+description: Nimbus is a self-hosted, multi-user homelab dashboard with health checks,
+  widgets and live numbers from your apps.
+home: https://github.com/Turbootzz/Nimbus
+host_mounts: []
+icon: https://media.sys.truenas.net/apps/nimbus/icons/icon.png
+keywords:
+- dashboard
+- homelab
+- monitoring
+lib_version: 2.3.20
+lib_version_hash: cb54aeb50c3d06a90e5d9e80a852317db8336b4c68456aaaa6ce61fc2f8ed1dd
+maintainers:
+- email: dev@truenas.com
+  name: truenas
+  url: https://www.truenas.com/
+name: nimbus
+run_as_context:
+- description: Container [nimbus] runs as root user and group.
+  gid: 0
+  group_name: Host group is [root]
+  uid: 0
+  user_name: Host user is [root]
+- description: Container [postgres] runs as non-root user and group.
+  gid: 999
+  group_name: Host group is [docker]
+  uid: 999
+  user_name: Host user is [netdata]
+screenshots: []
+sources:
+- https://github.com/Turbootzz/Nimbus
+- https://hub.docker.com/r/turboot/nimbus
+title: Nimbus
+train: community
+version: 1.0.0

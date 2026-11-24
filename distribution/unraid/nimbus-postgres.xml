@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>nimbus-postgres</Name>
+  <Repository>turboot/nimbus-postgres:18</Repository>
+  <Registry>https://hub.docker.com/r/turboot/nimbus-postgres</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/Turbootzz/Nimbus/discussions</Support>
+  <Project>https://github.com/Turbootzz/Nimbus</Project>
+  <Overview>PostgreSQL 18 database for the Nimbus dashboard. Install this first, then the "nimbus" template, and use the same database password in both.&#xD;
+&#xD;
+The database port is published on your server so the Nimbus container can reach it. Pick a strong password, or put both containers on a custom Docker network and remove the port.</Overview>
+  <Category>Tools:Utilities</Category>
+  <WebUI/>
+  <TemplateURL>https://raw.githubusercontent.com/Turbootzz/Nimbus/main/distribution/unraid/nimbus-postgres.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/Turbootzz/Nimbus/main/frontend/public/images/logo-square.png</Icon>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+  <Requires/>
+  <Config Name="Database port" Target="5432" Default="5432" Mode="tcp" Description="Host port of the database. Change it when another PostgreSQL container already uses 5432, and set the same port in Nimbus." Type="Port" Display="always" Required="true" Mask="false">5432</Config>
+  <Config Name="Database files" Target="/var/lib/postgresql/data" Default="/mnt/user/appdata/nimbus-postgres" Mode="rw" Description="Where the database is stored" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/nimbus-postgres</Config>
+  <Config Name="Database password" Target="POSTGRES_PASSWORD" Default="" Mode="" Description="Password for the nimbus database user. Letters, digits, - and _ only. Enter the same one in the Nimbus container." Type="Variable" Display="always" Required="true" Mask="true"/>
+  <Config Name="Database user" Target="POSTGRES_USER" Default="nimbus" Mode="" Description="Database user" Type="Variable" Display="advanced" Required="true" Mask="false">nimbus</Config>
+  <Config Name="Database name" Target="POSTGRES_DB" Default="nimbus" Mode="" Description="Database name" Type="Variable" Display="advanced" Required="true" Mask="false">nimbus</Config>
+  <Config Name="PGDATA" Target="PGDATA" Default="/var/lib/postgresql/data" Mode="" Description="Do not change: the image refuses any other value" Type="Variable" Display="advanced" Required="true" Mask="false">/var/lib/postgresql/data</Config>
+</Container>

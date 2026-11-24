@@ -1,0 +1,36 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: nimbus_web_1
+      APP_PORT: 3000
+
+  web:
+    image: turboot/nimbus:2.0.0@sha256:a943e84349468840b406c480b4e1e980317bb0188fd27e2a194ceeabd8ae4c4a
+    restart: on-failure
+    environment:
+      DB_HOST: nimbus_db_1
+      DB_PASSWORD: ${APP_NIMBUS_DB_PASSWORD}
+    volumes:
+      # Uploads plus the generated JWT_SECRET and ENCRYPTION_KEY
+      - ${APP_DATA_DIR}/data/uploads:/app/backend/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: turboot/nimbus-postgres:18@sha256:e6ed0408a4e34c98822dd3127af1758ae3ea5afbdb1fa7ac22128f79d8f870c5
+    restart: on-failure
+    environment:
+      POSTGRES_DB: nimbus
+      POSTGRES_USER: nimbus
+      POSTGRES_PASSWORD: ${APP_NIMBUS_DB_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - ${APP_DATA_DIR}/data/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nimbus -d nimbus"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

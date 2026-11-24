@@ -1,0 +1,17 @@
+apiVersion: v2
+name: nimbus
+description: Self-hosted, multi-user homelab dashboard with health checks, widgets and app integrations
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+home: https://github.com/Turbootzz/Nimbus
+icon: https://raw.githubusercontent.com/Turbootzz/Nimbus/main/frontend/public/images/logo-square.png
+sources:
+  - https://github.com/Turbootzz/Nimbus
+keywords:
+  - dashboard
+  - homelab
+  - monitoring
+maintainers:
+  - name: Turbootzz
+    url: https://github.com/Turbootzz

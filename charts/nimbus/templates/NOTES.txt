@@ -1,0 +1,38 @@
+Nimbus {{ .Chart.AppVersion }} is starting. The first boot runs the database migrations and can take a minute.
+
+{{- if .Values.ingress.enabled }}
+
+Open:
+{{- range .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}
+{{- end }}
+{{- else }}
+
+Open it with a port-forward:
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "nimbus.fullname" . }} 3000:{{ .Values.service.port }}
+  http://localhost:3000
+{{- end }}
+
+Then create the first account; it becomes the admin.
+{{- if and (not .Values.secrets.existingSecret) (not .Values.secrets.encryptionKey) }}
+{{- if .Values.persistence.enabled }}
+
+JWT_SECRET and ENCRYPTION_KEY were not set, so Nimbus generates them and keeps them in the uploads
+volume ({{ .Values.persistence.existingClaim | default (printf "%s-uploads" (include "nimbus.fullname" .)) }}). Back that volume up: without ENCRYPTION_KEY, saved integration credentials
+can't be read.
+{{- else }}
+
+WARNING: persistence is off and no encryptionKey is set. Nimbus generates new secrets on every
+restart, which logs everyone out and makes saved integration credentials unreadable.
+Set secrets.jwtSecret and secrets.encryptionKey, or turn persistence on.
+{{- end }}
+{{- else if and .Values.secrets.existingSecret (not .Values.persistence.enabled) }}
+
+WARNING: persistence is off, so the Secret {{ .Values.secrets.existingSecret }} must hold a fixed encryption-key
+and jwt-secret. Nimbus generates a missing one again on every restart, which makes saved integration
+credentials unreadable (encryption-key) or logs everyone out (jwt-secret).
+{{- end }}
+{{- if .Values.ingress.enabled }}
+
+Behind HTTPS, set env.FRONTEND_URL to the public URL and env.COOKIE_SECURE to "true".
+{{- end }}

@@ -1,0 +1,101 @@
+{{- if .Values.postgresql.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbus.postgresql.fullname" . }}
+  labels:
+    {{- include "nimbus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  clusterIP: None
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    {{- include "nimbus.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "nimbus.postgresql.fullname" . }}
+  labels:
+    {{- include "nimbus.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  serviceName: {{ include "nimbus.postgresql.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "nimbus.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        {{- include "nimbus.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+    spec:
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: postgresql
+          image: "{{ .Values.postgresql.image.repository }}:{{ .Values.postgresql.image.tag }}"
+          imagePullPolicy: {{ .Values.postgresql.image.pullPolicy }}
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_DB
+              value: nimbus
+            - name: POSTGRES_USER
+              value: nimbus
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "nimbus.secretName" . }}
+                  key: db-password
+            # The image refuses any other PGDATA
+            - name: PGDATA
+              value: /var/lib/postgresql/data
+          # Liveness only starts once this passes, so initdb or crash recovery is not restarted
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "nimbus", "-d", "nimbus"]
+            periodSeconds: {{ .Values.postgresql.startupProbe.periodSeconds }}
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.postgresql.startupProbe.failureThreshold }}
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nimbus", "-d", "nimbus"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "nimbus", "-d", "nimbus"]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          resources:
+            {{- toYaml .Values.postgresql.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+              # A fresh volume can hold lost+found, which initdb rejects
+              subPath: data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        {{- with .Values.postgresql.persistence.storageClass }}
+        storageClassName: {{ . | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.postgresql.persistence.size }}
+{{- end }}

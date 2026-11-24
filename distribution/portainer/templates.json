@@ -1,0 +1,28 @@
+{
+  "version": "3",
+  "templates": [
+    {
+      "id": 1,
+      "type": 3,
+      "title": "Nimbus",
+      "name": "nimbus",
+      "description": "Homelab dashboard with health checks, widgets and app integrations",
+      "note": "Deploys Nimbus with its PostgreSQL database. Open port 3000 and create your account; the first account becomes the admin. JWT_SECRET and ENCRYPTION_KEY are generated on first start and kept in the uploads volume, so back that volume up.",
+      "categories": ["dashboard", "monitoring"],
+      "platform": "linux",
+      "logo": "https://raw.githubusercontent.com/Turbootzz/Nimbus/main/frontend/public/images/logo-square.png",
+      "repository": {
+        "url": "https://github.com/Turbootzz/Nimbus",
+        "stackfile": "docker-compose.yml"
+      },
+      "env": [
+        {
+          "name": "DB_PASSWORD",
+          "label": "Database password",
+          "description": "Letters, digits, - and _ only.",
+          "default": "nimbus-default-password"
+        }
+      ]
+    }
+  ]
+}

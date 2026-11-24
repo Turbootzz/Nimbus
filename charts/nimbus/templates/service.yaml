@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "nimbus.fullname" . }}
+  labels:
+    {{- include "nimbus.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: http
+      port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+  selector:
+    {{- include "nimbus.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: app
