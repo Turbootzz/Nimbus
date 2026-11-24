@@ -9,9 +9,10 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Big lists (Home Assistant states, torrents) can be a few MB
@@ -67,11 +68,7 @@ func transportError(ctx context.Context, path string, err error) error {
 	if isTimeout(ctx, err) {
 		return fmt.Errorf("%s took too long to answer", pathOnly(path))
 	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		err = urlErr.Err
-	}
-	return fmt.Errorf("%s could not be reached: %w", pathOnly(path), err)
+	return fmt.Errorf("%s could not be reached: %w", pathOnly(path), utils.WithoutURL(err))
 }
 
 func isTimeout(ctx context.Context, err error) bool {
