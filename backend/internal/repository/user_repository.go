@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -96,10 +97,15 @@ func (r *UserRepository) GetByEmail(email string) (*models.User, error) {
 
 // GetByID retrieves a user by ID
 func (r *UserRepository) GetByID(id string) (*models.User, error) {
+	return r.GetByIDContext(context.Background(), id)
+}
+
+// GetByIDContext is GetByID that stops when ctx is done
+func (r *UserRepository) GetByIDContext(ctx context.Context, id string) (*models.User, error) {
 	query := `SELECT ` + userColumns + ` FROM users WHERE id = $1`
 
 	user := &models.User{}
-	err := scanUser(r.db.QueryRow(query, id), user)
+	err := scanUser(r.db.QueryRowContext(ctx, query, id), user)
 	if err == sql.ErrNoRows {
 		return nil, ErrUserNotFound
 	}
