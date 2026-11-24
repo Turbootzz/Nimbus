@@ -8,11 +8,13 @@ export const chipKey = (chip: StatusChip) => `${chip.source}:${chip.id}:${chip.k
 // chipOptions lists every KPI of the user's integrations and every value of
 // their enabled custom API widgets, keyed by chipKey. With snapshots, a
 // KPI takes the label and unit its integration last reported (kpi_defs).
+// untitledWidget names a custom API widget without a title.
 export function chipOptions(
   integrations: Integration[],
   kinds: IntegrationKindMeta[],
   widgets: Widget[],
-  snapshots?: SnapshotMap
+  snapshots?: SnapshotMap,
+  untitledWidget = 'Custom API'
 ): Map<string, ChipOption> {
   const options: ChipOption[] = []
   for (const integration of integrations) {
@@ -32,7 +34,7 @@ export function chipOptions(
     for (const field of fields) {
       options.push({
         chip: { source: 'widget', id: widget.id, kpi: field.label },
-        label: `${widget.title || 'Custom API'} · ${field.label}`,
+        label: `${widget.title || untitledWidget} · ${field.label}`,
         unit: field.unit || undefined,
       })
     }

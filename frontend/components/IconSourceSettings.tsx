@@ -1,21 +1,21 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { iconSources } from '@/lib/theme-presets'
 import type { IconSource } from '@/types'
 
 export default function IconSourceSettings() {
+  const t = useTranslations('settings.theme.iconSource')
   const { iconSource, setIconSource } = useTheme()
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
-      <h2 className="text-text-primary mb-2 text-xl font-semibold">Icon Source</h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        Where &quot;Auto-fetch icon&quot; on a service looks for an icon by the service&apos;s name
-      </p>
+      <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       <label htmlFor="icon-source" className="text-text-primary mb-2 block text-sm font-medium">
-        Icon set
+        {t('label')}
       </label>
       <select
         id="icon-source"
@@ -29,9 +29,7 @@ export default function IconSourceSettings() {
           </option>
         ))}
       </select>
-      <p className="text-text-muted mt-2 text-xs">
-        Used for icons you fetch from now on; icons you already have stay as they are
-      </p>
+      <p className="text-text-muted mt-2 text-xs">{t('hint')}</p>
     </div>
   )
 }

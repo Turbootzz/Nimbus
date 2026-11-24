@@ -56,28 +56,44 @@ const fields: Record<string, (value: unknown) => boolean> = {
   custom_css: (value) => typeof value === 'string',
 }
 
+// Why a file is refused; the settings page passes them translated
+export interface ThemeFileErrors {
+  notJson: string
+  notTheme: string
+  newerVersion: string
+  invalidField: (field: string) => string
+}
+
+const englishErrors: ThemeFileErrors = {
+  notJson: 'This is not a JSON file',
+  notTheme: 'This is not a Nimbus theme file',
+  newerVersion: 'This theme file was made by a newer version of Nimbus',
+  invalidField: (field) => `The theme file has an invalid ${field}`,
+}
+
 // parseThemeFile reads a theme file into the change it asks for, or says
 // why it can't. A field the file leaves out stays as it is.
 export function parseThemeFile(
-  text: string
+  text: string,
+  errors: ThemeFileErrors = englishErrors
 ): { update: PreferencesUpdateRequest } | { error: string } {
   let file: Record<string, unknown>
   try {
     file = JSON.parse(text)
   } catch {
-    return { error: 'This is not a JSON file' }
+    return { error: errors.notJson }
   }
   if (typeof file !== 'object' || file === null || typeof file.nimbus_theme !== 'number') {
-    return { error: 'This is not a Nimbus theme file' }
+    return { error: errors.notTheme }
   }
   if (file.nimbus_theme !== THEME_FILE_VERSION) {
-    return { error: 'This theme file was made by a newer version of Nimbus' }
+    return { error: errors.newerVersion }
   }
 
   const update: Record<string, unknown> = {}
   for (const [name, valid] of Object.entries(fields)) {
     if (!(name in file)) continue
-    if (!valid(file[name])) return { error: `The theme file has an invalid ${name}` }
+    if (!valid(file[name])) return { error: errors.invalidField(name) }
     update[name] = file[name]
   }
   // A preset only exists in its own mode

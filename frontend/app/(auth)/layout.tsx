@@ -1,7 +1,9 @@
 import ThemeToggle from '@/components/ThemeToggle'
 import NimbusLogo from '@/components/NimbusLogo'
+import { getTranslations } from 'next-intl/server'
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const t = await getTranslations('auth.layout')
   return (
     <div className="flex min-h-screen items-center justify-center">
       {/* Theme toggle button - fixed top right */}
@@ -18,7 +20,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
               Nimbus
             </h1>
           </div>
-          <p style={{ color: 'var(--color-text-secondary)' }}>Your Personal Homelab Dashboard</p>
+          <p style={{ color: 'var(--color-text-secondary)' }}>{t('tagline')}</p>
         </div>
 
         {/* Auth Form Container */}

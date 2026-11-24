@@ -10,8 +10,10 @@ import {
   useRef,
   ReactNode,
 } from 'react'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { isStatusPagePath } from '@/lib/status-page'
+import type { Language } from '@/i18n/locale'
 import type {
   PreferencesUpdateRequest,
   CardScale,
@@ -65,6 +67,8 @@ interface ThemeContextType {
   iconSource: IconSource
   // Only ever from the API, so it can't reach another user of this browser
   customCss: string
+  // Saved language; null follows the browser, undefined until the API answered
+  language: Language | null | undefined
   // Picking a mode the preset doesn't have goes back to the default preset
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
@@ -85,6 +89,7 @@ interface ThemeContextType {
   setFont: (font: ThemeFont) => void
   setKpiMono: (kpiMono: boolean) => void
   setIconSource: (iconSource: IconSource) => void
+  setLanguage: (language: Language | null) => void
   // Saves theme settings the server may refuse (custom CSS, an imported
   // theme) and applies what it stored; resolves to an error message or null
   saveTheme: (update: PreferencesUpdateRequest) => Promise<string | null>
@@ -132,6 +137,7 @@ function parseStatusStrip(raw: string | null): StatusStrip {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations('preferences')
   // Initialize with defaults (same for server and client to prevent hydration mismatch)
   const [theme, setThemeState] = useState<'light' | 'dark' | 'auto'>('auto')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
@@ -150,6 +156,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [kpiMono, setKpiMonoState] = useState(false)
   const [iconSource, setIconSourceState] = useState<IconSource>('dashboard-icons-svg')
   const [customCss, setCustomCss] = useState('')
+  const [language, setLanguageState] = useState<Language | null | undefined>()
   // False until the cached preferences are read; before that the state holds
   // defaults, and applying them would undo what ThemeScript painted
   const [restored, setRestored] = useState(false)
@@ -162,7 +169,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
   // Preferences the user changed while the first load was running; that
   // load must not undo them
-  const changedRef = useRef(new Set<'layout' | 'statusStrip' | 'groupDisplay' | ThemeSetting>())
+  const changedRef = useRef(
+    new Set<'layout' | 'statusStrip' | 'groupDisplay' | 'language' | ThemeSetting>()
+  )
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -345,6 +354,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
             } else {
               localStorage.removeItem('groupDisplay')
             }
+          }
+          if (!changedRef.current.has('language')) {
+            setLanguageState(response.data.language ?? null)
           }
           // Unless the user already picked one while this was loading
           if (!changedRef.current.has('layout')) {
@@ -580,7 +592,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const response = await request
       if (response.error || !response.data) {
         const fields = Object.values(response.error?.fields ?? {})
-        return fields.join('. ') || response.error?.message || 'Failed to save the theme'
+        return fields.join('. ') || response.error?.message || t('saveThemeFailed')
       }
       const data = response.data
       // Newer than a first load that is still running
@@ -597,7 +609,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('glass', JSON.stringify(glass))
       return null
     },
-    [applyThemePreferences]
+    [applyThemePreferences, t]
   )
 
   const setAccentColor = useCallback(
@@ -679,19 +691,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [glass]
   )
 
-  const uploadWallpaper = useCallback(async (file: File) => {
-    // A queued background change would overwrite the upload when it flushes,
-    // and one on its way could reach the server after it
-    if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
-    await inFlightSaveRef.current
-    const response = await api.uploadWallpaper(file)
-    if (response.error || !response.data?.theme_background) {
-      return response.error?.message ?? 'Failed to upload wallpaper'
-    }
-    setBackgroundState(response.data.theme_background)
-    localStorage.setItem('background', response.data.theme_background)
-    return null
-  }, [])
+  const uploadWallpaper = useCallback(
+    async (file: File) => {
+      // A queued background change would overwrite the upload when it flushes,
+      // and one on its way could reach the server after it
+      if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
+      await inFlightSaveRef.current
+      const response = await api.uploadWallpaper(file)
+      if (response.error || !response.data?.theme_background) {
+        return response.error?.message ?? t('uploadWallpaperFailed')
+      }
+      setBackgroundState(response.data.theme_background)
+      localStorage.setItem('background', response.data.theme_background)
+      return null
+    },
+    [t]
+  )
 
   const setStatusStrip = useCallback(
     (v: StatusStrip) => {
@@ -707,6 +722,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       changedRef.current.add('groupDisplay')
       setGroupDisplayState(v)
       savePreferences({ group_display: v })
+    },
+    [savePreferences]
+  )
+
+  const setLanguage = useCallback(
+    (v: Language | null) => {
+      changedRef.current.add('language')
+      setLanguageState(v)
+      savePreferences({ language: v })
     },
     [savePreferences]
   )
@@ -739,6 +763,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       kpiMono,
       iconSource,
       customCss,
+      language,
       setTheme,
       setAccentColor,
       setBackground,
@@ -755,6 +780,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setFont,
       setKpiMono,
       setIconSource,
+      setLanguage,
       saveTheme,
       uploadWallpaper,
       loading,
@@ -777,6 +803,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       kpiMono,
       iconSource,
       customCss,
+      language,
       setTheme,
       setAccentColor,
       setBackground,
@@ -793,6 +820,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setFont,
       setKpiMono,
       setIconSource,
+      setLanguage,
       saveTheme,
       uploadWallpaper,
       loading,

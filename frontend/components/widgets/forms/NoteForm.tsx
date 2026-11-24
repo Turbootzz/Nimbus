@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { NoteWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
@@ -12,22 +13,23 @@ export default function NoteForm({
   onChange,
   disabled,
 }: WidgetFormProps<NoteWidgetConfig>) {
+  const t = useTranslations('widgets.note.form')
   return (
     <div>
       <label htmlFor="note-content" className={labelClass}>
-        Note
+        {t('label')}
       </label>
       <textarea
         id="note-content"
         rows={8}
         value={config.content}
         onChange={(e) => onChange({ ...config, content: e.target.value })}
-        placeholder={'# Title\n- a list item\n[a link](https://example.com)'}
+        placeholder={t('placeholder')}
         maxLength={MAX_NOTE_LENGTH}
         className={`${inputClass} font-mono`}
         disabled={disabled}
       />
-      <p className="text-text-muted mt-1 text-xs">Markdown is supported. HTML is not.</p>
+      <p className="text-text-muted mt-1 text-xs">{t('hint')}</p>
     </div>
   )
 }

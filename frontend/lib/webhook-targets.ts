@@ -3,17 +3,17 @@ import type { WebhookCreateRequest, WebhookFormat } from '@/types'
 
 // What the webhook form shows and checks per notification type.
 // The backend validates again; this only catches mistakes before the request.
+// The form's texts are in the notifications.targets messages; the English
+// labels here word validateWebhookForm's default messages.
 
 interface TextField {
   label: string
   placeholder?: string
-  help?: string
 }
 
 export interface WebhookTarget {
   value: WebhookFormat
-  label: string
-  description: string
+  label: string // product name; "Generic" is translated by the form
   url?: TextField // absent: the service has one fixed endpoint
   token?: TextField & { optional?: boolean }
   userKey?: TextField
@@ -26,79 +26,56 @@ export const WEBHOOK_TARGETS: WebhookTarget[] = [
   {
     value: 'generic',
     label: 'Generic',
-    description: 'Standard JSON payload',
     url: { label: 'Webhook URL', placeholder: 'https://example.com/webhook' },
     selfHosted: true,
   },
   {
     value: 'discord',
     label: 'Discord',
-    description: 'Discord-compatible embed format',
     url: { label: 'Webhook URL', placeholder: 'https://discord.com/api/webhooks/...' },
   },
   {
     value: 'slack',
     label: 'Slack',
-    description: 'Slack Block Kit format',
     url: { label: 'Webhook URL', placeholder: 'https://hooks.slack.com/services/...' },
   },
   {
     value: 'ntfy',
     label: 'ntfy',
-    description: 'Push to an ntfy topic, on ntfy.sh or your own server',
-    url: {
-      label: 'Topic URL',
-      placeholder: 'https://ntfy.sh/my-topic',
-      help: 'The server address followed by the topic name.',
-    },
-    token: {
-      label: 'Access token',
-      placeholder: 'tk_...',
-      help: 'Only needed for protected topics.',
-      optional: true,
-    },
+    url: { label: 'Topic URL', placeholder: 'https://ntfy.sh/my-topic' },
+    token: { label: 'Access token', placeholder: 'tk_...', optional: true },
     priority: true,
     selfHosted: true,
   },
   {
     value: 'gotify',
     label: 'Gotify',
-    description: 'Push to a Gotify server',
     url: { label: 'Server URL', placeholder: 'http://192.168.1.10:8080' },
-    token: { label: 'App token', help: 'Create an application in Gotify and copy its token.' },
+    token: { label: 'App token' },
     selfHosted: true,
   },
   {
     value: 'telegram',
     label: 'Telegram',
-    description: 'Message from your Telegram bot',
-    token: {
-      label: 'Bot token',
-      placeholder: '123456789:AA...',
-      help: 'From @BotFather.',
-    },
-    chatId: {
-      label: 'Chat ID',
-      placeholder: '-1001234567890',
-      help: 'A user, group or channel ID, or a public @channelname.',
-    },
+    token: { label: 'Bot token', placeholder: '123456789:AA...' },
+    chatId: { label: 'Chat ID', placeholder: '-1001234567890' },
   },
   {
     value: 'pushover',
     label: 'Pushover',
-    description: 'Push through Pushover',
-    token: { label: 'App token', help: 'The API token of your Pushover application.' },
-    userKey: { label: 'User key', help: 'Your user key or a group key.' },
+    token: { label: 'App token' },
+    userKey: { label: 'User key' },
   },
 ]
 
+// ntfy's priorities; key names the form's message
 export const NTFY_PRIORITIES = [
-  { value: 1, label: 'Min' },
-  { value: 2, label: 'Low' },
-  { value: 3, label: 'Default' },
-  { value: 4, label: 'High' },
-  { value: 5, label: 'Urgent' },
-]
+  { value: 1, key: 'min' },
+  { value: 2, key: 'low' },
+  { value: 3, key: 'default' },
+  { value: 4, key: 'high' },
+  { value: 5, key: 'urgent' },
+] as const
 
 export function getWebhookTarget(format: string): WebhookTarget {
   return WEBHOOK_TARGETS.find((target) => target.value === format) ?? WEBHOOK_TARGETS[0]
@@ -123,15 +100,42 @@ export interface WebhookFormValues {
 // Field names match the backend's "fields" keys, so both error sources
 // land under the same input.
 export type WebhookFieldErrors = Record<string, string>
+export type WebhookErrorField = 'name' | 'url' | 'token' | 'user_key' | 'chat_id' | 'triggers'
+export type WebhookProblem =
+  'required' | 'nameTooLong' | 'invalidUrl' | 'ntfyTopic' | 'invalidChatId' | 'noTrigger'
+export type DescribeWebhookProblem = (field: WebhookErrorField, problem: WebhookProblem) => string
+
+const ENGLISH_PROBLEMS: Record<Exclude<WebhookProblem, 'required'>, string> = {
+  nameTooLong: 'Name must be 100 characters or less',
+  invalidUrl: 'Enter a full URL, starting with http:// or https://',
+  ntfyTopic: 'The URL must end with the topic, like https://ntfy.sh/my-topic',
+  invalidChatId: 'Chat ID must be a number or a public @channelname',
+  noTrigger: 'Select at least one trigger event',
+}
+
+// English messages, "<label> is required" with the type's field labels
+function inEnglish(target: WebhookTarget): DescribeWebhookProblem {
+  const labels: Partial<Record<WebhookErrorField, string>> = {
+    name: 'Name',
+    url: target.url?.label,
+    token: target.token?.label,
+    user_key: target.userKey?.label,
+    chat_id: target.chatId?.label,
+  }
+  return (field, problem) =>
+    problem === 'required' ? `${labels[field]} is required` : ENGLISH_PROBLEMS[problem]
+}
 
 const TELEGRAM_CHAT = /^(-?\d{1,20}|@[A-Za-z0-9_]{1,64})$/
 const NTFY_TOPIC = /^[-_A-Za-z0-9]{1,64}$/
 
 // keepsCredentials: editing a webhook that has saved secrets for this type,
-// so blank secret inputs mean "leave them as they are".
+// so blank secret inputs mean "leave them as they are". describe words each
+// problem; the form passes its translations, the default is English.
 export function validateWebhookForm(
   values: WebhookFormValues,
-  keepsCredentials: boolean
+  keepsCredentials: boolean,
+  describe: DescribeWebhookProblem = inEnglish(getWebhookTarget(values.format))
 ): WebhookFieldErrors {
   const target = getWebhookTarget(values.format)
   const errors: WebhookFieldErrors = {}
@@ -141,17 +145,15 @@ export function validateWebhookForm(
   const userKey = values.userKey.trim()
   const chatId = values.chatId.trim()
 
-  if (!name) errors.name = 'Name is required'
-  else if (name.length > 100) errors.name = 'Name must be 100 characters or less'
+  if (!name) errors.name = describe('name', 'required')
+  else if (name.length > 100) errors.name = describe('name', 'nameTooLong')
 
   if (target.url) {
-    if (!url) errors.url = `${target.url.label} is required`
-    else if (!isValidUrl(url)) errors.url = 'Enter a full URL, starting with http:// or https://'
+    if (!url) errors.url = describe('url', 'required')
+    else if (!isValidUrl(url)) errors.url = describe('url', 'invalidUrl')
     else if (values.format === 'ntfy') {
       const topic = new URL(url).pathname.replace(/\/$/, '').split('/').pop() ?? ''
-      if (!NTFY_TOPIC.test(topic)) {
-        errors.url = 'The URL must end with the topic, like https://ntfy.sh/my-topic'
-      }
+      if (!NTFY_TOPIC.test(topic)) errors.url = describe('url', 'ntfyTopic')
     }
   }
 
@@ -159,19 +161,17 @@ export function validateWebhookForm(
   const keeping = keepsCredentials && !token && !userKey
   if (!keeping) {
     if (target.token && !target.token.optional && !token) {
-      errors.token = `${target.token.label} is required`
+      errors.token = describe('token', 'required')
     }
-    if (target.userKey && !userKey) errors.user_key = `${target.userKey.label} is required`
+    if (target.userKey && !userKey) errors.user_key = describe('user_key', 'required')
   }
 
   if (target.chatId) {
-    if (!chatId) errors.chat_id = `${target.chatId.label} is required`
-    else if (!TELEGRAM_CHAT.test(chatId)) {
-      errors.chat_id = 'Chat ID must be a number or a public @channelname'
-    }
+    if (!chatId) errors.chat_id = describe('chat_id', 'required')
+    else if (!TELEGRAM_CHAT.test(chatId)) errors.chat_id = describe('chat_id', 'invalidChatId')
   }
 
-  if (!values.onOffline && !values.onOnline) errors.triggers = 'Select at least one trigger event'
+  if (!values.onOffline && !values.onOnline) errors.triggers = describe('triggers', 'noTrigger')
 
   return errors
 }

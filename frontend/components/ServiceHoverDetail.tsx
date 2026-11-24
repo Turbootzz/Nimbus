@@ -12,8 +12,9 @@ import {
   type ReactNode,
 } from 'react'
 import { createPortal } from 'react-dom'
+import { useLocale, useTranslations } from 'next-intl'
 import type { MetricsResponse, Service } from '@/types'
-import { formatRelativeTime } from '@/lib/date-utils'
+import { useRelativeTime } from '@/hooks/useRelativeTime'
 import { loadServiceDetail } from '@/lib/service-detail'
 import { getResponseTimeColor } from '@/lib/status-utils'
 
@@ -170,6 +171,12 @@ interface DetailPopoverProps {
 }
 
 function DetailPopover({ id, anchor, service, monitored, detail }: DetailPopoverProps) {
+  const t = useTranslations('services')
+  const locale = useLocale()
+  const relativeTime = useRelativeTime()
+  // Rounded as toFixed does; the locale picks the decimal mark
+  const uptime = (percentage: number) =>
+    Number(percentage.toFixed(1)).toLocaleString(locale, { minimumFractionDigits: 1 })
   // Under the tile, or above it near the bottom of the window, kept inside
   // the window sideways
   const left = Math.max(MARGIN_PX, Math.min(anchor.left, window.innerWidth - WIDTH_PX - MARGIN_PX))
@@ -190,21 +197,23 @@ function DetailPopover({ id, anchor, service, monitored, detail }: DetailPopover
       <p className="flex items-baseline justify-between gap-2">
         <span className="text-text-primary truncate font-semibold">{service.name}</span>
         {/* In words too: a chip only has its coloured dot */}
-        {monitored && <span className="text-text-muted shrink-0 text-xs">{service.status}</span>}
+        {monitored && (
+          <span className="text-text-muted shrink-0 text-xs">{t(`status.${service.status}`)}</span>
+        )}
       </p>
       <p className="text-text-muted truncate text-xs">{service.url}</p>
 
       <div className="border-card-border mt-2 border-t pt-2">
         {!monitored ? (
-          <p className="text-text-muted text-xs">Not monitored</p>
+          <p className="text-text-muted text-xs">{t('tile.notMonitored')}</p>
         ) : detail === undefined ? (
-          <p className="text-text-muted text-xs">Loading…</p>
+          <p className="text-text-muted text-xs">{t('hoverDetail.loading')}</p>
         ) : detail === null ? (
-          <p className="text-text-muted text-xs">Details could not be loaded</p>
+          <p className="text-text-muted text-xs">{t('hoverDetail.loadFailed')}</p>
         ) : (
           <dl className="space-y-1 text-xs">
             <div className="flex items-center justify-between gap-2">
-              <dt className="text-text-muted">Uptime (24h)</dt>
+              <dt className="text-text-muted">{t('hoverDetail.uptime')}</dt>
               <dd className="flex items-center gap-2">
                 {detail.total_checks > 0 && (
                   <Suspense fallback={<div className="h-8 w-24" />}>
@@ -213,30 +222,32 @@ function DetailPopover({ id, anchor, service, monitored, detail }: DetailPopover
                 )}
                 <span className="text-text-primary font-semibold tabular-nums">
                   {detail.total_checks > 0
-                    ? `${detail.uptime_percentage.toFixed(1)}%`
-                    : 'No checks'}
+                    ? `${uptime(detail.uptime_percentage)}%`
+                    : t('hoverDetail.noChecks')}
                 </span>
               </dd>
             </div>
             {online && (
               <div className="flex justify-between gap-2">
-                <dt className="text-text-muted">Response time</dt>
+                <dt className="text-text-muted">{t('hoverDetail.responseTime')}</dt>
                 <dd className={`tabular-nums ${getResponseTimeColor(service.response_time!)}`}>
                   {service.response_time}ms
                 </dd>
               </div>
             )}
             <div className="flex justify-between gap-2">
-              <dt className="text-text-muted">Last check</dt>
+              <dt className="text-text-muted">{t('hoverDetail.lastCheck')}</dt>
               <dd className="text-text-primary">
-                {detail.last_checked_at ? formatRelativeTime(detail.last_checked_at) : 'Never'}
+                {detail.last_checked_at
+                  ? relativeTime(detail.last_checked_at)
+                  : t('hoverDetail.never')}
               </dd>
             </div>
             {detail.last_error && (
               <div>
                 <dt className="text-text-muted">
-                  Last error
-                  {detail.last_error_at && ` · ${formatRelativeTime(detail.last_error_at)}`}
+                  {t('hoverDetail.lastError')}
+                  {detail.last_error_at && ` · ${relativeTime(detail.last_error_at)}`}
                 </dt>
                 <dd className="text-error line-clamp-3 break-words">{detail.last_error}</dd>
               </div>

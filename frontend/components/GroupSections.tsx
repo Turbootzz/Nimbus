@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react'
 import { useDroppable } from '@dnd-kit/core'
+import { useTranslations } from 'next-intl'
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -54,6 +55,7 @@ export default function GroupSections({
   onMoveGroup,
   children,
 }: GroupSectionsProps) {
+  const t = useTranslations('dashboard.groups')
   const [collapsed, setCollapsed] = useState(readCollapsed)
 
   const toggle = (groupId: string) => {
@@ -91,7 +93,7 @@ export default function GroupSections({
           className="text-text-muted hover:text-primary border-card-border wallpaper-surface mb-6 flex items-center gap-1 rounded-md border border-dashed px-3 py-2 text-sm transition-colors"
         >
           <PlusIcon className="h-4 w-4" />
-          Add group
+          {t('sections.addGroup')}
         </button>
       )}
     </div>
@@ -123,6 +125,7 @@ function GroupSection({
   onMoveGroup,
   children,
 }: GroupSectionProps) {
+  const t = useTranslations('dashboard.groups')
   // The whole section takes drops, so an empty or collapsed one can be filled
   const { setNodeRef, isOver } = useDroppable({
     id: GROUP_DROP_PREFIX + group.id,
@@ -163,7 +166,7 @@ function GroupSection({
         {!group.monitoring_enabled && (
           <EyeSlashIcon
             className="text-text-muted h-3.5 w-3.5 shrink-0"
-            title="Monitoring disabled for this group"
+            title={t('monitoringDisabled')}
           />
         )}
 
@@ -174,7 +177,7 @@ function GroupSection({
               onClick={() => onMoveGroup(group, -1)}
               disabled={isFirst}
               className={actionClass}
-              aria-label={`Move ${group.name} up`}
+              aria-label={t('sections.moveUp', { name: group.name })}
             >
               <ArrowUpIcon className="h-3.5 w-3.5" />
             </button>
@@ -183,7 +186,7 @@ function GroupSection({
               onClick={() => onMoveGroup(group, 1)}
               disabled={isLast}
               className={actionClass}
-              aria-label={`Move ${group.name} down`}
+              aria-label={t('sections.moveDown', { name: group.name })}
             >
               <ArrowDownIcon className="h-3.5 w-3.5" />
             </button>
@@ -191,7 +194,7 @@ function GroupSection({
               type="button"
               onClick={() => onEditGroup(group)}
               className={actionClass}
-              aria-label={`Edit ${group.name}`}
+              aria-label={t('sections.edit', { name: group.name })}
             >
               <PencilIcon className="h-3.5 w-3.5" />
             </button>
@@ -200,7 +203,7 @@ function GroupSection({
                 type="button"
                 onClick={() => onDeleteGroup(group)}
                 className={`${actionClass} hover:text-error`}
-                aria-label={`Delete ${group.name}`}
+                aria-label={t('sections.delete', { name: group.name })}
               >
                 <TrashIcon className="h-3.5 w-3.5" />
               </button>
@@ -215,7 +218,7 @@ function GroupSection({
             children
           ) : (
             <p className="text-text-muted border-card-border wallpaper-surface rounded-lg border border-dashed px-4 py-3 text-sm">
-              {isEditMode ? 'Drop a tile here.' : 'Nothing in this group yet.'}
+              {isEditMode ? t('sections.dropHere') : t('sections.empty')}
             </p>
           )}
         </div>

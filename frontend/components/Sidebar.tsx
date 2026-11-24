@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import NimbusLogo from '@/components/NimbusLogo'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   ArrowRightStartOnRectangleIcon,
   XMarkIcon,
@@ -30,6 +31,7 @@ export default function Sidebar({
   isDesktopCollapsed,
   setIsDesktopCollapsed,
 }: SidebarProps) {
+  const t = useTranslations('layout')
   const pathname = usePathname()
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
@@ -79,10 +81,10 @@ export default function Sidebar({
     <>
       {navigation.map((item) => (
         <Link
-          key={item.name}
+          key={item.href}
           href={item.href}
           onClick={onNavigate}
-          title={collapsed ? item.name : undefined}
+          title={collapsed ? t(`nav.${item.id}`) : undefined}
           className={`group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
             collapsed ? 'justify-center' : ''
           } ${isActive(item.href) ? 'text-white' : 'hover:bg-card-border hover:text-text-primary'}`}
@@ -108,7 +110,7 @@ export default function Sidebar({
               collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
             }`}
           >
-            {item.name}
+            {t(`nav.${item.id}`)}
           </span>
         </Link>
       ))}
@@ -117,7 +119,7 @@ export default function Sidebar({
       <Link
         href="/services/new"
         onClick={onNavigate}
-        title={collapsed ? 'Add Service' : undefined}
+        title={collapsed ? t('sidebar.addService') : undefined}
         className={`group text-text-secondary hover:text-text-primary hover:bg-card-border flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
           collapsed ? 'justify-center' : ''
         }`}
@@ -131,7 +133,7 @@ export default function Sidebar({
             collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
           }`}
         >
-          Add Service
+          {t('sidebar.addService')}
         </span>
       </Link>
 
@@ -152,7 +154,7 @@ export default function Sidebar({
           className="inline-block h-1.5 w-1.5 rounded-full"
           style={{ backgroundColor: 'var(--color-primary)' }}
         />
-        <span className="text-text-muted text-xs">Hosted by Nimbus Cloud</span>
+        <span className="text-text-muted text-xs">{t('hostedByNimbusCloud')}</span>
       </a>
     </div>
   )
@@ -162,7 +164,7 @@ export default function Sidebar({
     <div className="border-sidebar-border shrink-0 border-t p-4">
       <button
         onClick={handleLogout}
-        title={collapsed ? 'Sign out' : undefined}
+        title={collapsed ? t('sidebar.signOut') : undefined}
         className={`group text-text-secondary hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-2 text-sm font-medium transition-colors ${
           collapsed ? 'justify-center' : ''
         }`}
@@ -176,7 +178,7 @@ export default function Sidebar({
             collapsed ? 'ml-0 max-w-0 opacity-0' : 'ml-3 max-w-40 opacity-100 delay-150'
           }`}
         >
-          Sign out
+          {t('sidebar.signOut')}
         </span>
       </button>
     </div>
@@ -226,7 +228,7 @@ export default function Sidebar({
             <button
               onClick={() => setIsDesktopCollapsed(!isDesktopCollapsed)}
               className="hover:bg-card-border focus-visible:ring-primary flex w-full items-center justify-center rounded-md p-2 transition-colors focus-visible:ring-2 focus-visible:outline-none"
-              aria-label={isDesktopCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={isDesktopCollapsed ? t('sidebar.expand') : t('sidebar.collapse')}
             >
               {isDesktopCollapsed ? (
                 <ChevronRightIcon
@@ -258,7 +260,7 @@ export default function Sidebar({
             <button
               onClick={() => setIsOpen(false)}
               className="text-text-secondary hover:text-text-primary rounded-md focus:outline-none"
-              aria-label="Close sidebar"
+              aria-label={t('sidebar.close')}
             >
               <XMarkIcon className="h-6 w-6" aria-hidden="true" />
             </button>

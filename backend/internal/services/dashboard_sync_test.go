@@ -641,6 +641,40 @@ func TestSyncAppliesTheThemeSettings(t *testing.T) {
 	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
 }
 
+func TestSyncAppliesTheLanguage(t *testing.T) {
+	env := newTransferEnv(t)
+	language := func() *string {
+		t.Helper()
+		var code *string
+		require.NoError(t, env.db.QueryRow(`SELECT language FROM user_preferences WHERE user_id = ?`, transferAdmin).Scan(&code))
+		return code
+	}
+	doc := &dashdoc.Document{Version: dashdoc.Version, Preferences: &dashdoc.Preferences{ThemeMode: new("dark"), Language: new("")}}
+
+	// "" is what an export says for the browser's language: no change of
+	// its own
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	assert.Nil(t, language())
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+
+	// A change of the language alone is a change
+	doc.Preferences.Language = new("nl")
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	assert.Equal(t, new("nl"), language())
+	before := env.dump(t, transferAdmin)
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+	assert.Equal(t, before, env.dump(t, transferAdmin))
+
+	// Left out, it keeps the user's; "" goes back to the browser's
+	doc.Preferences.Language = nil
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+	assert.Equal(t, new("nl"), language())
+	doc.Preferences.Language = new("")
+	assert.True(t, env.sync(t, transferAdmin, doc, true).Preferences)
+	assert.Nil(t, language())
+	assertNothingChanged(t, env.sync(t, transferAdmin, doc, true))
+}
+
 func TestSyncRefusesCustomCSSWithoutQuotingIt(t *testing.T) {
 	env := newTransferEnv(t)
 	const file = "owner: admin@example.com\nversion: 1\npreferences:\n  theme_preset: nord\n  custom_css: \"@import url(https://evil.example/steal.css); .card { color: red; }\"\n"

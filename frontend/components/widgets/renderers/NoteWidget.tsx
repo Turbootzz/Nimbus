@@ -1,6 +1,7 @@
 'use client'
 
 import Markdown, { type Components } from 'react-markdown'
+import { useTranslations } from 'next-intl'
 import type { NoteWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 
@@ -33,8 +34,9 @@ export default function NoteWidget({
   config,
   openInNewTab,
 }: WidgetRendererProps<NoteWidgetConfig>) {
+  const t = useTranslations('widgets.note')
   if (!config.content.trim()) {
-    return <p className="text-text-muted text-sm">Empty note</p>
+    return <p className="text-text-muted text-sm">{t('empty')}</p>
   }
   return (
     <div className="text-text-primary text-sm">

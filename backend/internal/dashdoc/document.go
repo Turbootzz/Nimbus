@@ -205,6 +205,9 @@ type Preferences struct {
 	// CustomCSS is the user's own CSS, checked on import like a normal
 	// save (utils.ValidateCustomCSS); "" clears it
 	CustomCSS *string `json:"custom_css,omitempty"`
+	// Language is the interface language (en, nl, de, fr or es); "" follows
+	// the browser
+	Language *string `json:"language,omitempty"`
 }
 
 // StatusStrip is the row of KPI chips at the top of the dashboard

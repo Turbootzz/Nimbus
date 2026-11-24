@@ -1,10 +1,8 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import type { Group } from '@/types'
-
-const DEFAULT_MONITORING_DESCRIPTION =
-  "When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks"
 
 interface UseGroupMonitoringLockArgs {
   groups: Group[]
@@ -36,6 +34,7 @@ export function useGroupMonitoringLock({
   monitoringEnabled,
   setMonitoringEnabled,
 }: UseGroupMonitoringLockArgs): UseGroupMonitoringLockResult {
+  const t = useTranslations('dashboard.groups.monitoringLock')
   const selectedGroup = enableServiceGrouping
     ? groups.find((g) => g.id === selectedGroupId)
     : undefined
@@ -56,8 +55,8 @@ export function useGroupMonitoringLock({
   }, [groupMonitoringDisabled, monitoringEnabled])
 
   const monitoringDescription = groupMonitoringDisabled
-    ? `Monitoring is disabled for the "${selectedGroup?.name}" group, so services in it are never health-checked`
-    : DEFAULT_MONITORING_DESCRIPTION
+    ? t('groupDisabled', { name: selectedGroup.name })
+    : t('default')
 
   return { selectedGroup, groupMonitoringDisabled, monitoringDescription }
 }

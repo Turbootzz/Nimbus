@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useIntegrations } from '@/hooks/useIntegrations'
@@ -16,6 +17,7 @@ const selectClass =
   'bg-background border-card-border text-text-primary focus:ring-primary min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:ring-2 focus:outline-none'
 
 export default function StatusStripSettings() {
+  const t = useTranslations('settings.theme.statusStrip')
   const { statusStrip, setStatusStrip } = useTheme()
   const { integrations, kinds, isLoading, error } = useIntegrations()
   const [widgets, setWidgets] = useState<Widget[] | null>(null)
@@ -28,9 +30,10 @@ export default function StatusStripSettings() {
     })
   }, [])
 
+  const customApi = t('customApi')
   const byKey = useMemo(
-    () => chipOptions(integrations, kinds, widgets ?? []),
-    [integrations, kinds, widgets]
+    () => chipOptions(integrations, kinds, widgets ?? [], undefined, customApi),
+    [integrations, kinds, widgets, customApi]
   )
   const options = [...byKey.values()]
   // Until everything is loaded a saved chip would look removed
@@ -44,19 +47,17 @@ export default function StatusStripSettings() {
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
-      <h2 className="text-text-primary mb-2 text-xl font-semibold">Status Strip</h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        A row of key numbers at the top of the dashboard, with whether all services are up.
-      </p>
+      <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
       <Toggle
         id="status-strip-enabled"
         enabled={statusStrip.enabled}
         onChange={(enabled) => setStatusStrip({ ...statusStrip, enabled })}
-        label="Show the status strip"
+        label={t('show')}
       />
 
       {statusStrip.enabled && loading && (
-        <p className="text-text-muted mt-4 text-sm">Loading your integrations and widgets...</p>
+        <p className="text-text-muted mt-4 text-sm">{t('loading')}</p>
       )}
       {statusStrip.enabled && !loading && (
         <div className="mt-4 space-y-2">
@@ -64,7 +65,7 @@ export default function StatusStripSettings() {
             // Keyed by position: a changed chip keeps its row (and focus)
             <div key={index} className="flex items-center gap-2">
               <select
-                aria-label={`Number ${index + 1}`}
+                aria-label={t('number', { number: index + 1 })}
                 value={chipKey(chip)}
                 onChange={(e) => {
                   const next = byKey.get(e.target.value)
@@ -73,7 +74,7 @@ export default function StatusStripSettings() {
                 className={selectClass}
               >
                 {!byKey.has(chipKey(chip)) && (
-                  <option value={chipKey(chip)}>No longer available</option>
+                  <option value={chipKey(chip)}>{t('unavailable')}</option>
                 )}
                 {[byKey.get(chipKey(chip)), ...unused].flatMap((option) =>
                   option
@@ -89,7 +90,7 @@ export default function StatusStripSettings() {
                 type="button"
                 onClick={() => setChips(statusStrip.chips.filter((_, i) => i !== index))}
                 className="text-text-muted hover:text-error shrink-0 p-1 transition-colors"
-                aria-label={`Remove number ${index + 1}`}
+                aria-label={t('remove', { number: index + 1 })}
               >
                 <TrashIcon className="h-4 w-4" />
               </button>
@@ -102,15 +103,15 @@ export default function StatusStripSettings() {
               className="text-primary hover:text-primary-hover inline-flex items-center text-sm font-medium"
             >
               <PlusIcon className="mr-1 h-4 w-4" />
-              Add number
+              {t('add')}
             </button>
           )}
           <p className="text-text-muted text-xs">
             {loadError
-              ? `Could not load your integrations or widgets: ${loadError}`
+              ? t('loadError', { error: loadError })
               : options.length === 0
-                ? 'Add an integration or a custom API widget to pick numbers from.'
-                : 'Integrations show numbers once a service or widget uses them.'}
+                ? t('empty')
+                : t('hint')}
           </p>
         </div>
       )}

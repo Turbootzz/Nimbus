@@ -95,6 +95,7 @@ func setupPreferencesTestDB(t *testing.T) *sql.DB {
 			kpi_mono BOOLEAN NOT NULL DEFAULT 0,
 			icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
 			custom_css TEXT NOT NULL DEFAULT '',
+			language TEXT,
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL,
 			FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -1198,4 +1199,30 @@ func TestPreferencesRepository_StripIntegrations(t *testing.T) {
 	used, err = repo.StripIntegrations(ctx)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{"user-1", "user-2"}, used["i-1"])
+}
+
+func TestPreferencesRepository_Language(t *testing.T) {
+	db := setupPreferencesTestDB(t)
+	defer db.Close()
+	repo := NewPreferencesRepository(db)
+	ctx := context.Background()
+	language := func() *string {
+		t.Helper()
+		prefs, err := repo.GetByUserID(ctx, "user-1")
+		require.NoError(t, err)
+		return prefs.Language
+	}
+
+	// A new row follows the browser
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{ThemeMode: stringPtr("dark")}))
+	assert.Nil(t, language())
+
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{Language: nullableString("nl")}))
+	assert.Equal(t, stringPtr("nl"), language())
+
+	// Omitted keeps it, null clears it
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{ThemeMode: stringPtr("light")}))
+	assert.Equal(t, stringPtr("nl"), language())
+	require.NoError(t, repo.Upsert(ctx, "user-1", &models.PreferencesUpdateRequest{Language: nullableStringNull()}))
+	assert.Nil(t, language())
 }

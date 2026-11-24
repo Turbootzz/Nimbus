@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ArrowDownIcon, ArrowUpIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { refreshBoards, useBoards } from '@/hooks/useBoards'
@@ -38,6 +39,7 @@ export default function BoardManager() {
 }
 
 function BoardManagerDialog({ onClose }: { onClose: () => void }) {
+  const t = useTranslations('boards.manager')
   const router = useRouter()
   const { boards } = useBoards()
   const own = boards.filter((b) => b.owned)
@@ -124,14 +126,14 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
       >
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <h3 id="board-manager-title" className="text-text-primary text-lg font-semibold">
-            Boards
+            {t('title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             disabled={busy}
             className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -144,7 +146,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
             </p>
           )}
 
-          <ul className="space-y-2" aria-label="Your boards">
+          <ul className="space-y-2" aria-label={t('yourBoards')}>
             {own.map((board, index) => (
               <li key={board.id} className="border-card-border rounded-md border p-2">
                 <div className="flex items-center gap-1">
@@ -152,7 +154,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                     // A fresh field when the stored name changes
                     key={board.name}
                     defaultValue={board.name}
-                    aria-label={`Name of ${board.name}`}
+                    aria-label={t('nameOf', { name: board.name })}
                     maxLength={50}
                     disabled={busy}
                     onBlur={(e) => rename(board, e.target.value)}
@@ -166,7 +168,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                     className={iconButton}
                     onClick={() => move(index, -1)}
                     disabled={busy || index === 0}
-                    aria-label={`Move ${board.name} up`}
+                    aria-label={t('moveUp', { name: board.name })}
                   >
                     <ArrowUpIcon className="h-4 w-4" />
                   </button>
@@ -175,7 +177,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                     className={iconButton}
                     onClick={() => move(index, 1)}
                     disabled={busy || index === own.length - 1}
-                    aria-label={`Move ${board.name} down`}
+                    aria-label={t('moveDown', { name: board.name })}
                   >
                     <ArrowDownIcon className="h-4 w-4" />
                   </button>
@@ -185,14 +187,14 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                       className={`${iconButton} hover:text-error`}
                       onClick={() => setDeleting(board)}
                       disabled={busy}
-                      aria-label={`Delete ${board.name}`}
+                      aria-label={t('delete', { name: board.name })}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
                   )}
                 </div>
                 <p className="text-text-muted mt-1 px-1 text-xs">
-                  {board.is_default ? 'Default board, at /dashboard' : `/board/${board.slug}`}
+                  {board.is_default ? t('defaultBoard') : `/board/${board.slug}`}
                 </p>
                 {/* Only an admin shares; anyone can stop sharing their own */}
                 {!board.is_default && (isAdmin || board.is_shared) && (
@@ -205,7 +207,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                         run(() => api.updateBoard(board.id, { is_shared: !board.is_shared }))
                       }
                     />
-                    Shared with every user, read-only
+                    {t('shared')}
                   </label>
                 )}
               </li>
@@ -214,7 +216,7 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
 
           <form onSubmit={create} className="border-card-border space-y-2 border-t pt-4">
             <label htmlFor="new-board-name" className={labelClass}>
-              New board
+              {t('newBoard')}
             </label>
             <div className="flex gap-2">
               <input
@@ -222,13 +224,13 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={50}
-                placeholder="e.g. Family"
+                placeholder={t('namePlaceholder')}
                 disabled={busy}
                 autoFocus
                 className={`${inputClass} min-w-0 flex-1`}
               />
               <button type="submit" disabled={busy || !name.trim()} className={primaryButton}>
-                Create
+                {t('create')}
               </button>
             </div>
             {isAdmin && (
@@ -239,15 +241,10 @@ function BoardManagerDialog({ onClose }: { onClose: () => void }) {
                   onChange={(e) => setShare(e.target.checked)}
                   disabled={busy}
                 />
-                Share with every user, read-only
+                {t('share')}
               </label>
             )}
-            {isAdmin && (
-              <p className="text-text-muted text-xs">
-                Every user sees all tiles of a shared board, also admin-only widgets such as Docker
-                containers, system stats and custom API data.
-              </p>
-            )}
+            {isAdmin && <p className="text-text-muted text-xs">{t('shareHint')}</p>}
           </form>
         </div>
       </div>
@@ -282,6 +279,7 @@ function DeleteBoardDialog({
   onConfirm,
   onCancel,
 }: DeleteBoardDialogProps) {
+  const t = useTranslations('boards.deleteDialog')
   const dialogRef = useModalLayer(onCancel)
   const [keep, setKeep] = useState(true)
   const [moveTo, setMoveTo] = useState(fallback)
@@ -298,17 +296,15 @@ function DeleteBoardDialog({
         className="bg-card border-card-border relative z-10 w-full max-w-md space-y-4 rounded-lg border p-6 shadow-lg focus:outline-none"
       >
         <h3 id="delete-board-title" className="text-text-primary text-lg font-semibold">
-          Delete &ldquo;{board.name}&rdquo;?
+          {t('title', { name: board.name })}
         </h3>
         <fieldset className="space-y-2">
-          <legend className="text-text-secondary mb-2 text-sm">
-            Its services, widgets and groups:
-          </legend>
+          <legend className="text-text-secondary mb-2 text-sm">{t('tilesLegend')}</legend>
           <label className="text-text-primary flex items-center gap-2 text-sm">
             <input type="radio" name="board-tiles" checked={keep} onChange={() => setKeep(true)} />
-            Move them to
+            {t('moveTo')}
             <select
-              aria-label="Board to move them to"
+              aria-label={t('moveToLabel')}
               value={moveTo}
               onChange={(e) => setMoveTo(e.target.value)}
               disabled={!keep}
@@ -328,22 +324,20 @@ function DeleteBoardDialog({
               checked={!keep}
               onChange={() => setKeep(false)}
             />
-            Delete them with the board
+            {t('deleteTiles')}
           </label>
         </fieldset>
-        {!keep && (
-          <p className="text-error text-sm">This deletes them for good. It cannot be undone.</p>
-        )}
+        {!keep && <p className="text-error text-sm">{t('warning')}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onCancel} className={cancelButton}>
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
             onClick={() => onConfirm(keep ? moveTo : '')}
             className="bg-error hover:bg-error/80 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
-            Delete board
+            {t('confirm')}
           </button>
         </div>
       </div>

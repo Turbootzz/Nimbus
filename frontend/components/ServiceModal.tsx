@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import type { Service } from '@/types'
 import ServiceForm from '@/components/ServiceForm'
@@ -16,6 +17,7 @@ interface ServiceModalProps {
 
 // Edits a service in place on the dashboard; looks like WidgetModal
 export default function ServiceModal({ service, boardId, onClose, onSaved }: ServiceModalProps) {
+  const t = useTranslations('services.modal')
   const [isSaving, setIsSaving] = useState(false)
 
   // Esc closes, except while a save is running
@@ -39,13 +41,13 @@ export default function ServiceModal({ service, boardId, onClose, onSaved }: Ser
       >
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <h3 id="service-modal-title" className="text-text-primary text-lg font-semibold">
-            Edit Service
+            {t('title')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
             disabled={isSaving}
           >
             <XMarkIcon className="h-5 w-5" />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -12,19 +13,7 @@ import type { ApiError, ImportIssue, ImportMode, ImportSummary } from '@/types'
 // The server's body limit
 const MAX_FILE_BYTES = 10 * 1024 * 1024
 
-const modes: { value: ImportMode; label: string; description: string }[] = [
-  {
-    value: 'merge',
-    label: 'Merge',
-    description:
-      'Add the file to what you have. Your preferences stay as they are. Importing the same file twice adds everything twice.',
-  },
-  {
-    value: 'replace',
-    label: 'Replace',
-    description: 'Delete your current dashboard and use the file instead.',
-  },
-]
+const modes: ImportMode[] = ['merge', 'replace']
 
 const entities = ['groups', 'services', 'widgets', 'integrations'] as const
 
@@ -32,25 +21,22 @@ export function issuesOf(error: ApiError): ImportIssue[] {
   return Array.isArray(error.details) ? (error.details as ImportIssue[]) : []
 }
 
-function plural(count: number, noun: string) {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`
-}
+type ImportT = ReturnType<typeof useTranslations<'backup.import'>>
 
 // What a replace does to the public status page, which shows one group.
 // After an import the page may have failed to move too, so no cause is given.
-export function statusPageNote({
-  status_page: page,
-  dry_run: dryRun,
-}: ImportSummary): string | null {
+export function statusPageNote(
+  { status_page: page, dry_run: dryRun }: ImportSummary,
+  t: ImportT
+): string | null {
   if (!page) return null
-  if (page.kept) return `The public status page moves to the group “${page.group}” from the file.`
-  return dryRun
-    ? `The public status page goes offline: the file has no group “${page.group}”. Choose a group again under Settings → Admin Settings.`
-    : `The public status page is offline: it no longer shows the group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+  const key = page.kept ? 'statusPage.kept' : dryRun ? 'statusPage.offline' : 'statusPage.lost'
+  return t(key, { group: page.group })
 }
 
 // What an import does (or did), per kind of entity
 export function SummaryTable({ summary }: { summary: ImportSummary }) {
+  const t = useTranslations('backup.import')
   const replace = summary.mode === 'replace'
   return (
     <div className="overflow-x-auto">
@@ -58,14 +44,14 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
         <thead>
           <tr className="text-text-muted border-card-border border-b">
             <th scope="col" className="py-2 pr-4 font-medium">
-              {summary.dry_run ? 'This import will' : 'This import has'}
+              {summary.dry_run ? t('summary.willDo') : t('summary.hasDone')}
             </th>
             <th scope="col" className="py-2 pr-4 font-medium">
-              {summary.dry_run ? 'Add' : 'Added'}
+              {summary.dry_run ? t('summary.add') : t('summary.added')}
             </th>
             {replace && (
               <th scope="col" className="py-2 font-medium">
-                {summary.dry_run ? 'Delete' : 'Deleted'}
+                {summary.dry_run ? t('summary.delete') : t('summary.deleted')}
               </th>
             )}
           </tr>
@@ -74,7 +60,7 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
           {entities.map((entity) => (
             <tr key={entity} className="border-card-border border-b last:border-b-0">
               <th scope="row" className="text-text-primary py-2 pr-4 font-normal capitalize">
-                {entity}
+                {t(`summary.entities.${entity}`)}
               </th>
               <td className="text-text-primary py-2 pr-4">{summary[entity].created}</td>
               {replace && (
@@ -88,23 +74,14 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
       </table>
       <ul className="text-text-secondary mt-3 list-disc space-y-1 pl-5 text-sm">
         <li>
-          Preferences (theme, layout, wallpaper, status strip):{' '}
-          {summary.preferences ? 'taken from the file' : 'kept as they are'}
+          {summary.preferences ? t('summary.preferencesFromFile') : t('summary.preferencesKept')}
         </li>
         {summary.needs_credentials > 0 && (
-          <li>
-            {plural(summary.needs_credentials, 'integration')}{' '}
-            {summary.needs_credentials === 1 ? 'comes' : 'come'} without credentials. Enter them
-            under Settings → Integrations.
-          </li>
+          <li>{t('summary.needsCredentials', { count: summary.needs_credentials })}</li>
         )}
-        {summary.status_page && <li>{statusPageNote(summary)}</li>}
+        {summary.status_page && <li>{statusPageNote(summary, t)}</li>}
         {summary.needs_secrets > 0 && (
-          <li>
-            {plural(summary.needs_secrets, 'widget')}{' '}
-            {summary.needs_secrets === 1 ? 'needs its' : 'need their'} secrets (header values,
-            calendar addresses) entered again.
-          </li>
+          <li>{t('summary.needsSecrets', { count: summary.needs_secrets })}</li>
         )}
       </ul>
     </div>
@@ -112,6 +89,7 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
 }
 
 export default function DashboardImport() {
+  const t = useTranslations('backup.import')
   // Locked by a config file: only the preview works
   const configFile = useConfigFile()
   const readOnly = configFile?.read_only ?? false
@@ -139,7 +117,7 @@ export default function DashboardImport() {
   }, [confirming])
 
   const fail = (apiError?: ApiError) => {
-    setError(apiError?.message ?? 'The import failed')
+    setError(apiError?.message ?? t('failed'))
     setIssues(apiError ? issuesOf(apiError) : [])
   }
 
@@ -170,7 +148,7 @@ export default function DashboardImport() {
     setError(null)
     setIssues([])
     if (chosen.size > MAX_FILE_BYTES) {
-      setError('The file is too large. An export is at most 10 MB.')
+      setError(t('tooLarge'))
       return
     }
     setBusy(true)
@@ -180,7 +158,7 @@ export default function DashboardImport() {
     } catch {
       if (current !== request.current) return
       setBusy(false)
-      setError('The file could not be read')
+      setError(t('unreadable'))
       return
     }
     if (current !== request.current) return
@@ -219,17 +197,15 @@ export default function DashboardImport() {
 
   return (
     <section className="glass-card border-card-border rounded-lg border p-6">
-      <h2 className="text-text-primary mb-1 text-lg font-semibold">Import</h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        Load a file exported from Nimbus. You see what it does before anything changes.
-      </p>
+      <h2 className="text-text-primary mb-1 text-lg font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       <input
         ref={fileInput}
         type="file"
         accept="application/json,.json"
         className="hidden"
-        aria-label="Dashboard file"
+        aria-label={t('fileLabel')}
         onChange={(e) => chooseFile(e.target.files?.[0])}
       />
       <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -240,35 +216,39 @@ export default function DashboardImport() {
           className="border-card-border text-text-primary hover:bg-card-hover focus-visible:ring-primary inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowUpTrayIcon className="h-4 w-4" aria-hidden="true" />
-          Choose file
+          {t('chooseFile')}
         </button>
         <span className="text-text-secondary min-w-0 text-sm break-all">
-          {file ? file.name : 'No file chosen'}
+          {file ? file.name : t('noFile')}
         </span>
       </div>
 
       <fieldset className="mb-5">
-        <legend className="text-text-primary mb-2 text-sm font-medium">How to import</legend>
+        <legend className="text-text-primary mb-2 text-sm font-medium">{t('howToImport')}</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           {modes.map((option) => (
             <label
-              key={option.value}
+              key={option}
               className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors ${
-                mode === option.value ? 'border-primary bg-primary/5' : 'border-card-border'
+                mode === option ? 'border-primary bg-primary/5' : 'border-card-border'
               }`}
             >
               <input
                 type="radio"
                 name="import-mode"
-                value={option.value}
-                checked={mode === option.value}
-                onChange={() => chooseMode(option.value)}
+                value={option}
+                checked={mode === option}
+                onChange={() => chooseMode(option)}
                 disabled={busy}
                 className="accent-primary mt-1"
               />
               <span>
-                <span className="text-text-primary block text-sm font-medium">{option.label}</span>
-                <span className="text-text-secondary block text-sm">{option.description}</span>
+                <span className="text-text-primary block text-sm font-medium">
+                  {t(`modes.${option}.label`)}
+                </span>
+                <span className="text-text-secondary block text-sm">
+                  {t(`modes.${option}.description`)}
+                </span>
               </span>
             </label>
           ))}
@@ -276,7 +256,7 @@ export default function DashboardImport() {
       </fieldset>
 
       <div aria-live="polite">
-        {busy && <p className="text-text-secondary text-sm">Checking the file…</p>}
+        {busy && <p className="text-text-secondary text-sm">{t('checking')}</p>}
 
         {error && (
           <div
@@ -303,30 +283,20 @@ export default function DashboardImport() {
                 role="alert"
                 className="mb-4 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-500"
               >
-                <p className="font-medium">Replace deletes your current dashboard.</p>
-                <p>
-                  The groups, services and widgets on your default board and on the boards the file
-                  lists are deleted, with the status history of those services. So are your
-                  integrations and their saved credentials, except those that tiles on your other
-                  boards still use. Other boards stay as they are. Your preferences are overwritten.
-                  This cannot be undone. Export first to keep a way back; the export leaves out
-                  credentials, widget secrets and status history.
-                </p>
+                <p className="font-medium">{t('replaceWarning.title')}</p>
+                <p>{t('replaceWarning.body')}</p>
               </div>
             )}
             <SummaryTable summary={ready} />
             {ready.custom_css && (
               <div className="mt-4">
                 <h3 className="text-text-primary mb-1 text-sm font-medium">
-                  This file brings custom CSS (read it before you import)
+                  {t('customCss.title')}
                 </h3>
-                <p className="text-text-secondary mb-2 text-sm">
-                  It restyles every page behind the login. It cannot load anything from another
-                  site, but it can hide or change what you see.
-                </p>
+                <p className="text-text-secondary mb-2 text-sm">{t('customCss.description')}</p>
                 <pre
                   tabIndex={0}
-                  aria-label="Custom CSS in the file"
+                  aria-label={t('customCss.label')}
                   className="bg-background border-card-border text-text-primary max-h-48 overflow-auto rounded border p-2 font-mono text-xs whitespace-pre-wrap"
                 >
                   {ready.custom_css}
@@ -341,7 +311,7 @@ export default function DashboardImport() {
                 mode === 'replace' ? 'bg-error hover:bg-error/80' : 'bg-primary hover:bg-primary/90'
               }`}
             >
-              {mode === 'replace' ? 'Replace my dashboard' : 'Import'}
+              {mode === 'replace' ? t('replaceButton') : t('importButton')}
             </button>
             {readOnly && <ReadOnlyNote />}
           </>
@@ -349,14 +319,14 @@ export default function DashboardImport() {
 
         {result && (
           <div className="border-success/30 bg-success/10 rounded-lg border p-4">
-            <p className="text-text-primary mb-3 text-sm font-medium">Import finished.</p>
+            <p className="text-text-primary mb-3 text-sm font-medium">{t('finished')}</p>
             <SummaryTable summary={result} />
             {/* A full page load, so imported preferences are picked up */}
             <a
               href="/dashboard"
               className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
             >
-              Open the dashboard
+              {t('openDashboard')}
             </a>
           </div>
         )}
@@ -364,9 +334,9 @@ export default function DashboardImport() {
 
       {confirming && ready && (
         <ConfirmDialog
-          title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, with the credentials and status history they hold, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
-          confirmLabel="Replace"
+          title={t('confirm.title')}
+          message={`${t('confirm.message', { count: willDelete })} ${statusPageNote(ready, t) ?? ''}`.trim()}
+          confirmLabel={t('confirm.confirm')}
           onConfirm={apply}
           onCancel={() => setConfirming(false)}
         />

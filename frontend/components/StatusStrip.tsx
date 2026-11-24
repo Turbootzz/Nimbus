@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import type {
   Integration,
   IntegrationKindMeta,
@@ -35,9 +36,12 @@ export default function StatusStrip({
   up,
   down,
 }: StatusStripProps) {
+  const t = useTranslations('dashboard')
+  const locale = useLocale()
+  const untitledWidget = t('statusStrip.customApi')
   const options = useMemo(
-    () => chipOptions(integrations, kinds, widgets, snapshots),
-    [integrations, kinds, widgets, snapshots]
+    () => chipOptions(integrations, kinds, widgets, snapshots, untitledWidget),
+    [integrations, kinds, widgets, snapshots, untitledWidget]
   )
 
   const chips = strip.chips.flatMap((chip) => {
@@ -49,22 +53,22 @@ export default function StatusStrip({
     const value = kpis && Object.hasOwn(kpis, chip.kpi) ? kpis[chip.kpi] : undefined
     // Old data stays, muted, like on a KPI row
     const problem = snapshot?.error
-      ? `Last update failed: ${snapshot.error}`
+      ? t('kpis.lastUpdateFailed', { error: snapshot.error })
       : snapshot?.stale
-        ? 'This data may be out of date'
+        ? t('kpis.stale')
         : undefined
     return [
       {
         key: chipKey(chip),
         label: option.label,
-        value: formatKpiValue(value, option.unit),
+        value: formatKpiValue(value, option.unit, locale),
         problem,
       },
     ]
   })
 
   return (
-    <section aria-label="Status" className="mb-4 flex gap-2 overflow-x-auto pb-1">
+    <section aria-label={t('statusStrip.label')} className="mb-4 flex gap-2 overflow-x-auto pb-1">
       {up + down > 0 && (
         <span
           role="status"
@@ -76,7 +80,7 @@ export default function StatusStrip({
             className={`h-2 w-2 rounded-full ${down > 0 ? 'bg-error' : 'bg-success'}`}
             aria-hidden="true"
           />
-          {down > 0 ? `${down} down` : 'Operational'}
+          {down > 0 ? t('statusStrip.down', { count: down }) : t('statusStrip.operational')}
         </span>
       )}
       {chips.map((chip) => (

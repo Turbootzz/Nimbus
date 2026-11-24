@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { isValidUrl } from '@/lib/utils/url'
 import IconSelector from '@/components/IconSelector'
@@ -51,6 +52,7 @@ export default function ServiceForm({
   onCancel,
   onSavingChange,
 }: ServiceFormProps) {
+  const t = useTranslations('services.form')
   const isEdit = !!service
   const isModal = variant === 'modal'
   const { enableServiceGrouping } = useTheme()
@@ -102,7 +104,7 @@ export default function ServiceForm({
         const response = await api.getGroups(service?.board_id ?? boardId)
         if (stale) return
         if (response.error) {
-          setError(`Failed to load groups: ${response.error.message}`)
+          setError(t('errors.loadGroups', { message: response.error.message }))
           return
         }
         if (response.data) {
@@ -120,7 +122,7 @@ export default function ServiceForm({
         }
       } catch (error) {
         console.error('Failed to fetch groups:', error)
-        if (!stale) setError('Failed to load groups. Please try again.')
+        if (!stale) setError(t('errors.loadGroupsRetry'))
       } finally {
         if (!stale) setGroupsLoading(false)
       }
@@ -130,7 +132,7 @@ export default function ServiceForm({
     return () => {
       stale = true
     }
-  }, [enableServiceGrouping, initialGroupId, isEdit, boardId, service?.board_id])
+  }, [enableServiceGrouping, initialGroupId, isEdit, boardId, service?.board_id, t])
 
   const setSaving = (next: boolean) => {
     setIsSaving(next)
@@ -142,15 +144,15 @@ export default function ServiceForm({
     setError('')
 
     if (!formData.name.trim()) {
-      setError('Service name is required')
+      setError(t('errors.nameRequired'))
       return
     }
     if (!formData.url.trim()) {
-      setError('Service URL is required')
+      setError(t('errors.urlRequired'))
       return
     }
     if (!isValidUrl(formData.url)) {
-      setError('Please enter a valid URL (e.g., https://example.com)')
+      setError(t('errors.invalidUrl'))
       return
     }
 
@@ -161,7 +163,7 @@ export default function ServiceForm({
       if (formData.icon_type === 'image_upload' && uploadedFile) {
         const uploadResponse = await api.uploadServiceIcon(uploadedFile)
         if (uploadResponse.error) {
-          setError(`Image upload failed: ${uploadResponse.error.message}`)
+          setError(t('errors.uploadFailed', { message: uploadResponse.error.message }))
           return
         }
         iconImagePath = uploadResponse.data?.icon_image_path || ''
@@ -193,15 +195,16 @@ export default function ServiceForm({
           })
 
       if (response.error || !response.data) {
-        setError(response.error?.message || 'Unable to save service. Please try again.')
+        setError(response.error?.message || t('errors.saveFailed'))
         return
       }
       onSaved(response.data)
     } catch (error) {
       console.error('Failed to save service:', error)
-      const action = isEdit ? 'update' : 'create'
       setError(
-        error instanceof Error ? error.message : `Unable to ${action} service. Please try again.`
+        error instanceof Error
+          ? error.message
+          : t(isEdit ? 'errors.updateFailed' : 'errors.createFailed')
       )
     } finally {
       setSaving(false)
@@ -215,11 +218,11 @@ export default function ServiceForm({
 
   const submitLabel = isEdit
     ? isSaving
-      ? 'Saving...'
-      : 'Save Changes'
+      ? t('saving')
+      : t('saveChanges')
     : isSaving
-      ? 'Creating...'
-      : 'Create Service'
+      ? t('creating')
+      : t('create')
 
   return (
     <>
@@ -244,7 +247,7 @@ export default function ServiceForm({
           {/* Service Name */}
           <div>
             <label htmlFor="name" className={labelClass}>
-              Service Name <span className="text-error">*</span>
+              {t('name')} <span className="text-error">*</span>
             </label>
             <input
               type="text"
@@ -253,7 +256,7 @@ export default function ServiceForm({
               value={formData.name}
               onChange={handleChange}
               className={inputClass}
-              placeholder="e.g., Plex Media Server"
+              placeholder={t('namePlaceholder')}
               required
               disabled={isSaving}
               autoFocus={isModal}
@@ -263,7 +266,7 @@ export default function ServiceForm({
           {/* Service URL */}
           <div>
             <label htmlFor="url" className={labelClass}>
-              Service URL <span className="text-error">*</span>
+              {t('url')} <span className="text-error">*</span>
             </label>
             <input
               type="url"
@@ -276,9 +279,7 @@ export default function ServiceForm({
               required
               disabled={isSaving}
             />
-            <p className="text-text-muted mt-1 text-xs">
-              The URL where your service can be accessed
-            </p>
+            <p className="text-text-muted mt-1 text-xs">{t('urlHint')}</p>
           </div>
 
           {/* Service Icon */}
@@ -332,7 +333,7 @@ export default function ServiceForm({
           {/* Service Description */}
           <div>
             <label htmlFor="description" className={labelClass}>
-              Description
+              {t('description')}
             </label>
             <textarea
               id="description"
@@ -341,7 +342,7 @@ export default function ServiceForm({
               onChange={handleChange}
               rows={3}
               className={inputClass}
-              placeholder="Brief description of what this service does"
+              placeholder={t('descriptionPlaceholder')}
               disabled={isSaving}
             />
           </div>
@@ -353,7 +354,7 @@ export default function ServiceForm({
             onChange={(enabled) =>
               setFormData((prev) => ({ ...prev, monitoring_enabled: enabled }))
             }
-            label="Enable Monitoring"
+            label={t('monitoring')}
             description={monitoringDescription}
             disabled={isSaving || groupMonitoringDisabled}
           />
@@ -367,11 +368,11 @@ export default function ServiceForm({
         >
           {cancelHref ? (
             <Link href={cancelHref} className={cancelClass}>
-              Cancel
+              {t('cancel')}
             </Link>
           ) : (
             <button type="button" onClick={onCancel} disabled={isSaving} className={cancelClass}>
-              Cancel
+              {t('cancel')}
             </button>
           )}
           <button

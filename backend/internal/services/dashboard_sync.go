@@ -770,6 +770,9 @@ func withPreferences(p models.UserPreferences, request *models.PreferencesUpdate
 	if request.ThemeAccentColor.IsSet() {
 		p.ThemeAccentColor = request.ThemeAccentColor.Value
 	}
+	if request.Language.IsSet() {
+		p.Language = request.Language.Value
+	}
 	return &p
 }
 

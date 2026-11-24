@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
@@ -28,23 +29,25 @@ function readPrefill(): DiscoveredIntegration | null {
 }
 
 function StatusBadge({ integration }: { integration: Integration }) {
+  const t = useTranslations('integrations.page.status')
   // An imported integration: the file never carries credentials
   if (integration.auth_type !== 'none' && !integration.has_credentials) {
-    return <span className="text-warning text-xs">Needs credentials: edit to enter them</span>
+    return <span className="text-warning text-xs">{t('needsCredentials')}</span>
   }
   if (integration.last_test_ok === null) {
-    return <span className="text-text-muted text-xs">Not tested</span>
+    return <span className="text-text-muted text-xs">{t('notTested')}</span>
   }
   return integration.last_test_ok ? (
-    <span className="text-success text-xs">Connected</span>
+    <span className="text-success text-xs">{t('connected')}</span>
   ) : (
     <span className="text-error text-xs" title={integration.last_error ?? undefined}>
-      Failed{integration.last_error ? `: ${integration.last_error}` : ''}
+      {integration.last_error ? t('failedWith', { error: integration.last_error }) : t('failed')}
     </span>
   )
 }
 
 export default function IntegrationsPage() {
+  const t = useTranslations('integrations.page')
   // Locked by a config file, or not known yet: integrations can be tested, not changed
   const readOnly = !canEdit(useConfigFile())
   const { integrations, setIntegrations, kinds, isLoading, error } = useIntegrations()
@@ -87,7 +90,7 @@ export default function IntegrationsPage() {
     try {
       const response = await api.testSavedIntegration(integration.id)
       if (response.error || !response.data) {
-        setActionError(response.error?.message || 'Test failed')
+        setActionError(response.error?.message || t('testFailed'))
         return
       }
       const result = response.data
@@ -132,13 +135,15 @@ export default function IntegrationsPage() {
     <div className="max-w-4xl p-4 sm:p-6">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="wallpaper-panel">
-          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Integrations</h1>
+          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">{t('title')}</h1>
           <p className="text-text-secondary text-sm sm:text-base">
-            Connect Nimbus to your apps. Link an integration to a service on its{' '}
-            <Link href="/services" className="text-primary underline">
-              edit page
-            </Link>{' '}
-            to show live numbers on the tile.
+            {t.rich('description', {
+              link: (chunks) => (
+                <Link href="/services" className="text-primary underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         </div>
         {kinds.length > 0 && !readOnly && (
@@ -150,7 +155,7 @@ export default function IntegrationsPage() {
             className="bg-primary hover:bg-primary-hover inline-flex shrink-0 items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             <PlusIcon className="mr-2 h-4 w-4" />
-            Add Integration
+            {t('add')}
           </button>
         )}
       </div>
@@ -163,11 +168,11 @@ export default function IntegrationsPage() {
 
       {integrations.length === 0 ? (
         <div className="glass-card border-card-border rounded-lg border p-8 text-center">
-          <p className="text-text-primary mb-1 font-medium">No integrations yet</p>
+          <p className="text-text-primary mb-1 font-medium">{t('emptyTitle')}</p>
           <p className="text-text-secondary text-sm">
             {kinds.length > 0
-              ? `Supported apps: ${kinds.map((k) => k.name).join(', ')}.`
-              : 'This server has no integrations available.'}
+              ? t('supportedApps', { apps: kinds.map((k) => k.name).join(', ') })
+              : t('noneAvailable')}
           </p>
         </div>
       ) : (
@@ -193,7 +198,7 @@ export default function IntegrationsPage() {
                   disabled={testingId === integration.id}
                   className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
                 >
-                  {testingId === integration.id ? 'Testing...' : 'Test'}
+                  {testingId === integration.id ? t('testing') : t('test')}
                 </button>
                 {!readOnly && (
                   <>
@@ -204,13 +209,13 @@ export default function IntegrationsPage() {
                       }}
                       className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
                     >
-                      Edit
+                      {t('edit')}
                     </button>
                     <button
                       onClick={() => setDeleting(integration)}
                       className="text-error hover:bg-error/10 rounded-md px-3 py-1.5 text-sm transition-colors"
                     >
-                      Delete
+                      {t('delete')}
                     </button>
                   </>
                 )}
@@ -232,9 +237,9 @@ export default function IntegrationsPage() {
 
       {deleting && (
         <ConfirmDialog
-          title="Delete Integration"
-          message={`Delete "${deleting.name}"? Services linked to it lose their live numbers.`}
-          confirmLabel="Delete"
+          title={t('deleteTitle')}
+          message={t('deleteMessage', { name: deleting.name })}
+          confirmLabel={t('delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

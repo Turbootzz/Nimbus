@@ -66,7 +66,7 @@ const transferTestSchema = `
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
 		theme_preset TEXT NOT NULL DEFAULT 'default', theme_font TEXT NOT NULL DEFAULT 'default',
 		kpi_mono BOOLEAN NOT NULL DEFAULT 0, icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
-		custom_css TEXT NOT NULL DEFAULT '',
+		custom_css TEXT NOT NULL DEFAULT '', language TEXT,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
 	INSERT INTO users (id) VALUES ('dddddddd-dddd-dddd-dddd-ddddddddddd1'), ('dddddddd-dddd-dddd-dddd-ddddddddddd2');
@@ -170,6 +170,7 @@ func transferTestDocument() string {
 			"theme_mode": "dark",
 			"group_display": "sections",
 			"theme_preset": "nord",
+			"language": "fr",
 			"custom_css": ".glass-card { border-radius: 0 }",
 			"wallpaper_data": "` + image + `",
 			"status_strip": {"enabled": true, "chips": [{"source": "integration", "ref": "sonarr", "kpi": "queued"}]}
@@ -216,6 +217,7 @@ func TestTransfer_ImportExportRoundTrip(t *testing.T) {
 	assert.Contains(t, string(first), `"tile_style":"chips"`)
 	assert.Contains(t, string(first), `"group_display":"sections"`)
 	assert.Contains(t, string(first), `"theme_preset":"nord"`)
+	assert.Contains(t, string(first), `"language":"fr"`)
 	assert.Contains(t, string(first), `"custom_css":".glass-card { border-radius: 0 }"`)
 
 	// Importing the export replaces the dashboard by an identical one

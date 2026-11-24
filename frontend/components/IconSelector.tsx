@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, ChangeEvent } from 'react'
+import { useTranslations } from 'next-intl'
 import type { IconType } from '@/types'
 import { api } from '@/lib/api'
 import { getApiUrl } from '@/lib/utils/api-url'
@@ -40,6 +41,7 @@ export default function IconSelector({
   onIconImagePathChange,
   onFileSelect,
 }: IconSelectorProps) {
+  const t = useTranslations('services.iconSelector')
   const [previewUrl, setPreviewUrl] = useState<string>('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [autoFetching, setAutoFetching] = useState(false)
@@ -62,9 +64,7 @@ export default function IconSelector({
         url: hasUsableUrl ? serviceUrl : undefined,
       })
       if (response.error || !response.data?.icon_image_path) {
-        setAutoFetchError(
-          response.error?.message || "Couldn't find an icon — try uploading manually"
-        )
+        setAutoFetchError(response.error?.message || t('notFound'))
         return
       }
       // Switch into image_upload mode pointing at the fetched-and-stored file.
@@ -78,7 +78,7 @@ export default function IconSelector({
         fileInputRef.current.value = ''
       }
     } catch (err) {
-      setAutoFetchError(err instanceof Error ? err.message : 'Failed to fetch icon')
+      setAutoFetchError(err instanceof Error ? err.message : t('fetchFailed'))
     } finally {
       setAutoFetching(false)
     }
@@ -112,12 +112,12 @@ export default function IconSelector({
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        alert(t('notAnImage'))
         return
       }
       // Validate file size (512KB)
       if (file.size > 512 * 1024) {
-        alert('Image must be less than 512KB')
+        alert(t('tooLarge'))
         return
       }
       // Create preview
@@ -145,7 +145,9 @@ export default function IconSelector({
     <div className="space-y-4">
       {/* Mode selector + Fetch favicon shortcut */}
       <div>
-        <label className="text-text-secondary mb-2 block text-sm font-medium">Icon Type</label>
+        <label className="text-text-secondary mb-2 block text-sm font-medium">
+          {t('iconType')}
+        </label>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -156,7 +158,7 @@ export default function IconSelector({
                 : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
             }`}
           >
-            Emoji
+            {t('emoji')}
           </button>
           <button
             type="button"
@@ -167,7 +169,7 @@ export default function IconSelector({
                 : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
             }`}
           >
-            Upload Image
+            {t('uploadImage')}
           </button>
           <button
             type="button"
@@ -178,21 +180,17 @@ export default function IconSelector({
                 : 'bg-background border-card-border text-text-primary hover:border-primary border-2'
             }`}
           >
-            Image URL
+            {t('imageUrl')}
           </button>
           <button
             type="button"
             onClick={handleAutoFetchIcon}
             disabled={!canAutoFetch || autoFetching}
             aria-busy={autoFetching}
-            title={
-              canAutoFetch
-                ? 'Look up a curated icon by service name, falling back to the site favicon'
-                : 'Enter a service name or URL first'
-            }
+            title={canAutoFetch ? t('autoFetchHint') : t('autoFetchNeedsInput')}
             className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {autoFetching ? 'Finding icon...' : 'Auto-fetch icon'}
+            {autoFetching ? t('autoFetching') : t('autoFetch')}
           </button>
         </div>
         {autoFetchError && (
@@ -206,7 +204,7 @@ export default function IconSelector({
       {iconType === 'emoji' && (
         <div>
           <label htmlFor="icon" className="text-text-secondary mb-1 block text-sm font-medium">
-            Icon (Emoji)
+            {t('emojiLabel')}
           </label>
           <div className="flex gap-2">
             <input
@@ -224,15 +222,13 @@ export default function IconSelector({
               onClick={() => setShowEmojiPicker(true)}
               className="bg-primary hover:bg-primary-hover rounded-md px-4 py-2 text-sm font-medium whitespace-nowrap text-white transition-colors"
             >
-              Pick Emoji
+              {t('pickEmoji')}
             </button>
           </div>
-          <p className="text-text-muted mt-1 text-sm">
-            Click &quot;Pick Emoji&quot; or paste an emoji (letters and numbers are not allowed)
-          </p>
+          <p className="text-text-muted mt-1 text-sm">{t('emojiHint')}</p>
           {icon && (
             <div className="mt-2 flex items-center gap-2">
-              <span className="text-text-secondary text-sm">Preview:</span>
+              <span className="text-text-secondary text-sm">{t('preview')}</span>
               <span className="text-5xl">{icon}</span>
             </div>
           )}
@@ -254,7 +250,7 @@ export default function IconSelector({
             htmlFor="icon-upload"
             className="text-text-secondary mb-1 block text-sm font-medium"
           >
-            Upload Icon Image
+            {t('uploadLabel')}
           </label>
           <input
             ref={fileInputRef}
@@ -264,18 +260,16 @@ export default function IconSelector({
             onChange={handleFileChange}
             className="border-card-border bg-background text-text-primary focus:ring-primary file:bg-primary file:hover:bg-primary-hover w-full rounded-md border px-4 py-2 file:mr-4 file:rounded-md file:border-0 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white focus:ring-2 focus:outline-none"
           />
-          <p className="text-text-muted mt-1 text-sm">
-            Max size: 512KB. Formats: JPG, PNG, GIF, WEBP
-          </p>
+          <p className="text-text-muted mt-1 text-sm">{t('uploadHint')}</p>
           {(previewUrl || iconImagePath) && (
             <div className="mt-3">
               <div className="flex items-center gap-3">
-                <span className="text-text-secondary text-sm">Preview:</span>
+                <span className="text-text-secondary text-sm">{t('preview')}</span>
                 {/* Using <img> for blob URLs (temporary preview) - Next.js Image doesn't support blob: protocol */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={previewUrl || `${getApiUrl()}/uploads/service-icons/${iconImagePath}`}
-                  alt="Icon preview"
+                  alt={t('previewAlt')}
                   className="border-card-border h-16 w-16 rounded border object-contain"
                   onError={(e) => {
                     e.currentTarget.src =
@@ -291,7 +285,7 @@ export default function IconSelector({
                     color: 'var(--color-error)',
                   }}
                 >
-                  Remove
+                  {t('remove')}
                 </button>
               </div>
             </div>
@@ -303,7 +297,7 @@ export default function IconSelector({
       {iconType === 'image_url' && (
         <div>
           <label htmlFor="icon-url" className="text-text-secondary mb-1 block text-sm font-medium">
-            Image URL
+            {t('imageUrl')}
           </label>
           <input
             type="url"
@@ -314,18 +308,16 @@ export default function IconSelector({
             placeholder="https://example.com/icon.png"
             className="border-card-border bg-background text-text-primary focus:ring-primary w-full rounded-md border px-4 py-2 focus:ring-2 focus:outline-none"
           />
-          <p className="text-text-muted mt-1 text-sm">
-            Enter the URL of an image to use as your service icon
-          </p>
+          <p className="text-text-muted mt-1 text-sm">{t('urlHint')}</p>
           {iconImagePath && (
             <div className="mt-3">
               <div className="flex items-center gap-3">
-                <span className="text-text-secondary text-sm">Preview:</span>
+                <span className="text-text-secondary text-sm">{t('preview')}</span>
                 {/* Using <img> for user-provided URL preview with error fallback */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={iconImagePath}
-                  alt="Icon preview"
+                  alt={t('previewAlt')}
                   className="border-card-border h-16 w-16 rounded border object-contain"
                   onError={(e) => {
                     e.currentTarget.src =

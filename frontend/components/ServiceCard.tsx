@@ -1,6 +1,7 @@
 'use client'
 
 import type { AnchorHTMLAttributes, ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
 import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
@@ -46,6 +47,7 @@ export default function ServiceCard({
   isMonitored,
   kpis,
 }: ServiceCardProps) {
+  const t = useTranslations('services')
   const monitored = isMonitored ?? service.monitoring_enabled
   // When card resizing is disabled, always use 2x1
   const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
@@ -78,7 +80,7 @@ export default function ServiceCard({
         onEdit(service)
       }}
       className={overlayActionClass}
-      aria-label={`Edit ${service.name}`}
+      aria-label={t('tile.edit', { name: service.name })}
     >
       <PencilIcon className="h-4 w-4" />
     </button>
@@ -235,6 +237,7 @@ function StandardCard({
   monitored,
   kpis,
 }: CardVariantProps) {
+  const t = useTranslations('services')
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].standard
   const titleSize = scaleText[cardScale].title
@@ -265,10 +268,10 @@ function StandardCard({
         {monitored ? (
           <div className={`flex items-center ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
-            <span className="ml-1 text-sm capitalize">{service.status}</span>
+            <span className="ml-1 text-sm capitalize">{t(`status.${service.status}`)}</span>
           </div>
         ) : (
-          <span className="text-text-muted text-xs">Not monitored</span>
+          <span className="text-text-muted text-xs">{t('tile.notMonitored')}</span>
         )}
       </div>
 
@@ -331,6 +334,7 @@ function LargeCard({
   monitored,
   kpis,
 }: CardVariantProps) {
+  const t = useTranslations('services')
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].large
   const largeTitleSizes: Record<CardScale, string> = {
@@ -364,10 +368,10 @@ function LargeCard({
         {monitored ? (
           <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
-            <span className="ml-1 capitalize">{service.status}</span>
+            <span className="ml-1 capitalize">{t(`status.${service.status}`)}</span>
           </div>
         ) : (
-          <span className="text-text-muted text-xs">Not monitored</span>
+          <span className="text-text-muted text-xs">{t('tile.notMonitored')}</span>
         )}
       </div>
 

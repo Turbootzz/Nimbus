@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import {
   PlusIcon,
   PencilIcon,
@@ -49,7 +50,8 @@ export default function DashboardHeader({
   readOnly = false,
   readOnlyNote,
 }: DashboardHeaderProps) {
-  const note = readOnlyNote === undefined ? 'Read-only: managed by config file' : readOnlyNote
+  const t = useTranslations('dashboard.header')
+  const note = readOnlyNote === undefined ? t('readOnlyConfig') : readOnlyNote
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
@@ -83,7 +85,7 @@ export default function DashboardHeader({
               className="bg-success hover:bg-success/80 inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
             >
               <CheckIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Done</span>
+              <span className="hidden sm:inline">{t('done')}</span>
             </button>
           ) : (
             <button
@@ -91,7 +93,7 @@ export default function DashboardHeader({
               className="border-card-border text-text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
             >
               <PencilIcon className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Edit</span>
+              <span className="hidden sm:inline">{t('edit')}</span>
             </button>
           )}
           <button
@@ -99,14 +101,14 @@ export default function DashboardHeader({
             className="border-card-border text-text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover inline-flex items-center rounded-md border px-3 py-2 text-sm font-medium transition-colors sm:px-4"
           >
             <Squares2X2Icon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Widget</span>
+            <span className="hidden sm:inline">{t('addWidget')}</span>
           </button>
           <Link
             href={addServiceHref}
             className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-3 py-2 text-sm font-medium text-white transition-colors sm:px-4"
           >
             <PlusIcon className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Add Service</span>
+            <span className="hidden sm:inline">{t('addService')}</span>
           </Link>
         </div>
       )}

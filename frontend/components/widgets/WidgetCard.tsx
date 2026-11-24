@@ -6,6 +6,7 @@ import {
   PencilIcon,
   TrashIcon,
 } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import type { CardScale, CardSize, Snapshot, Widget, WidgetTypeMeta } from '@/types'
 import { getNextAllowedSize, sizeToGridSpan } from '@/lib/card-utils'
 import EditOverlay, { overlayActionClass as actionClass } from '@/components/EditOverlay'
@@ -44,6 +45,7 @@ export default function WidgetCard({
   onDelete,
   onRefresh,
 }: WidgetCardProps) {
+  const t = useTranslations('widgets.card')
   const definition = getWidgetDefinition(widget.type)
   const allowedSizes = meta?.allowed_sizes ?? [widget.card_size]
   const canResize = enableCardResizing && allowedSizes.length > 1
@@ -68,8 +70,8 @@ export default function WidgetCard({
   const warning =
     polled && hasPayload && (snapshot?.error || snapshot?.stale)
       ? snapshot?.error
-        ? `Last update failed: ${snapshot.error}`
-        : 'This data may be out of date'
+        ? t('updateFailed', { error: snapshot.error })
+        : t('outOfDate')
       : null
 
   const actions = (
@@ -82,7 +84,7 @@ export default function WidgetCard({
             onRefresh(widget)
           }}
           className={actionClass}
-          aria-label="Refresh widget"
+          aria-label={t('refresh')}
         >
           <ArrowPathIcon className="h-4 w-4" />
         </button>
@@ -95,7 +97,7 @@ export default function WidgetCard({
             onEdit(widget)
           }}
           className={actionClass}
-          aria-label="Edit widget"
+          aria-label={t('edit')}
         >
           <PencilIcon className="h-4 w-4" />
         </button>
@@ -108,7 +110,7 @@ export default function WidgetCard({
             onDelete(widget)
           }}
           className={`${actionClass} hover:text-error`}
-          aria-label="Delete widget"
+          aria-label={t('delete')}
         >
           <TrashIcon className="h-4 w-4" />
         </button>
@@ -150,10 +152,10 @@ export default function WidgetCard({
           <div className="absolute inset-0 overflow-auto">
             {definition && polled && !hasPayload ? (
               snapshot?.error ? (
-                <p className="text-error text-sm">Could not load: {snapshot.error}</p>
+                <p className="text-error text-sm">{t('loadFailed', { error: snapshot.error })}</p>
               ) : (
                 <div className="bg-background h-full min-h-12 animate-pulse rounded" role="status">
-                  <span className="sr-only">Loading</span>
+                  <span className="sr-only">{t('loading')}</span>
                 </div>
               )
             ) : definition ? (
@@ -165,9 +167,7 @@ export default function WidgetCard({
                 snapshot={snapshot}
               />
             ) : (
-              <p className="text-text-muted text-sm">
-                This widget type ({widget.type}) is not supported by this version of Nimbus.
-              </p>
+              <p className="text-text-muted text-sm">{t('unsupported', { type: widget.type })}</p>
             )}
           </div>
         </div>

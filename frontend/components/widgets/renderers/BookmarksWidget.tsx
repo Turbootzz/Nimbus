@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useTranslations } from 'next-intl'
 import type { Bookmark, BookmarksWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 
@@ -31,8 +32,9 @@ export default function BookmarksWidget({
   config,
   openInNewTab,
 }: WidgetRendererProps<BookmarksWidgetConfig>) {
+  const t = useTranslations('widgets.bookmarks')
   if (config.items.length === 0) {
-    return <p className="text-text-muted text-sm">No bookmarks yet</p>
+    return <p className="text-text-muted text-sm">{t('empty')}</p>
   }
   return (
     <ul className="space-y-0.5">

@@ -1,22 +1,21 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { themePresets } from '@/lib/theme-presets'
 
 const dots = ['bg-primary', 'bg-success', 'bg-warning', 'bg-error', 'bg-info']
 
 export default function ThemeGallery() {
+  const t = useTranslations('settings.theme.gallery')
   const { preset, setPreset } = useTheme()
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
       <h2 id="theme-gallery-title" className="text-text-primary mb-2 text-xl font-semibold">
-        Theme
+        {t('title')}
       </h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        A theme sets every colour, light or dark, and its own accent. You can still pick another
-        accent colour on top. Choosing a mode the theme doesn&apos;t have goes back to Default.
-      </p>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       <div
         role="group"
@@ -38,7 +37,7 @@ export default function ThemeGallery() {
               <span data-preset={option.id} className="bg-background block rounded-md p-2">
                 <span className="bg-card border-card-border block rounded border p-2">
                   <span className="text-text-primary block text-xs font-semibold">Aa</span>
-                  <span className="text-text-muted block text-[10px]">Muted</span>
+                  <span className="text-text-muted block text-[10px]">{t('muted')}</span>
                   <span className="mt-1.5 flex gap-1">
                     {dots.map((dot) => (
                       <span key={dot} className={`${dot} h-2.5 w-2.5 rounded-full`} />
@@ -54,14 +53,10 @@ export default function ThemeGallery() {
               />
             )}
             <span className="text-text-primary mt-1.5 block truncate text-xs font-medium">
-              {option.name}
+              {option.id === 'default' ? t('default') : option.name}
             </span>
             <span className="text-text-muted block text-[10px]">
-              {option.mode === 'dark'
-                ? 'Dark'
-                : option.mode === 'light'
-                  ? 'Light'
-                  : 'Light or dark'}
+              {option.mode ? t(option.mode) : t('lightOrDark')}
             </span>
           </button>
         ))}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import type { OAuthProvider } from '@/types'
 import { api } from '@/lib/api'
 import GoogleIcon from './icons/GoogleIcon'
@@ -56,6 +57,7 @@ export default function OAuthButton({
   rememberMe,
   className = '',
 }: OAuthButtonProps) {
+  const t = useTranslations('auth.oauth')
   const [isLoading, setIsLoading] = useState(false)
   const config = providerConfig[provider]
   const Icon = config.icon
@@ -75,7 +77,7 @@ export default function OAuthButton({
       <span className="flex items-center">
         <Icon className={config.iconSize} />
       </span>
-      <span>{isLoading ? 'Connecting...' : `Continue with ${config.name}`}</span>
+      <span>{isLoading ? t('connecting') : t('continueWith', { provider: config.name })}</span>
     </button>
   )
 }

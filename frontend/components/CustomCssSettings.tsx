@@ -1,12 +1,15 @@
 'use client'
 
 import { useState, useSyncExternalStore } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { MAX_CUSTOM_CSS_BYTES, safeMode } from '@/lib/custom-css'
 
 const noSubscription = () => () => {}
 
 export default function CustomCssSettings() {
+  const t = useTranslations('settings.theme.customCss')
+  const locale = useLocale()
   const { customCss, saveTheme } = useTheme()
   // Null until the user types: the field then follows what is stored
   const [draft, setDraft] = useState<string | null>(null)
@@ -22,6 +25,11 @@ export default function CustomCssSettings() {
   const value = draft ?? customCss
   const bytes = new TextEncoder().encode(value).length
   const tooLarge = bytes > MAX_CUSTOM_CSS_BYTES
+  const usedKb = (bytes / 1024).toLocaleString(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+    useGrouping: false,
+  })
 
   const save = async () => {
     const saved = value
@@ -35,22 +43,20 @@ export default function CustomCssSettings() {
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
-      <h2 className="text-text-primary mb-2 text-xl font-semibold">Custom CSS</h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        Your own CSS on top of the theme. It only applies to you, on the pages behind the login.
-      </p>
+      <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       {inSafeMode && (
         <p
           role="status"
           className="border-warning text-text-primary mb-4 rounded-lg border p-3 text-sm"
         >
-          Safe mode: your custom CSS is off until you reload without <code>?safe=1</code>.
+          {t.rich('safeMode', { code: (chunks) => <code>{chunks}</code> })}
         </p>
       )}
 
       <label htmlFor="custom-css" className="sr-only">
-        Custom CSS
+        {t('title')}
       </label>
       <textarea
         id="custom-css"
@@ -64,7 +70,7 @@ export default function CustomCssSettings() {
       />
       <div className="mt-2 flex items-center justify-between gap-4">
         <span className={`text-xs ${tooLarge ? 'text-error' : 'text-text-muted'}`}>
-          {(bytes / 1024).toFixed(1)} / {MAX_CUSTOM_CSS_BYTES / 1024} KB
+          {usedKb} / {MAX_CUSTOM_CSS_BYTES / 1024} KB
         </span>
         <button
           type="button"
@@ -72,7 +78,7 @@ export default function CustomCssSettings() {
           disabled={saving || tooLarge || draft === null || draft === customCss}
           className="bg-primary hover:bg-primary-hover rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:opacity-50"
         >
-          {saving ? 'Saving...' : 'Save CSS'}
+          {saving ? t('saving') : t('save')}
         </button>
       </div>
       {error && (
@@ -81,10 +87,7 @@ export default function CustomCssSettings() {
         </p>
       )}
       <p id="custom-css-help" className="text-text-muted mt-3 text-xs">
-        CSS only. <code>@import</code>, <code>image-set()</code> and any <code>url()</code> that is
-        not an inline <code>data:</code> image are refused, so a theme can never load something from
-        another site. If your CSS hides the page, add <code>?safe=1</code> to the address (for
-        example <code>/settings/theme?safe=1</code>) to open it without your CSS.
+        {t.rich('help', { code: (chunks) => <code>{chunks}</code> })}
       </p>
     </div>
   )

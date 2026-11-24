@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service } from '@/types'
@@ -30,6 +31,7 @@ export default function ServiceListItem({
   isDragging = false,
   isMonitored,
 }: ServiceListItemProps) {
+  const t = useTranslations('services')
   const monitored = isMonitored ?? service.monitoring_enabled
   // Uptime and last error, on hover, focus or a long press
   const detail = useServiceDetail(service, monitored, !isEditMode)
@@ -52,7 +54,7 @@ export default function ServiceListItem({
       {isEditMode && (
         <div
           {...dragHandleProps}
-          aria-label={`Move ${service.name}`}
+          aria-label={t('tile.move', { name: service.name })}
           className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -80,7 +82,7 @@ export default function ServiceListItem({
           <>
             <div className={`h-2 w-2 rounded-full ${getStatusBgColor(service.status)}`} />
             <span className="text-text-secondary hidden text-xs capitalize sm:inline">
-              {service.status}
+              {t(`status.${service.status}`)}
             </span>
           </>
         ) : (
@@ -88,7 +90,9 @@ export default function ServiceListItem({
             {/* Muted dot on mobile mirrors the monitored layout so the row */}
             {/* doesn't collapse into having no status indicator at all. */}
             <div className="h-2 w-2 rounded-full bg-gray-400" />
-            <span className="text-text-muted hidden text-xs sm:inline">Not monitored</span>
+            <span className="text-text-muted hidden text-xs sm:inline">
+              {t('tile.notMonitored')}
+            </span>
           </>
         )}
       </div>
@@ -112,7 +116,7 @@ export default function ServiceListItem({
           type="button"
           onClick={() => onEdit(service)}
           className={`${overlayActionClass} shrink-0`}
-          aria-label={`Edit ${service.name}`}
+          aria-label={t('tile.edit', { name: service.name })}
         >
           <PencilIcon className="h-4 w-4" />
         </button>

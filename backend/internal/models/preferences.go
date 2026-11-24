@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -99,6 +101,15 @@ const (
 	DefaultIconSource  = "dashboard-icons-svg"
 )
 
+// Languages are the interface languages a user can pick (the frontend's
+// locales); no language follows the browser
+const Languages = "en nl de fr es"
+
+// ValidLanguage reports whether code is one of Languages
+func ValidLanguage(code string) bool {
+	return slices.Contains(strings.Fields(Languages), code)
+}
+
 // UserPreferences represents a user's theme and UI preferences
 type UserPreferences struct {
 	ID                    string      `json:"id" db:"id"`
@@ -123,6 +134,7 @@ type UserPreferences struct {
 	KpiMono               bool        `json:"kpi_mono" db:"kpi_mono"`       // monospace KPI labels
 	IconSource            string      `json:"icon_source" db:"icon_source"` // where auto-fetch looks for icons
 	CustomCSS             string      `json:"custom_css" db:"custom_css"`   // passed utils.ValidateCustomCSS
+	Language              *string     `json:"language" db:"language"`       // one of Languages; nil follows the browser
 	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
 }
@@ -154,6 +166,8 @@ type PreferencesUpdateRequest struct {
 	IconSource  *string `json:"icon_source" validate:"omitempty,oneof=dashboard-icons-svg dashboard-icons-png dashboard-icons-webp selfhst"`
 	// Checked with utils.ValidateCustomCSS by the handler; "" clears it
 	CustomCSS *string `json:"custom_css"`
+	// Checked with ValidLanguage by the handler; null follows the browser
+	Language NullableString `json:"language"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -178,6 +192,7 @@ type PreferencesResponse struct {
 	KpiMono               bool        `json:"kpi_mono"`
 	IconSource            string      `json:"icon_source"`
 	CustomCSS             string      `json:"custom_css"`
+	Language              *string     `json:"language"` // null: the browser's language
 	UpdatedAt             time.Time   `json:"updated_at"`
 }
 
@@ -204,6 +219,7 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		KpiMono:               p.KpiMono,
 		IconSource:            p.IconSource,
 		CustomCSS:             p.CustomCSS,
+		Language:              p.Language,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }

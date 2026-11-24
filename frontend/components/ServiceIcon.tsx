@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import type { Service } from '@/types'
 import { getApiUrl } from '@/lib/utils/api-url'
@@ -44,6 +45,7 @@ const sizeDimensions = {
 }
 
 export default function ServiceIcon({ service, size = 'md', className = '' }: ServiceIconProps) {
+  const t = useTranslations('services.icon')
   const [imageError, setImageError] = useState(false)
   const sizeClass = sizeClasses[size]
   const dimension = sizeDimensions[size]
@@ -67,7 +69,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={imageUrl}
-          alt={`${service.name} icon`}
+          alt={t('alt', { name: service.name })}
           width={dimension}
           height={dimension}
           className="h-full w-full object-contain"
@@ -84,7 +86,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={service.icon_image_path}
-          alt={`${service.name} icon`}
+          alt={t('alt', { name: service.name })}
           width={dimension}
           height={dimension}
           className="h-full w-full object-contain"

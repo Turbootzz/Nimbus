@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useBoards } from '@/hooks/useBoards'
 import { defaultBoard, moveTargets } from '@/lib/boards'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
@@ -23,6 +24,7 @@ export default function BoardSelect({
   onChange,
   disabled,
 }: BoardSelectProps) {
+  const t = useTranslations('boards.select')
   const { boards } = useBoards()
   const targets = moveTargets(boards, currentBoardId)
   if (targets.length === 0) return null
@@ -31,7 +33,7 @@ export default function BoardSelect({
   return (
     <div>
       <label htmlFor={id} className={labelClass}>
-        Board
+        {t('label')}
       </label>
       <select
         id={id}
@@ -41,7 +43,7 @@ export default function BoardSelect({
         className={inputClass}
         aria-describedby={`${id}-hint`}
       >
-        <option value="">{current ? `${current.name} (this board)` : 'This board'}</option>
+        <option value="">{current ? t('current', { name: current.name }) : t('thisBoard')}</option>
         {targets.map((board) => (
           <option key={board.id} value={board.id}>
             {board.name}
@@ -49,7 +51,7 @@ export default function BoardSelect({
         ))}
       </select>
       <p id={`${id}-hint`} className="text-text-muted mt-1 text-xs">
-        On another board it is added at the end, outside any group.
+        {t('hint')}
       </p>
     </div>
   )

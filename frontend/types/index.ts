@@ -1,3 +1,5 @@
+import type { Language } from '@/i18n/locale'
+
 // User types
 export interface User {
   id: string
@@ -550,6 +552,7 @@ export interface UserPreferences {
   kpi_mono?: boolean // monospace KPI labels
   icon_source?: IconSource
   custom_css?: string
+  language?: Language | null // null follows the browser
   updated_at?: string
 }
 
@@ -601,6 +604,7 @@ export interface PreferencesUpdateRequest {
   kpi_mono?: boolean
   icon_source?: IconSource
   custom_css?: string // "" clears it
+  language?: Language | null // null: follow the browser
 }
 
 // API response types

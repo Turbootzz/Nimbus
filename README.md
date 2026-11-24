@@ -58,6 +58,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Search: press `/` or Ctrl+K to find and open a service
 - Installable app (PWA): add Nimbus to your home screen or desktop; your services list stays readable offline. See [docs/PWA.md](docs/PWA.md)
 - Light/dark mode toggle
+- In English, Dutch, German, French or Spanish: your browser's language, or the one you pick in your profile (machine-translated for now, corrections welcome: [docs](docs/TRANSLATING.md))
 - Accent color themes
 - Theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night), self-hosted fonts, custom CSS and theme export/import ([docs](docs/THEMING.md))
 - Drag & drop service tiles
@@ -293,6 +294,7 @@ Run `make help` for all available commands.
 | [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
 | [PWA.md](docs/PWA.md) | Install Nimbus as an app, offline behaviour |
 | [THEMING.md](docs/THEMING.md) | Theme presets, fonts, icon source, custom CSS and theme files |
+| [TRANSLATING.md](docs/TRANSLATING.md) | Languages, improving a translation, adding a language |
 
 ---
 

@@ -571,6 +571,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
     "kpi_mono": false,
     "icon_source": "dashboard-icons-svg",
     "custom_css": ".glass-card { border-radius: 1rem; }",
+    "language": "nl",
     "card_scale": "medium",
     "view_mode": "grid",
     "open_in_new_tab": true,
@@ -593,6 +594,7 @@ on an entity that something points at. Unknown fields and any other `version` ar
 | `widgets[].type`, `config` | A type and its config from [WIDGETS.md](WIDGETS.md). Where a config lists integrations (the calendar), it lists their refs. `needs_secrets` is informational. |
 | `preferences` | Optional, as is every field in it. `theme_background` is an image URL, `""` for none; `wallpaper_data` is an uploaded image as base64 (JPEG, PNG, GIF or WebP up to 8 MB). Give one or neither. `theme_accent_color` is a hex color like `#3B82F6` or `#38F`; `""` selects the default accent. `group_display` is `tabs` or `sections` and is the one field that does not keep your value when it is left out: without it, groups follow the layout (tabs in classic, sections in canvas). |
 | `preferences.theme_preset`, `theme_font`, `kpi_mono`, `icon_source`, `custom_css` | The theme settings of [THEMING.md](THEMING.md), with the values listed there. Files from before these settings don't have them and keep yours. `custom_css` is checked like CSS you save in the theme settings (no `@import`, `url()` only with an inline `data:` image, at most 20 KB) and refuses the import when it fails; `""` removes your CSS. A replace shows the file's CSS before you confirm: read it when the file is not your own. |
+| `preferences.language` | The interface language: `en`, `nl`, `de`, `fr` or `es`; `""` follows the browser's language. An export always has it. Files from before it don't have it and keep yours. |
 | `status_strip.chips[]` | `source` is `integration` or `widget`; `ref` points at one in the file; `kpi` is the KPI key, or the value's label for a Custom API widget. |
 | `omitted_images` | Written by an export, ignored by an import. |
 

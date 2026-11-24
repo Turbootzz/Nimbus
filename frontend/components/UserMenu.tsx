@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
@@ -31,6 +32,7 @@ interface UserMenuProps {
 }
 
 export default function UserMenu({ withNavigation = false }: UserMenuProps) {
+  const t = useTranslations('layout')
   const [user, setUser] = useState<User | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -106,7 +108,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
         <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
         <div className="hidden sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-            Loading...
+            {t('userMenu.loading')}
           </div>
         </div>
       </div>
@@ -140,13 +142,13 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       >
         <UserAvatar
           avatarUrl={user?.avatar_url}
-          name={user?.name || 'User'}
+          name={user?.name || t('userMenu.fallbackName')}
           size={32}
           className="h-8 w-8"
         />
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-            {user?.name || 'User'}
+            {user?.name || t('userMenu.fallbackName')}
           </div>
         </div>
         <ChevronDownIcon
@@ -185,7 +187,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                       className="mr-3 h-5 w-5"
                       style={{ color: 'var(--color-text-muted)' }}
                     />
-                    {item.name}
+                    {t(`nav.${item.id}`)}
                   </Link>
                 ))}
                 {/* A dashboard locked by a config file can't be edited, nor
@@ -210,7 +212,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                         style={{ color: 'var(--color-text-muted)' }}
                       />
                     )}
-                    {isEditMode ? 'Done editing' : 'Edit layout'}
+                    {isEditMode ? t('userMenu.doneEditing') : t('userMenu.editLayout')}
                   </button>
                 )}
                 {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
@@ -220,7 +222,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     rel="noopener noreferrer"
                     className="text-text-muted block px-4 py-1 text-xs hover:opacity-80"
                   >
-                    Hosted by Nimbus Cloud
+                    {t('hostedByNimbusCloud')}
                   </a>
                 )}
                 <div
@@ -238,7 +240,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
               {...menuItemHover}
             >
               <UserIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
-              Profile Settings
+              {t('userMenu.profileSettings')}
             </button>
 
             {/* Boards are managed from the switcher once there are more */}
@@ -254,7 +256,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                   className="mr-3 h-5 w-5"
                   style={{ color: 'var(--color-text-muted)' }}
                 />
-                New board
+                {t('userMenu.newBoard')}
               </button>
             )}
 
@@ -274,7 +276,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                 className="mr-3 h-5 w-5"
                 style={{ color: 'var(--color-error)' }}
               />
-              Sign Out
+              {t('userMenu.signOut')}
             </button>
           </div>
         </div>

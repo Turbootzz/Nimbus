@@ -54,6 +54,7 @@ WORKDIR /app
 RUN apk add --no-cache \
     nginx \
     nodejs \
+    icu-data-full \
     npm \
     supervisor \
     ca-certificates \
@@ -77,7 +78,7 @@ COPY --from=frontend-builder /build/package*.json /app/frontend/
 
 # Install frontend production dependencies
 WORKDIR /app/frontend
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev && npm cache clean --force && rm -rf /root/.cache
 WORKDIR /app
 
 # Copy configuration files

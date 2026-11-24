@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { bestScore } from '@/lib/fuzzy'
 import { isValidUrl } from '@/lib/utils/url'
@@ -42,6 +43,7 @@ async function loadBoard(board?: Board) {
 // Search over the user's services, on every board they see: "/" or
 // Cmd/Ctrl+K opens it, arrows pick, Enter opens the service, Esc closes
 export default function CommandPalette() {
+  const t = useTranslations('layout.search')
   const { openInNewTab } = useTheme()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
@@ -159,7 +161,7 @@ export default function CommandPalette() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search services"
+        aria-label={t('label')}
         onKeyDown={onKeyDown}
         className="bg-card border-card-border relative z-10 w-full max-w-lg overflow-hidden rounded-lg border shadow-xl"
       >
@@ -174,13 +176,13 @@ export default function CommandPalette() {
             aria-activedescendant={
               current >= 0 ? `palette-${results[current].service.id}` : undefined
             }
-            aria-label="Search services"
+            aria-label={t('label')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
             }}
-            placeholder="Search services"
+            placeholder={t('label')}
             className="text-text-primary placeholder:text-text-muted h-12 w-full bg-transparent text-sm focus:outline-none"
           />
           <kbd className="text-text-muted border-card-border hidden rounded border px-1.5 text-xs sm:inline">
@@ -230,11 +232,7 @@ export default function CommandPalette() {
         </ul>
         {(loading || error || results.length === 0) && (
           <p className="text-text-muted px-4 py-3 text-sm" role="status">
-            {loading
-              ? 'Loading services...'
-              : error
-                ? `Could not load your services: ${error}`
-                : 'No services match'}
+            {loading ? t('loading') : error ? t('loadFailed', { error }) : t('noResults')}
           </p>
         )}
       </div>

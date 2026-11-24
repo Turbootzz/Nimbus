@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { Toggle } from '@/components/ui/Toggle'
 import { themeFonts } from '@/lib/theme-presets'
@@ -14,16 +15,20 @@ const sample: Record<ThemeFont, string | undefined> = {
 }
 
 export default function FontSettings() {
+  const t = useTranslations('settings.theme.font')
   const { font, kpiMono, setFont, setKpiMono } = useTheme()
+  // Inter and JetBrains Mono are names; these two are words
+  const names: Partial<Record<ThemeFont, string>> = {
+    default: t('names.default'),
+    system: t('names.system'),
+  }
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
       <h2 id="font-title" className="text-text-primary mb-2 text-xl font-semibold">
-        Font
+        {t('title')}
       </h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        The fonts are part of Nimbus: nothing is loaded from another site
-      </p>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       <div role="group" aria-labelledby="font-title" className="grid grid-cols-2 gap-2">
         {themeFonts.map((option) => (
@@ -39,7 +44,7 @@ export default function FontSettings() {
                 : 'bg-background border-card-border text-text-primary hover:border-primary border'
             }`}
           >
-            {option.name}
+            {names[option.id] ?? option.name}
           </button>
         ))}
       </div>
@@ -49,8 +54,8 @@ export default function FontSettings() {
           id="kpi-mono"
           enabled={kpiMono}
           onChange={setKpiMono}
-          label="Monospace KPI labels"
-          description="Show the small labels above the numbers on tiles, widgets and the status strip in JetBrains Mono"
+          label={t('kpiMono')}
+          description={t('kpiMonoDescription')}
         />
       </div>
     </div>

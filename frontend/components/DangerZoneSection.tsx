@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { api } from '@/lib/api'
 
@@ -11,6 +12,7 @@ interface DangerZoneSectionProps {
 }
 
 export default function DangerZoneSection({ email, role }: DangerZoneSectionProps) {
+  const t = useTranslations('settings.dangerZone')
   const router = useRouter()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [confirmText, setConfirmText] = useState('')
@@ -80,7 +82,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
       }
       router.push('/login')
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('unexpected'))
       setIsDeleting(false)
     }
   }
@@ -90,21 +92,20 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
   return (
     <div>
       <h3 className="mb-2 text-sm font-medium" style={{ color: 'var(--color-error)' }}>
-        Danger Zone
+        {t('title')}
       </h3>
       {isLastAdmin ? (
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          You are the only admin. Promote another user to admin before you can delete this account.
+          {t('lastAdmin')}
         </p>
       ) : (
         <>
           <p className="mb-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            Permanently delete your account and all associated data. This action cannot be undone.
+            {t('description')}
           </p>
           {statsError && (
             <p className="mb-3 text-sm" style={{ color: 'var(--color-error)' }}>
-              Couldn&rsquo;t verify admin status. The server will block the deletion if you are the
-              only admin.
+              {t('statsError')}
             </p>
           )}
           <button
@@ -115,7 +116,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
             className="rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             style={{ backgroundColor: 'var(--color-error)' }}
           >
-            Delete my account
+            {t('deleteMine')}
           </button>
         </>
       )}
@@ -138,14 +139,16 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
               className="mb-2 text-lg font-semibold"
               style={{ color: 'var(--color-text-primary)' }}
             >
-              Delete account
+              {t('deleteAccount')}
             </h3>
             <p className="mb-4 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              This will permanently delete your account, services, groups, preferences, and all
-              other associated data. This cannot be undone.
+              {t('dialogBody')}
             </p>
             <p className="mb-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              Type <span className="font-mono font-semibold">{email}</span> to confirm.
+              {t.rich('typeToConfirm', {
+                email,
+                mono: (chunks) => <span className="font-mono font-semibold">{chunks}</span>,
+              })}
             </p>
             <ThemedInput
               ref={inputRef}
@@ -178,7 +181,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
                 className="rounded-lg px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -187,7 +190,7 @@ export default function DangerZoneSection({ email, role }: DangerZoneSectionProp
                 className="rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 style={{ backgroundColor: 'var(--color-error)' }}
               >
-                {isDeleting ? 'Deleting...' : 'Delete account'}
+                {isDeleting ? t('deleting') : t('deleteAccount')}
               </button>
             </div>
           </div>

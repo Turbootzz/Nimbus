@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import ScrollArea from '@/components/ui/ScrollArea'
 import { useModalLayer } from '@/hooks/useModalLayer'
@@ -12,7 +13,7 @@ interface EmojiPickerProps {
 
 // prettier-ignore
 const emojiCategories = {
-  'Smileys & People': [
+  smileys: [
     '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊',
     '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪',
     '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏',
@@ -22,7 +23,7 @@ const emojiCategories = {
     '😱', '😖', '😣', '😞', '😓', '😩', '😫', '🥱', '😤', '😡', '😠', '🤬',
     '👶', '👧', '🧒', '👦', '👩', '🧑', '👨', '👵', '🧓', '👴', '👲', '👳',
   ],
-  'Animals & Nature': [
+  animals: [
     '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮',
     '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤',
     '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛',
@@ -32,7 +33,7 @@ const emojiCategories = {
     '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🎍', '🎋', '🍃',
     '🍂', '🍁', '🍄', '🌾', '💐', '🌷', '🌹', '🥀', '🌺', '🌸', '🌼', '🌻',
   ],
-  'Food & Drink': [
+  food: [
     '🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍈', '🍒', '🍑',
     '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🌽',
     '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚',
@@ -42,7 +43,7 @@ const emojiCategories = {
     '🍢', '🍡', '🍧', '🍨', '🍦', '🥧', '🧁', '🍰', '🎂', '🍮', '🍭', '🍬',
     '🍫', '🍿', '🍩', '🍪', '🌰', '🥜', '🍯', '🥛', '🍼', '☕', '🍵', '🧃',
   ],
-  'Activities & Sports': [
+  activities: [
     '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓',
     '🏸', '🏒', '🏑', '🥍', '🏏', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊',
     '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️', '🤼',
@@ -50,7 +51,7 @@ const emojiCategories = {
     '🚴', '🚵', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷',
     '🎺', '🎸', '🪕', '🎻', '🎲', '♟️', '🎯', '🎳', '🎮', '🎰', '🧩', '🎬',
   ],
-  'Travel & Places': [
+  travel: [
     '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🚚', '🚛',
     '🚜', '🦯', '🦽', '🦼', '🛴', '🚲', '🛵', '🏍️', '🛺', '🚨', '🚔', '🚍',
     '🚘', '🚖', '🚡', '🚠', '🚟', '🚃', '🚋', '🚞', '🚝', '🚄', '🚅', '🚈',
@@ -60,7 +61,7 @@ const emojiCategories = {
     '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🕍', '🛕', '🕋', '⛩️',
     '🗾', '🎑', '🏞️', '🌅', '🌄', '🌠', '🎇', '🎆', '🌇', '🌆', '🏙️', '🌃',
   ],
-  'Objects': [
+  objects: [
     '⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '🕹️', '🗜️', '💾',
     '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '☎️', '📟',
     '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏲️', '⏰', '🕰️', '⌛',
@@ -70,7 +71,7 @@ const emojiCategories = {
     '🗡️', '⚔️', '🛡️', '🚬', '⚰️', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️',
     '🔭', '🔬', '🕳️', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠', '🧫', '🧪',
   ],
-  'Symbols': [
+  symbols: [
     '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕',
     '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️',
     '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌',
@@ -80,7 +81,7 @@ const emojiCategories = {
     '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱',
     '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️',
   ],
-  'Tech & Science': [
+  tech: [
     '💻', '🖥️', '⌨️', '🖱️', '🖲️', '💾', '💿', '📀', '🧮', '🎮', '🕹️', '📱',
     '☎️', '📞', '📟', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '⏱️', '⏲️', '⏰',
     '🧭', '📡', '🔋', '🔌', '💡', '🔦', '🕯️', '🧯', '🛢️', '🔬', '🔭', '📡',
@@ -90,12 +91,15 @@ const emojiCategories = {
   ],
 }
 
+type Category = keyof typeof emojiCategories
+
 export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
-  const [activeCategory, setActiveCategory] = useState<string>('Smileys & People')
+  const t = useTranslations('services.emojiPicker')
+  const [activeCategory, setActiveCategory] = useState<Category>('smileys')
   const dialogRef = useModalLayer(onClose)
 
-  const categories = Object.keys(emojiCategories)
-  const currentEmojis = emojiCategories[activeCategory as keyof typeof emojiCategories]
+  const categories = Object.keys(emojiCategories) as Category[]
+  const currentEmojis = emojiCategories[activeCategory]
 
   return (
     <div className="bg-card border-card-border fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -106,18 +110,18 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         tabIndex={-1}
         role="dialog"
         aria-modal="true"
-        aria-label="Choose an Emoji"
+        aria-label={t('title')}
         className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border shadow-lg focus:outline-none"
       >
         {/* Header */}
         <div className="border-card-border flex items-center justify-between border-b p-4">
-          <h3 className="text-text-primary text-lg font-semibold">Choose an Emoji</h3>
+          <h3 className="text-text-primary text-lg font-semibold">{t('title')}</h3>
           {/* type="button": the picker sits inside the service form */}
           <button
             type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
@@ -135,7 +139,7 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
                   activeCategory === category ? 'border-primary text-primary' : 'border-transparent'
                 }`}
               >
-                {category}
+                {t(`categories.${category}`)}
               </button>
             ))}
           </ScrollArea>

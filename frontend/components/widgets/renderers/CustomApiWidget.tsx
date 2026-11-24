@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import type { CustomApiPayload, CustomApiWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 import { formatKpiValue, kpiColumns } from '@/components/KpiRow'
@@ -9,6 +10,8 @@ export default function CustomApiWidget({
   cardSize,
   snapshot,
 }: WidgetRendererProps<CustomApiWidgetConfig>) {
+  const t = useTranslations('widgets.customApi')
+  const locale = useLocale()
   const payload = snapshot?.payload as CustomApiPayload | null | undefined
   if (!payload) return null // WidgetCard shows loading and errors
 
@@ -21,7 +24,7 @@ export default function CustomApiWidget({
     <dl className={`grid h-full content-center gap-3 ${kpiColumns[columns]}`}>
       {fields.map((field) => {
         const missing = payload.missing?.includes(field.label)
-        const value = formatKpiValue(payload.kpis[field.label], field.unit)
+        const value = formatKpiValue(payload.kpis[field.label], field.unit, locale)
         return (
           <div key={field.label} className="min-w-0">
             <dt className="kpi-label text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
@@ -29,7 +32,7 @@ export default function CustomApiWidget({
             </dt>
             <dd
               className={`truncate font-semibold tabular-nums ${cardSize === '1x1' ? 'text-lg' : 'text-2xl'} ${missing ? 'text-text-muted' : 'text-text-primary'}`}
-              title={missing ? `Nothing found at ${field.path}` : value}
+              title={missing ? t('notFound', { path: field.path }) : value}
             >
               {value}
             </dd>

@@ -61,6 +61,7 @@ func setupPreferencesApp(t *testing.T) (*fiber.App, *sql.DB) {
 		kpi_mono BOOLEAN NOT NULL DEFAULT 0,
 		icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
 		custom_css TEXT NOT NULL DEFAULT '',
+		language TEXT,
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)

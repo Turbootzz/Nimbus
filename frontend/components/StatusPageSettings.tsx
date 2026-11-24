@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowTopRightOnSquareIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
@@ -19,6 +20,7 @@ const empty: Settings = { enabled: false, group_id: '', title: '', logo: '', sho
 
 /** Admin settings of the public status page at /status */
 export default function StatusPageSettings() {
+  const t = useTranslations('admin.statusPage')
   const [form, setForm] = useState<Settings>(empty)
   const [saved, setSaved] = useState<Settings>(empty)
   const [groups, setGroups] = useState<Group[]>([])
@@ -40,18 +42,14 @@ export default function StatusPageSettings() {
         setSaved(settings.data)
         setGroups(ownGroups.data || [])
       } else {
-        setLoadError(
-          settings.error?.message ||
-            ownGroups.error?.message ||
-            'Failed to load the status page settings'
-        )
+        setLoadError(settings.error?.message || ownGroups.error?.message || t('loadFailed'))
       }
       setIsLoading(false)
     })
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [t])
 
   // The stored group is not selectable when it was deleted, or when another
   // admin chose one of theirs
@@ -66,7 +64,7 @@ export default function StatusPageSettings() {
     if (!file) return
     if (fileInput.current) fileInput.current.value = ''
     if (file.size > MAX_LOGO_BYTES) {
-      setError('The logo is larger than 512 KB')
+      setError(t('logoTooLarge'))
       return
     }
     setError(null)
@@ -76,7 +74,7 @@ export default function StatusPageSettings() {
     if (response.data) {
       update({ logo: response.data.icon_image_path })
     } else {
-      setError(response.error?.message || 'Failed to upload the logo')
+      setError(response.error?.message || t('uploadFailed'))
     }
   }
 
@@ -92,14 +90,14 @@ export default function StatusPageSettings() {
     if (response.data) {
       setForm(response.data)
       setSaved(response.data)
-      setMessage('Status page saved')
+      setMessage(t('saved'))
     } else {
-      setError(response.error?.message || 'Failed to save the status page')
+      setError(response.error?.message || t('saveFailed'))
     }
   }
 
   if (isLoading) {
-    return <p className="text-text-muted text-sm">Loading...</p>
+    return <p className="text-text-muted text-sm">{t('loading')}</p>
   }
   if (loadError) {
     return (
@@ -116,14 +114,14 @@ export default function StatusPageSettings() {
         id="status-page-enabled"
         enabled={form.enabled}
         onChange={(enabled) => update({ enabled })}
-        label="Enable the status page"
-        description="Anyone who can reach this Nimbus can open /status without signing in. While off, the page does not exist."
+        label={t('enable')}
+        description={t('enableDescription')}
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="status-page-group" className={labelClass}>
-            Group to show
+            {t('group')}
           </label>
           <select
             id="status-page-group"
@@ -131,23 +129,18 @@ export default function StatusPageSettings() {
             onChange={(e) => update({ group_id: e.target.value })}
             className="border-card-border bg-background text-text-primary focus:ring-primary w-full rounded-lg border px-4 py-2 focus:ring-2 focus:outline-none"
           >
-            <option value="">Choose a group</option>
+            <option value="">{t('chooseGroup')}</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
                 {group.name}
               </option>
             ))}
           </select>
-          {groupMissing && (
-            <p className="text-warning mt-1 text-xs">
-              The group that was chosen is not one of yours, or no longer exists. Choose one of your
-              groups to show the page.
-            </p>
-          )}
+          {groupMissing && <p className="text-warning mt-1 text-xs">{t('groupMissing')}</p>}
         </div>
         <div>
           <label htmlFor="status-page-title" className={labelClass}>
-            Title
+            {t('title')}
           </label>
           <ThemedInput
             id="status-page-title"
@@ -158,18 +151,15 @@ export default function StatusPageSettings() {
           />
         </div>
       </div>
-      <p className="text-text-muted text-xs">
-        Groups are personal, so the page shows one of your own groups. Only its monitored services
-        appear: name, icon, status and uptime. Nothing else about them is shared.
-      </p>
+      <p className="text-text-muted text-xs">{t('groupsNote')}</p>
 
       <div>
-        <span className={labelClass}>Logo</span>
+        <span className={labelClass}>{t('logo')}</span>
         <div className="flex flex-wrap items-center gap-2">
           {form.logo && (
             <StatusPageImage
               file={form.logo}
-              alt="Current logo"
+              alt={t('currentLogo')}
               className="border-card-border h-10 w-10 rounded-lg border object-contain"
             />
           )}
@@ -178,7 +168,7 @@ export default function StatusPageSettings() {
             type="file"
             accept="image/jpeg,image/png,image/gif,image/webp"
             className="hidden"
-            aria-label="Logo file"
+            aria-label={t('logoFile')}
             onChange={(e) => uploadLogo(e.target.files?.[0])}
           />
           <button
@@ -188,23 +178,23 @@ export default function StatusPageSettings() {
             className={buttonClass}
           >
             <ArrowUpTrayIcon className="h-4 w-4" />
-            {isUploading ? 'Uploading...' : form.logo ? 'Replace' : 'Upload'}
+            {isUploading ? t('uploading') : form.logo ? t('replace') : t('upload')}
           </button>
           {form.logo && (
             <button type="button" onClick={() => update({ logo: '' })} className={buttonClass}>
-              Remove
+              {t('remove')}
             </button>
           )}
         </div>
-        <p className="text-text-muted mt-1 text-xs">JPG, PNG, GIF or WEBP, up to 512 KB</p>
+        <p className="text-text-muted mt-1 text-xs">{t('logoHint')}</p>
       </div>
 
       <Toggle
         id="status-page-show-links"
         enabled={form.show_links}
         onChange={(show_links) => update({ show_links })}
-        label="Show links"
-        description="Makes each service name a link to its URL, and shows icons loaded from a URL. Leave off to keep your addresses private."
+        label={t('showLinks')}
+        description={t('showLinksDescription')}
       />
 
       {error && (
@@ -225,11 +215,11 @@ export default function StatusPageSettings() {
           disabled={isSaving || isUploading}
           className="bg-primary rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isSaving ? 'Saving...' : 'Save status page'}
+          {isSaving ? t('saving') : t('save')}
         </button>
         {saved.enabled && (
           <a href="/status" target="_blank" rel="noopener noreferrer" className={buttonClass}>
-            Open status page
+            {t('open')}
             <ArrowTopRightOnSquareIcon className="h-4 w-4" />
           </a>
         )}

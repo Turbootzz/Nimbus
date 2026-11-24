@@ -47,6 +47,7 @@ const dashboardTestSchema = `
 	CREATE TABLE user_preferences (
 		id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), user_id TEXT NOT NULL UNIQUE,
 		theme_mode TEXT NOT NULL DEFAULT 'auto', group_display TEXT CHECK (group_display IN ('tabs', 'sections')),
+		language TEXT,
 		created_at TIMESTAMP, updated_at TIMESTAMP
 	);
 	INSERT INTO users (id) VALUES ('user-1'), ('user-2');

@@ -116,3 +116,46 @@ func TestPreferences_CustomCSSIsPerUser(t *testing.T) {
 	require.NoError(t, db.QueryRow(`SELECT custom_css FROM user_preferences WHERE user_id = 'user-2'`).Scan(&theirs))
 	assert.Equal(t, "body { color: red }", theirs)
 }
+
+func TestPreferences_Language(t *testing.T) {
+	app, _ := setupPreferencesApp(t)
+
+	// Without a row it follows the browser, and says so with null
+	status, _, raw := send(t, app, httptest.NewRequest("GET", "/preferences", nil))
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Contains(t, raw, `"language":null`)
+
+	status, prefs, _ := putJSON(t, app, "/preferences", `{"language":"nl"}`)
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, new("nl"), prefs.Language)
+
+	// Another change leaves it alone
+	status, prefs, _ = putJSON(t, app, "/preferences", `{"theme_mode":"dark"}`)
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, new("nl"), prefs.Language)
+	_, prefs, _ = send(t, app, httptest.NewRequest("GET", "/preferences", nil))
+	assert.Equal(t, new("nl"), prefs.Language)
+
+	// null goes back to the browser's language
+	status, _, raw = putJSON(t, app, "/preferences", `{"language":null}`)
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Contains(t, raw, `"language":null`)
+}
+
+func TestPreferences_LanguageValidation(t *testing.T) {
+	for _, body := range []string{`{"language":"xx"}`, `{"language":""}`, `{"language":"EN"}`, `{"language":"en-US"}`, `{"language":"en nl"}`} {
+		t.Run(body, func(t *testing.T) {
+			app, _ := setupPreferencesApp(t)
+			status, _, _ := putJSON(t, app, "/preferences", `{"language":"de"}`)
+			require.Equal(t, fiber.StatusOK, status)
+
+			status, _, raw := putJSON(t, app, "/preferences", body)
+			require.Equal(t, fiber.StatusBadRequest, status)
+			assert.JSONEq(t, `{"error":"Validation failed","fields":{"language":"language must be one of: en nl de fr es"}}`, raw)
+
+			// Nothing was stored
+			_, prefs, _ := send(t, app, httptest.NewRequest("GET", "/preferences", nil))
+			assert.Equal(t, new("de"), prefs.Language)
+		})
+	}
+}

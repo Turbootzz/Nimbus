@@ -1,13 +1,16 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { RssPayload, RssWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
-import { formatRelativeTime } from '@/lib/date-utils'
+import { useRelativeTime } from '@/hooks/useRelativeTime'
 
 export default function RssWidget({
   snapshot,
   openInNewTab,
 }: WidgetRendererProps<RssWidgetConfig>) {
+  const t = useTranslations('widgets.rss')
+  const relativeTime = useRelativeTime()
   const feed = snapshot?.payload as RssPayload | null | undefined
   if (!feed) return null // WidgetCard shows loading and errors
 
@@ -16,22 +19,22 @@ export default function RssWidget({
     <div>
       {failed.length > 0 && (
         <p className="text-warning mb-1 px-2 text-xs" title={failed.join('\n')}>
-          {failed.length === 1 ? '1 feed' : `${failed.length} feeds`} could not be loaded
+          {t('failed', { count: failed.length })}
         </p>
       )}
       {feed.items.length === 0 ? (
-        <p className="text-text-muted px-2 text-sm">No items yet</p>
+        <p className="text-text-muted px-2 text-sm">{t('empty')}</p>
       ) : (
         <ul className="space-y-0.5">
           {feed.items.map((item, index) => {
             const body = (
               <>
-                <p className="text-text-primary line-clamp-2 text-sm">{item.title || 'Untitled'}</p>
+                <p className="text-text-primary line-clamp-2 text-sm">
+                  {item.title || t('untitled')}
+                </p>
                 <p className="text-text-muted truncate text-xs">
                   {item.source}
-                  {item.date && (
-                    <time dateTime={item.date}> · {formatRelativeTime(item.date)}</time>
-                  )}
+                  {item.date && <time dateTime={item.date}> · {relativeTime(item.date)}</time>}
                 </p>
               </>
             )

@@ -2,6 +2,7 @@
 
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import type { CalendarWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
 import {
@@ -23,6 +24,7 @@ export default function CalendarForm({
   disabled,
   meta,
 }: WidgetFormProps<CalendarWidgetConfig>) {
+  const t = useTranslations('widgets')
   const { integrations, isLoading, error } = useIntegrations()
   const kinds = meta?.config_integration_kinds ?? ['sonarr', 'radarr']
   const usable = integrations.filter((i) => kinds.includes(i.kind))
@@ -39,18 +41,20 @@ export default function CalendarForm({
   return (
     <div className="space-y-4">
       <fieldset>
-        <legend className={labelClass}>Sonarr and Radarr</legend>
+        <legend className={labelClass}>{t('calendar.form.sources')}</legend>
         {isLoading ? (
-          <p className="text-text-muted text-sm">Loading integrations...</p>
+          <p className="text-text-muted text-sm">{t('calendar.form.loadingIntegrations')}</p>
         ) : error ? (
-          <p className="text-error text-sm">Could not load your integrations: {error}</p>
+          <p className="text-error text-sm">{t('common.integrationsError', { error })}</p>
         ) : usable.length === 0 ? (
           <p className="text-text-muted text-sm">
-            No Sonarr or Radarr yet.{' '}
-            <Link href="/settings/integrations" className="text-primary underline">
-              Add one
-            </Link>{' '}
-            to see what is coming.
+            {t.rich('calendar.form.noIntegrations', {
+              link: (chunks) => (
+                <Link href="/settings/integrations" className="text-primary underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         ) : (
           <div className="space-y-1">
@@ -79,12 +83,12 @@ export default function CalendarForm({
       </fieldset>
 
       <div>
-        <span className={labelClass}>Calendar feeds (iCal)</span>
+        <span className={labelClass}>{t('calendar.form.feeds')}</span>
         <div className="space-y-2">
           {config.ical_urls.map((url, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
-                aria-label={`Calendar ${index + 1} URL`}
+                aria-label={t('calendar.form.feedUrl', { n: index + 1 })}
                 type="url"
                 value={url}
                 onChange={(e) =>
@@ -98,7 +102,7 @@ export default function CalendarForm({
                 type="button"
                 onClick={() => setFeeds(config.ical_urls.filter((_, i) => i !== index))}
                 className={removeRowClass}
-                aria-label={`Remove calendar ${index + 1}`}
+                aria-label={t('calendar.form.removeFeed', { n: index + 1 })}
                 disabled={disabled}
               >
                 <TrashIcon className="h-4 w-4" />
@@ -114,19 +118,15 @@ export default function CalendarForm({
             disabled={disabled}
           >
             <PlusIcon className="mr-1 h-4 w-4" />
-            Add calendar
+            {t('calendar.form.addFeed')}
           </button>
         )}
-        <p className="text-text-muted mt-1 text-xs">
-          The secret iCal address of a Google, Outlook or Nextcloud calendar works; once saved it
-          shows as ******** and is kept as long as you leave it. Repeating events only show on their
-          first date.
-        </p>
+        <p className="text-text-muted mt-1 text-xs">{t('calendar.form.feedsHint')}</p>
       </div>
 
       <div>
         <label htmlFor="calendar-days" className={labelClass}>
-          Days ahead in the agenda
+          {t('calendar.form.days')}
         </label>
         <input
           id="calendar-days"
@@ -145,8 +145,8 @@ export default function CalendarForm({
           id="calendar-verify-tls"
           enabled={config.verify_tls}
           onChange={(verify_tls) => onChange({ ...config, verify_tls })}
-          label="Verify TLS certificate"
-          description="Turn off for calendars on your LAN with a self-signed certificate"
+          label={t('common.verifyTls')}
+          description={t('calendar.form.verifyTlsHint')}
           disabled={disabled}
         />
       )}

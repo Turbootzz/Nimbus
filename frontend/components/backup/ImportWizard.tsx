@@ -1,6 +1,7 @@
 'use client'
 
 import { useId, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { useConfigFile } from '@/hooks/useConfigFile'
@@ -20,13 +21,14 @@ import type {
 // The server's limit for a config
 const MAX_CONFIG_BYTES = 1024 * 1024
 
-const formats: { value: ImportFormat | 'auto'; label: string; hint: string }[] = [
-  { value: 'auto', label: 'Detect automatically', hint: '' },
-  { value: 'homepage', label: 'Homepage', hint: 'services.yaml or bookmarks.yaml' },
-  { value: 'homarr', label: 'Homarr', hint: 'a board config (JSON) of Homarr 0.x' },
-  { value: 'homer', label: 'Homer', hint: 'config.yml' },
-  { value: 'dashy', label: 'Dashy', hint: 'conf.yml' },
-  { value: 'compose', label: 'docker-compose', hint: 'docker-compose.yml' },
+// Product names, not translated; 'auto' is labelled in the component
+const formats: { value: ImportFormat | 'auto'; label?: string }[] = [
+  { value: 'auto' },
+  { value: 'homepage', label: 'Homepage' },
+  { value: 'homarr', label: 'Homarr' },
+  { value: 'homer', label: 'Homer' },
+  { value: 'dashy', label: 'Dashy' },
+  { value: 'compose', label: 'docker-compose' },
 ]
 
 const inputClass =
@@ -37,6 +39,7 @@ const cellClass = 'py-2 pr-4 align-top'
 // out, choose the groups it goes into, import. The import itself is the
 // normal one (merge), so nothing here can delete anything.
 export default function ImportWizard() {
+  const t = useTranslations('backup.wizard')
   const id = useId()
   // Locked by a config file: only the preview works
   const configFile = useConfigFile()
@@ -95,7 +98,7 @@ export default function ImportWizard() {
     if (current !== request.current) return
     setBusy(false)
     if (response.data) setPreview(response.data)
-    else fail(response.error, 'The import could not be checked')
+    else fail(response.error, t('checkFailed'))
   }
 
   const convert = async () => {
@@ -111,7 +114,7 @@ export default function ImportWizard() {
     // onto one; Convert asks for both again
     if (!conversion.data || existing.error) {
       setBusy(false)
-      fail(conversion.error ?? existing.error, 'The config could not be converted')
+      fail(conversion.error ?? existing.error, t('convertFailed'))
       return
     }
     const existingGroups = existing.data ?? []
@@ -128,7 +131,7 @@ export default function ImportWizard() {
     // A file chosen or text typed meanwhile wins over this read
     const current = request.current
     if (chosen.size > MAX_CONFIG_BYTES) {
-      setError('The file is too large. A config is at most 1 MB.')
+      setError(t('tooLarge'))
       return
     }
     const text = await chosen.text()
@@ -155,7 +158,7 @@ export default function ImportWizard() {
     )
     setBusy(false)
     if (!response.data) {
-      fail(response.error, 'The import failed')
+      fail(response.error, t('importFailed'))
       return
     }
     setResult(response.data)
@@ -172,18 +175,11 @@ export default function ImportWizard() {
     return groups.find((g) => g.id === targets[group.ref!])?.name ?? group.name
   }
   const kindOf = (ref?: string) => doc?.integrations.find((i) => i.ref && i.ref === ref)?.kind ?? ''
-  const hint = formats.find((f) => f.value === format)?.hint
 
   return (
     <section className="glass-card border-card-border mt-6 rounded-lg border p-6">
-      <h2 className="text-text-primary mb-1 text-lg font-semibold">
-        Import from another dashboard
-      </h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        Switch from Homepage, Homarr, Homer or Dashy, or start from a docker-compose file. Paste the
-        config or choose the file. It is added to your dashboard; nothing you have is changed. API
-        keys and passwords in the config are not taken over.
-      </p>
+      <h2 className="text-text-primary mb-1 text-lg font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
 
       <div className="mb-4 grid gap-4 sm:grid-cols-2">
         <div>
@@ -191,7 +187,7 @@ export default function ImportWizard() {
             htmlFor={`${id}-format`}
             className="text-text-primary mb-1 block text-sm font-medium"
           >
-            Format
+            {t('format')}
           </label>
           <select
             id={`${id}-format`}
@@ -205,11 +201,13 @@ export default function ImportWizard() {
           >
             {formats.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {option.label ?? t('detectAutomatically')}
               </option>
             ))}
           </select>
-          {hint && <p className="text-text-muted mt-1 text-xs">Expects {hint}.</p>}
+          {format !== 'auto' && (
+            <p className="text-text-muted mt-1 text-xs">{t(`expects.${format}`)}</p>
+          )}
         </div>
         {(format === 'auto' || format === 'compose') && (
           <div>
@@ -217,7 +215,7 @@ export default function ImportWizard() {
               htmlFor={`${id}-host`}
               className="text-text-primary mb-1 block text-sm font-medium"
             >
-              Docker host
+              {t('dockerHost')}
             </label>
             <input
               id={`${id}-host`}
@@ -228,22 +226,21 @@ export default function ImportWizard() {
                 setHost(e.target.value)
               }}
               disabled={busy}
-              placeholder="This host"
+              placeholder={t('dockerHostPlaceholder')}
               autoComplete="off"
               spellCheck={false}
               aria-describedby={`${id}-host-help`}
               className={inputClass}
             />
             <p id={`${id}-host-help`} className="text-text-muted mt-1 text-xs">
-              Only for docker-compose: the host name or IP address its published ports are reached
-              at. Empty means the host of this page.
+              {t('dockerHostHelp')}
             </p>
           </div>
         )}
       </div>
 
       <label htmlFor={`${id}-config`} className="text-text-primary mb-1 block text-sm font-medium">
-        Config
+        {t('config')}
       </label>
       <textarea
         id={`${id}-config`}
@@ -255,7 +252,7 @@ export default function ImportWizard() {
         disabled={busy}
         rows={8}
         spellCheck={false}
-        placeholder="Paste the YAML or JSON here"
+        placeholder={t('configPlaceholder')}
         className={`${inputClass} font-mono`}
       />
 
@@ -264,7 +261,7 @@ export default function ImportWizard() {
         type="file"
         accept=".yaml,.yml,.json,text/yaml,application/json"
         className="hidden"
-        aria-label="Config file"
+        aria-label={t('configFile')}
         onChange={(e) => chooseFile(e.target.files?.[0])}
       />
       <div className="mt-3 mb-5 flex flex-wrap items-center gap-3">
@@ -275,7 +272,7 @@ export default function ImportWizard() {
           className="border-card-border text-text-primary hover:bg-card-hover focus-visible:ring-primary inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ArrowUpTrayIcon className="h-4 w-4" aria-hidden="true" />
-          Choose file
+          {t('chooseFile')}
         </button>
         <button
           type="button"
@@ -283,12 +280,12 @@ export default function ImportWizard() {
           disabled={busy || config.trim() === ''}
           className="bg-primary hover:bg-primary/90 focus-visible:ring-primary rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Convert
+          {t('convert')}
         </button>
       </div>
 
       <div aria-live="polite">
-        {busy && <p className="text-text-secondary text-sm">Working…</p>}
+        {busy && <p className="text-text-secondary text-sm">{t('working')}</p>}
 
         {error && (
           <div
@@ -311,18 +308,19 @@ export default function ImportWizard() {
         {converted && doc && (
           <div className="space-y-6">
             <p className="text-text-secondary text-sm">
-              Read as{' '}
-              <span className="text-text-primary font-medium">
-                {formats.find((f) => f.value === converted.format)?.label}
-              </span>
-              : {doc.services.length} services, {doc.groups.length} groups,{' '}
-              {doc.integrations.length} integrations.
+              {t.rich('readAs', {
+                format: formats.find((f) => f.value === converted.format)?.label ?? '',
+                services: doc.services.length,
+                groups: doc.groups.length,
+                integrations: doc.integrations.length,
+                b: (chunks) => <span className="text-text-primary font-medium">{chunks}</span>,
+              })}
             </p>
 
             {converted.warnings.length > 0 && (
               <div className="border-warning/30 bg-warning/10 rounded-lg border p-4 text-sm">
                 <h3 className="text-text-primary mb-2 font-medium">
-                  Not everything could be taken over ({converted.warnings.length})
+                  {t('warnings', { count: converted.warnings.length })}
                 </h3>
                 <ul className="text-text-secondary max-h-48 list-disc space-y-1 overflow-y-auto pl-5">
                   {converted.warnings.map((warning, index) => (
@@ -336,16 +334,16 @@ export default function ImportWizard() {
 
             {doc.groups.length > 0 && (
               <div>
-                <h3 className="text-text-primary mb-2 text-sm font-medium">Groups</h3>
+                <h3 className="text-text-primary mb-2 text-sm font-medium">{t('groups')}</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="text-text-muted border-card-border border-b">
                         <th scope="col" className="py-2 pr-4 font-medium">
-                          Group in the config
+                          {t('groupInConfig')}
                         </th>
                         <th scope="col" className="py-2 font-medium">
-                          Goes into
+                          {t('goesInto')}
                         </th>
                       </tr>
                     </thead>
@@ -357,19 +355,20 @@ export default function ImportWizard() {
                           </th>
                           <td className="py-2">
                             <select
-                              aria-label={`Group for ${group.name}`}
+                              aria-label={t('groupFor', { name: group.name })}
                               value={targets[group.ref ?? ''] ?? ''}
                               onChange={(e) => chooseTarget(group.ref ?? '', e.target.value)}
                               disabled={busy}
                               className={inputClass}
                             >
                               {canCreate(group, groups) && (
-                                <option value="">New group “{group.name}”</option>
+                                <option value="">{t('newGroup', { name: group.name })}</option>
                               )}
                               {groups.map((existing) => (
                                 <option key={existing.id} value={existing.id}>
-                                  {existing.name}
-                                  {existing.is_default ? ' (default)' : ''}
+                                  {existing.is_default
+                                    ? t('defaultGroup', { name: existing.name })
+                                    : existing.name}
                                 </option>
                               ))}
                             </select>
@@ -383,22 +382,22 @@ export default function ImportWizard() {
             )}
 
             <div>
-              <h3 className="text-text-primary mb-2 text-sm font-medium">Services</h3>
+              <h3 className="text-text-primary mb-2 text-sm font-medium">{t('services')}</h3>
               <div className="max-h-80 overflow-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="text-text-muted border-card-border border-b">
                       <th scope="col" className="py-2 pr-4 font-medium">
-                        Name
+                        {t('name')}
                       </th>
                       <th scope="col" className="py-2 pr-4 font-medium">
-                        URL
+                        {t('url')}
                       </th>
                       <th scope="col" className="py-2 pr-4 font-medium">
-                        Group
+                        {t('group')}
                       </th>
                       <th scope="col" className="py-2 font-medium">
-                        Integration
+                        {t('integration')}
                       </th>
                     </tr>
                   </thead>
@@ -426,19 +425,19 @@ export default function ImportWizard() {
 
             {doc.integrations.length > 0 && (
               <div>
-                <h3 className="text-text-primary mb-2 text-sm font-medium">Integrations</h3>
+                <h3 className="text-text-primary mb-2 text-sm font-medium">{t('integrations')}</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead>
                       <tr className="text-text-muted border-card-border border-b">
                         <th scope="col" className="py-2 pr-4 font-medium">
-                          Name
+                          {t('name')}
                         </th>
                         <th scope="col" className="py-2 pr-4 font-medium">
-                          App
+                          {t('app')}
                         </th>
                         <th scope="col" className="py-2 font-medium">
-                          Address
+                          {t('address')}
                         </th>
                       </tr>
                     </thead>
@@ -457,10 +456,7 @@ export default function ImportWizard() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-text-muted mt-2 text-xs">
-                  Credentials are not taken over. Enter them under Settings → Integrations after the
-                  import.
-                </p>
+                <p className="text-text-muted mt-2 text-xs">{t('credentialsNote')}</p>
               </div>
             )}
 
@@ -473,7 +469,7 @@ export default function ImportWizard() {
                   disabled={busy || !canEdit(configFile)}
                   className="bg-primary hover:bg-primary/90 focus-visible:ring-primary mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Import
+                  {t('import')}
                 </button>
                 {readOnly && <ReadOnlyNote />}
               </div>
@@ -483,13 +479,13 @@ export default function ImportWizard() {
 
         {result && (
           <div className="border-success/30 bg-success/10 rounded-lg border p-4">
-            <p className="text-text-primary mb-3 text-sm font-medium">Import finished.</p>
+            <p className="text-text-primary mb-3 text-sm font-medium">{t('finished')}</p>
             <SummaryTable summary={result} />
             <a
               href="/dashboard"
               className="text-primary mt-3 inline-block text-sm font-medium hover:underline"
             >
-              Open the dashboard
+              {t('openDashboard')}
             </a>
           </div>
         )}

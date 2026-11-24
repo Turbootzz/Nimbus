@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useModalLayer } from '@/hooks/useModalLayer'
 
 interface ConfirmDialogProps {
@@ -18,6 +19,7 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useTranslations('ui.confirmDialog')
   const dialogRef = useModalLayer(onCancel)
 
   return (
@@ -40,7 +42,7 @@ export default function ConfirmDialog({
             onClick={onCancel}
             className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onConfirm}

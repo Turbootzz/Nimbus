@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
 
 export default function ForgotPasswordPage() {
+  const t = useTranslations('auth.forgotPassword')
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
@@ -27,7 +29,7 @@ export default function ForgotPasswordPage() {
         setSuccess(true)
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('errors.generic'))
     } finally {
       setIsLoading(false)
     }
@@ -43,10 +45,10 @@ export default function ForgotPasswordPage() {
     >
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Reset your password
+          {t('title')}
         </h2>
         <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Enter your email and we&apos;ll send you a reset link
+          {t('subtitle')}
         </p>
       </div>
 
@@ -75,8 +77,7 @@ export default function ForgotPasswordPage() {
               opacity: 0.9,
             }}
           >
-            If an account with that email exists, a password reset link has been sent. Check your
-            inbox.
+            {t('success')}
           </div>
           <div className="text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <Link
@@ -85,7 +86,7 @@ export default function ForgotPasswordPage() {
               style={{ color: 'var(--color-primary)' }}
               {...linkHover}
             >
-              Back to login
+              {t('backToLogin')}
             </Link>
           </div>
         </div>
@@ -98,7 +99,7 @@ export default function ForgotPasswordPage() {
                 className="mb-1 block text-sm font-medium"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                Email
+                {t('email')}
               </label>
               <ThemedInput
                 id="email"
@@ -122,7 +123,7 @@ export default function ForgotPasswordPage() {
               }}
               {...buttonHover}
             >
-              {isLoading ? 'Sending...' : 'Send reset link'}
+              {isLoading ? t('submitting') : t('submit')}
             </button>
           </form>
 
@@ -130,14 +131,14 @@ export default function ForgotPasswordPage() {
             className="mt-6 text-center text-sm"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Remember your password?{' '}
+            {t('rememberPassword')}{' '}
             <Link
               href="/login"
               className="font-medium transition"
               style={{ color: 'var(--color-primary)' }}
               {...linkHover}
             >
-              Sign in
+              {t('signIn')}
             </Link>
           </div>
         </>

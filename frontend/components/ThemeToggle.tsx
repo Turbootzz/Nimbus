@@ -1,10 +1,12 @@
 'use client'
 
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function ThemeToggle() {
+  const t = useTranslations('layout.themeToggle')
   const { theme, effectiveTheme, setTheme } = useTheme()
   const iconHover = useHoverStyle(hoverStyles.iconButton)
 
@@ -24,8 +26,8 @@ export default function ThemeToggle() {
       className="rounded-md p-2 transition-colors focus:outline-none"
       style={{ color: 'var(--color-text-secondary)' }}
       {...iconHover}
-      aria-label={theme === 'auto' ? 'Toggle theme (currently auto)' : 'Toggle theme'}
-      title={theme === 'auto' ? 'Auto mode - click to switch to manual' : undefined}
+      aria-label={theme === 'auto' ? t('labelAuto') : t('label')}
+      title={theme === 'auto' ? t('autoTitle') : undefined}
     >
       {effectiveTheme === 'dark' ? (
         <SunIcon className="h-5 w-5" />
