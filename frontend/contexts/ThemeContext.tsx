@@ -106,6 +106,11 @@ const noStatusStrip: StatusStrip = { enabled: false, chips: [] }
 // cached or default ones, like the CSS fallback in globals.css
 const PREFERENCES_WAIT_MS = 5000
 
+// The settings applyThemePreferences sets. A preset also brings its mode and
+// accent, so the first load keeps those with it.
+type ThemeSetting = 'preset' | 'font' | 'kpiMono' | 'iconSource' | 'customCss'
+const themeSettings: ThemeSetting[] = ['preset', 'font', 'kpiMono', 'iconSource', 'customCss']
+
 // parseGroupDisplay reads the cached choice; anything else is no choice
 function parseGroupDisplay(raw: string | null | undefined): GroupDisplay | null {
   return raw === 'tabs' || raw === 'sections' ? raw : null
@@ -164,7 +169,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
   // Preferences the user changed while the first load was running; that
   // load must not undo them
-  const changedRef = useRef(new Set<'layout' | 'statusStrip' | 'groupDisplay' | 'language'>())
+  const changedRef = useRef(
+    new Set<'layout' | 'statusStrip' | 'groupDisplay' | 'language' | ThemeSetting>()
+  )
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -229,22 +236,31 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
-  // Preset, font, icon source and custom CSS as the server has them. The
-  // first three are cached for ThemeScript; the CSS never is.
-  const applyThemePreferences = useCallback((data: UserPreferences) => {
-    // A preset only exists in its own mode; another client or an imported
-    // file may have stored one with a mode it doesn't have
-    const apiPreset = presetForMode(parsePreset(data.theme_preset), data.theme_mode || 'auto')
-    const apiFont = parseFont(data.theme_font)
-    setPresetState(apiPreset)
-    setFontState(apiFont)
-    setKpiMonoState(data.kpi_mono === true)
-    setIconSourceState(parseIconSource(data.icon_source))
-    setCustomCss(data.custom_css ?? '')
-    localStorage.setItem('themePreset', apiPreset)
-    localStorage.setItem('themeFont', apiFont)
-    localStorage.setItem('kpiMono', String(data.kpi_mono === true))
-  }, [])
+  // Preset, font, icon source and custom CSS as the server has them, except
+  // the kept ones. The first three are cached for ThemeScript; the CSS never is.
+  const applyThemePreferences = useCallback(
+    (data: UserPreferences, kept: ReadonlySet<string> = new Set()) => {
+      // A preset only exists in its own mode; another client or an imported
+      // file may have stored one with a mode it doesn't have
+      const apiPreset = presetForMode(parsePreset(data.theme_preset), data.theme_mode || 'auto')
+      const apiFont = parseFont(data.theme_font)
+      if (!kept.has('preset')) {
+        setPresetState(apiPreset)
+        localStorage.setItem('themePreset', apiPreset)
+      }
+      if (!kept.has('font')) {
+        setFontState(apiFont)
+        localStorage.setItem('themeFont', apiFont)
+      }
+      if (!kept.has('kpiMono')) {
+        setKpiMonoState(data.kpi_mono === true)
+        localStorage.setItem('kpiMono', String(data.kpi_mono === true))
+      }
+      if (!kept.has('iconSource')) setIconSourceState(parseIconSource(data.icon_source))
+      if (!kept.has('customCss')) setCustomCss(data.custom_css ?? '')
+    },
+    []
+  )
 
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
@@ -306,8 +322,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           const apiViewMode = response.data.view_mode ?? 'grid'
           const apiGlass = glassFromPreferences(response.data)
 
-          setThemeState(apiTheme)
-          setAccentColorState(apiAccent)
+          // The mode and accent stay with a preset picked while this loaded
+          if (!changedRef.current.has('preset')) {
+            setThemeState(apiTheme)
+            setAccentColorState(apiAccent)
+            localStorage.setItem('theme', apiTheme)
+            if (apiAccent) {
+              localStorage.setItem('accentColor', apiAccent)
+            } else {
+              localStorage.removeItem('accentColor')
+            }
+          }
           setBackgroundState(apiBackground)
           setOpenInNewTabState(apiOpenInNewTab)
           setEnableCardResizingState(apiEnableCardResizing)
@@ -315,7 +340,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setCardScaleState(apiCardScale)
           setViewModeState(apiViewMode)
           setGlassState(apiGlass)
-          applyThemePreferences(response.data)
+          applyThemePreferences(response.data, changedRef.current)
           if (!changedRef.current.has('statusStrip')) {
             const apiStatusStrip = response.data.status_strip ?? noStatusStrip
             setStatusStripState(apiStatusStrip)
@@ -339,18 +364,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }
 
           // Update localStorage cache with API data
-          localStorage.setItem('theme', apiTheme)
           localStorage.setItem('openInNewTab', String(apiOpenInNewTab))
           localStorage.setItem('enableCardResizing', String(apiEnableCardResizing))
           localStorage.setItem('enableServiceGrouping', String(apiEnableServiceGrouping))
           localStorage.setItem('cardScale', apiCardScale)
           localStorage.setItem('viewMode', apiViewMode)
           localStorage.setItem('glass', JSON.stringify(apiGlass))
-          if (apiAccent) {
-            localStorage.setItem('accentColor', apiAccent)
-          } else {
-            localStorage.removeItem('accentColor')
-          }
           if (apiBackground) {
             localStorage.setItem('background', apiBackground)
           } else {
@@ -509,6 +528,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Setters that update local state and sync to API
   const setTheme = useCallback(
     (v: 'light' | 'dark' | 'auto') => {
+      changedRef.current.add('preset')
       setThemeState(v)
       // Always saved with the mode, so the server never keeps a preset in
       // a mode it doesn't have
@@ -522,6 +542,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setPreset = useCallback(
     (v: ThemePreset) => {
       const change = presetChange(v)
+      changedRef.current.add('preset')
       setPresetState(v)
       if (change.theme_mode) setThemeState(change.theme_mode)
       if (change.theme_accent_color === null) setAccentColorState(undefined)
@@ -532,6 +553,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setFont = useCallback(
     (v: ThemeFont) => {
+      changedRef.current.add('font')
       setFontState(v)
       savePreferences({ theme_font: v })
     },
@@ -540,6 +562,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setKpiMono = useCallback(
     (v: boolean) => {
+      changedRef.current.add('kpiMono')
       setKpiMonoState(v)
       savePreferences({ kpi_mono: v })
     },
@@ -548,6 +571,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setIconSource = useCallback(
     (v: IconSource) => {
+      changedRef.current.add('iconSource')
       setIconSourceState(v)
       savePreferences({ icon_source: v })
     },
@@ -556,12 +580,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const saveTheme = useCallback(
     async (update: PreferencesUpdateRequest) => {
-      const response = await api.updatePreferences(update)
+      // After the save on its way and the queue it flushes when done, or an
+      // older change could land after this one and undo it
+      let older: Promise<unknown> | undefined
+      while (older !== inFlightSaveRef.current) {
+        older = inFlightSaveRef.current
+        await older
+      }
+      const request = api.updatePreferences(update)
+      inFlightSaveRef.current = request.catch(() => undefined)
+      const response = await request
       if (response.error || !response.data) {
         const fields = Object.values(response.error?.fields ?? {})
         return fields.join('. ') || response.error?.message || t('saveThemeFailed')
       }
       const data = response.data
+      // Newer than a first load that is still running
+      themeSettings.forEach((setting) => changedRef.current.add(setting))
       const glass = glassFromPreferences(data)
       setThemeState(data.theme_mode || 'auto')
       setAccentColorState(data.theme_accent_color)

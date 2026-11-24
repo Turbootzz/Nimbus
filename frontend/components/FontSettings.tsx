@@ -51,6 +51,7 @@ export default function FontSettings() {
 
       <div className="mt-6">
         <Toggle
+          id="kpi-mono"
           enabled={kpiMono}
           onChange={setKpiMono}
           label={t('kpiMono')}

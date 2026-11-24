@@ -54,6 +54,12 @@
   --color-warning: #df8e1d; /* yellow */
   --color-error: #d20f39; /* red */
   --color-info: #209fb5; /* sapphire */
+  /* The page colour reads on no status colour, and no Latte colour on
+     green, yellow or sapphire */
+  --color-on-success: #11111b; /* mocha crust */
+  --color-on-warning: #11111b; /* mocha crust */
+  --color-on-error: #eff1f5; /* base */
+  --color-on-info: #11111b; /* mocha crust */
 }
 
 /* Nord: https://www.nordtheme.com/docs/colors-and-palettes (nordtheme/nord src/nord.css).
@@ -78,6 +84,7 @@
   --color-warning: #ebcb8b; /* nord13 */
   --color-error: #bf616a; /* nord11 */
   --color-info: #81a1c1; /* nord9 */
+  --color-on-error: #000000; /* no Nord colour reads on nord11 */
 }
 
 /* Dracula: https://draculatheme.com/contribute#color-palette (dracula/dracula-theme README).
@@ -126,6 +133,7 @@
   --color-warning: #fabd2f; /* bright_yellow */
   --color-error: #fb4934; /* bright_red */
   --color-info: #83a598; /* bright_blue */
+  --color-on-error: #1d2021; /* dark0_hard */
 }
 
 /* Gruvbox light: https://github.com/morhetz/gruvbox (colors/gruvbox.vim) */
@@ -149,6 +157,9 @@
   --color-warning: #b57614; /* faded_yellow */
   --color-error: #9d0006; /* faded_red */
   --color-info: #076678; /* faded_blue */
+  /* No Gruvbox colour reads on faded_green and faded_yellow */
+  --color-on-success: #ffffff;
+  --color-on-warning: #000000;
 }
 
 /* Tokyo Night (night): https://github.com/folke/tokyonight.nvim
@@ -183,10 +194,20 @@
   color: var(--color-on-primary, #fff);
 }
 
-/* The same for white text on a status colour: the page colour of a preset
-   reads on its own status colours */
-[data-preset] :is(.bg-success, .bg-warning, .bg-error, .bg-info).text-white {
-  color: var(--color-background);
+/* The same for white text on a status colour: the page colour of a preset,
+   or the --color-on-<status> it names where that doesn't read (4.5:1,
+   checked in theme-presets.test.ts) */
+[data-preset] .bg-success.text-white {
+  color: var(--color-on-success, var(--color-background));
+}
+[data-preset] .bg-warning.text-white {
+  color: var(--color-on-warning, var(--color-background));
+}
+[data-preset] .bg-error.text-white {
+  color: var(--color-on-error, var(--color-background));
+}
+[data-preset] .bg-info.text-white {
+  color: var(--color-on-info, var(--color-background));
 }
 
 /* Font choice. The variables come from next/font on <body> (app/layout.tsx):

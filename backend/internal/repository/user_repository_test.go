@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
+	"errors"
 	"testing"
 	"time"
 
@@ -102,6 +104,32 @@ func TestUserRepository_UpdateRole(t *testing.T) {
 			t.Error("Expected error for non-existent user, got nil")
 		}
 	})
+}
+
+func TestUserRepository_GetByIDContext(t *testing.T) {
+	db := setupUserTestDB(t)
+	defer db.Close()
+	repo := NewUserRepository(db)
+
+	user := &models.User{Email: "ctx@example.com", Name: "Ctx", Role: "admin", CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	if err := repo.Create(user); err != nil {
+		t.Fatalf("Failed to create user: %v", err)
+	}
+
+	found, err := repo.GetByIDContext(context.Background(), user.ID)
+	if err != nil || found.Role != "admin" {
+		t.Fatalf("GetByIDContext() = %v, %v", found, err)
+	}
+	if _, err := repo.GetByIDContext(context.Background(), "missing"); !errors.Is(err, ErrUserNotFound) {
+		t.Errorf("missing user: got %v, want ErrUserNotFound", err)
+	}
+
+	// The query honours the caller's deadline
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := repo.GetByIDContext(ctx, user.ID); !errors.Is(err, context.Canceled) {
+		t.Errorf("cancelled context: got %v, want context.Canceled", err)
+	}
 }
 
 func TestUserRepository_UpdateAvatar(t *testing.T) {
