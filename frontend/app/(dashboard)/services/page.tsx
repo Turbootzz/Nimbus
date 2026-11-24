@@ -17,6 +17,7 @@ import {
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import type { Service, Group, Widget } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
@@ -25,7 +26,7 @@ import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/mo
 import { mergeTiles, reorderTiles, splitTiles, tileKey, toTilePositions } from '@/lib/tiles'
 
 export default function ServicesPage() {
-  const readOnly = useConfigFile()?.read_only ?? false
+  const readOnly = !canEdit(useConfigFile())
   const [services, setServices] = useState<Service[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   // Widgets are not shown here, but share positions with services, so the

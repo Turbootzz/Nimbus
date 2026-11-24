@@ -183,6 +183,32 @@ describe('DashboardImport', () => {
     expect(await screen.findByText(/status page moves to the group “Media”/)).toBeVisible()
   })
 
+  it('does not blame the file when the status page could not follow its group', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })
+    render(<DashboardImport />)
+    await user.upload(screen.getByLabelText('Dashboard file'), documentFile())
+    await screen.findByRole('button', { name: 'Import' })
+
+    // The file has the group, but moving the page to it failed after the replace
+    vi.mocked(api.importDashboard).mockResolvedValue({
+      data: { ...replaceSummary, status_page: { group: 'Media', kept: true } },
+    })
+    await user.click(screen.getByRole('radio', { name: /replace/i }))
+    await screen.findByText(/status page moves to the group “Media”/)
+    vi.mocked(api.importDashboard).mockResolvedValue({
+      data: { ...replaceSummary, dry_run: false, status_page: { group: 'Media', kept: false } },
+    })
+    await user.click(screen.getByRole('button', { name: 'Replace my dashboard' }))
+    await user.click(
+      within(screen.getByRole('alertdialog')).getByRole('button', { name: 'Replace' })
+    )
+
+    const finished = (await screen.findByText('Import finished.')).parentElement!
+    expect(within(finished).getByText(/status page is offline.*Choose a group again/)).toBeVisible()
+    expect(within(finished).queryByText(/has no group/)).not.toBeInTheDocument()
+  })
+
   it('shows the custom CSS a file brings before it is imported', async () => {
     const user = userEvent.setup()
     vi.mocked(api.importDashboard).mockResolvedValue({ data: summary() })

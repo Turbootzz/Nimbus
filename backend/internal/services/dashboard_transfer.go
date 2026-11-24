@@ -674,7 +674,9 @@ func hasNUL(raw []byte) bool {
 	}
 }
 
-// limitIssue turns a per-user limit error into a validation error
+// limitIssue turns a per-user limit error into a validation error that
+// still wraps it: unlike a mistake in the document, a limit may pass once the
+// user has fewer rows, so a config file's sync tries again
 func limitIssue(err error) error {
 	var issues dashdoc.Issues
 	switch {
@@ -687,7 +689,7 @@ func limitIssue(err error) error {
 	default:
 		return err
 	}
-	return issues.Err()
+	return fmt.Errorf("%w: %w", issues.Err(), err)
 }
 
 // importPlan is a validated document, ready to be written

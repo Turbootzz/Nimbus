@@ -6,7 +6,11 @@ import ImportWizard from '@/components/backup/ImportWizard'
 import { api } from '@/lib/api'
 import type { ConvertResult, Group, ImportSummary } from '@/types'
 
-vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
+// What the config file locks: null for no config file, undefined while unknown
+const configFile = vi.hoisted(() => ({
+  status: null as { read_only: boolean; preferences: boolean } | null | undefined,
+}))
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => configFile.status }))
 vi.mock('@/lib/api', () => ({
   api: {
     convertConfig: vi.fn(),
@@ -80,6 +84,7 @@ const sentDocument = (call: number) =>
 describe('ImportWizard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    configFile.status = null
     vi.mocked(api.getGroups).mockResolvedValue({ data: groups })
     vi.mocked(api.convertConfig).mockResolvedValue({ data: converted })
     vi.mocked(api.importDashboard).mockImplementation(async (_doc, _mode, dryRun) => ({
@@ -160,6 +165,74 @@ describe('ImportWizard', () => {
       new File(['sections: []'], 'conf.yml', { type: 'text/yaml' })
     )
     await waitFor(() => expect(screen.getByLabelText('Config')).toHaveValue('sections: []'))
+  })
+
+  it('keeps the file chosen last when an earlier one is read after it', async () => {
+    const user = userEvent.setup()
+    let finishFirst: (text: string) => void = () => {}
+    const first = new File(['first'], 'first.yml', { type: 'text/yaml' })
+    vi.spyOn(first, 'text').mockReturnValue(new Promise((resolve) => (finishFirst = resolve)))
+    render(<ImportWizard />)
+
+    await user.upload(screen.getByLabelText('Config file'), first)
+    await user.upload(
+      screen.getByLabelText('Config file'),
+      new File(['second'], 'second.yml', { type: 'text/yaml' })
+    )
+    await waitFor(() => expect(screen.getByLabelText('Config')).toHaveValue('second'))
+    finishFirst('first')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.getByLabelText('Config')).toHaveValue('second')
+
+    // Typing wins over a file that is still being read too
+    let finishThird: (text: string) => void = () => {}
+    const third = new File(['third'], 'third.yml', { type: 'text/yaml' })
+    vi.spyOn(third, 'text').mockReturnValue(new Promise((resolve) => (finishThird = resolve)))
+    await user.upload(screen.getByLabelText('Config file'), third)
+    await user.type(screen.getByLabelText('Config'), '!')
+    finishThird('third')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(screen.getByLabelText('Config')).toHaveValue('second!')
+  })
+
+  it('shows that the groups could not be loaded, and converts again', async () => {
+    const user = userEvent.setup()
+    vi.mocked(api.getGroups).mockResolvedValueOnce({
+      error: { message: 'Failed to retrieve groups' },
+    })
+    render(<ImportWizard />)
+    await user.type(screen.getByLabelText('Config'), '- Media:')
+    await user.click(screen.getByRole('button', { name: 'Convert' }))
+
+    // Not as if the user had no groups: those would all become new ones
+    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to retrieve groups')
+    expect(api.importDashboard).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Convert' }))
+    expect(await screen.findByRole('button', { name: 'Import' })).toBeEnabled()
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(api.getGroups).toHaveBeenCalledTimes(2)
+  })
+
+  it('offers no import until it is known that no config file locks the dashboard', async () => {
+    const user = userEvent.setup()
+    configFile.status = undefined
+    const { rerender } = render(<ImportWizard />)
+    await user.type(screen.getByLabelText('Config'), '- Media:')
+    await user.click(screen.getByRole('button', { name: 'Convert' }))
+
+    expect(await screen.findByRole('button', { name: 'Import' })).toBeDisabled()
+    expect(screen.queryByText(/managed by a config file/)).not.toBeInTheDocument()
+
+    configFile.status = { read_only: true, preferences: false }
+    rerender(<ImportWizard />)
+    expect(screen.getByRole('button', { name: 'Import' })).toBeDisabled()
+    expect(screen.getByText(/managed by a config file/)).toBeInTheDocument()
+
+    configFile.status = null
+    rerender(<ImportWizard />)
+    expect(screen.getByRole('button', { name: 'Import' })).toBeEnabled()
   })
 
   it('shows why a config could not be converted', async () => {

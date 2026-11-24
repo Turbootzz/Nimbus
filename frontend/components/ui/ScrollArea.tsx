@@ -45,7 +45,8 @@ const ScrollArea = forwardRef<HTMLDivElement, ScrollAreaProps>(
       const el = innerRef.current
       if (orientation !== 'horizontal' || !el) return
       const handleWheel = (e: globalThis.WheelEvent) => {
-        if (e.deltaY === 0 || e.deltaX !== 0) return
+        // Ctrl+wheel and a trackpad pinch zoom the browser
+        if (e.ctrlKey || e.deltaY === 0 || e.deltaX !== 0) return
         const end = el.scrollWidth - el.clientWidth - 1 // 1px for rounding
         if (e.deltaY < 0 ? el.scrollLeft <= 0 : el.scrollLeft >= end) return
         e.preventDefault()

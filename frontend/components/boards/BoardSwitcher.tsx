@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { useBoards } from '@/hooks/useBoards'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { useBoardOnScreen } from '@/lib/dashboard-store'
 import { boardHref, defaultBoard, rememberBoard, showBoardSwitcher } from '@/lib/boards'
 import { openBoardManager } from '@/components/boards/BoardManager'
@@ -34,8 +35,9 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
   const t = useTranslations('boards.switcher')
   const { boards } = useBoards()
   const onScreen = useBoardOnScreen()
-  // A dashboard locked by a config file has no board to create or change
-  const locked = useConfigFile()?.read_only ?? false
+  // A dashboard locked by a config file has no board to create or change,
+  // nor one whose status has not loaded
+  const locked = !canEdit(useConfigFile())
   const [open, setOpen] = useState(false)
   const menuId = useId()
   const rootRef = useRef<HTMLDivElement>(null)

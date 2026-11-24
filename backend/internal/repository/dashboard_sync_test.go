@@ -64,7 +64,7 @@ func TestDashboardSyncWritesCreatesUpdatesAndDeletes(t *testing.T) {
 		Credentials: map[string][]byte{integration: []byte("encrypted")},
 	}
 	changes.Delete.Widgets = []string{"mine-widget"}
-	require.NoError(t, repo.Sync(ctx, "user-1", changes))
+	require.NoError(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
 
 	state, err := repo.State(ctx, "user-1")
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestDashboardSyncWritesCreatesUpdatesAndDeletes(t *testing.T) {
 	assert.Equal(t, "dark", themeMode)
 
 	// A nil value clears the credentials
-	require.NoError(t, repo.Sync(ctx, "user-1", &DashboardChanges{Credentials: map[string][]byte{integration: nil}}))
+	require.NoError(t, repo.Sync(ctx, "user-1", &DashboardChanges{Credentials: map[string][]byte{integration: nil}}, testDashboardLimits))
 	blob, err = integrations.GetCredentials(ctx, integration, "user-1")
 	require.NoError(t, err)
 	assert.Nil(t, blob)
@@ -147,8 +147,51 @@ func TestDashboardSyncIsAllOrNothingAndOnlyTouchesTheUser(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			changes := &DashboardChanges{Create: DashboardRows{Groups: []*models.Group{newGroup()}}}
 			change(changes)
-			require.Error(t, repo.Sync(ctx, "user-1", changes))
+			require.Error(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
 			assert.Equal(t, before, dump())
 		})
 	}
+}
+
+func TestDashboardSyncChecksTheLimitsUnderTheLock(t *testing.T) {
+	_, repo := seedSyncTestDB(t)
+	ctx := context.Background()
+	widget := func(id string) *models.Widget {
+		return &models.Widget{ID: id, Type: "markdown", Title: id, Config: json.RawMessage(`{"content":"hi"}`),
+			CardSize: models.CardSize2x2, Position: 5, RefreshSeconds: 300, Enabled: true}
+	}
+	integration := func(id string) *models.Integration {
+		return &models.Integration{ID: id, Kind: "sonarr", Name: id, BaseURL: "http://sonarr.lan", AuthType: models.IntegrationAuthAPIKey, RefreshSeconds: 60}
+	}
+	// The user has one widget and one integration, and adds one of each in
+	// the UI after a sync was planned with room for one more
+	require.NoError(t, repo.Sync(ctx, "user-1", &DashboardChanges{Create: DashboardRows{
+		Widgets: []*models.Widget{widget("from-ui")}, Integrations: []*models.Integration{integration("from-ui")},
+	}}, testDashboardLimits))
+
+	changes := &DashboardChanges{Create: DashboardRows{Widgets: []*models.Widget{widget("from-file")}}}
+	assert.ErrorIs(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits), ErrWidgetLimitReached)
+	changes = &DashboardChanges{Create: DashboardRows{Integrations: []*models.Integration{integration("from-file")}}}
+	assert.ErrorIs(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits), ErrIntegrationLimitReached)
+	state, err := repo.State(ctx, "user-1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, state.Widgets)
+	assert.Equal(t, 2, state.Integrations)
+
+	// What the same sync deletes makes room
+	changes = &DashboardChanges{Create: DashboardRows{Widgets: []*models.Widget{widget("from-file")}}}
+	changes.Delete.Widgets = []string{"mine-widget"}
+	require.NoError(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
+
+	// The limits are per user: a widget on another board counts too
+	onBoard := widget("on-board")
+	onBoard.BoardID = "mine-board"
+	changes = &DashboardChanges{Create: DashboardRows{
+		Boards:  []*models.Board{{ID: "mine-board", Name: "Lab", Slug: "lab"}},
+		Widgets: []*models.Widget{onBoard},
+	}}
+	changes.Delete.Widgets = []string{"from-file"}
+	require.NoError(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
+	changes = &DashboardChanges{Create: DashboardRows{Widgets: []*models.Widget{widget("from-file-2")}}}
+	assert.ErrorIs(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits), ErrWidgetLimitReached)
 }

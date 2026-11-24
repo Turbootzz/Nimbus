@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { createEvent, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import ScrollArea from '@/components/ui/ScrollArea'
@@ -36,6 +36,15 @@ describe('ScrollArea', () => {
     // Back the other way it scrolls the strip again
     expect(fireEvent.wheel(el, { deltaY: -40 })).toBe(false)
     expect(el.scrollLeft).toBe(560)
+  })
+
+  it('leaves browser zoom (Ctrl+wheel, trackpad pinch) to the browser', () => {
+    const el = strip(900)
+    const zoom = createEvent.wheel(el, { deltaY: 40 })
+    // happy-dom's WheelEvent has no modifier keys, a browser's does
+    Object.defineProperty(zoom, 'ctrlKey', { value: true })
+    expect(fireEvent(el, zoom)).toBe(true)
+    expect(el.scrollLeft).toBe(0)
   })
 
   it('leaves the wheel to the page when there is nothing to scroll', () => {

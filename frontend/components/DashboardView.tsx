@@ -63,6 +63,7 @@ import WidgetModal from '@/components/widgets/WidgetModal'
 import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import { createCollisionDetection } from '@/lib/tile-collision'
 import {
@@ -141,8 +142,10 @@ export default function DashboardView({ board }: DashboardViewProps) {
   // Shared with the canvas top bar, whose user menu also toggles it
   // A dashboard locked by a config file, a board someone else shares and a
   // kiosk never enter edit mode, which is what shows every edit, delete,
-  // add-group and drag control
-  const readOnly = (useConfigFile()?.read_only ?? false) || viewer || kiosk
+  // add-group and drag control; nor does a board whose config file status
+  // has not loaded
+  const configFile = useConfigFile()
+  const readOnly = !canEdit(configFile) || viewer || kiosk
   const editModeOn = useEditMode()
   const isEditMode = editModeOn && !readOnly
   useEffect(() => setBoardReadOnly(readOnly), [readOnly])
@@ -853,8 +856,10 @@ export default function DashboardView({ board }: DashboardViewProps) {
   const header = (
     <DashboardHeader
       readOnly={readOnly}
-      // undefined: the header's own config file note
-      readOnlyNote={kiosk ? null : viewer ? t('readOnlyShared') : undefined}
+      // undefined: the header's own config file note; none while it loads
+      readOnlyNote={
+        kiosk ? null : viewer ? t('readOnlyShared') : configFile === undefined ? null : undefined
+      }
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
