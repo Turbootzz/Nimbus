@@ -379,10 +379,16 @@ describe('DashboardView', () => {
     render(<DashboardView board={lab} />)
     expect(await screen.findByText('s1')).toBeInTheDocument()
     expect(api.getServices).toHaveBeenCalledTimes(1)
+    let answer!: (response: { data: Service[] }) => void
+    vi.mocked(api.getServices).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
     await act(() => vi.advanceTimersByTimeAsync(5 * 60 * 1000))
     expect(api.getServices).toHaveBeenCalledTimes(2)
+    // While the refetch is out, the board stays on screen
     expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument()
     expect(screen.getByText('s1')).toBeInTheDocument()
+    await act(async () => answer({ data: [{ ...service, id: 's2' }] }))
+    expect(screen.getByText('s2')).toBeInTheDocument()
+    expect(screen.queryByText('s1')).not.toBeInTheDocument()
   })
 
   it('leaves a board that is no longer shared', async () => {
