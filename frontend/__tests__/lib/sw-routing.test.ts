@@ -272,6 +272,25 @@ describe('cache-first static strategy', () => {
     const response = await sw.cacheFirst(request(), { fetch, openCache: async () => cache })
     expect(await response.text()).toBe('js')
   })
+
+  it('fetches the file when the cache cannot be opened', async () => {
+    const openCache = async () => {
+      throw new Error('broken')
+    }
+    const response = await sw.cacheFirst(request(), {
+      fetch: async () => new Response('js'),
+      openCache,
+    })
+    expect(await response.text()).toBe('js')
+  })
+
+  it('fetches the file when the cache cannot be read', async () => {
+    const cache = fakeCache()
+    cache.match.mockRejectedValue(new Error('broken'))
+    const fetch = async () => new Response('js')
+    const response = await sw.cacheFirst(request(), { fetch, openCache: async () => cache })
+    expect(await response.text()).toBe('js')
+  })
 })
 
 describe('navigation strategy', () => {

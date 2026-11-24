@@ -85,6 +85,15 @@ function withCachedAt(response, now) {
   })
 }
 
+// A cache that cannot be read is a miss: the network may still answer
+async function readCache(deps, request) {
+  try {
+    return await (await deps.openCache()).match(request)
+  } catch {
+    return undefined
+  }
+}
+
 /**
  * Network-first. Any answer from the server, errors included, is returned as
  * is; the cache is read only when fetch itself fails (offline).
@@ -97,7 +106,7 @@ async function networkFirst(request, deps) {
   try {
     response = await deps.fetch(request)
   } catch (error) {
-    const cached = await (await deps.openCache()).match(request)
+    const cached = await readCache(deps, request)
     if (cached) return cached
     throw error
   }
@@ -119,12 +128,17 @@ async function networkFirst(request, deps) {
 
 // Cache-first, for files whose URL changes when their content does
 async function cacheFirst(request, deps) {
-  const cache = await deps.openCache()
-  const cached = await cache.match(request)
+  const cached = await readCache(deps, request)
   if (cached) return cached
   const response = await deps.fetch(request)
-  // A full cache must not cost the page the file
-  if (isCacheable(response)) await cache.put(request, response.clone()).catch(() => {})
+  // A full or broken cache must not cost the page the file
+  if (isCacheable(response)) {
+    const copy = response.clone()
+    await deps
+      .openCache()
+      .then((cache) => cache.put(request, copy))
+      .catch(() => {})
+  }
   return response
 }
 
@@ -133,7 +147,7 @@ async function navigate(request, deps) {
   try {
     return await deps.fetch(request)
   } catch (error) {
-    const offline = await (await deps.openCache()).match(OFFLINE_URL)
+    const offline = await readCache(deps, OFFLINE_URL)
     if (offline) return offline
     throw error
   }
