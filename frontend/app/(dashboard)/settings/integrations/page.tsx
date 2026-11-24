@@ -7,6 +7,7 @@ import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import IntegrationForm from '@/components/integrations/IntegrationForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { INTEGRATION_PREFILL_KEY } from '@/types'
@@ -47,8 +48,8 @@ function StatusBadge({ integration }: { integration: Integration }) {
 
 export default function IntegrationsPage() {
   const t = useTranslations('integrations.page')
-  // Locked by a config file: integrations can be tested, not changed
-  const readOnly = useConfigFile()?.read_only ?? false
+  // Locked by a config file, or not known yet: integrations can be tested, not changed
+  const readOnly = !canEdit(useConfigFile())
   const { integrations, setIntegrations, kinds, isLoading, error } = useIntegrations()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Integration | null>(null)

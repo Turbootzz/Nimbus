@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -144,10 +145,16 @@ type fakeSyncer struct {
 	calls []string
 	prune bool
 	err   error
+	// wait makes a sync wait for its context, like one held up by a row lock
+	wait bool
 }
 
-func (f *fakeSyncer) Sync(_ context.Context, userID string, _ *dashdoc.Document, prune bool) (*dashdoc.Summary, error) {
+func (f *fakeSyncer) Sync(ctx context.Context, userID string, _ *dashdoc.Document, prune bool) (*dashdoc.Summary, error) {
 	f.calls, f.prune = append(f.calls, userID), prune
+	if f.wait {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	}
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -237,10 +244,64 @@ func TestWatcherRetriesWhatMayPass(t *testing.T) {
 	w.Check(ctx)
 	assert.Len(t, syncer.calls, 2, "tried again at the next check")
 
+	// As services.DashboardTransferService.Sync reports a limit
+	syncer.err = fmt.Errorf("%w: %w", dashdoc.Issues{{Path: "widgets", Message: "the import would go over the limit of 50 widgets"}}.Err(),
+		repository.ErrWidgetLimitReached)
+	w.Check(ctx)
+	w.Check(ctx)
+	assert.Len(t, syncer.calls, 4, "the owner may have removed widgets by the next check")
+
 	syncer.err = &dashdoc.ValidationError{Issues: []dashdoc.Issue{{Path: "services[0]", Message: "Name and URL are required"}}}
 	w.Check(ctx)
 	w.Check(ctx)
-	assert.Len(t, syncer.calls, 3, "an invalid file waits for a change")
+	assert.Len(t, syncer.calls, 5, "an invalid file waits for a change")
+}
+
+func TestWatcherKeepsTheOwnerOfTheLastAppliedFile(t *testing.T) {
+	ctx := context.Background()
+	w, syncer, users, write := newTestWatcher(t, goodFile, Options{Prune: true, ReadOnly: true})
+	w.Check(ctx)
+	require.True(t, w.Locks("admin-1"))
+	require.True(t, w.LocksPreferences("admin-1"))
+
+	// A file the sync refuses moves no lock to another admin
+	users["other@example.com"] = &models.User{ID: "admin-2", Role: "admin"}
+	syncer.err = &dashdoc.ValidationError{Issues: []dashdoc.Issue{{Path: "services[0]", Message: "Name and URL are required"}}}
+	write("owner: other@example.com\nversion: 1\n")
+	w.Check(ctx)
+	assert.True(t, w.Locks("admin-1"))
+	assert.False(t, w.Manages("admin-2"))
+
+	// Nor does it lift the lock of the preferences
+	write("owner: admin@example.com\nversion: 1\n")
+	w.Check(ctx)
+	assert.True(t, w.LocksPreferences("admin-1"))
+
+	// Applied, it does both
+	syncer.err = nil
+	write("owner: other@example.com\nversion: 1\n")
+	w.Check(ctx)
+	assert.False(t, w.Manages("admin-1"))
+	assert.True(t, w.Locks("admin-2"))
+	assert.False(t, w.LocksPreferences("admin-2"))
+}
+
+func TestWatcherStopEndsACheckThatWaitsOnTheDatabase(t *testing.T) {
+	w, syncer, _, _ := newTestWatcher(t, goodFile, Options{})
+	syncer.wait = true
+	w.Start()
+	stopped := make(chan struct{})
+	go func() {
+		w.Stop()
+		close(stopped)
+	}()
+	select {
+	case <-stopped:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop waits for a sync that waits on the database")
+	}
+	assert.Len(t, syncer.calls, 1)
+	assert.False(t, w.Manages("admin-1"), "nothing was applied")
 }
 
 func TestWatcherLocks(t *testing.T) {
@@ -321,8 +382,9 @@ func TestWatcherLetsGoOfAnOwnerWhoIsNoLongerThatAdmin(t *testing.T) {
 
 func TestWatcherWaitsForAFileThatIsStillBeingWritten(t *testing.T) {
 	w, syncer, _, write := newTestWatcher(t, goodFile, Options{Settle: time.Millisecond})
-	assert.True(t, w.settled(sha256.Sum256([]byte(goodFile))))
-	assert.False(t, w.settled(sha256.Sum256([]byte("owner: half"))), "the file changed since it was read")
+	ctx := context.Background()
+	assert.True(t, w.settled(ctx, sha256.Sum256([]byte(goodFile))))
+	assert.False(t, w.settled(ctx, sha256.Sum256([]byte("owner: half"))), "the file changed since it was read")
 
 	// A file that keeps its content is applied, also after a change
 	w.Check(context.Background())
@@ -332,8 +394,8 @@ func TestWatcherWaitsForAFileThatIsStillBeingWritten(t *testing.T) {
 
 	// Stopping does not wait for the file
 	w.opts.Settle = time.Hour
-	close(w.stop)
-	assert.False(t, w.settled(sha256.Sum256([]byte(goodFile+"services: []\n"))))
+	w.cancel()
+	assert.False(t, w.settled(w.ctx, sha256.Sum256([]byte(goodFile+"services: []\n"))))
 }
 
 func TestWatcherLogsNoValuesOfTheFile(t *testing.T) {
@@ -344,11 +406,17 @@ func TestWatcherLogsNoValuesOfTheFile(t *testing.T) {
 
 	// A file that can't be parsed, in every way a value can be misplaced
 	w, _, _, write := newTestWatcher(t, "", Options{Lookup: lookup})
+	// Neighbours differ, as a message is only logged when it is not the last one
 	broken := []string{
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret\n   bad: [\n",
+		// The YAML decoder quotes an alias, a tagged value and a key
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: *SENTINEL-secret\n",
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: SENTINEL-secret: x\n",
+		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: !!int SENTINEL-secret\n",
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials: SENTINEL-secret\n",
+		"owner: admin@example.com\nversion: 1\n? [SENTINEL-secret]\n: x\n",
 		"owner: admin@example.com\nversion: 1\nintegrations:\n  - credentials:\n      api_key: [\"${KEY}\"]\n",
+		"owner: admin@example.com\nversion: 1\nSENTINEL-secret: 1\nSENTINEL-secret: 2\n",
 		"owner: admin@example.com\nversion: SENTINEL-secret\n",
 		`{"owner": "admin@example.com", "version": 1, "integrations": [{"credentials": {"api_key": "SENTINEL-secret"}]}`,
 		`{"owner": "admin@example.com", "version": 1, "preferences": {"theme_background": ["${KEY}"]}}`,
@@ -359,6 +427,21 @@ func TestWatcherLogsNoValuesOfTheFile(t *testing.T) {
 	}
 	assert.Equal(t, len(broken), strings.Count(logged.String(), "not applied"), logged.String())
 	assert.NotContains(t, logged.String(), "SENTINEL")
+}
+
+func TestParseErrorsTellWhereWithoutQuotingTheFile(t *testing.T) {
+	cases := map[string]string{
+		"owner: a@b.c\nservices: [a\n":             "invalid YAML: line 1: did not find expected ',' or ']'",
+		"owner: a@b.c\nkey: *SECRET\n":             "invalid YAML: the parser's description is not shown, it quotes the file",
+		"owner: a@b.c\nSECRET: 1\nSECRET: 2\n":     "invalid YAML: line 3: the parser's description is not shown, it quotes the file",
+		"{\"owner\": \"a@b.c\",\n\"key\": SECRET}": "invalid JSON: line 2: the parser's description is not shown, it quotes the file",
+		"{\"owner\": \"a@b.c\",\n\"key\": ":        "invalid JSON: line 2: unexpected end of JSON input",
+		"{\"owner\": \"a@b.c\"\n]":                 "invalid JSON: line 2: invalid character ']' after object key:value pair",
+	}
+	for content, want := range cases {
+		_, err := Parse([]byte(content), env(nil))
+		assert.EqualError(t, err, want, content)
+	}
 }
 
 func TestReasonLeavesOutWhatQuotesTheFile(t *testing.T) {

@@ -33,8 +33,10 @@ func (c *DashboardChanges) Empty() bool {
 
 // Sync writes changes for the user in one transaction: all of it, or
 // nothing. Rows of other users are never touched; an update or delete of a
-// row the user no longer has fails the sync.
-func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *DashboardChanges) error {
+// row the user no longer has fails the sync. Like Apply, it reports
+// ErrIntegrationLimitReached or ErrWidgetLimitReached when the user would
+// end up over limits.
+func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *DashboardChanges, limits DashboardLimits) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -42,6 +44,20 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 	defer func() { _ = tx.Rollback() }()
 
 	if err := lockUser(ctx, tx, userID); err != nil {
+		return err
+	}
+	// Counted under the lock, on all boards as the limits are per user: the
+	// user may have added rows since the sync was planned
+	var kept DashboardState
+	err = tx.QueryRowContext(ctx, `
+		SELECT (SELECT COUNT(*) FROM integrations WHERE user_id = $1), (SELECT COUNT(*) FROM widgets WHERE user_id = $1)`,
+		userID).Scan(&kept.Integrations, &kept.Widgets)
+	if err != nil {
+		return fmt.Errorf("failed to read dashboard state: %w", err)
+	}
+	kept.Integrations -= len(changes.Delete.Integrations)
+	kept.Widgets -= len(changes.Delete.Widgets)
+	if err := changes.Create.CheckLimits(kept, limits); err != nil {
 		return err
 	}
 	// exec runs a statement that must change exactly the one row it names

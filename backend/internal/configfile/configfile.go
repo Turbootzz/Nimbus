@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/nimbus/backend/internal/dashdoc"
@@ -70,10 +71,10 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 	var tree any
 	if trimmed := bytes.TrimSpace(data); len(trimmed) > 0 && trimmed[0] == '{' {
 		if err := json.Unmarshal(data, &tree); err != nil {
-			return nil, fmt.Errorf("invalid JSON: %w", err)
+			return nil, fmt.Errorf("invalid JSON: %s", jsonProblem(data, err))
 		}
 	} else if err := yaml.Unmarshal(data, &tree); err != nil {
-		return nil, fmt.Errorf("invalid YAML: %w", err)
+		return nil, fmt.Errorf("invalid YAML: %s", yamlProblem(err))
 	}
 	if _, ok := tree.(map[string]any); !ok {
 		return nil, errors.New("the file must hold a mapping with owner, version and the dashboard")
@@ -110,6 +111,47 @@ func Parse(data []byte, lookup func(string) (string, bool)) (*File, error) {
 	}
 	file.values = values.seen
 	return &file, nil
+}
+
+// The parsers can quote the file in their messages (an alias name, a value
+// with a tag, a key, a character), and the file holds secrets: the log gets
+// the line and a description that quotes nothing.
+
+// yamlMessage splits a YAML error into its line, when it has one, and its
+// description
+var yamlMessage = regexp.MustCompile(`^yaml: (?:unmarshal errors:\n  )?(?:line (\d+): )?(.*)`)
+
+// plainText quotes nothing of the file: words, and at most a single quoted
+// punctuation mark like ']'
+var plainText = regexp.MustCompile(`^(?:[A-Za-z0-9 ,:<>-]|'[^\sA-Za-z0-9]')+$`)
+
+// parseProblem is what the log may tell about a parse error
+func parseProblem(line int, description string) string {
+	if !plainText.MatchString(description) {
+		description = "the parser's description is not shown, it quotes the file"
+	}
+	if line > 0 {
+		return fmt.Sprintf("line %d: %s", line, description)
+	}
+	return description
+}
+
+func yamlProblem(err error) string {
+	match := yamlMessage.FindStringSubmatch(err.Error())
+	if match == nil {
+		return parseProblem(0, "")
+	}
+	line, _ := strconv.Atoi(match[1])
+	return parseProblem(line, match[2])
+}
+
+func jsonProblem(data []byte, err error) string {
+	var syntax *json.SyntaxError
+	if !errors.As(err, &syntax) {
+		return parseProblem(0, "")
+	}
+	read := data[:min(max(syntax.Offset, 0), int64(len(data)))]
+	return parseProblem(1+bytes.Count(read, []byte("\n")), syntax.Error())
 }
 
 // variable matches ${NAME} and its escape $${NAME}

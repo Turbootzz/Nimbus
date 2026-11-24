@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/nimbus/backend/internal/configfile"
 	"github.com/nimbus/backend/internal/dashdoc"
@@ -33,6 +34,14 @@ func TestSyncOnPostgres(t *testing.T) {
 	database, err := sql.Open("postgres", dsn)
 	require.NoError(t, err)
 	t.Cleanup(func() { database.Close() })
+	// A container that was just started takes a few seconds to accept
+	// connections on its published port
+	for deadline := time.Now().Add(30 * time.Second); ; time.Sleep(500 * time.Millisecond) {
+		if err = database.Ping(); err == nil || time.Now().After(deadline) {
+			break
+		}
+	}
+	require.NoError(t, err, "PostgreSQL did not accept connections within 30 seconds")
 	// The migration runner reads its files relative to the backend directory
 	t.Chdir("../..")
 	require.NoError(t, db.RunMigrations(database))

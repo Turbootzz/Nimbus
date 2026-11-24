@@ -78,18 +78,31 @@ describe('config file mode', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.getByText(/Read-only: managed by config file/)).toBeInTheDocument()
+
+    // While it is not known whether a config file locks it: no buttons, no note
+    rerender(<DashboardHeader {...props} readOnly readOnlyNote={null} />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Read-only/)).not.toBeInTheDocument()
   })
 
   it('offers "Edit layout" in the canvas menu unless the dashboard is read-only', async () => {
     me({ read_only: false, preferences: false })
     const { unmount } = render(<UserMenu withNavigation />)
     fireEvent.click(await screen.findByRole('button', { name: /Admin/ }))
-    expect(screen.getByRole('button', { name: 'Edit layout' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Edit layout' })).toBeInTheDocument()
     unmount()
 
     me({ read_only: true, preferences: false })
     render(<UserMenu withNavigation />)
     fireEvent.click(await screen.findByRole('button', { name: /Admin/ }))
+    expect(screen.getByRole('link', { name: 'Services' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Edit layout' })).not.toBeInTheDocument()
+  })
+
+  it('offers no "Edit layout" when it could not be loaded whether a file locks the dashboard', async () => {
+    vi.mocked(api.getCurrentUser).mockResolvedValue({ error: { message: 'Network error' } })
+    render(<UserMenu withNavigation />)
+    fireEvent.click(await screen.findByRole('button', { name: /User/ }))
     expect(screen.getByRole('link', { name: 'Services' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Edit layout' })).not.toBeInTheDocument()
   })
