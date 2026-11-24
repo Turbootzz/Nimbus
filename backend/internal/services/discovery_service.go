@@ -53,6 +53,8 @@ type DiscoveryService struct {
 	settings     *repository.SettingsRepository
 	// iconBase is the dashboard-icons URL; empty leaves icons out
 	iconBase string
+	// managed tells whose services a config file decides; nil: nobody's
+	managed func(userID string) bool
 
 	// ponytail: in-process locks, Nimbus runs as one process. groupMu keeps
 	// two adds from creating the same group twice (group names have no unique
@@ -400,6 +402,13 @@ func (s *DiscoveryService) Unignore(ctx context.Context, userID, key string) err
 	return s.repo.Release(ctx, userID, key)
 }
 
+// SetManaged tells AutoAdd whose dashboard a config file owns
+// (NIMBUS_CONFIG_FILE). It adds nothing there: the file would remove the
+// service at its next sync, and a read-only dashboard takes no additions.
+func (s *DiscoveryService) SetManaged(managed func(userID string) bool) {
+	s.managed = managed
+}
+
 // AutoAddEnabled reports the admin setting; off unless it is "true"
 func (s *DiscoveryService) AutoAddEnabled(ctx context.Context) (bool, error) {
 	setting, err := s.settings.Get(ctx, models.SettingDiscoveryAutoAdd)
@@ -415,7 +424,8 @@ func (s *DiscoveryService) AutoAddEnabled(ctx context.Context) (bool, error) {
 // AutoAdd adds every container labelled nimbus.enable=true that has a nimbus.url
 // label, for each admin's Docker integrations, when the admin setting is on.
 // It never adds a guessed URL, an ignored container, or one it added before
-// (also not after that service was deleted). Returns how many were added,
+// (also not after that service was deleted), and nothing to a dashboard a
+// config file owns (SetManaged). Returns how many were added,
 // at most autoAddMaxPerRun.
 func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 	enabled, err := s.AutoAddEnabled(ctx)
@@ -431,6 +441,9 @@ func (s *DiscoveryService) AutoAdd(ctx context.Context) (int, error) {
 	handledByUser := map[string]map[string]*string{}
 	for i := range all {
 		integration := &all[i]
+		if s.managed != nil && s.managed(integration.UserID) {
+			continue
+		}
 		handled, ok := handledByUser[integration.UserID]
 		if !ok {
 			if handled, err = s.repo.List(ctx, integration.UserID); err != nil {

@@ -10,6 +10,16 @@ export interface User {
   last_activity_at?: string
   created_at: string
   updated_at?: string
+  // Set when this user's dashboard comes from a config file (NIMBUS_CONFIG_FILE)
+  config_file?: ConfigFileStatus
+}
+
+// What the config file locks for its owner
+export interface ConfigFileStatus {
+  // Groups, services, widgets and integrations can't be edited
+  read_only: boolean
+  // The look and layout settings can't be edited either
+  preferences: boolean
 }
 
 // Auth types
@@ -830,6 +840,53 @@ export interface DashboardDocument {
 export interface ImportCount {
   created: number
   removed: number
+}
+
+// The parts of a dashboard document the import wizard shows and maps
+export interface DocumentGroup {
+  ref?: string
+  name: string
+  default?: boolean
+  [key: string]: unknown
+}
+
+export interface DocumentService {
+  name: string
+  url: string
+  group_ref?: string
+  integration_ref?: string
+  [key: string]: unknown
+}
+
+export interface DocumentIntegration {
+  ref?: string
+  kind: string
+  name: string
+  base_url: string
+  [key: string]: unknown
+}
+
+export interface DocumentWidget {
+  type: string
+  group_ref?: string
+  [key: string]: unknown
+}
+
+export interface ConvertedDocument extends DashboardDocument {
+  groups: DocumentGroup[]
+  services: DocumentService[]
+  integrations: DocumentIntegration[]
+  widgets: DocumentWidget[]
+}
+
+// Other dashboards whose config can be converted
+export type ImportFormat = 'homepage' | 'homarr' | 'homer' | 'dashy' | 'compose'
+
+// A converted config: the document to import and what was left out
+export interface ConvertResult {
+  format: ImportFormat
+  document: ConvertedDocument
+  warnings: string[]
 }
 
 export interface ImportSummary {

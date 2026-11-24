@@ -1,5 +1,6 @@
 import DashboardExport from '@/components/backup/DashboardExport'
 import DashboardImport from '@/components/backup/DashboardImport'
+import ImportWizard from '@/components/backup/ImportWizard'
 
 export default function BackupPage() {
   return (
@@ -14,6 +15,7 @@ export default function BackupPage() {
       </div>
       <DashboardExport />
       <DashboardImport />
+      <ImportWizard />
     </div>
   )
 }

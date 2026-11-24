@@ -16,6 +16,8 @@ import {
 } from '@dnd-kit/core'
 import { SortableContext, rectSortingStrategy } from '@dnd-kit/sortable'
 import { api } from '@/lib/api'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import type { Service, Group, Widget } from '@/types'
 import { DraggableServiceManagementCard } from '@/components/DraggableServiceManagementCard'
 import { ServiceManagementCardPresentation } from '@/components/ServiceManagementCardPresentation'
@@ -24,6 +26,7 @@ import { buildGroupMonitoringMap, isServiceEffectivelyMonitored } from '@/lib/mo
 import { mergeTiles, reorderTiles, splitTiles, tileKey, toTilePositions } from '@/lib/tiles'
 
 export default function ServicesPage() {
+  const readOnly = !canEdit(useConfigFile())
   const [services, setServices] = useState<Service[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   // Widgets are not shown here, but share positions with services, so the
@@ -202,13 +205,15 @@ export default function ServicesPage() {
           <h1 className="text-text-primary text-3xl font-bold">Services</h1>
           <p className="text-text-secondary mt-1">Manage your homelab services</p>
         </div>
-        <Link
-          href="/services/new"
-          className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-        >
-          <PlusIcon className="mr-2 h-4 w-4" />
-          Add Service
-        </Link>
+        {!readOnly && (
+          <Link
+            href="/services/new"
+            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+          >
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Add Service
+          </Link>
+        )}
       </div>
 
       {/* Error message */}
@@ -226,7 +231,9 @@ export default function ServicesPage() {
         </div>
       )}
 
-      <DiscoveredTray onAdded={(service) => setServices((prev) => [...prev, service])} />
+      {!readOnly && (
+        <DiscoveredTray onAdded={(service) => setServices((prev) => [...prev, service])} />
+      )}
 
       {/* Services grid */}
       {services.length === 0 ? (
@@ -237,13 +244,15 @@ export default function ServicesPage() {
             Get started by adding your first service. Services can be websites, apps, or any URL you
             want to monitor.
           </p>
-          <Link
-            href="/services/new"
-            className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
-          >
-            <PlusIcon className="mr-2 h-4 w-4" />
-            Add Your First Service
-          </Link>
+          {!readOnly && (
+            <Link
+              href="/services/new"
+              className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <PlusIcon className="mr-2 h-4 w-4" />
+              Add Your First Service
+            </Link>
+          )}
         </div>
       ) : (
         <DndContext
@@ -261,6 +270,7 @@ export default function ServicesPage() {
                   service={service}
                   onDelete={handleDelete}
                   isMonitored={isServiceEffectivelyMonitored(service, groupMonitoringMap)}
+                  readOnly={readOnly}
                 />
               ))}
             </div>

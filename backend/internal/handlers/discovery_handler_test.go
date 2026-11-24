@@ -619,6 +619,27 @@ func TestDiscoveryService_AutoAddSkipsIgnored(t *testing.T) {
 	assert.Zero(t, added)
 }
 
+func TestDiscoveryService_AutoAddSkipsAConfigManagedDashboard(t *testing.T) {
+	db := setupDiscoveryDB(t)
+	f := newDiscoveryFixture(t, db)
+	docker, _ := fakeDocker(t, discoveryContainers)
+	f.addDocker(t, discoveryAdminID, "Homelab", docker.URL)
+	_, err := db.Exec(`UPDATE system_settings SET value = 'true' WHERE key = 'discovery_auto_add'`)
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	managed := true
+	f.service.SetManaged(func(userID string) bool { return managed && userID == discoveryAdminID })
+	added, err := f.service.AutoAdd(ctx)
+	require.NoError(t, err)
+	assert.Zero(t, added, "the config file decides which services there are")
+
+	managed = false
+	added, err = f.service.AutoAdd(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, added)
+}
+
 func TestSettingsHandler_DiscoveryAutoAddIsBoolean(t *testing.T) {
 	db := setupDiscoveryDB(t)
 	handler := NewSettingsHandler(repository.NewSettingsRepository(db), nil)

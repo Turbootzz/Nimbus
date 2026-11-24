@@ -122,6 +122,7 @@ func setupTransferTestApp(t *testing.T, userID string) (*fiber.App, *sql.DB) {
 	})
 	app.Get("/export", handler.Export)
 	app.Post("/import", handler.Import)
+	app.Post("/import/convert", handler.Convert)
 	return app, db
 }
 

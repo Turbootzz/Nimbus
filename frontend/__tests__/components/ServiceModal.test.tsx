@@ -5,6 +5,7 @@ import ServiceModal from '@/components/ServiceModal'
 import { api } from '@/lib/api'
 import type { ApiResponse, Service } from '@/types'
 
+vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
     updateService: vi.fn(),

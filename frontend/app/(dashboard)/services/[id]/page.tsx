@@ -7,6 +7,8 @@ import { ArrowLeftIcon, ArrowPathIcon, PencilIcon, TrashIcon } from '@heroicons/
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/solid'
 import { Service, MetricsResponse, TimeRangeOption } from '@/types'
 import { api } from '@/lib/api'
+import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import UptimeChart from '@/components/graphs/UptimeChart'
 import MetricsCard from '@/components/graphs/MetricsCard'
 import ServiceIcon from '@/components/ServiceIcon'
@@ -16,6 +18,8 @@ import { getResponseTimeColor } from '@/lib/status-utils'
 const API_URL = getApiUrl()
 
 export default function ServiceDetailPage() {
+  // Locked by a config file, or not known yet: the service can be looked at, not changed
+  const readOnly = !canEdit(useConfigFile())
   const params = useParams()
   const router = useRouter()
   const serviceId = params.id as string
@@ -212,20 +216,24 @@ export default function ServiceDetailPage() {
                 <ArrowPathIcon className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
-            <Link
-              href={`/services/${serviceId}/edit`}
-              className="text-text-secondary hover:text-text-primary p-2"
-              title="Edit"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </Link>
-            <button
-              onClick={handleDelete}
-              className="text-error p-2 hover:opacity-80"
-              title="Delete"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+            {!readOnly && (
+              <>
+                <Link
+                  href={`/services/${serviceId}/edit`}
+                  className="text-text-secondary hover:text-text-primary p-2"
+                  title="Edit"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </Link>
+                <button
+                  onClick={handleDelete}
+                  className="text-error p-2 hover:opacity-80"
+                  title="Delete"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

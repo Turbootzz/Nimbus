@@ -180,3 +180,37 @@ func GetOIDCConfig() models.OAuthConfig {
 		IssuerURL:    os.Getenv("OIDC_ISSUER_URL"),
 	}
 }
+
+// ConfigFile is the config-file mode set up in the environment
+type ConfigFile struct {
+	// Path is NIMBUS_CONFIG_FILE; empty means the mode is off
+	Path string
+	// Prune is true for NIMBUS_CONFIG_MODE=replace, the default: each list in
+	// the file is all there is of that kind. With merge, the file only adds
+	// and updates.
+	Prune bool
+	// ReadOnly is NIMBUS_CONFIG_READONLY
+	ReadOnly bool
+}
+
+// GetConfigFile reads the config-file mode from the environment. Without
+// NIMBUS_CONFIG_FILE the mode is off and its other settings don't matter.
+func GetConfigFile() (ConfigFile, error) {
+	file := ConfigFile{Path: GetEnvOrDefault("NIMBUS_CONFIG_FILE", "")}
+	if file.Path == "" {
+		return ConfigFile{}, nil
+	}
+	switch mode := strings.ToLower(GetEnvOrDefault("NIMBUS_CONFIG_MODE", "replace")); mode {
+	case "replace":
+		file.Prune = true
+	case "merge":
+	default:
+		return file, fmt.Errorf("NIMBUS_CONFIG_MODE must be replace or merge, not %q", mode)
+	}
+	readOnly, err := strconv.ParseBool(GetEnvOrDefault("NIMBUS_CONFIG_READONLY", "false"))
+	if err != nil {
+		return file, fmt.Errorf("NIMBUS_CONFIG_READONLY must be true or false")
+	}
+	file.ReadOnly = readOnly
+	return file, nil
+}

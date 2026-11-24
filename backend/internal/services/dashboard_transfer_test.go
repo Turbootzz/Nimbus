@@ -200,7 +200,12 @@ func newTransferEnv(t *testing.T) *transferEnv {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(transferSchema)
 	require.NoError(t, err)
+	return newTransferEnvOn(t, db)
+}
 
+// newTransferEnvOn is a transfer service on a database that has the schema
+func newTransferEnvOn(t *testing.T, db *sql.DB) *transferEnv {
+	t.Helper()
 	cipher, err := utils.NewCipher(bytes.Repeat([]byte{9}, 32))
 	require.NoError(t, err)
 	integrationRepo := repository.NewIntegrationRepository(db)
