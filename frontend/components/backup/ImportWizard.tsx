@@ -4,6 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { ArrowUpTrayIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { ReadOnlyNote } from '@/components/ConfigFileBanner'
 import { SummaryTable, issuesOf } from '@/components/backup/DashboardImport'
 import { canCreate, defaultTargets, mapGroups, type GroupTargets } from '@/lib/import-wizard'
@@ -38,7 +39,8 @@ const cellClass = 'py-2 pr-4 align-top'
 export default function ImportWizard() {
   const id = useId()
   // Locked by a config file: only the preview works
-  const readOnly = useConfigFile()?.read_only ?? false
+  const configFile = useConfigFile()
+  const readOnly = configFile?.read_only ?? false
   const fileInput = useRef<HTMLInputElement>(null)
   const [config, setConfig] = useState('')
   const [format, setFormat] = useState<ImportFormat | 'auto'>('auto')
@@ -105,9 +107,11 @@ export default function ImportWizard() {
       api.getGroups(),
     ])
     if (current !== request.current) return
-    if (!conversion.data) {
+    // Without the groups they have, a group of the config can't be mapped
+    // onto one; Convert asks for both again
+    if (!conversion.data || existing.error) {
       setBusy(false)
-      fail(conversion.error, 'The config could not be converted')
+      fail(conversion.error ?? existing.error, 'The config could not be converted')
       return
     }
     const existingGroups = existing.data ?? []
@@ -121,11 +125,14 @@ export default function ImportWizard() {
   const chooseFile = async (chosen?: File) => {
     if (!chosen) return
     reset()
+    // A file chosen or text typed meanwhile wins over this read
+    const current = request.current
     if (chosen.size > MAX_CONFIG_BYTES) {
       setError('The file is too large. A config is at most 1 MB.')
       return
     }
-    setConfig(await chosen.text())
+    const text = await chosen.text()
+    if (current === request.current) setConfig(text)
   }
 
   const chooseTarget = (ref: string, target: string) => {
@@ -463,7 +470,7 @@ export default function ImportWizard() {
                 <button
                   type="button"
                   onClick={apply}
-                  disabled={busy || readOnly}
+                  disabled={busy || !canEdit(configFile)}
                   className="bg-primary hover:bg-primary/90 focus-visible:ring-primary mt-4 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Import
