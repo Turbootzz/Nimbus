@@ -311,7 +311,8 @@ func TestGetConfigFile(t *testing.T) {
 		want                       ConfigFile
 		wantErr                    bool
 	}{
-		{name: "off", want: ConfigFile{Prune: true}},
+		{name: "off", want: ConfigFile{}},
+		{name: "off ignores a mistyped mode and read-only", mode: "merg", readOnly: "yes please", want: ConfigFile{}},
 		{name: "replace is the default", path: "/config/nimbus.yaml", want: ConfigFile{Path: "/config/nimbus.yaml", Prune: true}},
 		{name: "merge", path: "/c.yaml", mode: "Merge", readOnly: "true", want: ConfigFile{Path: "/c.yaml", ReadOnly: true}},
 		{name: "read-only as 1", path: "/c.yaml", mode: "replace", readOnly: "1", want: ConfigFile{Path: "/c.yaml", Prune: true, ReadOnly: true}},
