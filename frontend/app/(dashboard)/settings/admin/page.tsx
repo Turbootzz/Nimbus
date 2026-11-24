@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
 import SMTPSettingsSection from '@/components/SMTPSettingsSection'
+import StatusPageSettings from '@/components/StatusPageSettings'
 import type { SystemSetting, User } from '@/types'
 
 export default function AdminSettingsPage() {
@@ -157,6 +158,15 @@ export default function AdminSettingsPage() {
             Configure SMTP settings for password reset emails
           </p>
           <SMTPSettingsSection settings={settings} />
+        </div>
+
+        {/* Public status page */}
+        <div className="glass-card border-card-border rounded-lg border p-6">
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">Public status page</h2>
+          <p className="text-text-secondary mb-4 text-sm">
+            Share the uptime of one group of services on a page that needs no account
+          </p>
+          <StatusPageSettings />
         </div>
       </div>
     </div>

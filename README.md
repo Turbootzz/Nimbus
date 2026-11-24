@@ -41,6 +41,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Response time tracking
 - Smart self-signed cert handling
 - Status history & uptime graphs
+- Public status page: share the uptime of one group at `/status`, no account needed ([docs](docs/CONFIGURATION.md#public-status-page))
 - Offline alerts: webhook, Discord, Slack, ntfy, Gotify, Telegram, Pushover ([docs](docs/NOTIFICATIONS.md))
 - Hover a tile (or long-press it) for 24h uptime, last check and last error
 

@@ -826,8 +826,7 @@ export interface ImportIssue {
   message: string
 }
 
-// ============================================
-// Docker discovery
+// =====================================// Docker discovery
 // ============================================
 
 // A container that can become a service. Every text field comes from
@@ -874,4 +873,39 @@ export interface DiscoveryAddRequest {
   icon_url?: string
   group?: string
   description?: string
+}
+
+// Public status page: the admin configuration
+export interface StatusPageSettings {
+  enabled: boolean
+  group_id: string
+  title: string
+  logo: string // File name of an uploaded service icon, or empty
+  show_links: boolean
+}
+
+export type StatusPageOverall = 'operational' | 'degraded' | 'outage' | 'unknown'
+
+// One row of the public status page. Uptime values are percentages; null
+// means there were no checks in that period.
+export interface PublicStatusService {
+  name: string
+  icon: string
+  icon_type: 'emoji' | 'image_upload' | 'image_url'
+  icon_image_path?: string
+  status: 'online' | 'offline' | 'unknown'
+  url?: string // Only when the admin shows links
+  uptime_24h: number | null
+  uptime_7d: number | null
+  bars_24h: (number | null)[]
+  bars_7d: (number | null)[]
+}
+
+// What anonymous visitors get from GET /public/status
+export interface PublicStatusPage {
+  title: string
+  logo?: string
+  overall: StatusPageOverall
+  updated_at: string
+  services: PublicStatusService[]
 }

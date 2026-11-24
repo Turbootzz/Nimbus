@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { fetchPublicStatus } from '@/lib/status-page'
 
 /**
  * Next.js Proxy for Server-Side Authentication
@@ -66,6 +67,18 @@ async function validateToken(token: string): Promise<boolean> {
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // While the public status page is off it must look like any address that
+  // does not exist. notFound() in the page itself answers with other headers
+  // and markup than an unknown route, so send it to one ("/-" is no page).
+  // The bundled nginx hides the header this rewrite adds.
+  if (pathname === '/status') {
+    const status = await fetchPublicStatus(request.headers)
+    if (status.state === 'disabled') {
+      return NextResponse.rewrite(new URL('/-', request.url))
+    }
+    return NextResponse.next()
+  }
 
   // Get auth token from httpOnly cookie
   const authToken = request.cookies.get('auth_token')?.value
