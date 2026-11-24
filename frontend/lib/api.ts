@@ -128,6 +128,10 @@ class ApiClient {
         return { error: { message: 'The file is too large' } }
       }
 
+      // The session is gone, so is the right to its offline copy. Before the
+      // body is read: an empty or HTML 401 must clear it too.
+      if (response.status === 401 && typeof window !== 'undefined') await clearApiCache()
+
       // Parse response as text first to handle non-JSON responses gracefully
       const text = await response.text()
 
@@ -161,9 +165,6 @@ class ApiClient {
       if (!response.ok) {
         // Handle 401 Unauthorized - token is invalid or user doesn't exist
         if (response.status === 401 && typeof window !== 'undefined') {
-          // The session is gone, so is the right to its offline copy
-          await clearApiCache()
-
           // Don't redirect for preferences endpoint - it's okay if user isn't logged in yet
           const isPreferencesEndpoint = endpoint.includes('/users/me/preferences')
 
