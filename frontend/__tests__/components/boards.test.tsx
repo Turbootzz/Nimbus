@@ -172,10 +172,17 @@ describe('BoardSwitcher', () => {
       '/board/family',
     ])
     expect(screen.getByRole('link', { name: 'Lab' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Family · shared' })).toBeInTheDocument()
 
     // Choosing the default board makes /dashboard stay there
     fireEvent.click(screen.getByRole('link', { name: 'Home' }))
     expect(store['nimbus-last-board']).toBe('')
+  })
+
+  it('marks its owner\'s shared board too', async () => {
+    await loadBoards([home, { ...lab, is_shared: true }])
+    render(<BoardSwitcher variant="list" collapsed />)
+    expect(screen.getByRole('link', { name: 'Lab · shared' })).toBeInTheDocument()
   })
 
   it('opens a menu in the canvas top bar', async () => {

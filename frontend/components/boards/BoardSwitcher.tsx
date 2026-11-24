@@ -18,6 +18,14 @@ interface BoardSwitcherProps {
   onNavigate?: () => void
 }
 
+// Marks a shared board, for its owner and its viewers alike: a viewer may
+// have a board of their own with the same name
+function SharedMark({ board }: { board: Board }) {
+  return board.is_shared ? (
+    <span className="text-text-muted shrink-0 text-xs"> · shared</span>
+  ) : null
+}
+
 // Switches between the boards the user sees. Nothing shows with one board:
 // the dashboard then looks as it did before boards existed.
 export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardSwitcherProps) {
@@ -82,9 +90,17 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
                   {board.name.charAt(0).toUpperCase()}
                 </span>
               ) : (
-                <span className="truncate">{board.name}</span>
+                <>
+                  <span className="truncate">{board.name}</span>
+                  <SharedMark board={board} />
+                </>
               )}
-              {collapsed && <span className="sr-only">{board.name}</span>}
+              {collapsed && (
+                <span className="sr-only">
+                  {board.name}
+                  <SharedMark board={board} />
+                </span>
+              )}
             </Link>
           )
         })}
@@ -142,7 +158,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
               }`}
             >
               {board.name}
-              {!board.owned && <span className="text-text-muted text-xs"> · shared</span>}
+              <SharedMark board={board} />
             </Link>
           ))}
           {!locked && (
