@@ -221,7 +221,7 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 	if err != nil {
 		return nil, err
 	}
-	owner, err := s.userRepo.GetByID(group.UserID)
+	owner, err := s.userRepo.GetByIDContext(ctx, group.UserID)
 	if errors.Is(err, repository.ErrUserNotFound) {
 		return nil, nil
 	}
@@ -237,21 +237,30 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 		return nil, err
 	}
 
-	// Hour buckets end with the running hour, so the bars line up on the clock
-	since := now.Truncate(time.Hour).Add(-(uptimeHours - 1) * time.Hour)
-	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group.ID, since)
+	// The bars follow the clock and end with the running hour; the
+	// percentages count exactly the last 24 hours and 7 days. Hour 0 is the
+	// partial hour in which the 7 days start, so it has no bar.
+	buckets, err := s.statusLogRepo.GetHourlyUptimeByGroup(ctx, group.ID, now.Add(-uptimeHours*time.Hour), now.Add(-24*time.Hour))
 	if err != nil {
 		return nil, err
 	}
-	hourly := map[string]*[uptimeHours]uptimeCount{}
+	uptime := map[string]*serviceUptime{}
 	for _, b := range buckets {
-		if b.Hour < 0 || b.Hour >= uptimeHours {
+		if b.Hour < 0 || b.Hour > uptimeHours {
 			continue
 		}
-		if hourly[b.ServiceID] == nil {
-			hourly[b.ServiceID] = &[uptimeHours]uptimeCount{}
+		u := uptime[b.ServiceID]
+		if u == nil {
+			u = &serviceUptime{}
+			uptime[b.ServiceID] = u
 		}
-		hourly[b.ServiceID][b.Hour] = uptimeCount{total: b.Total, online: b.Online}
+		u.last7d.total += b.Total
+		u.last7d.online += b.Online
+		u.last24h.total += b.RecentTotal
+		u.last24h.online += b.RecentOnline
+		if b.Hour > 0 {
+			u.hours[b.Hour-1] = uptimeCount{total: b.Total, online: b.Online}
+		}
 	}
 
 	page := &models.PublicStatusPage{
@@ -272,7 +281,7 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 		case models.StatusOffline:
 			offline++
 		}
-		page.Services = append(page.Services, publicStatusService(service, hourly[service.ID], settings.ShowLinks))
+		page.Services = append(page.Services, publicStatusService(service, uptime[service.ID], settings.ShowLinks))
 	}
 	page.Overall = overallStatus(online, offline)
 	return page, nil
@@ -293,11 +302,11 @@ func overallStatus(online, offline int) string {
 }
 
 // publicStatusService copies only what a visitor may see
-func publicStatusService(service *models.Service, hours *[uptimeHours]uptimeCount, showLinks bool) models.PublicStatusService {
-	if hours == nil {
-		hours = &[uptimeHours]uptimeCount{}
+func publicStatusService(service *models.Service, uptime *serviceUptime, showLinks bool) models.PublicStatusService {
+	if uptime == nil {
+		uptime = &serviceUptime{}
 	}
-	last24 := hours[uptimeHours-24:]
+	hours := uptime.hours[:]
 
 	out := models.PublicStatusService{
 		Name:          service.Name,
@@ -305,10 +314,10 @@ func publicStatusService(service *models.Service, hours *[uptimeHours]uptimeCoun
 		IconType:      service.IconType,
 		IconImagePath: service.IconImagePath,
 		Status:        service.Status,
-		Uptime24h:     sumUptime(last24).percentage(),
-		Uptime7d:      sumUptime(hours[:]).percentage(),
-		Bars24h:       uptimeBars(last24, 1),
-		Bars7d:        uptimeBars(hours[:], hoursPer7dBar),
+		Uptime24h:     uptime.last24h.percentage(),
+		Uptime7d:      uptime.last7d.percentage(),
+		Bars24h:       uptimeBars(hours[uptimeHours-24:], 1),
+		Bars7d:        uptimeBars(hours, hoursPer7dBar),
 	}
 	if out.Icon == "" {
 		out.Icon = models.DefaultIcon
@@ -342,6 +351,13 @@ func publicURL(raw string) string {
 }
 
 type uptimeCount struct{ total, online int }
+
+// serviceUptime is one service's checks: per clock hour for the bars, and
+// over the exact windows for the percentages
+type serviceUptime struct {
+	hours           [uptimeHours]uptimeCount
+	last24h, last7d uptimeCount
+}
 
 // percentage is the uptime with two decimals, nil without checks
 func (u uptimeCount) percentage() *float64 {

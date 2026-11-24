@@ -27,9 +27,10 @@ export function StatusPageImage({
   fallback?: React.ReactNode
 }) {
   const apiUrl = useBrowserApiUrl()
-  const [failed, setFailed] = useState(false)
+  // The file that failed to load, so a new file gets its own try
+  const [failedFile, setFailedFile] = useState<string | null>(null)
 
-  if (failed) return fallback
+  if (failedFile === file) return fallback
   if (!apiUrl) return <span className={className} />
   return (
     // eslint-disable-next-line @next/next/no-img-element -- served by the API, not optimisable
@@ -37,7 +38,7 @@ export function StatusPageImage({
       src={`${apiUrl}/uploads/service-icons/${encodeURIComponent(file)}`}
       alt={alt}
       className={className}
-      onError={() => setFailed(true)}
+      onError={() => setFailedFile(file)}
     />
   )
 }
@@ -54,7 +55,7 @@ export default function StatusPageIcon({
 }: {
   service: Pick<PublicStatusService, 'icon' | 'icon_type' | 'icon_image_path'>
 }) {
-  const [failed, setFailed] = useState(false)
+  const [failedUrl, setFailedUrl] = useState<string | null>(null)
   const emoji = (
     <span aria-hidden="true" className={`${iconBox} text-2xl leading-none`}>
       {service.icon}
@@ -71,15 +72,16 @@ export default function StatusPageIcon({
       />
     )
   }
-  if (service.icon_type === 'image_url' && service.icon_image_path && !failed) {
+  const url = service.icon_image_path
+  if (service.icon_type === 'image_url' && url && url !== failedUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element -- any remote host
       <img
-        src={service.icon_image_path}
+        src={url}
         alt=""
         referrerPolicy="no-referrer"
         className="h-8 w-8 shrink-0 object-contain"
-        onError={() => setFailed(true)}
+        onError={() => setFailedUrl(url)}
       />
     )
   }

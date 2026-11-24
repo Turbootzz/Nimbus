@@ -24,12 +24,14 @@ type StatusPageSettings struct {
 	ShowLinks bool   `json:"show_links"` // Expose service URLs to visitors
 }
 
-// UptimeBucket is the number of checks of one service in one hour
+// UptimeBucket is the number of checks of one service in one clock hour
 type UptimeBucket struct {
-	ServiceID string
-	Hour      int // Hours since the start of the queried range
-	Total     int
-	Online    int
+	ServiceID    string
+	Hour         int // Hours since the one the queried range starts in
+	Total        int
+	Online       int
+	RecentTotal  int // Of these, the checks since the recent cutoff
+	RecentOnline int
 }
 
 // PublicStatusPage is everything an anonymous visitor may see. Add fields

@@ -26,6 +26,7 @@ export default function StatusPageSettings() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -33,13 +34,18 @@ export default function StatusPageSettings() {
     let cancelled = false
     Promise.all([api.getStatusPageSettings(), api.getGroups()]).then(([settings, ownGroups]) => {
       if (cancelled) return
-      if (settings.data) {
+      // A form without both would save defaults or drop the stored group
+      if (settings.data && !ownGroups.error) {
         setForm(settings.data)
         setSaved(settings.data)
+        setGroups(ownGroups.data || [])
       } else {
-        setError(settings.error?.message || 'Failed to load the status page settings')
+        setLoadError(
+          settings.error?.message ||
+            ownGroups.error?.message ||
+            'Failed to load the status page settings'
+        )
       }
-      setGroups(ownGroups.data || [])
       setIsLoading(false)
     })
     return () => {
@@ -95,9 +101,17 @@ export default function StatusPageSettings() {
   if (isLoading) {
     return <p className="text-text-muted text-sm">Loading...</p>
   }
+  if (loadError) {
+    return (
+      <p role="alert" className="text-error text-sm">
+        {loadError}
+      </p>
+    )
+  }
 
   return (
-    <div className="space-y-4">
+    // Disabled while saving, so no edit is lost when the response comes in
+    <fieldset disabled={isSaving} className="min-w-0 space-y-4">
       <Toggle
         id="status-page-enabled"
         enabled={form.enabled}
@@ -220,6 +234,6 @@ export default function StatusPageSettings() {
           </a>
         )}
       </div>
-    </div>
+    </fieldset>
   )
 }
