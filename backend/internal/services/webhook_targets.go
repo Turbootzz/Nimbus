@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Notification targets: ntfy, Gotify, Telegram and Pushover. Each has its own
@@ -299,11 +300,7 @@ func (w *WebhookNotifier) buildRequest(ctx context.Context, webhook *models.Webh
 // show. net/http wraps errors in *url.Error, whose message contains the full
 // request URL; only the cause is kept.
 func deliveryError(err error, creds models.WebhookCredentials) string {
-	var urlErr *url.Error
-	for errors.As(err, &urlErr) {
-		err = urlErr.Err
-	}
-	return scrubSecrets(err.Error(), creds)
+	return scrubSecrets(utils.WithoutURL(err).Error(), creds)
 }
 
 // responseError describes a non-2xx response, with the reason the service

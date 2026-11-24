@@ -202,6 +202,33 @@ func TestHealthCheckService_CheckService_InvalidURL(t *testing.T) {
 	}
 }
 
+// A failed check stores its cause, never the URL with its credentials
+func TestHealthCheckService_ErrorHidesURLSecrets(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	host := server.Listener.Addr().String()
+	server.Close() // nothing listens there now
+
+	healthService := NewHealthCheckService(&MockServiceRepository{}, nil, nil, 5*time.Second)
+	for rawURL, cause := range map[string]string{
+		"http://USER:PASS@" + host + "/status?apikey=SECRET": "connection refused",
+		"http://USER:PASS@nas.lan:bad/status?apikey=SECRET":  "invalid port", // fails before the request
+	} {
+		result := healthService.performCheck(context.Background(), &models.Service{URL: rawURL})
+		if result.errorMessage == nil {
+			t.Fatalf("%s: expected an error", rawURL)
+		}
+		msg := *result.errorMessage
+		for _, secret := range []string{"SECRET", "apikey", "USER", "PASS"} {
+			if strings.Contains(msg, secret) {
+				t.Errorf("error %q contains %q", msg, secret)
+			}
+		}
+		if !strings.Contains(msg, cause) {
+			t.Errorf("error %q lost its cause %q", msg, cause)
+		}
+	}
+}
+
 func TestHealthCheckService_CheckService_Timeout(t *testing.T) {
 	// Create a server that delays response
 	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
