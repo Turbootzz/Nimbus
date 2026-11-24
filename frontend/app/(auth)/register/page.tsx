@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { getApiUrl } from '@/lib/utils/api-url'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
@@ -9,6 +10,7 @@ import { api } from '@/lib/api'
 import { clearApiCache } from '@/lib/pwa'
 
 export default function RegisterPage() {
+  const t = useTranslations('auth.register')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,12 +45,12 @@ export default function RegisterPage() {
 
     // Validation
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errors.passwordMismatch'))
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError(t('errors.passwordTooShort'))
       return
     }
 
@@ -73,11 +75,9 @@ export default function RegisterPage() {
         data = JSON.parse(text)
       } catch {
         if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          setError(
-            'Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not "http://backend:8080".'
-          )
+          setError(t('errors.apiUnreachable'))
         } else {
-          setError('API returned an invalid response. Check server configuration.')
+          setError(t('errors.invalidResponse'))
         }
         return
       }
@@ -85,11 +85,11 @@ export default function RegisterPage() {
       if (!response.ok) {
         // Check for registration disabled (403)
         if (response.status === 403) {
-          setError('Public registration is currently disabled. Please contact an administrator.')
+          setError(t('errors.disabled'))
           setRegistrationEnabled(false)
           return
         }
-        setError(data.error || 'Registration failed')
+        setError(data.error || t('errors.failed'))
         return
       }
 
@@ -102,7 +102,7 @@ export default function RegisterPage() {
       // Redirect to dashboard
       window.location.href = '/dashboard'
     } catch (err) {
-      setError('Registration failed. Please try again.')
+      setError(t('errors.failedRetry'))
       console.error('Registration error:', err)
     } finally {
       setIsLoading(false)
@@ -139,25 +139,25 @@ export default function RegisterPage() {
       >
         <div className="mb-6 text-center">
           <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            Registration Disabled
+            {t('disabled.title')}
           </h2>
           <p className="mt-4" style={{ color: 'var(--color-text-secondary)' }}>
-            Public registration is currently disabled for this Nimbus instance.
+            {t('disabled.message')}
           </p>
           <p className="mt-2" style={{ color: 'var(--color-text-muted)' }}>
-            Please contact an administrator if you need an account.
+            {t('disabled.contactAdmin')}
           </p>
         </div>
 
         <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Already have an account?{' '}
+          {t('haveAccount')}{' '}
           <Link
             href="/login"
             className="font-medium transition"
             style={{ color: 'var(--color-primary)' }}
             {...linkHover}
           >
-            Sign in
+            {t('signIn')}
           </Link>
         </div>
       </div>
@@ -174,10 +174,10 @@ export default function RegisterPage() {
     >
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Create account
+          {t('title')}
         </h2>
         <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Get started with Nimbus
+          {t('subtitle')}
         </p>
       </div>
 
@@ -202,14 +202,14 @@ export default function RegisterPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Full Name
+            {t('fullName')}
           </label>
           <ThemedInput
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="John Doe"
+            placeholder={t('namePlaceholder')}
             required
             disabled={isLoading}
           />
@@ -221,7 +221,7 @@ export default function RegisterPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Email
+            {t('email')}
           </label>
           <ThemedInput
             id="email"
@@ -240,7 +240,7 @@ export default function RegisterPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Password
+            {t('password')}
           </label>
           <ThemedInput
             id="password"
@@ -253,7 +253,7 @@ export default function RegisterPage() {
             minLength={8}
           />
           <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Must be at least 8 characters
+            {t('passwordHint')}
           </p>
         </div>
 
@@ -263,7 +263,7 @@ export default function RegisterPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Confirm Password
+            {t('confirmPassword')}
           </label>
           <ThemedInput
             id="confirmPassword"
@@ -286,19 +286,19 @@ export default function RegisterPage() {
           }}
           {...buttonHover}
         >
-          {isLoading ? 'Creating account...' : 'Create account'}
+          {isLoading ? t('submitting') : t('submit')}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        Already have an account?{' '}
+        {t('haveAccount')}{' '}
         <Link
           href="/login"
           className="font-medium transition"
           style={{ color: 'var(--color-primary)' }}
           {...linkHover}
         >
-          Sign in
+          {t('signIn')}
         </Link>
       </div>
     </div>

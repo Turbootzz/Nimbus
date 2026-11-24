@@ -22,6 +22,111 @@
         "invalidCredentials": "Onjuist e-mailadres of wachtwoord",
         "failed": "Inloggen mislukt. Probeer het opnieuw."
       }
+    },
+    "register": {
+      "title": "Account aanmaken",
+      "subtitle": "Ga aan de slag met Nimbus",
+      "fullName": "Volledige naam",
+      "namePlaceholder": "Jan Jansen",
+      "email": "E-mailadres",
+      "password": "Wachtwoord",
+      "passwordHint": "Minimaal 8 tekens",
+      "confirmPassword": "Wachtwoord bevestigen",
+      "submit": "Account aanmaken",
+      "submitting": "Account wordt aangemaakt...",
+      "haveAccount": "Heb je al een account?",
+      "signIn": "Inloggen",
+      "disabled": {
+        "title": "Registratie uitgeschakeld",
+        "message": "Openbare registratie is momenteel uitgeschakeld voor deze Nimbus-installatie.",
+        "contactAdmin": "Neem contact op met een beheerder als je een account nodig hebt."
+      },
+      "errors": {
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "apiUnreachable": "Kan de API-server niet bereiken. Gebruik je Docker, zorg dan dat NEXT_PUBLIC_API_URL naar het IP-adres van je server wijst (bijv. http://192.168.1.100:8080), niet naar \"http://backend:8080\".",
+        "invalidResponse": "De API gaf een ongeldig antwoord. Controleer de serverconfiguratie.",
+        "disabled": "Openbare registratie is momenteel uitgeschakeld. Neem contact op met een beheerder.",
+        "failed": "Registratie mislukt",
+        "failedRetry": "Registratie mislukt. Probeer het opnieuw."
+      }
+    },
+    "setup": {
+      "checking": "Installatiestatus controleren...",
+      "connectionError": {
+        "title": "Verbindingsfout",
+        "message": "Kan geen verbinding maken met de Nimbus-backend.",
+        "hint": "Controleer of de backendserver draait en probeer het opnieuw.",
+        "retry": "Opnieuw proberen"
+      },
+      "welcome": {
+        "title": "Welkom bij Nimbus",
+        "subtitle": "Laten we je homelab-dashboard instellen",
+        "intro": "Maak om te beginnen een beheerdersaccount aan.",
+        "getStarted": "Aan de slag"
+      },
+      "complete": {
+        "title": "Installatie voltooid!",
+        "redirecting": "Je wordt doorgestuurd naar je dashboard..."
+      },
+      "create": {
+        "title": "Beheerdersaccount aanmaken",
+        "subtitle": "Dit wordt de eerste beheerder",
+        "fullName": "Volledige naam",
+        "namePlaceholder": "Beheerder",
+        "email": "E-mailadres",
+        "password": "Wachtwoord",
+        "passwordHint": "Minimaal 8 tekens",
+        "confirmPassword": "Wachtwoord bevestigen",
+        "back": "Terug",
+        "submit": "Beheerder aanmaken",
+        "submitting": "Aanmaken..."
+      },
+      "errors": {
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "failed": "Beheerdersaccount aanmaken mislukt",
+        "failedRetry": "Beheerdersaccount aanmaken mislukt. Probeer het opnieuw."
+      }
+    },
+    "forgotPassword": {
+      "title": "Wachtwoord resetten",
+      "subtitle": "Vul je e-mailadres in en we sturen je een resetlink",
+      "email": "E-mailadres",
+      "submit": "Resetlink versturen",
+      "submitting": "Versturen...",
+      "success": "Als er een account met dat e-mailadres bestaat, is er een link verstuurd om je wachtwoord te resetten. Kijk in je inbox.",
+      "backToLogin": "Terug naar inloggen",
+      "rememberPassword": "Weet je je wachtwoord weer?",
+      "signIn": "Inloggen",
+      "errors": {
+        "generic": "Er ging iets mis. Probeer het opnieuw."
+      }
+    },
+    "resetPassword": {
+      "loading": "Laden...",
+      "invalidLink": {
+        "title": "Ongeldige resetlink",
+        "message": "Deze resetlink is ongeldig of verlopen. Vraag een nieuwe aan.",
+        "requestNew": "Nieuwe resetlink aanvragen"
+      },
+      "title": "Nieuw wachtwoord instellen",
+      "subtitle": "Vul hieronder je nieuwe wachtwoord in",
+      "newPassword": "Nieuw wachtwoord",
+      "confirmPassword": "Nieuw wachtwoord bevestigen",
+      "submit": "Wachtwoord resetten",
+      "submitting": "Resetten...",
+      "success": "Je wachtwoord is gereset.",
+      "signInWithNew": "Log in met je nieuwe wachtwoord",
+      "errors": {
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "generic": "Er ging iets mis. Probeer het opnieuw."
+      }
+    },
+    "oauth": {
+      "continueWith": "Doorgaan met {provider}",
+      "connecting": "Verbinden..."
     }
   },
   "language": {
@@ -35,6 +140,10 @@
       "fr": "Français",
       "es": "Español"
     }
+  },
+  "preferences": {
+    "saveThemeFailed": "Het thema kon niet worden opgeslagen",
+    "uploadWallpaperFailed": "De achtergrond kon niet worden geüpload"
   },
   "time": {
     "justNow": "zojuist",

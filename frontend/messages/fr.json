@@ -22,6 +22,111 @@
         "invalidCredentials": "E-mail ou mot de passe incorrect",
         "failed": "Échec de la connexion. Veuillez réessayer."
       }
+    },
+    "register": {
+      "title": "Créer un compte",
+      "subtitle": "Commencez avec Nimbus",
+      "fullName": "Nom complet",
+      "namePlaceholder": "Jean Dupont",
+      "email": "E-mail",
+      "password": "Mot de passe",
+      "passwordHint": "Au moins 8 caractères",
+      "confirmPassword": "Confirmer le mot de passe",
+      "submit": "Créer un compte",
+      "submitting": "Création du compte...",
+      "haveAccount": "Vous avez déjà un compte ?",
+      "signIn": "Se connecter",
+      "disabled": {
+        "title": "Inscriptions désactivées",
+        "message": "Les inscriptions publiques sont actuellement désactivées sur cette instance Nimbus.",
+        "contactAdmin": "Contactez un administrateur si vous avez besoin d’un compte."
+      },
+      "errors": {
+        "passwordMismatch": "Les mots de passe ne correspondent pas",
+        "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+        "apiUnreachable": "Impossible de joindre le serveur API. Avec Docker, vérifiez que NEXT_PUBLIC_API_URL pointe vers l’IP de votre serveur (par ex. http://192.168.1.100:8080) et non vers \"http://backend:8080\".",
+        "invalidResponse": "L’API a renvoyé une réponse invalide. Vérifiez la configuration du serveur.",
+        "disabled": "Les inscriptions publiques sont actuellement désactivées. Contactez un administrateur.",
+        "failed": "Échec de l’inscription",
+        "failedRetry": "Échec de l’inscription. Veuillez réessayer."
+      }
+    },
+    "setup": {
+      "checking": "Vérification de l’état de la configuration...",
+      "connectionError": {
+        "title": "Erreur de connexion",
+        "message": "Impossible de se connecter au backend Nimbus.",
+        "hint": "Vérifiez que le serveur backend est en cours d’exécution, puis réessayez.",
+        "retry": "Réessayer"
+      },
+      "welcome": {
+        "title": "Bienvenue sur Nimbus",
+        "subtitle": "Configurons votre tableau de bord homelab",
+        "intro": "Pour commencer, créez un compte administrateur.",
+        "getStarted": "Commencer"
+      },
+      "complete": {
+        "title": "Configuration terminée !",
+        "redirecting": "Redirection vers votre tableau de bord..."
+      },
+      "create": {
+        "title": "Créer le compte administrateur",
+        "subtitle": "Ce sera le premier administrateur",
+        "fullName": "Nom complet",
+        "namePlaceholder": "Admin",
+        "email": "E-mail",
+        "password": "Mot de passe",
+        "passwordHint": "Au moins 8 caractères",
+        "confirmPassword": "Confirmer le mot de passe",
+        "back": "Retour",
+        "submit": "Créer l’administrateur",
+        "submitting": "Création..."
+      },
+      "errors": {
+        "passwordMismatch": "Les mots de passe ne correspondent pas",
+        "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+        "failed": "Impossible de créer le compte administrateur",
+        "failedRetry": "Impossible de créer le compte administrateur. Veuillez réessayer."
+      }
+    },
+    "forgotPassword": {
+      "title": "Réinitialiser votre mot de passe",
+      "subtitle": "Saisissez votre e-mail et nous vous enverrons un lien de réinitialisation",
+      "email": "E-mail",
+      "submit": "Envoyer le lien",
+      "submitting": "Envoi...",
+      "success": "Si un compte existe avec cet e-mail, un lien de réinitialisation du mot de passe a été envoyé. Consultez votre boîte de réception.",
+      "backToLogin": "Retour à la connexion",
+      "rememberPassword": "Vous vous souvenez de votre mot de passe ?",
+      "signIn": "Se connecter",
+      "errors": {
+        "generic": "Une erreur s’est produite. Veuillez réessayer."
+      }
+    },
+    "resetPassword": {
+      "loading": "Chargement...",
+      "invalidLink": {
+        "title": "Lien de réinitialisation invalide",
+        "message": "Ce lien de réinitialisation est invalide ou a expiré. Veuillez en demander un nouveau.",
+        "requestNew": "Demander un nouveau lien"
+      },
+      "title": "Définir un nouveau mot de passe",
+      "subtitle": "Saisissez votre nouveau mot de passe ci-dessous",
+      "newPassword": "Nouveau mot de passe",
+      "confirmPassword": "Confirmer le nouveau mot de passe",
+      "submit": "Réinitialiser le mot de passe",
+      "submitting": "Réinitialisation...",
+      "success": "Votre mot de passe a bien été réinitialisé.",
+      "signInWithNew": "Se connecter avec le nouveau mot de passe",
+      "errors": {
+        "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères",
+        "passwordMismatch": "Les mots de passe ne correspondent pas",
+        "generic": "Une erreur s’est produite. Veuillez réessayer."
+      }
+    },
+    "oauth": {
+      "continueWith": "Continuer avec {provider}",
+      "connecting": "Connexion..."
     }
   },
   "language": {
@@ -35,6 +140,10 @@
       "fr": "Français",
       "es": "Español"
     }
+  },
+  "preferences": {
+    "saveThemeFailed": "Impossible d’enregistrer le thème",
+    "uploadWallpaperFailed": "Impossible de téléverser le fond d’écran"
   },
   "time": {
     "justNow": "à l’instant",

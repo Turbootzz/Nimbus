@@ -22,6 +22,111 @@
         "invalidCredentials": "Invalid email or password",
         "failed": "Login failed. Please try again."
       }
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Get started with Nimbus",
+      "fullName": "Full Name",
+      "namePlaceholder": "John Doe",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "Must be at least 8 characters",
+      "confirmPassword": "Confirm Password",
+      "submit": "Create account",
+      "submitting": "Creating account...",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "disabled": {
+        "title": "Registration Disabled",
+        "message": "Public registration is currently disabled for this Nimbus instance.",
+        "contactAdmin": "Please contact an administrator if you need an account."
+      },
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "apiUnreachable": "Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not \"http://backend:8080\".",
+        "invalidResponse": "API returned an invalid response. Check server configuration.",
+        "disabled": "Public registration is currently disabled. Please contact an administrator.",
+        "failed": "Registration failed",
+        "failedRetry": "Registration failed. Please try again."
+      }
+    },
+    "setup": {
+      "checking": "Checking setup status...",
+      "connectionError": {
+        "title": "Connection Error",
+        "message": "Unable to connect to the Nimbus backend.",
+        "hint": "Please ensure the backend server is running and try again.",
+        "retry": "Retry"
+      },
+      "welcome": {
+        "title": "Welcome to Nimbus",
+        "subtitle": "Let's set up your homelab dashboard",
+        "intro": "To get started, create an administrator account.",
+        "getStarted": "Get Started"
+      },
+      "complete": {
+        "title": "Setup Complete!",
+        "redirecting": "Redirecting to your dashboard..."
+      },
+      "create": {
+        "title": "Create Admin Account",
+        "subtitle": "This will be the first administrator",
+        "fullName": "Full Name",
+        "namePlaceholder": "Admin",
+        "email": "Email",
+        "password": "Password",
+        "passwordHint": "Must be at least 8 characters",
+        "confirmPassword": "Confirm Password",
+        "back": "Back",
+        "submit": "Create Admin",
+        "submitting": "Creating..."
+      },
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "failed": "Failed to create admin account",
+        "failedRetry": "Failed to create admin account. Please try again."
+      }
+    },
+    "forgotPassword": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a reset link",
+      "email": "Email",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "success": "If an account with that email exists, a password reset link has been sent. Check your inbox.",
+      "backToLogin": "Back to login",
+      "rememberPassword": "Remember your password?",
+      "signIn": "Sign in",
+      "errors": {
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "resetPassword": {
+      "loading": "Loading...",
+      "invalidLink": {
+        "title": "Invalid reset link",
+        "message": "This password reset link is invalid or has expired. Please request a new one.",
+        "requestNew": "Request new reset link"
+      },
+      "title": "Set new password",
+      "subtitle": "Enter your new password below",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Reset password",
+      "submitting": "Resetting...",
+      "success": "Your password has been reset successfully.",
+      "signInWithNew": "Sign in with your new password",
+      "errors": {
+        "passwordTooShort": "Password must be at least 8 characters",
+        "passwordMismatch": "Passwords do not match",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "oauth": {
+      "continueWith": "Continue with {provider}",
+      "connecting": "Connecting..."
     }
   },
   "language": {
@@ -35,6 +140,10 @@
       "fr": "Français",
       "es": "Español"
     }
+  },
+  "preferences": {
+    "saveThemeFailed": "Failed to save the theme",
+    "uploadWallpaperFailed": "Failed to upload wallpaper"
   },
   "time": {
     "justNow": "just now",

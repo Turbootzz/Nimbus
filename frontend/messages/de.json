@@ -22,6 +22,111 @@
         "invalidCredentials": "E-Mail oder Passwort ist falsch",
         "failed": "Anmeldung fehlgeschlagen. Bitte versuche es erneut."
       }
+    },
+    "register": {
+      "title": "Konto erstellen",
+      "subtitle": "Leg los mit Nimbus",
+      "fullName": "Vollständiger Name",
+      "namePlaceholder": "Max Mustermann",
+      "email": "E-Mail",
+      "password": "Passwort",
+      "passwordHint": "Mindestens 8 Zeichen",
+      "confirmPassword": "Passwort bestätigen",
+      "submit": "Konto erstellen",
+      "submitting": "Konto wird erstellt...",
+      "haveAccount": "Du hast schon ein Konto?",
+      "signIn": "Anmelden",
+      "disabled": {
+        "title": "Registrierung deaktiviert",
+        "message": "Die öffentliche Registrierung ist für diese Nimbus-Instanz derzeit deaktiviert.",
+        "contactAdmin": "Wende dich an einen Administrator, wenn du ein Konto brauchst."
+      },
+      "errors": {
+        "passwordMismatch": "Die Passwörter stimmen nicht überein",
+        "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+        "apiUnreachable": "API-Server nicht erreichbar. Wenn du Docker nutzt, setze NEXT_PUBLIC_API_URL auf die IP deines Servers (z. B. http://192.168.1.100:8080), nicht auf \"http://backend:8080\".",
+        "invalidResponse": "Die API hat eine ungültige Antwort geliefert. Prüfe die Serverkonfiguration.",
+        "disabled": "Die öffentliche Registrierung ist derzeit deaktiviert. Wende dich an einen Administrator.",
+        "failed": "Registrierung fehlgeschlagen",
+        "failedRetry": "Registrierung fehlgeschlagen. Bitte versuche es erneut."
+      }
+    },
+    "setup": {
+      "checking": "Einrichtungsstatus wird geprüft...",
+      "connectionError": {
+        "title": "Verbindungsfehler",
+        "message": "Keine Verbindung zum Nimbus-Backend möglich.",
+        "hint": "Stelle sicher, dass der Backend-Server läuft, und versuche es erneut.",
+        "retry": "Erneut versuchen"
+      },
+      "welcome": {
+        "title": "Willkommen bei Nimbus",
+        "subtitle": "Lass uns dein Homelab-Dashboard einrichten",
+        "intro": "Erstelle zuerst ein Administratorkonto.",
+        "getStarted": "Los geht’s"
+      },
+      "complete": {
+        "title": "Einrichtung abgeschlossen!",
+        "redirecting": "Du wirst zu deinem Dashboard weitergeleitet..."
+      },
+      "create": {
+        "title": "Administratorkonto erstellen",
+        "subtitle": "Das wird der erste Administrator",
+        "fullName": "Vollständiger Name",
+        "namePlaceholder": "Admin",
+        "email": "E-Mail",
+        "password": "Passwort",
+        "passwordHint": "Mindestens 8 Zeichen",
+        "confirmPassword": "Passwort bestätigen",
+        "back": "Zurück",
+        "submit": "Admin erstellen",
+        "submitting": "Wird erstellt..."
+      },
+      "errors": {
+        "passwordMismatch": "Die Passwörter stimmen nicht überein",
+        "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+        "failed": "Administratorkonto konnte nicht erstellt werden",
+        "failedRetry": "Administratorkonto konnte nicht erstellt werden. Bitte versuche es erneut."
+      }
+    },
+    "forgotPassword": {
+      "title": "Passwort zurücksetzen",
+      "subtitle": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen",
+      "email": "E-Mail",
+      "submit": "Link senden",
+      "submitting": "Wird gesendet...",
+      "success": "Falls ein Konto mit dieser E-Mail-Adresse existiert, wurde ein Link zum Zurücksetzen des Passworts gesendet. Schau in deinen Posteingang.",
+      "backToLogin": "Zurück zur Anmeldung",
+      "rememberPassword": "Passwort wieder eingefallen?",
+      "signIn": "Anmelden",
+      "errors": {
+        "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+      }
+    },
+    "resetPassword": {
+      "loading": "Wird geladen...",
+      "invalidLink": {
+        "title": "Ungültiger Link",
+        "message": "Dieser Link zum Zurücksetzen des Passworts ist ungültig oder abgelaufen. Fordere einen neuen an.",
+        "requestNew": "Neuen Link anfordern"
+      },
+      "title": "Neues Passwort festlegen",
+      "subtitle": "Gib unten dein neues Passwort ein",
+      "newPassword": "Neues Passwort",
+      "confirmPassword": "Neues Passwort bestätigen",
+      "submit": "Passwort zurücksetzen",
+      "submitting": "Wird zurückgesetzt...",
+      "success": "Dein Passwort wurde erfolgreich zurückgesetzt.",
+      "signInWithNew": "Mit deinem neuen Passwort anmelden",
+      "errors": {
+        "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein",
+        "passwordMismatch": "Die Passwörter stimmen nicht überein",
+        "generic": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+      }
+    },
+    "oauth": {
+      "continueWith": "Weiter mit {provider}",
+      "connecting": "Verbindung wird hergestellt..."
     }
   },
   "language": {
@@ -35,6 +140,10 @@
       "fr": "Français",
       "es": "Español"
     }
+  },
+  "preferences": {
+    "saveThemeFailed": "Das Design konnte nicht gespeichert werden",
+    "uploadWallpaperFailed": "Das Hintergrundbild konnte nicht hochgeladen werden"
   },
   "time": {
     "justNow": "gerade eben",

@@ -22,6 +22,111 @@
         "invalidCredentials": "Correo electrónico o contraseña incorrectos",
         "failed": "No se pudo iniciar sesión. Inténtalo de nuevo."
       }
+    },
+    "register": {
+      "title": "Crear cuenta",
+      "subtitle": "Empieza con Nimbus",
+      "fullName": "Nombre completo",
+      "namePlaceholder": "Juan Pérez",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "passwordHint": "Debe tener al menos 8 caracteres",
+      "confirmPassword": "Confirmar contraseña",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta...",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "signIn": "Iniciar sesión",
+      "disabled": {
+        "title": "Registro desactivado",
+        "message": "El registro público está desactivado en esta instancia de Nimbus.",
+        "contactAdmin": "Ponte en contacto con un administrador si necesitas una cuenta."
+      },
+      "errors": {
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "apiUnreachable": "No se puede acceder al servidor de la API. Si usas Docker, asegúrate de que NEXT_PUBLIC_API_URL apunte a la IP de tu servidor (p. ej., http://192.168.1.100:8080), no a \"http://backend:8080\".",
+        "invalidResponse": "La API devolvió una respuesta no válida. Revisa la configuración del servidor.",
+        "disabled": "El registro público está desactivado. Ponte en contacto con un administrador.",
+        "failed": "No se pudo completar el registro",
+        "failedRetry": "No se pudo completar el registro. Inténtalo de nuevo."
+      }
+    },
+    "setup": {
+      "checking": "Comprobando el estado de la configuración...",
+      "connectionError": {
+        "title": "Error de conexión",
+        "message": "No se puede conectar con el backend de Nimbus.",
+        "hint": "Asegúrate de que el servidor backend esté en marcha e inténtalo de nuevo.",
+        "retry": "Reintentar"
+      },
+      "welcome": {
+        "title": "Bienvenido a Nimbus",
+        "subtitle": "Vamos a configurar tu panel del homelab",
+        "intro": "Para empezar, crea una cuenta de administrador.",
+        "getStarted": "Empezar"
+      },
+      "complete": {
+        "title": "¡Configuración completada!",
+        "redirecting": "Redirigiendo a tu panel..."
+      },
+      "create": {
+        "title": "Crear cuenta de administrador",
+        "subtitle": "Será el primer administrador",
+        "fullName": "Nombre completo",
+        "namePlaceholder": "Admin",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "passwordHint": "Debe tener al menos 8 caracteres",
+        "confirmPassword": "Confirmar contraseña",
+        "back": "Atrás",
+        "submit": "Crear administrador",
+        "submitting": "Creando..."
+      },
+      "errors": {
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "failed": "No se pudo crear la cuenta de administrador",
+        "failedRetry": "No se pudo crear la cuenta de administrador. Inténtalo de nuevo."
+      }
+    },
+    "forgotPassword": {
+      "title": "Restablece tu contraseña",
+      "subtitle": "Introduce tu correo electrónico y te enviaremos un enlace para restablecerla",
+      "email": "Correo electrónico",
+      "submit": "Enviar enlace",
+      "submitting": "Enviando...",
+      "success": "Si existe una cuenta con ese correo electrónico, te hemos enviado un enlace para restablecer la contraseña. Revisa tu bandeja de entrada.",
+      "backToLogin": "Volver a iniciar sesión",
+      "rememberPassword": "¿Recuerdas tu contraseña?",
+      "signIn": "Iniciar sesión",
+      "errors": {
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      }
+    },
+    "resetPassword": {
+      "loading": "Cargando...",
+      "invalidLink": {
+        "title": "Enlace no válido",
+        "message": "Este enlace para restablecer la contraseña no es válido o ha caducado. Solicita uno nuevo.",
+        "requestNew": "Solicitar un nuevo enlace"
+      },
+      "title": "Establecer nueva contraseña",
+      "subtitle": "Introduce tu nueva contraseña a continuación",
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar nueva contraseña",
+      "submit": "Restablecer contraseña",
+      "submitting": "Restableciendo...",
+      "success": "Tu contraseña se ha restablecido correctamente.",
+      "signInWithNew": "Inicia sesión con tu nueva contraseña",
+      "errors": {
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      }
+    },
+    "oauth": {
+      "continueWith": "Continuar con {provider}",
+      "connecting": "Conectando..."
     }
   },
   "language": {
@@ -35,6 +140,10 @@
       "fr": "Français",
       "es": "Español"
     }
+  },
+  "preferences": {
+    "saveThemeFailed": "No se pudo guardar el tema",
+    "uploadWallpaperFailed": "No se pudo subir el fondo de pantalla"
   },
   "time": {
     "justNow": "ahora mismo",

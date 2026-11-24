@@ -2,12 +2,14 @@
 
 import { useState, Suspense } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
 
 function ResetPasswordForm() {
+  const t = useTranslations('auth.resetPassword')
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
   const [newPassword, setNewPassword] = useState('')
@@ -29,10 +31,10 @@ function ResetPasswordForm() {
       >
         <div className="mb-4 text-center">
           <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            Invalid reset link
+            {t('invalidLink.title')}
           </h2>
           <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-            This password reset link is invalid or has expired. Please request a new one.
+            {t('invalidLink.message')}
           </p>
         </div>
         <div className="text-center text-sm">
@@ -42,7 +44,7 @@ function ResetPasswordForm() {
             style={{ color: 'var(--color-primary)' }}
             {...linkHover}
           >
-            Request new reset link
+            {t('invalidLink.requestNew')}
           </Link>
         </div>
       </div>
@@ -54,12 +56,12 @@ function ResetPasswordForm() {
     setError('')
 
     if (newPassword.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError(t('errors.passwordTooShort'))
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errors.passwordMismatch'))
       return
     }
 
@@ -73,7 +75,7 @@ function ResetPasswordForm() {
         setSuccess(true)
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('errors.generic'))
     } finally {
       setIsLoading(false)
     }
@@ -89,10 +91,10 @@ function ResetPasswordForm() {
     >
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Set new password
+          {t('title')}
         </h2>
         <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Enter your new password below
+          {t('subtitle')}
         </p>
       </div>
 
@@ -121,7 +123,7 @@ function ResetPasswordForm() {
               opacity: 0.9,
             }}
           >
-            Your password has been reset successfully.
+            {t('success')}
           </div>
           <div className="text-center text-sm">
             <Link
@@ -130,7 +132,7 @@ function ResetPasswordForm() {
               style={{ color: 'var(--color-primary)' }}
               {...linkHover}
             >
-              Sign in with your new password
+              {t('signInWithNew')}
             </Link>
           </div>
         </div>
@@ -142,7 +144,7 @@ function ResetPasswordForm() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              New password
+              {t('newPassword')}
             </label>
             <ThemedInput
               id="new-password"
@@ -162,7 +164,7 @@ function ResetPasswordForm() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Confirm new password
+              {t('confirmPassword')}
             </label>
             <ThemedInput
               id="confirm-password"
@@ -186,7 +188,7 @@ function ResetPasswordForm() {
             }}
             {...buttonHover}
           >
-            {isLoading ? 'Resetting...' : 'Reset password'}
+            {isLoading ? t('submitting') : t('submit')}
           </button>
         </form>
       )}
@@ -195,8 +197,9 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+  const t = useTranslations('auth.resetPassword')
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>{t('loading')}</div>}>
       <ResetPasswordForm />
     </Suspense>
   )
