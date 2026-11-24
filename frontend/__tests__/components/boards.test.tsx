@@ -6,14 +6,22 @@ import BoardSwitcher from '@/components/boards/BoardSwitcher'
 import DashboardView from '@/components/DashboardView'
 import ServiceForm from '@/components/ServiceForm'
 import WidgetModal from '@/components/widgets/WidgetModal'
-import { refreshBoards, resetBoards } from '@/hooks/useBoards'
+import BoardPage from '@/app/(dashboard)/board/[slug]/page'
+import NewServicePage from '@/app/(dashboard)/services/new/page'
+import { getBoardsSnapshot, refreshBoards, resetBoards } from '@/hooks/useBoards'
 import { setBoardOnScreen, useBoardReadOnly } from '@/lib/dashboard-store'
 import { api } from '@/lib/api'
 import type { Board, Service, Widget } from '@/types'
 
 const replace = vi.fn()
 const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push }) }))
+let params: Record<string, string> = {}
+let searchParams = new URLSearchParams()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push }),
+  useParams: () => params,
+  useSearchParams: () => searchParams,
+}))
 vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
@@ -137,6 +145,8 @@ beforeEach(() => {
   resetBoards()
   Object.keys(store).forEach((key) => delete store[key])
   window.history.replaceState(null, '', '/')
+  params = {}
+  searchParams = new URLSearchParams()
   vi.mocked(api.getBoards).mockResolvedValue({ data: [home] })
   vi.mocked(api.getServices).mockResolvedValue({ data: [service] })
   vi.mocked(api.getGroups).mockResolvedValue({ data: [] })
@@ -384,6 +394,56 @@ describe('DashboardView', () => {
     await act(() => stream.onResync())
     expect(api.getBoards).toHaveBeenCalled()
     expect(replace).toHaveBeenCalledWith('/dashboard')
+  })
+})
+
+describe('the boards list', () => {
+  it('loads again when the boards changed during a load', async () => {
+    let answer!: (response: { data: Board[] }) => void
+    vi.mocked(api.getBoards).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    vi.mocked(api.getBoards).mockResolvedValueOnce({ data: [home, lab] })
+    const first = refreshBoards()
+    // A board was created while the first load was out
+    const second = refreshBoards()
+    expect(refreshBoards()).toBe(second)
+    answer({ data: [home] })
+    await first
+    await second
+    expect(api.getBoards).toHaveBeenCalledTimes(2)
+    expect(getBoardsSnapshot()).toEqual([home, lab])
+  })
+
+  it('tells a failed load from a missing board, and loads again on the next visit', async () => {
+    vi.mocked(api.getBoards).mockResolvedValue({ error: { message: 'Server error' } })
+    params = { slug: 'lab' }
+    const { unmount } = render(<BoardPage />)
+    expect(await screen.findByText(/Boards could not be loaded/)).toBeInTheDocument()
+    expect(screen.queryByText('Board not found')).not.toBeInTheDocument()
+    unmount()
+
+    vi.mocked(api.getBoards).mockResolvedValue({ data: [home, lab] })
+    render(<BoardPage />)
+    expect(await screen.findByText('s1')).toBeInTheDocument()
+    expect(api.getServices).toHaveBeenCalledWith('b-lab')
+  })
+})
+
+describe('adding a service to a board', () => {
+  it('only offers the form for a board of the user', async () => {
+    await loadBoards([home, lab, family])
+    searchParams = new URLSearchParams('board=b-family&from=dashboard')
+    const { unmount } = render(<NewServicePage />)
+    expect(await screen.findByText('Board not found')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Service Name/)).not.toBeInTheDocument()
+    unmount()
+
+    searchParams = new URLSearchParams('board=b-lab&from=dashboard')
+    render(<NewServicePage />)
+    expect(await screen.findByLabelText(/Service Name/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Back to Dashboard/ })).toHaveAttribute(
+      'href',
+      '/board/lab'
+    )
   })
 })
 
