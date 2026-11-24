@@ -26,6 +26,11 @@ WARNING: persistence is off and no encryptionKey is set. Nimbus generates new se
 restart, which logs everyone out and makes saved integration credentials unreadable.
 Set secrets.jwtSecret and secrets.encryptionKey, or turn persistence on.
 {{- end }}
+{{- else if and .Values.secrets.existingSecret (not .Values.persistence.enabled) }}
+
+WARNING: persistence is off, so the Secret {{ .Values.secrets.existingSecret }} must hold a fixed encryption-key
+and jwt-secret. Nimbus generates a missing one again on every restart, which makes saved integration
+credentials unreadable (encryption-key) or logs everyone out (jwt-secret).
 {{- end }}
 {{- if .Values.ingress.enabled }}
 
