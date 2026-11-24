@@ -567,6 +567,8 @@ export default function DashboardView({ board }: DashboardViewProps) {
   // Tile moves save one at a time, so they reach the server in the order
   // they were made. A save that fails undoes its move on the latest tiles.
   const tileSaves = useRef(Promise.resolve())
+  const queuedSaves = useRef(0)
+  const saveFailed = useRef(false)
   const tilesRef = useRef(tiles)
   useEffect(() => {
     tilesRef.current = tiles
@@ -587,6 +589,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
     const moved = order.find((tile) => tileKey(tile) === key)
     const reordered = order.some((tile, i) => tileKey(tile) !== tileKey(tiles[i]))
     showTiles(order)
+    queuedSaves.current++
     tileSaves.current = tileSaves.current.then(async () => {
       try {
         if (group && moved) {
@@ -601,6 +604,13 @@ export default function DashboardView({ board }: DashboardViewProps) {
       } catch (error) {
         console.error('Failed to move tile:', error)
         showTiles(undoMove(tilesRef.current, order, before, key))
+        saveFailed.current = true
+      }
+      // An undo after newer moves only guesses the order the server has:
+      // once no move waits, show what it has
+      if (--queuedSaves.current === 0 && saveFailed.current) {
+        saveFailed.current = false
+        await fetchData(true)
       }
     })
   }
