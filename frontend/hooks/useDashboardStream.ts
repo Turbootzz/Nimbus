@@ -94,6 +94,8 @@ export function useDashboardStream({ boardId, onServiceStatus, onResync }: Dashb
             source?.close()
             clearTimeout(retryTimer)
             handlers.current.onResync()
+            // Polling stays as the fallback, should that resync be skipped
+            if (!pollTimer) pollTimer = setInterval(resync, FALLBACK_POLL_MS)
           }
           return
         }

@@ -192,6 +192,21 @@ describe('useDashboardStream', () => {
     error.mockRestore()
   })
 
+  it('keeps polling for the view when the board is gone on arrival', async () => {
+    vi.useFakeTimers()
+    vi.mocked(api.getDashboardData).mockResolvedValue({ error: { message: 'Board not found' } })
+    const { onResync } = setup('b-family')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(FakeEventSource.latest().closed).toBe(true)
+    const calls = onResync.mock.calls.length
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30000)
+    })
+    expect(onResync.mock.calls.length).toBeGreaterThan(calls)
+  })
+
   it('retries loading data after a failure', async () => {
     vi.useFakeTimers()
     vi.mocked(api.getDashboardData)
