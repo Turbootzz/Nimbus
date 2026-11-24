@@ -5,7 +5,7 @@ import ImportWizard from '@/components/backup/ImportWizard'
 export default function BackupPage() {
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <div className="mb-8">
+      <div className="wallpaper-panel mb-8">
         <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">
           Export &amp; Import
         </h1>

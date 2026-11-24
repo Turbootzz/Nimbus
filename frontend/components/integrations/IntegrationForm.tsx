@@ -94,6 +94,8 @@ export default function IntegrationForm({
     setKind(next)
     setAuthType(nextMeta?.auth_types[0] ?? 'none')
     setOptions({})
+    // An error or a test result was about the other kind
+    setError(null)
     setTestResult(null)
   }
 

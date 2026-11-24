@@ -257,11 +257,12 @@ func (r *StatusLogRepository) GetAggregatedByInterval(ctx context.Context, servi
 	return results, rows.Err()
 }
 
-// GetHourlyUptimeByGroup counts the checks of every service in a group since
-// from, per clock hour: hour 0 is the hour in which from falls. The recent
-// counts only include checks since recentFrom. Bucketing relative to that
-// hour keeps it independent of the database time zone.
-func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupID string, from, recentFrom time.Time) ([]models.UptimeBucket, error) {
+// GetHourlyUptimeByGroup counts the checks of every service in a group (with
+// a default group's ungrouped ones, see GetMonitoredByGroup) since from, per
+// clock hour: hour 0 is the hour in which from falls. The recent counts only
+// include checks since recentFrom. Bucketing relative to that hour keeps it
+// independent of the database time zone.
+func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, group *models.Group, from, recentFrom time.Time) ([]models.UptimeBucket, error) {
 	// Parameters are numbered in order of appearance, as SQLite numbers them
 	hour := `CAST((julianday(l.checked_at) - julianday($1)) * 24 AS INTEGER)`
 	if r.isPostgreSQL {
@@ -275,11 +276,11 @@ func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupI
 			COUNT(CASE WHEN l.checked_at >= $2 AND l.status = 'online' THEN 1 END) AS recent_online
 		FROM service_status_logs l
 		JOIN services s ON s.id = l.service_id
-		WHERE l.checked_at >= $3 AND s.group_id = $4
+		WHERE l.checked_at >= $3 AND (s.group_id = $4 OR (s.group_id IS NULL AND s.user_id = $5))
 		GROUP BY l.service_id, hour
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, from.Truncate(time.Hour), recentFrom, from, groupID)
+	rows, err := r.db.QueryContext(ctx, query, from.Truncate(time.Hour), recentFrom, from, group.ID, ungroupedOwner(group))
 	if err != nil {
 		return nil, err
 	}

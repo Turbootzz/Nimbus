@@ -36,6 +36,19 @@ function plural(count: number, noun: string) {
   return `${count} ${noun}${count === 1 ? '' : 's'}`
 }
 
+// What a replace does to the public status page, which shows one group.
+// After an import the page may have failed to move too, so no cause is given.
+export function statusPageNote({
+  status_page: page,
+  dry_run: dryRun,
+}: ImportSummary): string | null {
+  if (!page) return null
+  if (page.kept) return `The public status page moves to the group “${page.group}” from the file.`
+  return dryRun
+    ? `The public status page goes offline: the file has no group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+    : `The public status page is offline: it no longer shows the group “${page.group}”. Choose a group again under Settings → Admin Settings.`
+}
+
 // What an import does (or did), per kind of entity
 export function SummaryTable({ summary }: { summary: ImportSummary }) {
   const replace = summary.mode === 'replace'
@@ -85,6 +98,7 @@ export function SummaryTable({ summary }: { summary: ImportSummary }) {
             under Settings → Integrations.
           </li>
         )}
+        {summary.status_page && <li>{statusPageNote(summary)}</li>}
         {summary.needs_secrets > 0 && (
           <li>
             {plural(summary.needs_secrets, 'widget')}{' '}
@@ -349,7 +363,7 @@ export default function DashboardImport() {
       {confirming && ready && (
         <ConfirmDialog
           title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.`}
+          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
           confirmLabel="Replace"
           onConfirm={apply}
           onCancel={() => setConfirming(false)}

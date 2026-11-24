@@ -198,6 +198,12 @@ type entry struct {
 	app, appURL string
 }
 
+// emptyGroup reports a group without links: a group is only made for the
+// links in it, so it is left out
+func (b *builder) emptyGroup(name string) {
+	b.warn("Group %q: skipped, it has no links", name)
+}
+
 // service adds a link tile, and the integration of its app when Nimbus has
 // that kind. A link the import would refuse is skipped with a warning.
 func (b *builder) service(e entry) {
@@ -207,11 +213,11 @@ func (b *builder) service(e entry) {
 		return
 	}
 	link, secret := withoutSecrets(e.url)
-	if _, ok := webURL(link); !ok {
+	if err := utils.ValidateServiceURL(link); err != nil {
 		if e.url == "" {
 			b.warn("%s: skipped, it has no URL", name)
 		} else {
-			b.warn("%s: skipped, %s is not an http(s) URL Nimbus can link to", name, quoteURL(e.url))
+			b.warn("%s: skipped, %s is not a URL Nimbus can link to: %s", name, quoteURL(e.url), err)
 		}
 		return
 	}
@@ -252,7 +258,7 @@ func (b *builder) integration(name, app, rawURL string) string {
 	}
 	parsed, ok := webURL(rawURL)
 	if !ok {
-		b.warn("%s: the %s integration is skipped, %s is not an http(s) URL", name, kind, quoteURL(rawURL))
+		b.warn("%s: the %s integration is skipped, %s is not a URL Nimbus can reach: %s", name, kind, quoteURL(rawURL), utils.ValidateServiceURL(rawURL))
 		return ""
 	}
 	// A base URL holds no login, query or fragment

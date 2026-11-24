@@ -86,7 +86,7 @@ func NewServiceFromRequest(req *models.ServiceCreateRequest) (*models.Service, e
 
 	// http(s) only: the URL becomes a link on the tile and a health check target
 	if err := utils.ValidateServiceURL(req.URL); err != nil {
-		return nil, invalid("Invalid URL. It must start with http:// or https:// and have a host")
+		return nil, invalid("Invalid URL: %s", err)
 	}
 
 	iconType := req.IconType

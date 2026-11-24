@@ -11,6 +11,7 @@ import {
   CheckIcon,
   PencilSquareIcon,
 } from '@heroicons/react/24/outline'
+import { onUserUpdated } from '@/lib/user-events'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
@@ -49,6 +50,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       setIsLoading(false)
     }
     fetchUser()
+    const stopListening = onUserUpdated(setUser)
 
     // Close dropdown when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -58,7 +60,10 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
     }
 
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    return () => {
+      stopListening()
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
   }, [])
 
   const handleSignOut = useCallback(() => {

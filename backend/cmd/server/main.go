@@ -200,6 +200,7 @@ func main() {
 		Images:             handlers.NewUploadStore(preferencesRepo),
 	})
 	transferService.SetPoller(widgetPoller)
+	transferService.SetStatusPage(statusPageService)
 	transferHandler := handlers.NewDashboardTransferHandler(transferService)
 
 	// Config-file mode: one admin's dashboard follows NIMBUS_CONFIG_FILE.

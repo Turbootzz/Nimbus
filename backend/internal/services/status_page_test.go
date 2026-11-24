@@ -115,3 +115,23 @@ func TestPublicURL(t *testing.T) {
 		assert.Empty(t, publicURL(hidden), hidden)
 	}
 }
+
+func TestStatusPageService_UseGroupKeepsTheOtherSettings(t *testing.T) {
+	db, err := sql.Open("sqlite3", ":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	_, err = db.Exec(`CREATE TABLE system_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TIMESTAMP, updated_by TEXT)`)
+	require.NoError(t, err)
+	settingsRepo := repository.NewSettingsRepository(db)
+	require.NoError(t, settingsRepo.UpdateBatch(context.Background(), map[string]string{
+		statusPageEnabledKey: "true", statusPageGroupKey: "old", statusPageTitleKey: "Home lab",
+	}, nil))
+	service := NewStatusPageService(settingsRepo, nil, nil, nil, nil, t.TempDir())
+	service.hasCache = true
+
+	require.NoError(t, service.UseGroup(context.Background(), "user", "new"))
+	settings, err := service.Settings(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, models.StatusPageSettings{Enabled: true, GroupID: "new", Title: "Home lab"}, settings)
+	assert.False(t, service.hasCache, "the cached page is dropped")
+}

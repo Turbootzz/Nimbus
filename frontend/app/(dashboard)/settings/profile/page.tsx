@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { announceUser } from '@/lib/user-events'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 import UserAvatar from '@/components/UserAvatar'
@@ -59,6 +60,7 @@ export default function ProfilePage() {
     const response = await api.uploadAvatar(formData)
     if (response.data) {
       setUser(response.data)
+      announceUser(response.data)
     } else if (response.error) {
       setUploadError(response.error.message)
     }

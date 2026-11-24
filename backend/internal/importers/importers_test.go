@@ -270,12 +270,13 @@ func TestDashy(t *testing.T) {
 
 	warned(t, result.Warnings, "Docs", "far fa-book")
 	warned(t, result.Warnings, "2 Dashy widgets")
+	warned(t, result.Warnings, `Group "Latest Updates"`, "no links")
 }
 
 func TestCompose(t *testing.T) {
 	result := convert(t, "compose_media.yml", FormatCompose)
 	doc := result.Document
-	assert.Equal(t, []string{"Home Assistant", "Jellyfin", "Pi-hole", "Sonarr", "Traefik"}, serviceNames(doc))
+	assert.Equal(t, []string{"Home Assistant", "Jellyfin", "Pi-hole", "Movies", "Sonarr", "Traefik"}, serviceNames(doc))
 
 	sonarr := find(t, doc, "Sonarr")
 	assert.Equal(t, "http://nas.lan:8989", sonarr.URL)
@@ -289,10 +290,20 @@ func TestCompose(t *testing.T) {
 	pihole := find(t, doc, "Pi-hole")
 	assert.Equal(t, "https://nas.lan:8443", pihole.URL)
 	assert.Equal(t, "Network", groupOf(doc, pihole))
-	assert.Equal(t, "DNS", pihole.Description)
+	assert.Equal(t, "Blocks ads", pihole.Description, "nimbus.* wins over homepage.*")
 	traefik := find(t, doc, "Traefik")
 	assert.Equal(t, "https://proxy.example.com", traefik.URL)
 	assert.Contains(t, traefik.IconURL, "@mdi/svg@latest/svg/router.svg")
+
+	// The labels of Docker discovery
+	movies := find(t, doc, "Movies")
+	assert.Equal(t, "http://nas.lan:7878", movies.URL)
+	assert.Equal(t, "Media", groupOf(doc, movies))
+	assert.Contains(t, movies.IconURL, "dashboard-icons/svg/radarr.svg", "a label names an icon as discovery reads it")
+	require.Len(t, doc.Integrations, 1)
+	assert.Equal(t, "radarr", doc.Integrations[0].Kind)
+	assert.Equal(t, doc.Integrations[0].Ref, movies.IntegrationRef)
+	warned(t, result.Warnings, "watchtower", "nimbus.enable=false")
 
 	warned(t, result.Warnings, "db", "publishes no TCP port")
 	warned(t, result.Warnings, "whoami", "publishes no TCP port")
@@ -301,6 +312,35 @@ func TestCompose(t *testing.T) {
 	result, err := Convert(FormatCompose, fixture(t, "compose_media.yml"), Options{})
 	require.NoError(t, err)
 	assert.Equal(t, "http://localhost:8989", find(t, result.Document, "Sonarr").URL)
+}
+
+// A URL label too long to keep is no reason to link to a published port
+func TestComposeSkipsADroppedURLLabel(t *testing.T) {
+	for _, label := range []string{"nimbus.url", "homepage.href"} {
+		config := "services:\n  app:\n    image: nginx\n    ports: [\"8080:80\"]\n    labels:\n" +
+			"      " + label + ": https://app.example.com/" + strings.Repeat("a", 2048) + "\n"
+		result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+		require.NoError(t, err, label)
+		assert.Empty(t, result.Document.Services, label)
+		warned(t, result.Warnings, "app: skipped", "URL label is too long")
+	}
+}
+
+// hl- names a dashboard-icons icon, as in the other importers
+func TestComposeIconLabelWithPrefix(t *testing.T) {
+	config := "services:\n  radarr:\n    image: nginx\n    ports: [\"7878:7878\"]\n    labels:\n      homepage.icon: hl-radarr\n"
+	result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, dashboardIconsURL+"svg/radarr.svg", find(t, result.Document, "Radarr").IconURL)
+}
+
+// A URL label loses its login and query, as in the other importers
+func TestComposeURLLabelWithoutSecrets(t *testing.T) {
+	config := "services:\n  app:\n    image: nginx\n    labels:\n      nimbus.url: https://admin:pw@app.lan/x?token=abc\n"
+	result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, "https://app.lan/x", find(t, result.Document, "App").URL)
+	assert.NotContains(t, strings.Join(result.Warnings, "\n"), "pw")
 }
 
 func TestComposeGuessesNoPortFromARange(t *testing.T) {
@@ -470,6 +510,7 @@ func TestOddURLsAreSkipped(t *testing.T) {
 	warned(t, result.Warnings, "Broken", "skipped", "(not shown)")
 	warned(t, result.Warnings, "No scheme:", "skipped", "(not shown)")
 	warned(t, result.Warnings, "Variable", `"{{HOMEPAGE_VAR_URL}}"`)
+	warned(t, result.Warnings, `Metadata: skipped, "http://169.254.169.254/latest/meta-data/" is not a URL Nimbus can link to: cloud metadata endpoints are not allowed`)
 	all := strings.Join(result.Warnings, "\n")
 	for _, secret := range []string{"user:pass", "=abc", "ftpsecret", "ftptoken", "brokensecret", "brokentoken", "hunter"} {
 		assert.NotContains(t, all, secret)
@@ -480,6 +521,34 @@ func TestOddURLsAreSkipped(t *testing.T) {
 	pihole := find(t, doc, "Pi-hole")
 	assert.Equal(t, "https://proxy.lan/pihole/admin/", pihole.URL)
 	assert.Equal(t, "https://proxy.lan/pihole", integrationOf(doc, pihole).BaseURL)
+}
+
+func TestIntegrationOnAMetadataAddressSaysWhy(t *testing.T) {
+	config := `
+- Apps:
+    - Sonarr:
+        href: https://sonarr.example.com
+        widget:
+          type: sonarr
+          url: http://169.254.169.254/
+`
+	result, err := Convert(FormatHomepage, []byte(config), Options{})
+	require.NoError(t, err)
+	assert.Empty(t, result.Document.Integrations)
+	warned(t, result.Warnings, "Sonarr", "sonarr integration is skipped", "cloud metadata endpoints are not allowed")
+}
+
+// A group without links is left out, but never silently
+func TestEmptyGroupsAreReported(t *testing.T) {
+	for format, config := range map[string]string{
+		FormatHomepage: "- Empty: []\n- Apps:\n    - Docs:\n        href: https://docs.example.com\n",
+		FormatHomer:    "services:\n  - name: Empty\n  - name: Apps\n    items:\n      - name: Docs\n        url: https://docs.example.com\n",
+	} {
+		result, err := Convert(format, []byte(config), Options{})
+		require.NoError(t, err, format)
+		assert.Equal(t, []string{"Docs"}, serviceNames(result.Document), format)
+		warned(t, result.Warnings, `Group "Empty"`, "no links")
+	}
 }
 
 func TestLimitsAndDuplicates(t *testing.T) {

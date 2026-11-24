@@ -115,16 +115,22 @@ func newFakeData() *fakeData {
 			alice: {
 				{ID: "svc-jellyfin", UserID: alice, Name: "Jellyfin", URL: "http://jellyfin.lan:8096", Description: "Movies and shows", Status: models.StatusOnline, ResponseTime: ptr(42), GroupID: ptr("grp-media"), MonitoringEnabled: true},
 				{ID: "svc-sonarr", UserID: alice, Name: "Sonarr", URL: "http://sonarr.lan", Status: models.StatusOffline, GroupID: ptr("grp-media"), MonitoringEnabled: true},
-				{ID: "svc-router", UserID: alice, Name: "Router", URL: "http://192.168.1.1", Status: models.StatusUnknown, GroupID: ptr("grp-infra"), MonitoringEnabled: false},
+				// Monitored itself, but its group is not: the status is stale
+				{ID: "svc-router", UserID: alice, Name: "Router", URL: "http://192.168.1.1", Status: models.StatusOnline, GroupID: ptr("grp-infra"), MonitoringEnabled: true},
 				{ID: "svc-dup-1", UserID: alice, Name: "Pi-hole", URL: "http://pihole-1.lan", Status: models.StatusOnline, MonitoringEnabled: true},
 				{ID: "svc-dup-2", UserID: alice, Name: "pi-hole", URL: "http://pihole-2.lan", Status: models.StatusOnline, MonitoringEnabled: true},
+				{ID: "svc-printer", UserID: alice, Name: "Printer", URL: "http://printer.lan", Status: models.StatusOffline, MonitoringEnabled: false},
 			},
 			bob: {
 				{ID: "svc-bob", UserID: bob, Name: "Vaultwarden", URL: "http://vault.bob.lan", Status: models.StatusOffline, MonitoringEnabled: true},
 			},
 		},
 		groups: map[string][]*models.Group{
-			alice: {{ID: "grp-media", Name: "Media"}, {ID: "grp-infra", Name: "Infrastructure"}},
+			alice: {
+				{ID: "grp-media", Name: "Media", MonitoringEnabled: true},
+				{ID: "grp-infra", Name: "Infrastructure", MonitoringEnabled: false},
+				{ID: "grp-home", Name: "Home", MonitoringEnabled: true, IsDefault: true},
+			},
 		},
 		logs: map[string][]*models.StatusLog{
 			"svc-sonarr": {
@@ -180,12 +186,20 @@ func TestListServices(t *testing.T) {
 
 	_, list, err := tools.listServices(ctx, requestAs(alice, models.ScopeMCP), listServicesInput{})
 	require.NoError(t, err)
-	assert.Equal(t, []string{"Jellyfin", "Sonarr", "Router", "Pi-hole", "pi-hole"}, names(list))
-	assert.Equal(t, ServiceList{Services: list.Services, Total: 5, Online: 3, Offline: 1, Unknown: 1}, list)
+	assert.Equal(t, []string{"Jellyfin", "Sonarr", "Router", "Pi-hole", "pi-hole", "Printer"}, names(list))
+	// Counted as the dashboard does: unmonitored services are neither online nor offline
+	assert.Equal(t, ServiceList{Services: list.Services, Total: 6, Online: 3, Offline: 1, NotMonitored: 2}, list)
 	assert.Equal(t, ServiceInfo{
 		ID: "svc-jellyfin", Name: "Jellyfin", URL: "http://jellyfin.lan:8096", Description: "Movies and shows",
 		Group: "Media", Status: "online", ResponseTimeMs: ptr(42), MonitoringEnabled: true,
 	}, list.Services[0])
+	// Not monitored by its group's setting or its own; ungrouped is in the default group
+	assert.Equal(t, ServiceInfo{
+		ID: "svc-router", Name: "Router", URL: "http://192.168.1.1", Group: "Infrastructure", Status: "not_monitored",
+	}, list.Services[2])
+	assert.Equal(t, ServiceInfo{
+		ID: "svc-printer", Name: "Printer", URL: "http://printer.lan", Group: "Home", Status: "not_monitored",
+	}, list.Services[5])
 
 	// Another user only ever sees their own services
 	_, list, err = tools.listServices(ctx, requestAs(bob, models.ScopeMCP), listServicesInput{})
@@ -210,9 +224,14 @@ func TestListServices_Group(t *testing.T) {
 		assert.Equal(t, 2, list.Total)
 	}
 
-	_, _, err := tools.listServices(ctx, requestAs(alice), listServicesInput{Group: "Games"})
+	// The default group holds the ungrouped services, as on the dashboard
+	_, list, err := tools.listServices(ctx, requestAs(alice), listServicesInput{Group: "Home"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"Pi-hole", "pi-hole", "Printer"}, names(list))
+
+	_, _, err = tools.listServices(ctx, requestAs(alice), listServicesInput{Group: "Games"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Infrastructure, Media", "the error names the groups that exist")
+	assert.Contains(t, err.Error(), "Home, Infrastructure, Media", "the error names the groups that exist")
 }
 
 func TestSearchServices(t *testing.T) {
@@ -261,6 +280,13 @@ func TestGetServiceStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, status.RecentChecks)
 	assert.Empty(t, status.RecentChecks)
+
+	// A service in a group with monitoring off has no current status
+	_, status, err = tools.getServiceStatus(ctx, requestAs(alice), serviceInput{Service: "Router"})
+	require.NoError(t, err)
+	assert.Equal(t, "not_monitored", status.Service.Status)
+	assert.False(t, status.Service.MonitoringEnabled)
+	assert.Nil(t, status.Service.ResponseTimeMs)
 
 	errorCases := map[string]string{
 		"":            "required",
@@ -449,10 +475,13 @@ func TestRecheckService(t *testing.T) {
 	assert.Equal(t, []string{"svc-sonarr"}, data.checked)
 	assert.Equal(t, "online", status.Service.Status, "returns the status after the check")
 
-	// Not for services Nimbus does not monitor, and never for another user's
-	_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: "Router"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "monitoring is disabled")
+	// Not for services Nimbus does not monitor (by their group's setting or
+	// their own), and never for another user's
+	for _, unmonitored := range []string{"Router", "Printer"} {
+		_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: unmonitored})
+		require.Error(t, err, unmonitored)
+		assert.Contains(t, err.Error(), "monitoring is disabled", unmonitored)
+	}
 	_, _, err = tools.recheckService(ctx, writer, recheckInput{ID: "svc-bob"})
 	require.Error(t, err)
 	assert.Equal(t, []string{"svc-sonarr"}, data.checked)
@@ -500,10 +529,10 @@ func TestReadDashboard(t *testing.T) {
 
 	text := result.Contents[0].Text
 	for _, want := range []string{
-		"5 services: 3 online, 1 offline, 1 unknown.",
-		"## Offline\n- Sonarr (http://sonarr.lan)",
+		"6 services: 3 online, 1 offline, 0 unknown, 2 not monitored.",
+		"## Offline\n- Sonarr (http://sonarr.lan)\n\n",
 		"- Media: 2 services",
-		"- (no group): 2 services",
+		"- Home: 3 services",
 		"- wid-weather (weather: Home)",
 		"- Proxmox (proxmox): failing",
 	} {
