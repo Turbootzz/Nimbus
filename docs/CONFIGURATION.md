@@ -322,9 +322,9 @@ docker run -d \
 `PROMETHEUS_API_KEY` is one key for the whole instance and can read every user's metrics. An
 [API token](#api-tokens) with the `read:metrics` scope is the safer choice: it only reads your
 own metrics (also when you are an admin), can expire and can be revoked on its own.
-Put the token in `credentials` and leave `PROMETHEUS_API_KEY` unset. Both keep working, so
-you can switch whenever you like. To scrape several users with one credential, keep
-`PROMETHEUS_API_KEY`.
+Put the token in `credentials`. Both keep working side by side, so keep `PROMETHEUS_API_KEY`
+set until every scrape that uses it has moved to a personal API token, then remove it. To
+scrape several users with one credential, keep `PROMETHEUS_API_KEY`.
 
 ### Available Metrics
 
