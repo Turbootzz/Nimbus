@@ -17,6 +17,7 @@ import (
 	"github.com/nimbus/backend/internal/dashdoc"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	widgettypes "github.com/nimbus/backend/internal/widgets"
 )
 
 // storedDashboard is the dashboard a user has, and the rows the entities of
@@ -226,6 +227,10 @@ func (s *DashboardTransferService) loadStored(ctx context.Context, userID string
 	for i := range widgets {
 		if elsewhere(widgets[i].BoardID, widgets[i].IntegrationID) {
 			stored.otherWidgets++
+			// A calendar there may list integrations in its config too
+			for _, id := range widgettypes.ConfigIntegrationIDs(widgets[i].Type, widgets[i].Config) {
+				stored.usedElsewhere[id] = true
+			}
 			continue
 		}
 		stored.widgets = append(stored.widgets, &widgets[i])
