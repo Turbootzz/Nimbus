@@ -120,7 +120,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
   return (
     <div
       ref={rootRef}
-      className="relative"
+      className="relative min-w-0"
       onKeyDown={(e) => {
         if (e.key === 'Escape' && open) {
           e.stopPropagation()
@@ -136,7 +136,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen(!open)}
-        className="text-text-primary hover:bg-card-border focus-visible:ring-primary flex max-w-40 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:max-w-56"
+        className="text-text-primary hover:bg-card-border focus-visible:ring-primary flex w-full max-w-40 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:max-w-56"
       >
         <span className="sr-only">Board: </span>
         <span className="truncate">{active?.name ?? 'Boards'}</span>
