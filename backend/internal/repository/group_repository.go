@@ -409,7 +409,7 @@ func (r *GroupRepository) bulkUpdatePositionsPostgreSQL(ctx context.Context, use
 	}
 
 	if int(rowsAffected) != len(positions) {
-		return fmt.Errorf("expected to update %d groups, but updated %d (group not found or access denied)", len(positions), rowsAffected)
+		return fmt.Errorf("expected to update %d groups, but updated %d: %w", len(positions), rowsAffected, sql.ErrNoRows)
 	}
 
 	return tx.Commit()
