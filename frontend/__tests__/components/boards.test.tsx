@@ -6,14 +6,22 @@ import BoardSwitcher from '@/components/boards/BoardSwitcher'
 import DashboardView from '@/components/DashboardView'
 import ServiceForm from '@/components/ServiceForm'
 import WidgetModal from '@/components/widgets/WidgetModal'
-import { refreshBoards, resetBoards } from '@/hooks/useBoards'
+import BoardPage from '@/app/(dashboard)/board/[slug]/page'
+import NewServicePage from '@/app/(dashboard)/services/new/page'
+import { getBoardsSnapshot, refreshBoards, resetBoards } from '@/hooks/useBoards'
 import { setBoardOnScreen, useBoardReadOnly } from '@/lib/dashboard-store'
 import { api } from '@/lib/api'
-import type { Board, Service, Widget } from '@/types'
+import type { Board, Group, Service, Widget } from '@/types'
 
 const replace = vi.fn()
 const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push }) }))
+let params: Record<string, string> = {}
+let searchParams = new URLSearchParams()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push }),
+  useParams: () => params,
+  useSearchParams: () => searchParams,
+}))
 vi.mock('@/hooks/useConfigFile', () => ({ useConfigFile: () => null }))
 vi.mock('@/lib/api', () => ({
   api: {
@@ -27,6 +35,7 @@ vi.mock('@/lib/api', () => ({
     getIntegrationKinds: vi.fn(),
     updateService: vi.fn(),
     updateWidget: vi.fn(),
+    reorderTiles: vi.fn(),
     getCurrentUser: vi.fn(),
     createBoard: vi.fn(),
     updateBoard: vi.fn(),
@@ -48,6 +57,18 @@ vi.mock('@/hooks/useDashboardStream', () => ({
   },
   snapshotKey: (kind: string, id: string) => `${kind}:${id}`,
 }))
+// Lets a test drop a tile without a pointer
+let dnd: { onDragEnd?: (event: never) => void } = {}
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...original,
+    DndContext: (props: Parameters<typeof original.DndContext>[0]) => {
+      dnd = props
+      return <original.DndContext {...props} />
+    },
+  }
+})
 vi.mock('@/components/DiscoveredTray', () => ({ default: () => <div data-testid="tray" /> }))
 vi.mock('@/components/ServicesGrid', () => ({
   default: ({
@@ -137,6 +158,8 @@ beforeEach(() => {
   resetBoards()
   Object.keys(store).forEach((key) => delete store[key])
   window.history.replaceState(null, '', '/')
+  params = {}
+  searchParams = new URLSearchParams()
   vi.mocked(api.getBoards).mockResolvedValue({ data: [home] })
   vi.mocked(api.getServices).mockResolvedValue({ data: [service] })
   vi.mocked(api.getGroups).mockResolvedValue({ data: [] })
@@ -369,10 +392,32 @@ describe('DashboardView', () => {
     render(<DashboardView board={lab} />)
     expect(await screen.findByText('s1')).toBeInTheDocument()
     expect(api.getServices).toHaveBeenCalledTimes(1)
+    let answer!: (response: { data: Service[] }) => void
+    vi.mocked(api.getServices).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
     await act(() => vi.advanceTimersByTimeAsync(5 * 60 * 1000))
     expect(api.getServices).toHaveBeenCalledTimes(2)
+    // While the refetch is out, the board stays on screen
     expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument()
     expect(screen.getByText('s1')).toBeInTheDocument()
+    await act(async () => answer({ data: [{ ...service, id: 's2' }] }))
+    expect(screen.getByText('s2')).toBeInTheDocument()
+    expect(screen.queryByText('s1')).not.toBeInTheDocument()
+  })
+
+  it("shows the server's order after a move it could not save", async () => {
+    vi.mocked(api.getServices).mockResolvedValue({
+      data: [service, { ...service, id: 's2', position: 1 }],
+    })
+    vi.mocked(api.reorderTiles).mockResolvedValue({ error: { message: 'Server error' } })
+    render(<DashboardView />)
+    fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }))
+    expect(api.getServices).toHaveBeenCalledTimes(1)
+    await act(async () =>
+      dnd.onDragEnd?.({ active: { id: 'service:s1' }, over: { id: 'service:s2' } } as never)
+    )
+    await waitFor(() => expect(api.getServices).toHaveBeenCalledTimes(2))
+    expect(api.reorderTiles).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument()
   })
 
   it('leaves a board that is no longer shared', async () => {
@@ -384,6 +429,78 @@ describe('DashboardView', () => {
     await act(() => stream.onResync())
     expect(api.getBoards).toHaveBeenCalled()
     expect(replace).toHaveBeenCalledWith('/dashboard')
+  })
+})
+
+describe('the boards list', () => {
+  it('loads again when the boards changed during a load', async () => {
+    let answer!: (response: { data: Board[] }) => void
+    vi.mocked(api.getBoards).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)))
+    vi.mocked(api.getBoards).mockResolvedValueOnce({ data: [home, lab] })
+    const first = refreshBoards()
+    // A board was created while the first load was out
+    const second = refreshBoards()
+    expect(refreshBoards()).toBe(second)
+    answer({ data: [home] })
+    await first
+    await second
+    expect(api.getBoards).toHaveBeenCalledTimes(2)
+    expect(getBoardsSnapshot()).toEqual([home, lab])
+  })
+
+  it('tells a failed load from a missing board, and loads again on the next visit', async () => {
+    vi.mocked(api.getBoards).mockResolvedValue({ error: { message: 'Server error' } })
+    params = { slug: 'lab' }
+    const { unmount } = render(<BoardPage />)
+    expect(await screen.findByText(/Boards could not be loaded/)).toBeInTheDocument()
+    expect(screen.queryByText('Board not found')).not.toBeInTheDocument()
+    unmount()
+
+    vi.mocked(api.getBoards).mockResolvedValue({ data: [home, lab] })
+    render(<BoardPage />)
+    expect(await screen.findByText('s1')).toBeInTheDocument()
+    expect(api.getServices).toHaveBeenCalledWith('b-lab')
+  })
+})
+
+describe('adding a service to a board', () => {
+  it('only offers the form for a board of the user', async () => {
+    await loadBoards([home, lab, family])
+    searchParams = new URLSearchParams('board=b-family&from=dashboard')
+    const { unmount } = render(<NewServicePage />)
+    expect(await screen.findByText('Board not found')).toBeInTheDocument()
+    expect(screen.queryByLabelText(/Service Name/)).not.toBeInTheDocument()
+    unmount()
+
+    searchParams = new URLSearchParams('board=b-lab&from=dashboard')
+    render(<NewServicePage />)
+    expect(await screen.findByLabelText(/Service Name/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Back to Dashboard/ })).toHaveAttribute(
+      'href',
+      '/board/lab'
+    )
+  })
+
+  it('shows the groups of the board it was given last', async () => {
+    theme.enableServiceGrouping = true
+    const group = (id: string, name: string, boardId: string) =>
+      ({ id, name, board_id: boardId, is_default: false }) as Group
+    let answerLab!: (response: { data: Group[] }) => void
+    vi.mocked(api.getGroups).mockImplementation((boardId) =>
+      boardId === 'b-lab'
+        ? new Promise((resolve) => (answerLab = resolve))
+        : Promise.resolve({ data: [group('g-home', 'Home apps', 'b-home')] })
+    )
+    try {
+      const { rerender } = render(<ServiceForm boardId="b-lab" onSaved={() => {}} />)
+      rerender(<ServiceForm boardId="b-home" onSaved={() => {}} />)
+      expect(await screen.findByRole('option', { name: /Home apps/ })).toBeInTheDocument()
+      await act(async () => answerLab({ data: [group('g-lab', 'Lab apps', 'b-lab')] }))
+      expect(screen.queryByRole('option', { name: /Lab apps/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Home apps/ })).toBeInTheDocument()
+    } finally {
+      theme.enableServiceGrouping = false
+    }
   })
 })
 

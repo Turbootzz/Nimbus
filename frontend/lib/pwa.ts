@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { forgetLastBoard } from '@/lib/boards'
 
 // Shared with the service worker; public/sw-routing.js holds the same values
 // (a test keeps them equal)
@@ -9,12 +10,13 @@ export const CACHED_AT_HEADER = 'X-Nimbus-Cached-At'
 const CACHE_OWNER_KEY = 'offlineCacheOwner'
 
 /**
- * Drops the API responses kept for offline use. Called when the session
- * changes (login, logout, 401) so one user's dashboard never shows up for the
- * next on a shared device. Never throws.
+ * Drops the API responses kept for offline use, and the board opened last.
+ * Called when the session changes (login, logout, 401) so one user's
+ * dashboard never shows up for the next on a shared device. Never throws.
  */
 export async function clearApiCache(): Promise<void> {
   if (typeof window === 'undefined') return
+  forgetLastBoard()
   try {
     // Also keeps responses still in flight in any worker out of the new cache:
     // the worker stores them in the cache it opened before they went out

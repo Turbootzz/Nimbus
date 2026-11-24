@@ -237,38 +237,45 @@ func insertBoard(ctx context.Context, tx *sql.Tx, board *models.Board, autoSlug 
 	return nil
 }
 
-// Update saves the name, slug and shared flag of the user's board
-func (r *BoardRepository) Update(ctx context.Context, board *models.Board) error {
+// Update changes the user's board: apply edits the board as stored, in the
+// transaction that holds the user lock, so an edit never writes back what
+// another one changed meanwhile (a rename re-sharing a board just unshared)
+func (r *BoardRepository) Update(ctx context.Context, id, userID string, apply func(*models.Board) error) (*models.Board, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %w", err)
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	if err := lockUser(ctx, tx, board.UserID); err != nil {
-		return err
+	if err := lockUser(ctx, tx, userID); err != nil {
+		return nil, err
 	}
-	taken, err := slugTaken(ctx, tx, board.UserID, board.Slug, board.ID)
+	board, err := scanBoard(tx.QueryRowContext(ctx, `SELECT `+boardColumns+` FROM boards b WHERE b.id = $1 AND b.user_id = $2`, id, userID))
 	if err != nil {
-		return err
+		return nil, err
+	}
+	if err := apply(board); err != nil {
+		return nil, err
+	}
+	taken, err := slugTaken(ctx, tx, userID, board.Slug, board.ID)
+	if err != nil {
+		return nil, err
 	}
 	if taken {
-		return ErrBoardSlugTaken
+		return nil, ErrBoardSlugTaken
 	}
-	result, err := tx.ExecContext(ctx, `
+	err = tx.QueryRowContext(ctx, `
 		UPDATE boards SET name = $1, slug = $2, is_shared = $3, updated_at = CURRENT_TIMESTAMP
-		WHERE id = $4 AND user_id = $5`,
-		board.Name, board.Slug, board.IsShared, board.ID, board.UserID)
+		WHERE id = $4 AND user_id = $5
+		RETURNING updated_at`,
+		board.Name, board.Slug, board.IsShared, board.ID, userID).Scan(&board.UpdatedAt)
 	if err != nil {
-		return fmt.Errorf("failed to update board: %w", err)
-	}
-	if err := requireAffected(result, ErrBoardNotFound); err != nil {
-		return err
+		return nil, fmt.Errorf("failed to update board: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit board: %w", err)
+		return nil, fmt.Errorf("failed to commit board: %w", err)
 	}
-	return nil
+	return board, nil
 }
 
 // Reorder puts the user's boards in the order of ids. It fails with
@@ -368,15 +375,13 @@ func (r *BoardRepository) Delete(ctx context.Context, id, userID, moveTo string)
 	return nil
 }
 
-// MoveTile puts a service or widget of the user on another of their boards:
-// ungrouped (groups belong to a board) and after the last tile. The caller
-// checks that the board is the user's. It returns the tile's new position.
-func (r *BoardRepository) MoveTile(ctx context.Context, userID, kind, id, boardID string) (int, error) {
-	table, ok := map[string]string{models.TileKindService: "services", models.TileKindWidget: "widgets"}[kind]
-	if !ok {
-		return 0, fmt.Errorf("unknown tile kind %q", kind)
-	}
-	tx, err := r.db.BeginTx(ctx, nil)
+// moveTile saves a tile of the user (table services or widgets) with save
+// and puts it on boardID, after the user's last tile, in one transaction:
+// nobody sees it on the new board as it was before. The caller checks that
+// the board is the user's; save writes the tile's group for that board. It
+// returns the tile's new position.
+func moveTile(ctx context.Context, db *sql.DB, table, userID, id, boardID string, save func(*sql.Tx) error) (int, error) {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -389,8 +394,11 @@ func (r *BoardRepository) MoveTile(ctx context.Context, userID, kind, id, boardI
 	if err != nil {
 		return 0, err
 	}
+	if err := save(tx); err != nil {
+		return 0, err
+	}
 	result, err := tx.ExecContext(ctx,
-		`UPDATE `+table+` SET board_id = $1, group_id = NULL, position = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 AND user_id = $4`,
+		`UPDATE `+table+` SET board_id = $1, position = $2 WHERE id = $3 AND user_id = $4`,
 		boardID, position, id, userID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to move tile: %w", err)
@@ -484,4 +492,17 @@ func insertDefaultGroup(ctx context.Context, tx *sql.Tx, userID, boardID string)
 		return fmt.Errorf("failed to create default group: %w", err)
 	}
 	return nil
+}
+
+// ensureDefaultGroup gives a board its default group if it has none
+func ensureDefaultGroup(ctx context.Context, tx *sql.Tx, userID, boardID string) error {
+	var exists bool
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM groups WHERE board_id = $1 AND is_default = TRUE)`, boardID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to look up default group: %w", err)
+	}
+	if exists {
+		return nil
+	}
+	return insertDefaultGroup(ctx, tx, userID, boardID)
 }

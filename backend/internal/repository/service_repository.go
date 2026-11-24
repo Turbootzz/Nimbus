@@ -220,15 +220,35 @@ func ungroupedBoard(group *models.Group) any {
 	return nil
 }
 
-// Update updates an existing service
+// Update saves the editable fields of the user's service if it is still on
+// service.BoardID: the caller checked its group against that board, so a
+// service moved to another board meanwhile is left alone (sql.ErrNoRows)
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
+	return updateService(ctx, r.db, service)
+}
+
+// Move saves the service like Update and puts it on boardID, after the
+// user's last tile, in one transaction. The caller checks that the board is
+// the user's and sets the service's group for it.
+func (r *ServiceRepository) Move(ctx context.Context, service *models.Service, boardID string) error {
+	position, err := moveTile(ctx, r.db, "services", service.UserID, service.ID, boardID, func(tx *sql.Tx) error {
+		return updateService(ctx, tx, service)
+	})
+	if err != nil {
+		return err
+	}
+	service.BoardID, service.Position = boardID, position
+	return nil
+}
+
+func updateService(ctx context.Context, q execQuerier, service *models.Service) error {
 	query := `
 		UPDATE services
 		SET name = $1, url = $2, icon = $3, icon_type = $4, icon_image_path = $5, description = $6, card_size = $7, group_id = $8, integration_id = $9, monitoring_enabled = $10, updated_at = $11
-		WHERE id = $12 AND user_id = $13
+		WHERE id = $12 AND user_id = $13 AND board_id = $14
 	`
 
-	result, err := r.db.ExecContext(
+	result, err := q.ExecContext(
 		ctx,
 		query,
 		service.Name,
@@ -244,6 +264,7 @@ func (r *ServiceRepository) Update(ctx context.Context, service *models.Service)
 		service.UpdatedAt,
 		service.ID,
 		service.UserID,
+		service.BoardID,
 	)
 
 	if err != nil {

@@ -306,7 +306,7 @@
       "unreadable": "Le fichier n’a pas pu être lu",
       "replaceWarning": {
         "title": "Remplacer supprime votre tableau de bord actuel.",
-        "body": "Les groupes, services et widgets de votre board par défaut et des boards listés dans le fichier sont supprimés, avec l’historique d’état de ces services. Vos intégrations et leurs identifiants enregistrés le sont aussi, sauf celles que des tuiles de vos autres boards utilisent encore. Les autres boards restent tels quels. Vos préférences sont écrasées. Cette action est irréversible. Exportez d’abord si vous voulez pouvoir revenir en arrière."
+        "body": "Les groupes, services et widgets de votre board par défaut et des boards listés dans le fichier sont supprimés, avec l’historique d’état de ces services. Vos intégrations et leurs identifiants enregistrés le sont aussi, sauf celles que des tuiles de vos autres boards utilisent encore. Les autres boards restent tels quels. Vos préférences sont écrasées. Cette action est irréversible. Exportez d’abord pour garder un moyen de revenir en arrière ; l’export ne contient ni les identifiants, ni les secrets des widgets, ni l’historique d’état."
       },
       "customCss": {
         "title": "Ce fichier apporte du CSS personnalisé (lisez-le avant d’importer)",
@@ -593,7 +593,8 @@
     "board": {
       "notFound": "Board introuvable",
       "notFoundDescription": "Il n’existe pas, ou il n’est plus partagé avec vous.",
-      "goToDashboard": "Aller à votre tableau de bord"
+      "goToDashboard": "Aller à votre tableau de bord",
+      "loadFailed": "Impossible de charger les boards. Rechargez la page pour réessayer."
     }
   },
   "integrations": {

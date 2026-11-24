@@ -9,14 +9,18 @@ import type { Board } from '@/types'
 
 interface BoardsState {
   boards: Board[]
-  // False until the first load ended, with or without boards
+  // False until a load succeeded
   loaded: boolean
+  // The last load failed; the boards are those of the load before, if any
+  failed: boolean
 }
 
-let state: BoardsState = { boards: [], loaded: false }
+let state: BoardsState = { boards: [], loaded: false, failed: false }
 let loading: Promise<void> | null = null
+// A refresh asked for while a load was in flight: it runs after that one
+let queued: Promise<void> | null = null
 const listeners = new Set<() => void>()
-const serverState: BoardsState = { boards: [], loaded: false }
+const serverState: BoardsState = { boards: [], loaded: false, failed: false }
 
 function subscribe(onStoreChange: () => void) {
   listeners.add(onStoreChange)
@@ -30,20 +34,34 @@ function set(next: BoardsState) {
   listeners.forEach((l) => l())
 }
 
-// Loads the boards again, e.g. after one was created. Never throws: without
-// a list there is one board, the default one.
-export function refreshBoards(): Promise<void> {
-  loading ??= (async () => {
-    try {
-      const response = await api.getBoards()
-      set({ boards: response.data ?? state.boards, loaded: true })
-    } catch {
-      set({ ...state, loaded: true })
-    } finally {
-      loading = null
-    }
-  })()
+async function load() {
+  try {
+    const response = await api.getBoards()
+    if (!response.data) throw new Error(response.error?.message)
+    set({ boards: response.data, loaded: true, failed: false })
+  } catch {
+    set({ ...state, failed: true })
+  }
+}
+
+// Loads the boards, or joins the load in flight
+function loadBoards(): Promise<void> {
+  loading ??= load().finally(() => {
+    loading = null
+  })
   return loading
+}
+
+// Loads the boards again, e.g. after one was created. A load in flight may
+// have been answered before that change, so another one follows it. Never
+// throws: without a list there is one board, the default one.
+export function refreshBoards(): Promise<void> {
+  if (!loading) return loadBoards()
+  queued ??= loading.then(() => {
+    queued = null
+    return loadBoards()
+  })
+  return queued
 }
 
 export function getBoardsSnapshot(): Board[] {
@@ -52,8 +70,9 @@ export function getBoardsSnapshot(): Board[] {
 
 // For tests: forget what was loaded
 export function resetBoards() {
-  state = { boards: [], loaded: false }
+  state = { boards: [], loaded: false, failed: false }
   loading = null
+  queued = null
 }
 
 export function useBoards(): BoardsState {
@@ -62,8 +81,9 @@ export function useBoards(): BoardsState {
     () => state,
     () => serverState
   )
+  // Until a load succeeded, every newly shown user of the list tries again
   useEffect(() => {
-    if (!state.loaded) refreshBoards()
+    if (!state.loaded) loadBoards()
   }, [])
   return current
 }

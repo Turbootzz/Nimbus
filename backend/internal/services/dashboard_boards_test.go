@@ -174,6 +174,9 @@ func TestImportLeavesBoardsTheDocumentDoesNotListAlone(t *testing.T) {
 	assert.Equal(t, 1, env.countOn(t, "services", family.ID))
 	assert.Equal(t, 0, env.countOn(t, "services", defaultBoard.ID), "the default board is always part of a document")
 	assert.Equal(t, 2, env.countOn(t, "services", lab.ID))
+	var defaults int
+	require.NoError(t, env.db.QueryRow(`SELECT COUNT(*) FROM groups WHERE board_id = ? AND is_default = 1`, family.ID).Scan(&defaults))
+	assert.Equal(t, 1, defaults, "the emptied board gets its default group back")
 	renamed, err := boards.GetByID(ctx, family.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Family night", renamed.Name)
@@ -222,6 +225,34 @@ func TestReplaceUsesAnIntegrationAnotherBoardKeeps(t *testing.T) {
 	assert.Equal(t, "http://192.168.1.10:8989", baseURL, "the file doesn't move its credentials elsewhere")
 }
 
+func TestReplaceKeepsAnIntegrationACalendarElsewhereLists(t *testing.T) {
+	env, boards := newBoardTransferEnv(t)
+	ctx := context.Background()
+	env.seedDashboard(t)
+	lab := env.addBoard(t, boards, transferAdmin, "Lab", false)
+	sonarr := env.id(t, "integrations", "name", "Sonarr")
+	// Only the config of the calendar, now on the lab board, names Sonarr
+	_, err := env.db.Exec(`UPDATE widgets SET board_id = ? WHERE title = 'Upcoming'`, lab.ID)
+	require.NoError(t, err)
+
+	doc := &dashdoc.Document{
+		Version:      1,
+		Integrations: []dashdoc.Integration{{Ref: "s", Kind: "sonarr", Name: "Sonarr", BaseURL: "http://10.0.0.99:8989"}},
+		Services:     []dashdoc.Service{{Name: "Series", URL: "http://192.168.1.10:8989", IntegrationRef: "s"}},
+	}
+	preview, err := env.svc.Preview(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, dashdoc.Count{Removed: 1}, preview.Integrations, "Plain goes; the kept Sonarr is used, not added again")
+	summary, err := env.svc.Apply(ctx, transferAdmin, reparse(t, doc), dashdoc.ModeReplace)
+	require.NoError(t, err)
+	assert.Equal(t, preview.Integrations, summary.Integrations)
+
+	assert.Equal(t, sonarr, env.id(t, "integrations", "name", "Sonarr"), "the calendar still has its source")
+	var linked string
+	require.NoError(t, env.db.QueryRow(`SELECT integration_id FROM services WHERE name = 'Series'`).Scan(&linked))
+	assert.Equal(t, sonarr, linked)
+}
+
 func TestDocumentBoardsAreValidated(t *testing.T) {
 	env, _ := newBoardTransferEnv(t)
 	ctx := context.Background()
@@ -242,6 +273,10 @@ func TestDocumentBoardsAreValidated(t *testing.T) {
 		"two default groups on a board": {dashdoc.Document{
 			Boards: []dashdoc.Board{{Ref: "a", Name: "A"}},
 			Groups: []dashdoc.Group{{Name: "One", BoardRef: "a", Default: true}, {Name: "Two", BoardRef: "a", Default: true}},
+		}, "groups[1].default"},
+		"two default groups on the default board, by its slug": {dashdoc.Document{
+			Boards: []dashdoc.Board{{Ref: "h", Name: "Home", Slug: models.DefaultBoardSlug}},
+			Groups: []dashdoc.Group{{Name: "One", Default: true}, {Name: "Two", BoardRef: "h", Default: true}},
 		}, "groups[1].default"},
 	} {
 		c.doc.Version = 1

@@ -306,7 +306,7 @@
       "unreadable": "No se pudo leer el archivo",
       "replaceWarning": {
         "title": "Reemplazar elimina tu panel actual.",
-        "body": "Se eliminan los grupos, servicios y widgets de tu tablero predeterminado y de los tableros que incluye el archivo, junto con el historial de estado de esos servicios. También se eliminan tus integraciones y sus credenciales guardadas, salvo las que los mosaicos de tus otros tableros siguen usando. Los demás tableros se quedan como están. Se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero si quieres poder volver atrás."
+        "body": "Se eliminan los grupos, servicios y widgets de tu tablero predeterminado y de los tableros que incluye el archivo, junto con el historial de estado de esos servicios. También se eliminan tus integraciones y sus credenciales guardadas, salvo las que los mosaicos de tus otros tableros siguen usando. Los demás tableros se quedan como están. Se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero para tener una forma de volver atrás; la exportación no incluye credenciales, secretos de widgets ni historial de estado."
       },
       "customCss": {
         "title": "Este archivo trae CSS personalizado (léelo antes de importar)",
@@ -593,7 +593,8 @@
     "board": {
       "notFound": "Tablero no encontrado",
       "notFoundDescription": "No existe o ya no se comparte contigo.",
-      "goToDashboard": "Ir a tu panel"
+      "goToDashboard": "Ir a tu panel",
+      "loadFailed": "No se pudieron cargar los tableros. Recarga la página para volver a intentarlo."
     }
   },
   "integrations": {

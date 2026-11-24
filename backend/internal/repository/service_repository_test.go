@@ -632,6 +632,10 @@ func TestServiceRepository_Update(t *testing.T) {
 	}
 
 	createServiceDirectly(t, db, testService)
+	stored, err := repo.GetByID(ctx, "service-1")
+	if err != nil {
+		t.Fatalf("Failed to retrieve service: %v", err)
+	}
 
 	tests := []struct {
 		name    string
@@ -639,10 +643,23 @@ func TestServiceRepository_Update(t *testing.T) {
 		wantErr bool
 	}{
 		{
+			name: "Update a service moved to another board since it was read",
+			service: &models.Service{
+				ID:        "service-1",
+				UserID:    "user-1",
+				BoardID:   "another-board",
+				Name:      "Stale Name",
+				URL:       "https://stale.com",
+				UpdatedAt: time.Now(),
+			},
+			wantErr: true,
+		},
+		{
 			name: "Update existing service",
 			service: &models.Service{
 				ID:          "service-1",
 				UserID:      "user-1",
+				BoardID:     stored.BoardID,
 				Name:        "Updated Name",
 				URL:         "https://updated.com",
 				Icon:        "⭐",

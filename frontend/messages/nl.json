@@ -306,7 +306,7 @@
       "unreadable": "Het bestand kon niet worden gelezen",
       "replaceWarning": {
         "title": "Vervangen verwijdert je huidige dashboard.",
-        "body": "De groepen, services en widgets op je standaardboard en op de boards die in het bestand staan worden verwijderd, met de statusgeschiedenis van die services. Ook je integraties en hun opgeslagen inloggegevens worden verwijderd, behalve integraties die nog door tegels op je andere boards worden gebruikt. Andere boards blijven zoals ze zijn. Je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je terug wilt kunnen."
+        "body": "De groepen, services en widgets op je standaardboard en op de boards die in het bestand staan worden verwijderd, met de statusgeschiedenis van die services. Ook je integraties en hun opgeslagen inloggegevens worden verwijderd, behalve integraties die nog door tegels op je andere boards worden gebruikt. Andere boards blijven zoals ze zijn. Je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst zodat je terug kunt; de export laat inloggegevens, widgetgeheimen en statusgeschiedenis weg."
       },
       "customCss": {
         "title": "Dit bestand bevat eigen CSS (lees het voordat je importeert)",
@@ -593,7 +593,8 @@
     "board": {
       "notFound": "Board niet gevonden",
       "notFoundDescription": "Het bestaat niet, of het wordt niet meer met je gedeeld.",
-      "goToDashboard": "Naar je dashboard"
+      "goToDashboard": "Naar je dashboard",
+      "loadFailed": "Boards konden niet worden geladen. Laad de pagina opnieuw om het nog eens te proberen."
     }
   },
   "integrations": {

@@ -4,12 +4,14 @@ import (
 	"cmp"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/nimbus/backend/internal/models"
+	"github.com/nimbus/backend/internal/widgets"
 )
 
 // DashboardRows is what a dashboard import writes. All IDs are set by the
@@ -113,14 +115,58 @@ func inBoards(from int, boards []string) (string, []any) {
 	return "board_id IN (" + strings.Join(marks, ", ") + ")", args
 }
 
-// usedIntegrations selects the integrations (of user $1) that tiles outside
-// the boards in onBoards (see inBoards) use: what a replace must keep
-func usedIntegrations(onBoards string) string {
-	return `(
-		SELECT integration_id FROM services WHERE user_id = $1 AND integration_id IS NOT NULL AND NOT ` + onBoards + `
-		UNION
-		SELECT integration_id FROM widgets WHERE user_id = $1 AND integration_id IS NOT NULL AND NOT ` + onBoards + `
-	)`
+// splitIntegrations sorts the user's integrations into the ones tiles
+// outside the boards in onBoards (see inBoards) use, by integration_id or
+// in a widget's config (a calendar's sources), which a replace must keep,
+// and the others
+func splitIntegrations(ctx context.Context, db querier, userID, onBoards string, boardArgs []any) (kept, others []string, err error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT CAST(integration_id AS TEXT), CAST('' AS TEXT), CAST('' AS TEXT) FROM services
+		WHERE user_id = $1 AND integration_id IS NOT NULL AND NOT `+onBoards+`
+		UNION ALL
+		SELECT COALESCE(CAST(integration_id AS TEXT), ''), type, CAST(config AS TEXT) FROM widgets
+		WHERE user_id = $1 AND NOT `+onBoards,
+		append([]any{userID}, boardArgs...)...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list tiles on other boards: %w", err)
+	}
+	used := map[string]bool{}
+	for rows.Next() {
+		var id, typ, config string
+		if err := rows.Scan(&id, &typ, &config); err != nil {
+			rows.Close()
+			return nil, nil, fmt.Errorf("failed to scan tile: %w", err)
+		}
+		used[id] = true
+		for _, linked := range widgets.ConfigIntegrationIDs(typ, json.RawMessage(config)) {
+			used[linked] = true
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to iterate tiles: %w", err)
+	}
+
+	rows, err = db.QueryContext(ctx, `SELECT CAST(id AS TEXT) FROM integrations WHERE user_id = $1`, userID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to list integrations: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, nil, fmt.Errorf("failed to scan integration: %w", err)
+		}
+		if used[id] {
+			kept = append(kept, id)
+		} else {
+			others = append(others, id)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("failed to iterate integrations: %w", err)
+	}
+	return kept, others, nil
 }
 
 func dashboardScope(ctx context.Context, db querier, userID string, boards []string) (*DashboardScope, error) {
@@ -136,16 +182,20 @@ func dashboardScope(ctx context.Context, db querier, userID string, boards []str
 			(SELECT COUNT(*) FROM services WHERE user_id = $1 AND ` + onBoards + `),
 			(SELECT COUNT(*) FROM widgets WHERE user_id = $1 AND ` + onBoards + `),
 			(SELECT COUNT(*) FROM integrations WHERE user_id = $1),
-			(SELECT COUNT(*) FROM widgets WHERE user_id = $1 AND NOT ` + onBoards + `),
-			(SELECT COUNT(*) FROM integrations WHERE user_id = $1 AND id IN ` + usedIntegrations(onBoards) + `)
+			(SELECT COUNT(*) FROM widgets WHERE user_id = $1 AND NOT ` + onBoards + `)
 	`
 	state := &scope.State
 	err = db.QueryRowContext(ctx, query, append([]any{userID}, boardArgs...)...).Scan(
-		&state.Groups, &state.Services, &state.Widgets, &state.Integrations, &scope.Kept.Widgets, &scope.Kept.Integrations,
+		&state.Groups, &state.Services, &state.Widgets, &state.Integrations, &scope.Kept.Widgets,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read dashboard state: %w", err)
 	}
+	kept, _, err := splitIntegrations(ctx, db, userID, onBoards, boardArgs)
+	if err != nil {
+		return nil, err
+	}
+	scope.Kept.Integrations = len(kept)
 
 	rows, err := db.QueryContext(ctx,
 		`SELECT CAST(board_id AS TEXT), CAST(id AS TEXT) FROM groups WHERE user_id = $1 AND is_default = TRUE`, userID)
@@ -244,6 +294,15 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 		group.Position = groupOffset + i
 		if err := insertGroup(ctx, tx, group); err != nil {
 			return nil, err
+		}
+	}
+	if replace {
+		// The boards the document lists were emptied; a viewer of one
+		// creates no default group, so each gets it back here
+		for _, board := range boards {
+			if err := ensureDefaultGroup(ctx, tx, userID, board); err != nil {
+				return nil, err
+			}
 		}
 	}
 	for _, integration := range rows.Integrations {
@@ -363,6 +422,10 @@ func (rows *DashboardRows) useDefaultGroups(existing map[string]string) {
 func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string, boards []string) ([]string, error) {
 	onBoards, boardArgs := inBoards(2, boards)
 	args := append([]any{userID}, boardArgs...)
+	_, unused, err := splitIntegrations(ctx, tx, userID, onBoards, boardArgs)
+	if err != nil {
+		return nil, err
+	}
 	rows, err := tx.QueryContext(ctx,
 		`SELECT icon_image_path FROM services WHERE user_id = $1 AND `+onBoards+` AND icon_type = '`+models.IconTypeImageUpload+`' AND icon_image_path <> ''`,
 		args...)
@@ -384,17 +447,18 @@ func wipeDashboard(ctx context.Context, tx *sql.Tx, userID string, boards []stri
 	}
 
 	// Tiles first: they point at groups and integrations
-	deletes := []struct{ table, where string }{
-		{"widgets", onBoards},
-		{"services", onBoards},
-		// By now only tiles on other boards are left to use one
-		{"integrations", `id NOT IN ` + usedIntegrations(onBoards)},
-		{"groups", onBoards},
-	}
-	for _, del := range deletes {
-		if _, err := tx.ExecContext(ctx, `DELETE FROM `+del.table+` WHERE user_id = $1 AND `+del.where, args...); err != nil {
-			return nil, fmt.Errorf("failed to delete %s: %w", del.table, err)
+	for _, table := range []string{"widgets", "services"} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE user_id = $1 AND `+onBoards, args...); err != nil {
+			return nil, fmt.Errorf("failed to delete %s: %w", table, err)
 		}
+	}
+	for _, id := range unused {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM integrations WHERE id = $1 AND user_id = $2`, id, userID); err != nil {
+			return nil, fmt.Errorf("failed to delete integration: %w", err)
+		}
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM groups WHERE user_id = $1 AND `+onBoards, args...); err != nil {
+		return nil, fmt.Errorf("failed to delete groups: %w", err)
 	}
 	return unusedIcons(ctx, tx, icons)
 }
