@@ -703,4 +703,16 @@ func TestMetricsService_LastCheckAndError(t *testing.T) {
 	if response.LastError != nil || response.LastErrorAt != nil || response.LastCheckedAt == nil {
 		t.Errorf("short range: got error %v at %v, last check %v", response.LastError, response.LastErrorAt, response.LastCheckedAt)
 	}
+
+	// An error after the time range is not reported either, the last check still is
+	response = &MetricsResponse{ServiceID: "test-service-1", TimeRange: TimeRange{Start: dayAgo, End: now.Add(-150 * time.Minute)}}
+	if err := metricsService.addLastCheck(ctx, response); err != nil {
+		t.Fatalf("addLastCheck() error = %v", err)
+	}
+	if response.LastError == nil || *response.LastError != "connection refused" {
+		t.Errorf("past range: LastError = %v, want connection refused", response.LastError)
+	}
+	if response.LastCheckedAt == nil || now.Sub(*response.LastCheckedAt).Round(time.Minute) != time.Minute {
+		t.Errorf("past range: LastCheckedAt = %v, want the check of a minute ago", response.LastCheckedAt)
+	}
 }

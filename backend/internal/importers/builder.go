@@ -12,6 +12,13 @@ import (
 	"github.com/nimbus/backend/internal/utils"
 )
 
+// A converted config keeps at most this many groups and services: a
+// dashboard of another tool that is larger is not a realistic source
+const (
+	MaxGroups   = 100
+	MaxServices = 500
+)
+
 const (
 	maxServiceNameLen     = 255 // the column's size
 	maxIntegrationNameLen = 100
@@ -133,8 +140,8 @@ func (b *builder) group(name string) string {
 	if ref, ok := b.groups[name]; ok {
 		return ref
 	}
-	if len(b.doc.Groups) >= dashdoc.MaxGroups {
-		b.warn("Group %q: skipped, at most %d groups can be imported", name, dashdoc.MaxGroups)
+	if len(b.doc.Groups) >= MaxGroups {
+		b.warn("Group %q: skipped, at most %d groups can be imported", name, MaxGroups)
 		return ""
 	}
 	ref := b.ref("group", name)
@@ -184,8 +191,8 @@ func (b *builder) service(e entry) {
 		}
 		return
 	}
-	if len(b.doc.Services) >= dashdoc.MaxServices {
-		b.warn("%s: skipped, at most %d services can be imported", name, dashdoc.MaxServices)
+	if len(b.doc.Services) >= MaxServices {
+		b.warn("%s: skipped, at most %d services can be imported", name, MaxServices)
 		return
 	}
 	service := dashdoc.Service{

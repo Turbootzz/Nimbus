@@ -4,9 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	"github.com/nimbus/backend/internal/models"
 )
+
+// An add that takes longer than this has died, as when the server stopped
+// between Claim and SetService: Release may then give its claim back
+const staleClaimAge = 5 * time.Minute
 
 // DiscoveryRepository remembers which discovered containers a user has
 // added or ignored
@@ -39,14 +44,14 @@ func (r *DiscoveryRepository) List(ctx context.Context, userID string) (map[stri
 	return handled, rows.Err()
 }
 
-// Claim marks a container as handled (ignored, until SetService). It returns
-// false when the container was handled already, so only one caller gets to
-// add it.
-func (r *DiscoveryRepository) Claim(ctx context.Context, userID, key string) (bool, error) {
+// Claim marks a container as handled: ignored, or pending for an add until
+// SetService or Unclaim. It returns false when the container was handled
+// already, so only one caller gets to add it.
+func (r *DiscoveryRepository) Claim(ctx context.Context, userID, key string, pending bool) (bool, error) {
 	result, err := r.db.ExecContext(ctx, `
-		INSERT INTO discovered_containers (user_id, discovery_key) VALUES ($1, $2)
+		INSERT INTO discovered_containers (user_id, discovery_key, pending) VALUES ($1, $2, $3)
 		ON CONFLICT (user_id, discovery_key) DO NOTHING
-	`, userID, key)
+	`, userID, key, pending)
 	if err != nil {
 		return false, fmt.Errorf("failed to claim discovered container: %w", err)
 	}
@@ -60,7 +65,7 @@ func (r *DiscoveryRepository) Claim(ctx context.Context, userID, key string) (bo
 // SetService records the service a claimed container became
 func (r *DiscoveryRepository) SetService(ctx context.Context, userID, key, serviceID string) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE discovered_containers SET service_id = $1 WHERE user_id = $2 AND discovery_key = $3
+		UPDATE discovered_containers SET service_id = $1, pending = FALSE WHERE user_id = $2 AND discovery_key = $3
 	`, serviceID, userID, key)
 	if err != nil {
 		return fmt.Errorf("failed to link discovered container: %w", err)
@@ -69,13 +74,27 @@ func (r *DiscoveryRepository) SetService(ctx context.Context, userID, key, servi
 }
 
 // Release offers an ignored container again. A container that became a
-// service stays handled.
+// service stays handled, and so does one an add is still creating.
 func (r *DiscoveryRepository) Release(ctx context.Context, userID, key string) error {
+	// UTC, so SQLite in the tests compares it as text with CURRENT_TIMESTAMP
+	staleBefore := time.Now().Add(-staleClaimAge).UTC()
 	_, err := r.db.ExecContext(ctx, `
-		DELETE FROM discovered_containers WHERE user_id = $1 AND discovery_key = $2 AND service_id IS NULL
-	`, userID, key)
+		DELETE FROM discovered_containers
+		WHERE user_id = $1 AND discovery_key = $2 AND service_id IS NULL AND (NOT pending OR created_at < $3)
+	`, userID, key, staleBefore)
 	if err != nil {
 		return fmt.Errorf("failed to release discovered container: %w", err)
+	}
+	return nil
+}
+
+// Unclaim gives back the claim of an add that failed
+func (r *DiscoveryRepository) Unclaim(ctx context.Context, userID, key string) error {
+	_, err := r.db.ExecContext(ctx, `
+		DELETE FROM discovered_containers WHERE user_id = $1 AND discovery_key = $2 AND pending
+	`, userID, key)
+	if err != nil {
+		return fmt.Errorf("failed to unclaim discovered container: %w", err)
 	}
 	return nil
 }

@@ -24,6 +24,7 @@ type DiscoveryLabels struct {
 	Enabled     bool   // nimbus.enable=true
 	Name        string // nimbus.name, homepage.name
 	URL         string // nimbus.url, homepage.href (not validated here)
+	NimbusURL   bool   // URL is nimbus.url: only that one is auto-added
 	Icon        string // nimbus.icon, homepage.icon: a slug or a URL
 	Group       string // nimbus.group, homepage.group
 	Description string // nimbus.description, homepage.description
@@ -90,6 +91,7 @@ func ParseDiscoveryLabels(labels map[string]string) (parsed DiscoveryLabels, hid
 		Enabled:     enable == "true",
 		Name:        truncate(first("nimbus.name", "homepage.name"), discoveryNameMax),
 		URL:         capped(first("nimbus.url", "homepage.href")),
+		NimbusURL:   capped(first("nimbus.url")) != "",
 		Icon:        capped(first("nimbus.icon", "homepage.icon")),
 		Group:       truncate(first("nimbus.group", "homepage.group"), models.MaxGroupNameLen),
 		Description: truncate(first("nimbus.description", "homepage.description"), discoveryDescriptionMax),

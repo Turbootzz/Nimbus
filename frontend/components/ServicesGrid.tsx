@@ -123,7 +123,10 @@ export default function ServicesGrid({
             <WidgetCard
               {...widgetProps}
               isEditMode
-              dragHandleProps={dragHandleProps}
+              dragHandleProps={{
+                ...dragHandleProps,
+                'aria-label': `Move ${tile.widget.title || 'widget'}`,
+              }}
               onSizeChange={onWidgetSizeChange}
               onEdit={onEditWidget}
               onDelete={onDeleteWidget}
@@ -155,7 +158,7 @@ export default function ServicesGrid({
             isEditMode
             onSizeChange={onSizeChange}
             onEdit={onEditService}
-            dragHandleProps={dragHandleProps}
+            dragHandleProps={{ ...dragHandleProps, 'aria-label': `Move ${service.name}` }}
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             isMonitored={monitored}
