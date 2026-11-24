@@ -431,7 +431,7 @@ export default function IntegrationForm({
                 className={`text-sm ${testResult.ok ? 'text-success' : 'text-error'}`}
               >
                 {testResult.ok
-                  ? t('connectedIn', { ms: testResult.latency_ms })
+                  ? t('connectedIn', { ms: String(testResult.latency_ms) })
                   : t('connectionFailed', { error: testResult.error ?? '' })}
               </p>
             )}

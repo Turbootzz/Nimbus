@@ -78,10 +78,10 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
                     .join(', ') || t('card.none'),
               })}
             </span>
-            <span>{t('card.sent', { count: webhook.total_sent })}</span>
+            <span>{t('card.sent', { count: String(webhook.total_sent) })}</span>
             {webhook.total_failed > 0 && (
               <span className="text-red-500">
-                {t('card.failed', { count: webhook.total_failed })}
+                {t('card.failed', { count: String(webhook.total_failed) })}
               </span>
             )}
             <span>{t('card.lastTriggered', { date: formatDate(webhook.last_triggered_at) })}</span>
