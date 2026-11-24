@@ -832,4 +832,12 @@ func TestBoards_ReaderGivesAViewerTheViewerVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, mine.Board.IsDefault && mine.CanEdit)
 	assert.Empty(t, mine.Services)
+
+	// The user's own board by name goes before a shared board by slug
+	_, err = f.db.Exec(`INSERT INTO boards (id, user_id, name, slug, position) VALUES ('b0000000-0000-0000-0000-0000000000f1', ?, 'Family', 'ours', 3)`, boardUserID)
+	require.NoError(t, err)
+	ours, err := reader.Read(ctx, boardUserID, "family")
+	require.NoError(t, err)
+	assert.Equal(t, "ours", ours.Board.Slug)
+	assert.True(t, ours.CanEdit)
 }

@@ -80,7 +80,8 @@ func (s *BoardService) ResolveOwned(ctx context.Context, userID, boardID string)
 }
 
 // ResolveRef is Resolve by ID, slug or name, for callers a person types a
-// board to (the MCP tools). The user's own boards are looked at first.
+// board to (the MCP tools). The user's own boards are looked at first, by
+// slug and then by name, and only then the boards shared with them.
 func (s *BoardService) ResolveRef(ctx context.Context, userID, ref string) (*BoardAccess, error) {
 	ref = strings.TrimSpace(ref)
 	if s == nil || ref == "" {
@@ -89,17 +90,19 @@ func (s *BoardService) ResolveRef(ctx context.Context, userID, ref string) (*Boa
 	if _, err := uuid.Parse(ref); err == nil {
 		return s.Resolve(ctx, userID, ref)
 	}
-	boards, err := s.repo.ListVisible(ctx, userID) // own boards come first
+	boards, err := s.repo.ListVisible(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	for _, matches := range []func(*models.Board) bool{
-		func(b *models.Board) bool { return b.Slug == strings.ToLower(ref) },
-		func(b *models.Board) bool { return strings.EqualFold(b.Name, ref) },
-	} {
-		for _, board := range boards {
-			if matches(board) {
-				return &BoardAccess{Board: board, CanEdit: board.UserID == userID}, nil
+	for _, own := range []bool{true, false} {
+		for _, matches := range []func(*models.Board) bool{
+			func(b *models.Board) bool { return b.Slug == strings.ToLower(ref) },
+			func(b *models.Board) bool { return strings.EqualFold(b.Name, ref) },
+		} {
+			for _, board := range boards {
+				if (board.UserID == userID) == own && matches(board) {
+					return &BoardAccess{Board: board, CanEdit: own}, nil
+				}
 			}
 		}
 	}
