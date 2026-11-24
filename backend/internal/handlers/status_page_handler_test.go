@@ -247,6 +247,31 @@ func TestStatusPage_PublicReturnsOnlyWhitelistedFields(t *testing.T) {
 	}
 }
 
+func TestStatusPage_UptimeCountsExactWindows(t *testing.T) {
+	f := newStatusPageFixture(t)
+	nas := f.createService(t, f.group, "nas", models.StatusOnline)
+	// The oldest check of each window falls in the hour before its first bar
+	f.addLog(t, nas, models.StatusOnline, 10*time.Minute)
+	f.addLog(t, nas, models.StatusOffline, 24*time.Hour-time.Minute)
+	f.addLog(t, nas, models.StatusOffline, 24*time.Hour+time.Minute)
+	f.addLog(t, nas, models.StatusOnline, 7*24*time.Hour-time.Minute)
+	f.addLog(t, nas, models.StatusOffline, 7*24*time.Hour+time.Minute)
+	f.enable(t, models.StatusPageSettings{})
+
+	status, body := f.do(t, http.MethodGet, "/public/status", "")
+	require.Equal(t, http.StatusOK, status, body)
+	var page models.PublicStatusPage
+	require.NoError(t, json.Unmarshal([]byte(body), &page))
+	require.Len(t, page.Services, 1)
+	row := page.Services[0]
+	require.NotNil(t, row.Uptime24h)
+	require.NotNil(t, row.Uptime7d)
+	assert.Equal(t, 50.0, *row.Uptime24h, "last 24 hours: one online, one offline")
+	assert.Equal(t, 50.0, *row.Uptime7d, "last 7 days: two online, two offline")
+	assert.Len(t, row.Bars24h, 24)
+	assert.Len(t, row.Bars7d, 28)
+}
+
 func TestStatusPage_ShowLinksExposesURLs(t *testing.T) {
 	f := newStatusPageFixture(t)
 	service := f.createService(t, f.group, "jellyfin", models.StatusOnline)
