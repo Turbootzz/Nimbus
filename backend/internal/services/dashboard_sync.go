@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,8 +148,14 @@ func (d *storedDashboard) match(doc *dashdoc.Document) {
 		func(s dashdoc.Service) string { return key(s.Name) },
 		func(s *models.Service) string { return key(s.Name) })
 
+	// Widgets of the same type and title are told apart by their position
+	// first, so the file's order doesn't swap their rows on every sync
 	d.widget = map[int]*models.Widget{}
-	pair(d.widget, map[*models.Widget]bool{}, doc.Widgets, d.widgets,
+	takenWidgets := map[*models.Widget]bool{}
+	pair(d.widget, takenWidgets, doc.Widgets, d.widgets,
+		func(w dashdoc.Widget) string { return key(w.Type, w.Title, strconv.Itoa(w.Position)) },
+		func(w *models.Widget) string { return key(w.Type, w.Title, strconv.Itoa(w.Position)) })
+	pair(d.widget, takenWidgets, doc.Widgets, d.widgets,
 		func(w dashdoc.Widget) string { return key(w.Type, w.Title) },
 		func(w *models.Widget) string { return key(w.Type, w.Title) })
 }
@@ -368,7 +375,7 @@ func (r *syncRun) apply(stored *storedDashboard) (*dashdoc.Summary, error) {
 			closers = append(closers, closeSession)
 		}
 	}
-	if err := s.Dashboard.Sync(r.ctx, r.userID, &r.changes); err != nil {
+	if err := s.Dashboard.Sync(r.ctx, r.userID, &r.changes, dashboardLimits); err != nil {
 		return nil, err
 	}
 
