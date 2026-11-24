@@ -54,6 +54,7 @@ Boards, sections, discovery, importers, a public status page, theming, translati
 - Behind the bundled nginx every visitor was seen as 127.0.0.1, in the activity log and in the forgot-password limit. (#286)
 - `docker-compose.yml` did not pass `PROMETHEUS_API_KEY` to the container. (#286)
 - Sign Out in the sidebar now goes through the API client; in the unified image it posted to an address built from `NEXT_PUBLIC_API_URL`, which there is `same-origin`. (#289)
+- The docker-compose importer skips a service whose host port Docker picks from a range, instead of linking to a port it may not get. (#292)
 
 ### Security
 
@@ -68,6 +69,7 @@ Boards, sections, discovery, importers, a public status page, theming, translati
 - API tokens are deny-by-default: a token only reaches what its scopes allow, and never acts as an admin. (#227)
 - The MCP endpoint gives an assistant service and widget URLs without their query or `user:password@`, and search only matches what is left. (#228)
 - Viewers of a shared board never see a `user:password@` in its links, the address or credentials of an integration, or the raw error of a widget. (#230)
+- Links imported from another dashboard leave out the login and query of their URL, which can hold a password or key, and say so in a warning. (#292)
 
 ### Upgrading from 2.0
 
