@@ -6,6 +6,7 @@ import { getApiUrl } from '@/lib/utils/api-url'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
+import { clearApiCache } from '@/lib/pwa'
 
 export default function RegisterPage() {
   const [name, setName] = useState('')
@@ -94,6 +95,9 @@ export default function RegisterPage() {
 
       // No need to store token - backend sets httpOnly cookie automatically
       // The cookie will be sent with all subsequent requests via credentials: 'include'
+
+      // A different user may have used this device before
+      await clearApiCache()
 
       // Redirect to dashboard
       window.location.href = '/dashboard'

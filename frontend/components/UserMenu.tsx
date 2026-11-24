@@ -15,6 +15,7 @@ import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
 import { toggleEditMode, useEditMode } from '@/lib/dashboard-store'
+import InstallAppMenuItem from '@/components/InstallAppMenuItem'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
@@ -214,6 +215,8 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
               <UserIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
               Profile Settings
             </button>
+
+            <InstallAppMenuItem onSelect={() => setIsOpen(false)} />
 
             {/* Divider */}
             <div className="my-1 h-px" style={{ backgroundColor: 'var(--color-card-border)' }} />
