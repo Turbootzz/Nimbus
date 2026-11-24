@@ -7,6 +7,7 @@ import { ArrowLeftIcon, ArrowPathIcon, PencilIcon, TrashIcon } from '@heroicons/
 import { CheckCircleIcon, ExclamationCircleIcon, ClockIcon } from '@heroicons/react/24/solid'
 import { Service, MetricsResponse, TimeRangeOption } from '@/types'
 import { api } from '@/lib/api'
+import { useConfigFile } from '@/hooks/useConfigFile'
 import UptimeChart from '@/components/graphs/UptimeChart'
 import MetricsCard from '@/components/graphs/MetricsCard'
 import ServiceIcon from '@/components/ServiceIcon'
@@ -16,6 +17,8 @@ import { getResponseTimeColor } from '@/lib/status-utils'
 const API_URL = getApiUrl()
 
 export default function ServiceDetailPage() {
+  // Locked by a config file: the service can be looked at, not changed
+  const readOnly = useConfigFile()?.read_only ?? false
   const params = useParams()
   const router = useRouter()
   const serviceId = params.id as string
@@ -135,18 +138,20 @@ export default function ServiceDetailPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-text-secondary">Loading...</div>
+        <div className="text-text-secondary wallpaper-panel">Loading...</div>
       </div>
     )
   }
 
   if (error || !service) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center">
-        <div className="text-error mb-4">{error || 'Service not found'}</div>
-        <Link href="/dashboard" className="text-primary hover:text-primary-hover">
-          Back to Dashboard
-        </Link>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="wallpaper-panel flex flex-col items-center">
+          <div className="text-error mb-4">{error || 'Service not found'}</div>
+          <Link href="/dashboard" className="text-primary hover:text-primary-hover">
+            Back to Dashboard
+          </Link>
+        </div>
       </div>
     )
   }
@@ -168,7 +173,7 @@ export default function ServiceDetailPage() {
       {/* Back Link */}
       <Link
         href="/dashboard"
-        className="text-text-secondary hover:text-text-primary mb-4 inline-flex items-center"
+        className="text-text-secondary hover:text-text-primary wallpaper-panel mb-4 inline-flex items-center"
       >
         <ArrowLeftIcon className="mr-2 h-5 w-5" />
         Back to Dashboard
@@ -210,20 +215,24 @@ export default function ServiceDetailPage() {
                 <ArrowPathIcon className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
               </button>
             )}
-            <Link
-              href={`/services/${serviceId}/edit`}
-              className="text-text-secondary hover:text-text-primary p-2"
-              title="Edit"
-            >
-              <PencilIcon className="h-5 w-5" />
-            </Link>
-            <button
-              onClick={handleDelete}
-              className="text-error p-2 hover:opacity-80"
-              title="Delete"
-            >
-              <TrashIcon className="h-5 w-5" />
-            </button>
+            {!readOnly && (
+              <>
+                <Link
+                  href={`/services/${serviceId}/edit`}
+                  className="text-text-secondary hover:text-text-primary p-2"
+                  title="Edit"
+                >
+                  <PencilIcon className="h-5 w-5" />
+                </Link>
+                <button
+                  onClick={handleDelete}
+                  className="text-error p-2 hover:opacity-80"
+                  title="Delete"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

@@ -14,6 +14,7 @@ package handlers
 
 import (
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"net/http/httptest"
 	"os"
 	"testing"
@@ -43,6 +44,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 			position INTEGER DEFAULT 0,
 			is_default INTEGER DEFAULT 0,
 			monitoring_enabled INTEGER DEFAULT 1,
+			tile_style TEXT NOT NULL DEFAULT 'cards',
 			created_at TIMESTAMP NOT NULL,
 			updated_at TIMESTAMP NOT NULL
 		);
@@ -80,6 +82,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	if _, err := db.Exec(schema); err != nil {
 		t.Fatalf("Failed to create test tables: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	return db
 }

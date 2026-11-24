@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
@@ -143,6 +144,28 @@ func ValidateIconURL(urlStr string) error {
 		return fmt.Errorf("URL must have a hostname")
 	}
 
+	return nil
+}
+
+// The reasons ValidateServiceURL gives, worded to be shown to the user
+var (
+	ErrServiceURLFormat   = errors.New("it must start with http:// or https:// and have a host")
+	ErrServiceURLMetadata = errors.New("cloud metadata endpoints are not allowed")
+)
+
+// ValidateServiceURL validates the address of a service: an http(s) URL with
+// a host. It is rendered as a link (so no javascript: or data:) and requested
+// by the health checker (so no cloud metadata endpoint; the health checker's
+// dialer refuses those by resolved IP too). It returns one of the ErrServiceURL
+// errors.
+func ValidateServiceURL(urlStr string) error {
+	if ValidateIconURL(urlStr) != nil {
+		return ErrServiceURLFormat
+	}
+	parsedURL, _ := url.ParseRequestURI(urlStr) // parsed without error just above
+	if host := parsedURL.Hostname(); IsBlockedHost(host) || IsBlockedIP(host) {
+		return ErrServiceURLMetadata
+	}
 	return nil
 }
 

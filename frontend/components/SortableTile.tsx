@@ -7,7 +7,8 @@ import { sizeToGridSpan } from '@/lib/card-utils'
 
 interface SortableTileProps {
   id: string
-  cardSize: CardSize
+  // Grid span of a card; leave out for tiles outside the grid (chips)
+  cardSize?: CardSize
   children: (dragHandleProps: Record<string, unknown>) => ReactNode
 }
 
@@ -24,7 +25,11 @@ export default function SortableTile({ id, cardSize, children }: SortableTilePro
   }
 
   return (
-    <div ref={setNodeRef} style={style} className={`${sizeToGridSpan[cardSize]} h-full`}>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cardSize ? `${sizeToGridSpan[cardSize]} h-full` : 'max-w-full'}
+    >
       {children({ ...attributes, ...listeners })}
     </div>
   )

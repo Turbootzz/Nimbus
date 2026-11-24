@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useTranslations } from 'next-intl'
 import { PlusIcon, PencilIcon, TrashIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import ScrollArea from '@/components/ui/ScrollArea'
@@ -42,6 +43,7 @@ function SortableDroppableTab({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const t = useTranslations('dashboard.groups')
   // Sortable hook for tab reordering (only in edit mode)
   const {
     attributes,
@@ -97,7 +99,7 @@ function SortableDroppableTab({
       className={`group relative flex shrink-0 items-center gap-2 rounded-t-lg px-3 py-2 whitespace-nowrap transition-colors sm:px-4 ${
         isSelected
           ? 'bg-card border-card-border border-b-card border-t border-r border-l'
-          : 'bg-card-hover/50 hover:bg-card-hover'
+          : 'bg-card-hover/50 hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover'
       } ${showDropIndicator ? 'ring-primary ring-2' : ''} ${isDragging ? 'z-50' : ''} cursor-pointer`}
       onClick={onSelect}
       onKeyDown={handleKeyDown}
@@ -116,7 +118,7 @@ function SortableDroppableTab({
       {!group.monitoring_enabled && (
         <EyeSlashIcon
           className="text-text-muted h-3.5 w-3.5 shrink-0"
-          title="Monitoring disabled for this group"
+          title={t('monitoringDisabled')}
         />
       )}
 
@@ -130,7 +132,7 @@ function SortableDroppableTab({
               onEdit()
             }}
             className="text-text-muted hover:text-primary p-1 transition-colors"
-            title="Edit group"
+            title={t('tabs.edit')}
           >
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
@@ -142,7 +144,7 @@ function SortableDroppableTab({
                 onDelete()
               }}
               className="text-text-muted hover:text-error p-1 transition-colors"
-              title="Delete group"
+              title={t('tabs.delete')}
             >
               <TrashIcon className="h-3.5 w-3.5" />
             </button>
@@ -164,6 +166,7 @@ export default function GroupTabs({
   isDraggingService,
   isDraggingTab,
 }: GroupTabsProps) {
+  const t = useTranslations('dashboard.groups')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll selected tab into view
@@ -181,11 +184,14 @@ export default function GroupTabs({
   }
 
   return (
-    <div>
+    // The tabs scroll without a bar, which would sit between them and their
+    // baseline; Add stays outside the scroll, so it is never cut off
+    <div className="border-card-border -mx-4 flex items-end gap-1 border-b px-4 sm:mx-0 sm:px-0">
       <ScrollArea
         ref={scrollRef}
         orientation="horizontal"
-        className="border-card-border -mx-4 flex items-end gap-1 border-b px-4 pb-0 sm:mx-0 sm:px-0"
+        hideScrollbar
+        className="flex min-w-0 items-end gap-1"
       >
         <SortableContext items={groups.map((g) => g.id)} strategy={horizontalListSortingStrategy}>
           {groups.map((group) => (
@@ -202,20 +208,19 @@ export default function GroupTabs({
             />
           ))}
         </SortableContext>
-
-        {/* Add group button - outside SortableContext */}
-        {isEditMode && (
-          <button
-            type="button"
-            onClick={onCreateGroup}
-            className="text-text-muted hover:text-primary hover:bg-card-hover mb-0 flex items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
-            title="Add new group"
-          >
-            <PlusIcon className="h-4 w-4" />
-            <span className="text-sm">Add</span>
-          </button>
-        )}
       </ScrollArea>
+
+      {isEditMode && (
+        <button
+          type="button"
+          onClick={onCreateGroup}
+          className="text-text-muted hover:text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover flex shrink-0 items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
+          title={t('tabs.addNew')}
+        >
+          <PlusIcon className="h-4 w-4" />
+          <span className="text-sm">{t('tabs.add')}</span>
+        </button>
+      )}
     </div>
   )
 }

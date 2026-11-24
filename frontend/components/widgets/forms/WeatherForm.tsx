@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline'
 import type { WeatherWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
@@ -12,6 +13,7 @@ export default function WeatherForm({
   onChange,
   disabled,
 }: WidgetFormProps<WeatherWidgetConfig>) {
+  const t = useTranslations('widgets.weather.form')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<GeocodeResult[] | null>(null)
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -24,7 +26,7 @@ export default function WeatherForm({
     try {
       setResults(await searchLocations(query.trim()))
     } catch (err) {
-      setSearchError(err instanceof Error ? err.message : 'Location search failed')
+      setSearchError(err instanceof Error ? err.message : t('searchFailed'))
       setResults(null)
     } finally {
       setIsSearching(false)
@@ -55,7 +57,7 @@ export default function WeatherForm({
           className="bg-primary/10 text-primary inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1 text-sm"
         >
           <MapPinIcon className="h-4 w-4 shrink-0" />
-          <span className="truncate">{config.location || 'Chosen place'}</span>
+          <span className="truncate">{config.location || t('chosenPlace')}</span>
           <span className="text-text-muted shrink-0 text-xs">
             {config.latitude!.toFixed(2)}, {config.longitude!.toFixed(2)}
           </span>
@@ -63,7 +65,7 @@ export default function WeatherForm({
       )}
       <div>
         <label htmlFor="weather-search" className={labelClass}>
-          Find a place
+          {t('search')}
         </label>
         <div className="flex gap-2">
           <input
@@ -78,7 +80,7 @@ export default function WeatherForm({
                 search()
               }
             }}
-            placeholder="City name"
+            placeholder={t('searchPlaceholder')}
             className={inputClass}
             disabled={disabled}
           />
@@ -87,14 +89,14 @@ export default function WeatherForm({
             onClick={search}
             disabled={disabled || isSearching}
             className="border-card-border text-text-primary hover:bg-card-hover shrink-0 rounded-md border px-3 text-sm"
-            aria-label="Search places"
+            aria-label={t('searchButton')}
           >
             <MagnifyingGlassIcon className="h-4 w-4" />
           </button>
         </div>
         {searchError && <p className="text-error mt-1 text-xs">{searchError}</p>}
         {results && results.length === 0 && (
-          <p className="text-text-muted mt-1 text-xs">No places found</p>
+          <p className="text-text-muted mt-1 text-xs">{t('noResults')}</p>
         )}
         {results && results.length > 0 && (
           <ul className="border-card-border mt-2 divide-y rounded-md border">
@@ -111,15 +113,13 @@ export default function WeatherForm({
             ))}
           </ul>
         )}
-        <p className="text-text-muted mt-1 text-xs">
-          The search goes to Open-Meteo from your browser. You can also enter coordinates below.
-        </p>
+        <p className="text-text-muted mt-1 text-xs">{t('searchHint')}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor="weather-latitude" className={labelClass}>
-            Latitude
+            {t('latitude')}
           </label>
           <input
             id="weather-latitude"
@@ -135,7 +135,7 @@ export default function WeatherForm({
         </div>
         <div>
           <label htmlFor="weather-longitude" className={labelClass}>
-            Longitude
+            {t('longitude')}
           </label>
           <input
             id="weather-longitude"
@@ -154,7 +154,7 @@ export default function WeatherForm({
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label htmlFor="weather-location" className={labelClass}>
-            Name on the tile
+            {t('location')}
           </label>
           <input
             id="weather-location"
@@ -168,7 +168,7 @@ export default function WeatherForm({
         </div>
         <div>
           <label htmlFor="weather-units" className={labelClass}>
-            Units
+            {t('units')}
           </label>
           <select
             id="weather-units"

@@ -1,8 +1,14 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import localFont from 'next/font/local'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale } from 'next-intl/server'
 import '../styles/globals.css'
+import '../styles/themes.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeScript } from '@/components/ThemeScript'
+import LocaleSync from '@/components/LocaleSync'
+import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -12,6 +18,25 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: '--font-geist-mono',
   subsets: ['latin'],
+})
+
+// The fonts a user can pick in the theme settings (styles/themes.css). The
+// files are in the repo under their OFL licences, so the build fetches
+// nothing; not preloaded, so only users who picked one download it.
+const inter = localFont({
+  src: '../styles/fonts/inter/InterVariable.woff2',
+  variable: '--font-inter',
+  weight: '100 900',
+  display: 'swap',
+  preload: false,
+})
+
+const jetbrainsMono = localFont({
+  src: '../styles/fonts/jetbrains-mono/JetBrainsMono-Variable.woff2',
+  variable: '--font-jetbrains-mono',
+  weight: '100 800',
+  display: 'swap',
+  preload: false,
 })
 
 // SEO: Set NEXT_PUBLIC_SITE_URL to enable SEO features (e.g., https://nimbus.example.com)
@@ -30,7 +55,6 @@ export const metadata: Metadata = {
     ],
     apple: '/favicon/apple-touch-icon.png',
   },
-  manifest: '/favicon/site.webmanifest',
   // SEO metadata only when NEXT_PUBLIC_SITE_URL is configured
   ...(siteUrl && {
     title: SEO_TITLE,
@@ -72,7 +96,12 @@ export const metadata: Metadata = {
   }),
 }
 
-export default function RootLayout({
+// Colours the browser and installed-app chrome; matches the manifest
+export const viewport: Viewport = {
+  themeColor: '#0ea5e9',
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -94,9 +123,10 @@ export default function RootLayout({
         url: siteUrl,
       }
     : null
+  const locale = await getLocale()
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <ThemeScript />
         {jsonLd && (
@@ -106,8 +136,16 @@ export default function RootLayout({
           />
         )}
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider>{children}</ThemeProvider>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      >
+        <NextIntlClientProvider>
+          <ThemeProvider>
+            {children}
+            <LocaleSync />
+          </ThemeProvider>
+        </NextIntlClientProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )

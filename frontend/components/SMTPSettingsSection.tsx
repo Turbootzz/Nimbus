@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { Toggle } from '@/components/ui/Toggle'
 import { api } from '@/lib/api'
@@ -30,12 +31,7 @@ const BOOLEAN_KEYS: SMTPKey[] = ['smtp_enabled', 'smtp_tls_skip_verify']
 // '' lets the backend pick: implicit TLS on port 465, STARTTLS elsewhere
 type TLSSelection = SMTPTLSMode | ''
 
-const TLS_MODES: { value: TLSSelection; label: string }[] = [
-  { value: '', label: 'Automatic (based on port)' },
-  { value: 'starttls', label: 'STARTTLS' },
-  { value: 'tls', label: 'Implicit TLS (port 465)' },
-  { value: 'none', label: 'None (unencrypted)' },
-]
+const TLS_MODES: TLSSelection[] = ['', 'starttls', 'tls', 'none']
 
 interface SMTPFormData {
   smtp_host: string
@@ -62,10 +58,11 @@ const defaultFormData: SMTPFormData = {
 }
 
 function toTLSSelection(value: string): TLSSelection {
-  return TLS_MODES.some((mode) => mode.value === value) ? (value as TLSSelection) : ''
+  return TLS_MODES.includes(value as TLSSelection) ? (value as TLSSelection) : ''
 }
 
 export default function SMTPSettingsSection({ settings }: { settings: SystemSetting[] }) {
+  const t = useTranslations('admin.smtp')
   const [formData, setFormData] = useState<SMTPFormData>(defaultFormData)
   const [isSaving, setIsSaving] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
@@ -120,10 +117,10 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
       if (response.error) {
         setError(response.error.message)
       } else {
-        setSuccess('SMTP settings saved successfully')
+        setSuccess(t('saved'))
       }
     } catch {
-      setError('Failed to save settings')
+      setError(t('saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -137,12 +134,12 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
     try {
       const response = await api.testSMTPConnection(buildPayload())
       if (response.data?.success) {
-        setSuccess('SMTP connection successful')
+        setSuccess(t('testSucceeded'))
       } else {
-        setError(response.data?.message || response.error?.message || 'Connection test failed')
+        setError(response.data?.message || response.error?.message || t('testFailed'))
       }
     } catch {
-      setError('Failed to test SMTP connection')
+      setError(t('testError'))
     } finally {
       setIsTesting(false)
     }
@@ -185,11 +182,11 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           className="rounded-lg p-3 text-sm"
           style={{
             backgroundColor: 'var(--color-primary)',
-            color: 'white',
+            color: 'var(--color-on-primary, white)',
             opacity: 0.9,
           }}
         >
-          SMTP is pre-configured. You can override these settings below.
+          {t('fromEnv')}
         </div>
       )}
 
@@ -201,16 +198,15 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             color: 'var(--color-text-secondary)',
           }}
         >
-          SMTP is not configured. Fill in the fields below and enable SMTP to allow password reset
-          emails.
+          {t('notConfigured')}
         </div>
       )}
 
       <Toggle
         enabled={formData.smtp_enabled}
         onChange={(enabled) => updateField('smtp_enabled', enabled)}
-        label="Enable SMTP"
-        description="Required for password reset emails"
+        label={t('enable')}
+        description={t('enableDescription')}
       />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -220,7 +216,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            SMTP Host
+            {t('host')}
           </label>
           <ThemedInput
             id="smtp-host"
@@ -235,7 +231,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            SMTP Port
+            {t('port')}
           </label>
           <ThemedInput
             id="smtp-port"
@@ -250,7 +246,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Encryption
+            {t('encryption')}
           </label>
           <select
             id="smtp-tls-mode"
@@ -263,8 +259,8 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             }}
           >
             {TLS_MODES.map((mode) => (
-              <option key={mode.value} value={mode.value}>
-                {mode.label}
+              <option key={mode} value={mode}>
+                {t(`encryptionModes.${mode || 'auto'}`)}
               </option>
             ))}
           </select>
@@ -275,7 +271,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Username
+            {t('username')}
           </label>
           <ThemedInput
             id="smtp-username"
@@ -290,7 +286,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Password
+            {t('password')}
           </label>
           <ThemedInput
             id="smtp-password"
@@ -306,7 +302,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            From Email
+            {t('fromEmail')}
           </label>
           <ThemedInput
             id="smtp-from-email"
@@ -322,7 +318,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             className="mb-1 block text-xs font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            From Name
+            {t('fromName')}
           </label>
           <ThemedInput
             id="smtp-from-name"
@@ -338,15 +334,14 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           className="rounded-lg p-3 text-sm"
           style={{ backgroundColor: 'var(--color-error)', color: 'white', opacity: 0.9 }}
         >
-          Emails are sent unencrypted. Only use this for a relay on a trusted network. Username and
-          password must be left empty, since they would be sent in cleartext.
+          {t('unencryptedWarning')}
         </div>
       ) : (
         <Toggle
           enabled={formData.smtp_tls_skip_verify}
           onChange={(enabled) => updateField('smtp_tls_skip_verify', enabled)}
-          label="Skip certificate verification"
-          description="Allows self-signed certificates. Leave off unless your relay needs it."
+          label={t('skipVerify')}
+          description={t('skipVerifyDescription')}
         />
       )}
 
@@ -355,9 +350,12 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
           onClick={handleSave}
           disabled={isSaving}
           className="rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary)' }}
+          style={{
+            backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
+          }}
         >
-          {isSaving ? 'Saving...' : 'Save settings'}
+          {isSaving ? t('saving') : t('save')}
         </button>
         <button
           onClick={handleTest}
@@ -368,7 +366,7 @@ export default function SMTPSettingsSection({ settings }: { settings: SystemSett
             color: 'var(--color-text-primary)',
           }}
         >
-          {isTesting ? 'Testing...' : 'Test connection'}
+          {isTesting ? t('testing') : t('test')}
         </button>
       </div>
     </div>

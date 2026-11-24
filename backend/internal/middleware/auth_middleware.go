@@ -3,10 +3,8 @@ package middleware
 import (
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 	"github.com/nimbus/backend/internal/services"
 	"github.com/nimbus/backend/internal/utils"
@@ -39,7 +37,12 @@ func extractToken(c *fiber.Ctx) string {
 // AuthMiddleware protects routes by requiring a valid JWT token from httpOnly cookie
 // or a personal access token (nimbus_ prefix) via the Authorization Bearer header.
 // SECURITY: Uses httpOnly cookies for browser sessions to prevent XSS attacks
-func AuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) fiber.Handler {
+//
+// scope is the read scope (models.ScopeRead*) of the routes behind it: a token
+// needs it for safe requests. Other requests are only open to tokens behind
+// read:services, with write:services. Without a scope the routes are closed
+// to tokens, so new routes are session-only until someone decides otherwise.
+func AuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository, scope ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := extractToken(c)
 
@@ -52,7 +55,7 @@ func AuthMiddleware(authService *services.AuthService, userRepo *repository.User
 
 		// Personal access tokens are authenticated against the database, not as JWTs
 		if utils.IsAPIToken(token) {
-			return authenticateAPIToken(c, token, userRepo, apiTokenRepo)
+			return authenticateAPIToken(c, token, userRepo, apiTokenRepo, scope)
 		}
 
 		// Validate token
@@ -99,76 +102,92 @@ func AuthMiddleware(authService *services.AuthService, userRepo *repository.User
 	}
 }
 
-// errReadOnlyTokenWrite marks a write attempt with a read-only token
-var errReadOnlyTokenWrite = errors.New("read-only token cannot modify resources")
+// rateCountedKey marks a request that was counted against the rate limit
+const rateCountedKey = "api_token_rate_counted"
 
-// resolveAPIToken looks up a PAT and its owner, enforcing the read-only flag
-// and stamping usage. Callers map the returned error to their own semantics:
-// repository.ErrAPITokenNotFound, errReadOnlyTokenWrite,
-// repository.ErrUserNotFound, or an infrastructure error.
-func resolveAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) (*models.User, *models.APIToken, error) {
-	apiToken, err := apiTokenRepo.GetByTokenHash(c.Context(), utils.HashAPIToken(token))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Read-only tokens can never modify anything, even if leaked
-	if apiToken.ReadOnly && c.Method() != fiber.MethodGet && c.Method() != fiber.MethodHead {
-		return nil, nil, errReadOnlyTokenWrite
-	}
-
-	user, err := userRepo.GetByID(apiToken.UserID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// Best-effort usage stamp, throttled so polling clients don't write per request
-	if apiToken.LastUsedAt == nil || time.Since(*apiToken.LastUsedAt) > time.Minute {
-		if err := apiTokenRepo.UpdateLastUsed(c.Context(), apiToken.ID); err != nil {
-			c.Context().Logger().Printf("Failed to update api token last_used_at: %v", err)
-		}
-	}
-
-	return user, apiToken, nil
+// isSafeMethod reports whether a request method only reads
+func isSafeMethod(method string) bool {
+	return method == fiber.MethodGet || method == fiber.MethodHead || method == fiber.MethodOptions
 }
 
-// authenticateAPIToken validates a personal access token and stores the
-// owner's identity in the request context
-func authenticateAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) error {
-	user, _, err := resolveAPIToken(c, token, userRepo, apiTokenRepo)
+// authorizeAPIToken validates a personal access token against the route's
+// scope and the rate limit, then stores the owner's identity in the request
+// context. scope is the read scope of the route group; without one the
+// routes are closed to tokens.
+func authorizeAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository, scope []string) error {
+	user, apiToken, err := ResolveAPIToken(c.Context(), token, userRepo, apiTokenRepo)
 	if err != nil {
-		switch {
-		case errors.Is(err, repository.ErrAPITokenNotFound):
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Invalid API token",
-			})
-		case errors.Is(err, errReadOnlyTokenWrite):
-			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-				"error": "Read-only token cannot modify resources",
-			})
-		case errors.Is(err, repository.ErrUserNotFound):
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "User not found - invalid token",
-			})
-		default:
-			c.Context().Logger().Printf("API token auth DB error: %v", err)
-			return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
-				"error": "Authentication service unavailable",
-			})
+		return err
+	}
+
+	readScope := ""
+	if len(scope) > 0 {
+		readScope = scope[0]
+	}
+	if !apiToken.Allows(readScope, !isSafeMethod(c.Method())) {
+		return errInsufficientScope
+	}
+	// Nested route groups run this twice; a request counts once
+	if c.Locals(rateCountedKey) == nil {
+		if !AllowAPIToken(apiToken.ID) {
+			return ErrAPITokenRateLimited
 		}
+		c.Locals(rateCountedKey, true)
 	}
 
 	c.Locals("user_id", user.ID)
 	c.Locals("email", user.Email)
-	c.Locals("role", user.Role)
+	// Never the owner's role: an admin's token is not an admin
+	c.Locals("role", "user")
 	c.Locals("auth_method", AuthMethodAPIToken)
+	return nil
+}
 
-	return c.Next()
+// rateLimited answers a request that went over the token's rate limit
+func rateLimited(c *fiber.Ctx) error {
+	c.Set(fiber.HeaderRetryAfter, "60")
+	return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+		"error": "API token rate limit exceeded",
+	})
+}
+
+// authenticateAPIToken authorizes a personal access token or answers with
+// the matching error
+func authenticateAPIToken(c *fiber.Ctx, token string, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository, scope []string) error {
+	err := authorizeAPIToken(c, token, userRepo, apiTokenRepo, scope)
+	switch {
+	case err == nil:
+		return c.Next()
+	case errors.Is(err, repository.ErrAPITokenNotFound):
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Invalid API token",
+		})
+	case errors.Is(err, ErrAPITokenExpired):
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "API token expired",
+		})
+	case errors.Is(err, errInsufficientScope):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "API token lacks the required scope",
+		})
+	case errors.Is(err, ErrAPITokenRateLimited):
+		return rateLimited(c)
+	case errors.Is(err, repository.ErrUserNotFound):
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "User not found - invalid token",
+		})
+	default:
+		c.Context().Logger().Printf("API token auth DB error: %v", err)
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{
+			"error": "Authentication service unavailable",
+		})
+	}
 }
 
 // OptionalAuthMiddleware tries to authenticate but doesn't fail if no token
-// Used for endpoints that support multiple auth methods (e.g., JWT or API key)
-func OptionalAuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository) fiber.Handler {
+// Used for endpoints that support multiple auth methods (e.g., JWT or API key).
+// scope works as in AuthMiddleware.
+func OptionalAuthMiddleware(authService *services.AuthService, userRepo *repository.UserRepository, apiTokenRepo *repository.APITokenRepository, scope ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		token := extractToken(c)
 
@@ -178,16 +197,12 @@ func OptionalAuthMiddleware(authService *services.AuthService, userRepo *reposit
 		}
 
 		// Personal access token: authenticate against the database, but keep
-		// optional semantics — any failure falls through unauthenticated
+		// optional semantics — any failure but the rate limit falls through
+		// unauthenticated
 		if utils.IsAPIToken(token) {
-			user, _, err := resolveAPIToken(c, token, userRepo, apiTokenRepo)
-			if err != nil {
-				return c.Next()
+			if err := authorizeAPIToken(c, token, userRepo, apiTokenRepo, scope); errors.Is(err, ErrAPITokenRateLimited) {
+				return rateLimited(c)
 			}
-			c.Locals("user_id", user.ID)
-			c.Locals("email", user.Email)
-			c.Locals("role", user.Role)
-			c.Locals("auth_method", AuthMethodAPIToken)
 			return c.Next()
 		}
 

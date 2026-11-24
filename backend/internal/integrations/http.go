@@ -9,9 +9,10 @@ import (
 	"math"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Big lists (Home Assistant states, torrents) can be a few MB
@@ -67,11 +68,7 @@ func transportError(ctx context.Context, path string, err error) error {
 	if isTimeout(ctx, err) {
 		return fmt.Errorf("%s took too long to answer", pathOnly(path))
 	}
-	var urlErr *url.Error
-	if errors.As(err, &urlErr) {
-		err = urlErr.Err
-	}
-	return fmt.Errorf("%s could not be reached: %w", pathOnly(path), err)
+	return fmt.Errorf("%s could not be reached: %w", pathOnly(path), utils.WithoutURL(err))
 }
 
 func isTimeout(ctx context.Context, err error) bool {
@@ -136,6 +133,14 @@ func withSession(conn *Conn, key string, login func() (string, error), call func
 func pathOnly(path string) string {
 	p, _, _ := strings.Cut(path, "?")
 	return p
+}
+
+// clip cuts text from an app down to max characters
+func clip(text string, max int) string {
+	if runes := []rune(text); len(runes) > max {
+		return string(runes[:max])
+	}
+	return text
 }
 
 // percent returns part/total as a whole percentage, 0 when total is 0

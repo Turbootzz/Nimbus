@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
+import { fetchPublicStatus } from '@/lib/status-page'
+import { PUBLIC_PAGE_HEADER } from '@/i18n/locale'
 
 /**
  * Next.js Proxy for Server-Side Authentication
@@ -22,7 +24,7 @@ const publicPaths = ['/login', '/register']
 const SHOW_LANDING_PAGE = process.env.SHOW_LANDING_PAGE === 'true'
 
 // Define protected routes that require authentication
-const protectedPaths = ['/dashboard', '/services', '/settings', '/admin']
+const protectedPaths = ['/dashboard', '/board', '/services', '/settings', '/admin']
 
 // fail-fast validation
 const JWT_SECRET = process.env.JWT_SECRET
@@ -64,8 +66,30 @@ async function validateToken(token: string): Promise<boolean> {
   }
 }
 
+// Lets the request through. Only /status gets PUBLIC_PAGE_HEADER, and only
+// from here: a client sending it would otherwise pin any page to English.
+function next(request: NextRequest, publicPage = false) {
+  const headers = new Headers(request.headers)
+  if (publicPage) headers.set(PUBLIC_PAGE_HEADER, '1')
+  else headers.delete(PUBLIC_PAGE_HEADER)
+  return NextResponse.next({ request: { headers } })
+}
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // While the public status page is off it must look like any address that
+  // does not exist. notFound() in the page itself answers with other headers
+  // and markup than an unknown route, so send it to one ("/-" is no page).
+  // The bundled nginx hides the header this rewrite adds.
+  if (pathname === '/status') {
+    const status = await fetchPublicStatus(request.headers)
+    if (status.state === 'disabled') {
+      return NextResponse.rewrite(new URL('/-', request.url))
+    }
+    // Not the visitor's page: i18n/request.ts gives it no user language
+    return next(request, true)
+  }
 
   // Get auth token from httpOnly cookie
   const authToken = request.cookies.get('auth_token')?.value
@@ -103,7 +127,7 @@ export default async function proxy(request: NextRequest) {
     const isValid = await validateToken(authToken)
     if (!isValid) {
       // Clear invalid cookie
-      const response = NextResponse.next()
+      const response = next(request)
       response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
       return response
     }
@@ -116,11 +140,12 @@ export default async function proxy(request: NextRequest) {
       const isValid = await validateToken(authToken)
       if (isValid) {
         // Authenticated users always go to dashboard
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+        // Keeps the query, so /?safe=1 still opens without custom CSS
+        return NextResponse.redirect(new URL('/dashboard' + request.nextUrl.search, request.url))
       }
       // Token is invalid/expired - clear it and continue to unauthenticated flow
       if (SHOW_LANDING_PAGE) {
-        const response = NextResponse.next()
+        const response = next(request)
         response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
         return response
       }
@@ -132,14 +157,14 @@ export default async function proxy(request: NextRequest) {
     // No token - unauthenticated user at root
     if (SHOW_LANDING_PAGE) {
       // Demo mode: show the marketing landing page
-      return NextResponse.next()
+      return next(request)
     }
     // Self-hosted mode: redirect to login
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Allow the request to continue
-  return NextResponse.next()
+  return next(request)
 }
 
 // Configure which paths the proxy should run on

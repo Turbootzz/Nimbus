@@ -1,34 +1,78 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { kindName, useIntegrations } from '@/hooks/useIntegrations'
+import { useConfigFile } from '@/hooks/useConfigFile'
 import IntegrationForm from '@/components/integrations/IntegrationForm'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import type { Integration } from '@/types'
+import { INTEGRATION_PREFILL_KEY } from '@/types'
+import type { DiscoveredIntegration, Integration } from '@/types'
+
+// readPrefill returns what the Discovered tray left in this tab, if anything
+function readPrefill(): DiscoveredIntegration | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(INTEGRATION_PREFILL_KEY) ?? 'null')
+    if (typeof stored?.kind !== 'string' || typeof stored?.base_url !== 'string') return null
+    // Only a plain http(s) address: never one that carries a user or password
+    const address = new URL(stored.base_url)
+    if (!/^https?:$/.test(address.protocol) || address.username || address.password) return null
+    return { kind: stored.kind, name: String(stored.name ?? ''), base_url: stored.base_url }
+  } catch {
+    return null
+  }
+}
 
 function StatusBadge({ integration }: { integration: Integration }) {
+  const t = useTranslations('integrations.page.status')
+  // An imported integration: the file never carries credentials
+  if (integration.auth_type !== 'none' && !integration.has_credentials) {
+    return <span className="text-warning text-xs">{t('needsCredentials')}</span>
+  }
   if (integration.last_test_ok === null) {
-    return <span className="text-text-muted text-xs">Not tested</span>
+    return <span className="text-text-muted text-xs">{t('notTested')}</span>
   }
   return integration.last_test_ok ? (
-    <span className="text-success text-xs">Connected</span>
+    <span className="text-success text-xs">{t('connected')}</span>
   ) : (
     <span className="text-error text-xs" title={integration.last_error ?? undefined}>
-      Failed{integration.last_error ? `: ${integration.last_error}` : ''}
+      {integration.last_error ? t('failedWith', { error: integration.last_error }) : t('failed')}
     </span>
   )
 }
 
 export default function IntegrationsPage() {
+  const t = useTranslations('integrations.page')
+  // Locked by a config file: integrations can be tested, not changed
+  const readOnly = useConfigFile()?.read_only ?? false
   const { integrations, setIntegrations, kinds, isLoading, error } = useIntegrations()
   const [showForm, setShowForm] = useState(false)
   const [editing, setEditing] = useState<Integration | null>(null)
   const [deleting, setDeleting] = useState<Integration | null>(null)
   const [testingId, setTestingId] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
+  // The Discovered tray leaves the integration a container label asked for;
+  // the form opens filled in and the credentials are still entered here
+  const [linked, setLinked] = useState<DiscoveredIntegration | null>(readPrefill)
+  const linkedKind = kinds.find((k) => k.kind === linked?.kind)
+  const prefill = linked && linkedKind ? { ...linked, name: linked.name || linkedKind.name } : null
+  // Used once: leaving this page without closing the form must not bring it back
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(INTEGRATION_PREFILL_KEY)
+    } catch {
+      // sessionStorage is blocked: there was nothing to read either
+    }
+  }, [])
+  const closeForm = () => {
+    setShowForm(false)
+    setEditing(null)
+    setLinked(null)
+  }
 
   const handleSaved = (saved: Integration) => {
     setIntegrations((prev) =>
@@ -36,8 +80,7 @@ export default function IntegrationsPage() {
         ? prev.map((i) => (i.id === saved.id ? saved : i))
         : [...prev, saved]
     )
-    setShowForm(false)
-    setEditing(null)
+    closeForm()
   }
 
   const handleTest = async (integration: Integration) => {
@@ -46,7 +89,7 @@ export default function IntegrationsPage() {
     try {
       const response = await api.testSavedIntegration(integration.id)
       if (response.error || !response.data) {
-        setActionError(response.error?.message || 'Test failed')
+        setActionError(response.error?.message || t('testFailed'))
         return
       }
       const result = response.data
@@ -90,17 +133,19 @@ export default function IntegrationsPage() {
   return (
     <div className="max-w-4xl p-4 sm:p-6">
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Integrations</h1>
+        <div className="wallpaper-panel">
+          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">{t('title')}</h1>
           <p className="text-text-secondary text-sm sm:text-base">
-            Connect Nimbus to your apps. Link an integration to a service on its{' '}
-            <Link href="/services" className="text-primary underline">
-              edit page
-            </Link>{' '}
-            to show live numbers on the tile.
+            {t.rich('description', {
+              link: (chunks) => (
+                <Link href="/services" className="text-primary underline">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </p>
         </div>
-        {kinds.length > 0 && (
+        {kinds.length > 0 && !readOnly && (
           <button
             onClick={() => {
               setEditing(null)
@@ -109,7 +154,7 @@ export default function IntegrationsPage() {
             className="bg-primary hover:bg-primary-hover inline-flex shrink-0 items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
           >
             <PlusIcon className="mr-2 h-4 w-4" />
-            Add Integration
+            {t('add')}
           </button>
         )}
       </div>
@@ -122,11 +167,11 @@ export default function IntegrationsPage() {
 
       {integrations.length === 0 ? (
         <div className="glass-card border-card-border rounded-lg border p-8 text-center">
-          <p className="text-text-primary mb-1 font-medium">No integrations yet</p>
+          <p className="text-text-primary mb-1 font-medium">{t('emptyTitle')}</p>
           <p className="text-text-secondary text-sm">
             {kinds.length > 0
-              ? `Supported apps: ${kinds.map((k) => k.name).join(', ')}.`
-              : 'This server has no integrations available.'}
+              ? t('supportedApps', { apps: kinds.map((k) => k.name).join(', ') })
+              : t('noneAvailable')}
           </p>
         </div>
       ) : (
@@ -152,46 +197,48 @@ export default function IntegrationsPage() {
                   disabled={testingId === integration.id}
                   className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
                 >
-                  {testingId === integration.id ? 'Testing...' : 'Test'}
+                  {testingId === integration.id ? t('testing') : t('test')}
                 </button>
-                <button
-                  onClick={() => {
-                    setEditing(integration)
-                    setShowForm(true)
-                  }}
-                  className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setDeleting(integration)}
-                  className="text-error hover:bg-error/10 rounded-md px-3 py-1.5 text-sm transition-colors"
-                >
-                  Delete
-                </button>
+                {!readOnly && (
+                  <>
+                    <button
+                      onClick={() => {
+                        setEditing(integration)
+                        setShowForm(true)
+                      }}
+                      className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-3 py-1.5 text-sm transition-colors"
+                    >
+                      {t('edit')}
+                    </button>
+                    <button
+                      onClick={() => setDeleting(integration)}
+                      className="text-error hover:bg-error/10 rounded-md px-3 py-1.5 text-sm transition-colors"
+                    >
+                      {t('delete')}
+                    </button>
+                  </>
+                )}
               </div>
             </li>
           ))}
         </ul>
       )}
 
-      {showForm && (
+      {(showForm || prefill) && (
         <IntegrationForm
           kinds={kinds}
           integration={editing}
-          onClose={() => {
-            setShowForm(false)
-            setEditing(null)
-          }}
+          prefill={prefill}
+          onClose={closeForm}
           onSaved={handleSaved}
         />
       )}
 
       {deleting && (
         <ConfirmDialog
-          title="Delete Integration"
-          message={`Delete "${deleting.name}"? Services linked to it lose their live numbers.`}
-          confirmLabel="Delete"
+          title={t('deleteTitle')}
+          message={t('deleteMessage', { name: deleting.name })}
+          confirmLabel={t('delete')}
           onConfirm={handleDelete}
           onCancel={() => setDeleting(null)}
         />

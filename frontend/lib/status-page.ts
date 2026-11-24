@@ -1,0 +1,106 @@
+import type { PublicStatusPage, StatusPageOverall } from '@/types'
+import { getApiUrl } from '@/lib/utils/api-url'
+
+export const STATUS_REFRESH_SECONDS = 60
+
+/**
+ * The status page is for visitors: the theme, accent colour and wallpaper
+ * this browser remembers from a signed-in user stay off it.
+ */
+export const isStatusPagePath = (pathname: string) =>
+  pathname === '/status' || pathname.startsWith('/status/')
+
+// How long to wait for the backend before the page shows "unavailable". A
+// page load asks twice (proxy.ts, then the page), so it waits twice at most.
+const FETCH_TIMEOUT_MS = 3000
+
+export const overallLabels: Record<StatusPageOverall, string> = {
+  operational: 'All systems operational',
+  degraded: 'Some systems are down',
+  outage: 'All systems are down',
+  unknown: 'No status yet',
+}
+
+export const statusLabels: Record<string, string> = {
+  online: 'Online',
+  offline: 'Offline',
+  unknown: 'Unknown',
+}
+
+export type BarTone = 'up' | 'partial' | 'down' | 'none'
+
+// Uptime below this colours a bar as down rather than partly down
+const DOWN_BELOW = 90
+
+/** How a bar is coloured: null is a period without checks */
+export function barTone(uptime: number | null): BarTone {
+  if (uptime === null) return 'none'
+  if (uptime >= 100) return 'up'
+  return uptime >= DOWN_BELOW ? 'partial' : 'down'
+}
+
+/** "99.95%", without trailing zeros; "No data" for null */
+export function formatUptime(uptime: number | null): string {
+  return uptime === null ? 'No data' : `${Number(uptime.toFixed(2))}%`
+}
+
+/** When bar `index` of `count` was, with the newest bar last */
+export function barPeriod(index: number, count: number, hoursPerBar: number): string {
+  const hoursAgo = (count - 1 - index) * hoursPerBar
+  if (hoursAgo === 0) return hoursPerBar === 1 ? 'This hour' : `Last ${hoursPerBar} hours`
+  if (hoursAgo % 24 === 0) return hoursAgo === 24 ? '1 day ago' : `${hoursAgo / 24} days ago`
+  return hoursAgo === 1 ? '1 hour ago' : `${hoursAgo} hours ago`
+}
+
+/** Text alternative of one bar, e.g. "3 hours ago: 98.5% uptime" */
+export function barLabel(
+  uptime: number | null,
+  index: number,
+  count: number,
+  hoursPerBar: number
+): string {
+  const period = barPeriod(index, count, hoursPerBar)
+  return uptime === null ? `${period}: no data` : `${period}: ${formatUptime(uptime)} uptime`
+}
+
+/**
+ * API base URL for requests the Next.js server makes itself. In the unified
+ * image the browser uses a relative path, which the server cannot fetch, so
+ * that falls back to the backend next to it.
+ */
+export function serverApiUrl(): string {
+  const url = process.env.INTERNAL_API_URL || getApiUrl()
+  return url.startsWith('/') ? `http://127.0.0.1:8080${url}` : url
+}
+
+export type PublicStatusResult =
+  { state: 'ok'; page: PublicStatusPage } | { state: 'disabled' } | { state: 'unavailable' }
+
+/**
+ * Loads the public status page on the server. Not cached here: the backend
+ * caches it for 30 seconds, and a copy kept by Next.js would outlive an admin
+ * turning the page off. The visitor's forwarding headers go along, so the
+ * backend rate limits per visitor and not the frontend as a whole.
+ */
+export async function fetchPublicStatus(visitor?: {
+  get(name: string): string | null
+}): Promise<PublicStatusResult> {
+  const headers: Record<string, string> = {}
+  for (const name of ['x-forwarded-for', 'x-real-ip']) {
+    const value = visitor?.get(name)
+    if (value) headers[name] = value
+  }
+
+  try {
+    const response = await fetch(`${serverApiUrl()}/public/status`, {
+      cache: 'no-store',
+      headers,
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    if (response.status === 404) return { state: 'disabled' }
+    if (!response.ok) return { state: 'unavailable' }
+    return { state: 'ok', page: (await response.json()) as PublicStatusPage }
+  } catch {
+    return { state: 'unavailable' }
+  }
+}

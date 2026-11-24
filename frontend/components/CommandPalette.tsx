@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { bestScore } from '@/lib/fuzzy'
 import { isValidUrl } from '@/lib/utils/url'
 import { useTheme } from '@/contexts/ThemeContext'
 import ServiceIcon from '@/components/ServiceIcon'
-import type { Group, Service } from '@/types'
+import { getBoardsSnapshot } from '@/hooks/useBoards'
+import type { Board, Group, Service } from '@/types'
 
 const OPEN_EVENT = 'nimbus:open-palette'
 const MAX_RESULTS = 8
@@ -30,14 +32,24 @@ function isShortcut(e: KeyboardEvent): boolean {
   return e.code === 'KeyK' && (mac ? e.metaKey : e.ctrlKey)
 }
 
-// Search over the user's services: "/" or Cmd/Ctrl+K opens it, arrows pick,
-// Enter opens the service, Esc closes
+// One board's services and groups. The default board is read without a
+// board ID, as before boards existed.
+async function loadBoard(board?: Board) {
+  const id = board && !(board.owned && board.is_default) ? board.id : undefined
+  const [services, groups] = await Promise.all([api.getServices(id), api.getGroups(id)])
+  return { board, services, groups }
+}
+
+// Search over the user's services, on every board they see: "/" or
+// Cmd/Ctrl+K opens it, arrows pick, Enter opens the service, Esc closes
 export default function CommandPalette() {
+  const t = useTranslations('layout.search')
   const { openInNewTab } = useTheme()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
-  const [services, setServices] = useState<Service[]>([])
+  // With more than one board, every service knows its board's name
+  const [services, setServices] = useState<(Service & { board?: string })[]>([])
   const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -60,14 +72,16 @@ export default function CommandPalette() {
     // Fresh on every open: services change while the page is open. Only
     // the latest request counts.
     const request = ++requestRef.current
-    const [servicesResponse, groupsResponse] = await Promise.all([
-      api.getServices(),
-      api.getGroups(),
-    ])
+    const boards = getBoardsSnapshot()
+    const loaded = await Promise.all(boards.length > 1 ? boards.map(loadBoard) : [loadBoard()])
     if (request !== requestRef.current) return
-    if (servicesResponse.data) setServices(servicesResponse.data)
-    if (groupsResponse.data) setGroups(groupsResponse.data)
-    setError(servicesResponse.error?.message ?? null)
+    setServices(
+      loaded.flatMap(({ board, services }) =>
+        (services.data ?? []).map((s) => (board ? { ...s, board: board.name } : s))
+      )
+    )
+    setGroups(loaded.flatMap(({ groups }) => groups.data ?? []))
+    setError(loaded.find(({ services }) => services.error)?.services.error?.message ?? null)
     setLoading(false)
   }, [])
 
@@ -103,6 +117,7 @@ export default function CommandPalette() {
           { text: service.name, weight: 3 },
           { text: service.description, weight: 1.5 },
           { text: group, weight: 1.5 },
+          { text: service.board, weight: 1 },
           { text: service.url, weight: 1 },
         ])
         return { service, group, score }
@@ -146,7 +161,7 @@ export default function CommandPalette() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Search services"
+        aria-label={t('label')}
         onKeyDown={onKeyDown}
         className="bg-card border-card-border relative z-10 w-full max-w-lg overflow-hidden rounded-lg border shadow-xl"
       >
@@ -161,13 +176,13 @@ export default function CommandPalette() {
             aria-activedescendant={
               current >= 0 ? `palette-${results[current].service.id}` : undefined
             }
-            aria-label="Search services"
+            aria-label={t('label')}
             value={query}
             onChange={(e) => {
               setQuery(e.target.value)
               setActive(0)
             }}
-            placeholder="Search services"
+            placeholder={t('label')}
             className="text-text-primary placeholder:text-text-muted h-12 w-full bg-transparent text-sm focus:outline-none"
           />
           <kbd className="text-text-muted border-card-border hidden rounded border px-1.5 text-xs sm:inline">
@@ -206,6 +221,7 @@ export default function CommandPalette() {
                     {service.name}
                   </span>
                   <span className="text-text-muted block truncate text-xs">
+                    {service.board ? `${service.board} · ` : ''}
                     {group ? `${group} · ` : ''}
                     {service.url}
                   </span>
@@ -216,11 +232,7 @@ export default function CommandPalette() {
         </ul>
         {(loading || error || results.length === 0) && (
           <p className="text-text-muted px-4 py-3 text-sm" role="status">
-            {loading
-              ? 'Loading services...'
-              : error
-                ? `Could not load your services: ${error}`
-                : 'No services match'}
+            {loading ? t('loading') : error ? t('loadFailed', { error }) : t('noResults')}
           </p>
         )}
       </div>

@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create groups table (needed for GetAllForMonitoring join)
 	_, err = db.Exec(`
@@ -61,6 +63,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`
@@ -372,6 +375,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create services table
 	_, err = db.Exec(`
@@ -398,6 +402,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`
@@ -508,6 +513,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring(t *testing.
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create services table
 	_, err = db.Exec(`
@@ -534,6 +540,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring(t *testing.
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`
@@ -635,4 +642,77 @@ func contains(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestMetricsService_LastCheckAndError(t *testing.T) {
+	db := setupMetricsTestDB(t)
+	defer db.Close()
+
+	statusLogRepo := repository.NewStatusLogRepository(db)
+	metricsService := NewMetricsService(statusLogRepo, repository.NewServiceRepository(db))
+	ctx := context.Background()
+	now := time.Now()
+	dayAgo := now.Add(-24 * time.Hour)
+
+	lastCheck := func(serviceID string) *MetricsResponse {
+		t.Helper()
+		response := &MetricsResponse{ServiceID: serviceID, TimeRange: TimeRange{Start: dayAgo, End: now}}
+		if err := metricsService.addLastCheck(ctx, response); err != nil {
+			t.Fatalf("addLastCheck() error = %v", err)
+		}
+		return response
+	}
+	addLog := func(serviceID, status string, errorMessage *string, age time.Duration) {
+		t.Helper()
+		log := &models.StatusLog{ServiceID: serviceID, Status: status, ErrorMessage: errorMessage, CheckedAt: now.Add(-age)}
+		if err := statusLogRepo.Create(ctx, log); err != nil {
+			t.Fatalf("Failed to create test log: %v", err)
+		}
+	}
+	message := func(s string) *string { return &s }
+
+	// Never checked: nothing to report
+	if response := lastCheck("test-service-1"); response.LastCheckedAt != nil || response.LastError != nil || response.LastErrorAt != nil {
+		t.Errorf("unchecked service: got %+v, want no last check and no error", response)
+	}
+
+	addLog("test-service-1", models.StatusOffline, message("too old to matter"), 30*time.Hour)
+	addLog("test-service-1", models.StatusOffline, message("connection refused"), 3*time.Hour)
+	addLog("test-service-1", models.StatusOffline, message("timeout"), 2*time.Hour)
+	addLog("test-service-1", models.StatusOffline, message(""), time.Hour)
+	addLog("test-service-1", models.StatusOnline, nil, time.Minute)
+	// Another service's errors stay out
+	addLog("test-service-2", models.StatusOffline, message("other service"), time.Second)
+
+	response := lastCheck("test-service-1")
+	if response.LastCheckedAt == nil || now.Sub(*response.LastCheckedAt).Round(time.Minute) != time.Minute {
+		t.Errorf("LastCheckedAt = %v, want the check of a minute ago", response.LastCheckedAt)
+	}
+	if response.LastError == nil || *response.LastError != "timeout" {
+		t.Errorf("LastError = %v, want the latest message, timeout", response.LastError)
+	}
+	if response.LastErrorAt == nil || now.Sub(*response.LastErrorAt).Round(time.Minute) != 2*time.Hour {
+		t.Errorf("LastErrorAt = %v, want two hours ago", response.LastErrorAt)
+	}
+
+	// An error before the time range is not reported, the last check still is
+	response = &MetricsResponse{ServiceID: "test-service-1", TimeRange: TimeRange{Start: now.Add(-90 * time.Minute), End: now}}
+	if err := metricsService.addLastCheck(ctx, response); err != nil {
+		t.Fatalf("addLastCheck() error = %v", err)
+	}
+	if response.LastError != nil || response.LastErrorAt != nil || response.LastCheckedAt == nil {
+		t.Errorf("short range: got error %v at %v, last check %v", response.LastError, response.LastErrorAt, response.LastCheckedAt)
+	}
+
+	// An error after the time range is not reported either, the last check still is
+	response = &MetricsResponse{ServiceID: "test-service-1", TimeRange: TimeRange{Start: dayAgo, End: now.Add(-150 * time.Minute)}}
+	if err := metricsService.addLastCheck(ctx, response); err != nil {
+		t.Fatalf("addLastCheck() error = %v", err)
+	}
+	if response.LastError == nil || *response.LastError != "connection refused" {
+		t.Errorf("past range: LastError = %v, want connection refused", response.LastError)
+	}
+	if response.LastCheckedAt == nil || now.Sub(*response.LastCheckedAt).Round(time.Minute) != time.Minute {
+		t.Errorf("past range: LastCheckedAt = %v, want the check of a minute ago", response.LastCheckedAt)
+	}
 }

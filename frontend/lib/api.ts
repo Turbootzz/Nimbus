@@ -4,6 +4,9 @@ import type {
   AuthResponse,
   User,
   Service,
+  Board,
+  BoardRequest,
+  BoardIntegration,
   ServiceCreateRequest,
   ServiceUpdateRequest,
   ServiceReorderRequest,
@@ -37,18 +40,29 @@ import type {
   ChangePasswordRequest,
   SMTPStatusResponse,
   UpdateSMTPSettingsRequest,
+  StatusPageSettings,
   Widget,
   WidgetTypeMeta,
   WidgetCreateRequest,
   WidgetUpdateRequest,
   TileReorderRequest,
+  MetricsResponse,
+  TimeRangeOption,
   Snapshot,
   Integration,
   IntegrationKindMeta,
   IntegrationRequest,
   IntegrationTestResult,
+  ConvertResult,
+  DashboardDocument,
+  ImportFormat,
+  ImportMode,
+  ImportSummary,
+  DiscoveryResponse,
+  DiscoveryAddRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
+import { bindApiCacheTo, clearApiCache } from '@/lib/pwa'
 
 const getApiUrl = (): string | undefined => {
   const defaultPort = '8080'
@@ -114,6 +128,10 @@ class ApiClient {
         return { error: { message: 'The file is too large' } }
       }
 
+      // The session is gone, so is the right to its offline copy. Before the
+      // body is read: an empty or HTML 401 must clear it too.
+      if (response.status === 401 && typeof window !== 'undefined') await clearApiCache()
+
       // Parse response as text first to handle non-JSON responses gracefully
       const text = await response.text()
 
@@ -166,6 +184,7 @@ class ApiClient {
             message: data.error || data.message || 'An error occurred',
             code: data.code,
             details: data.details,
+            fields: data.fields,
           },
         }
       }
@@ -205,10 +224,15 @@ class ApiClient {
   async logout(): Promise<void> {
     // Call backend to clear httpOnly cookie
     await this.request('/auth/logout', { method: 'POST' })
+    // Don't leave this user's dashboard on a shared device
+    await clearApiCache()
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    return this.request<User>('/auth/me')
+    const response = await this.request<User>('/auth/me')
+    // The offline copy belongs to this user only
+    if (response.data?.id) await bindApiCacheTo(response.data.id)
+    return response
   }
 
   async forgotPassword(data: ForgotPasswordRequest): Promise<ApiResponse<{ message: string }>> {
@@ -233,9 +257,11 @@ class ApiClient {
   }
 
   async deleteAccount(): Promise<ApiResponse<{ message: string }>> {
-    return this.request<{ message: string }>('/auth/me', {
+    const response = await this.request<{ message: string }>('/auth/me', {
       method: 'DELETE',
     })
+    if (!response.error) await clearApiCache()
+    return response
   }
 
   async uploadAvatar(formData: FormData): Promise<ApiResponse<User>> {
@@ -257,8 +283,47 @@ class ApiClient {
   // Services
   // ============================================
 
-  async getServices(): Promise<ApiResponse<Service[]>> {
-    return this.request<Service[]>('/services')
+  // Board endpoints. Lists take an optional board ID; without one they are
+  // about the user's default board, as before boards existed.
+  private boardQuery(boardId?: string): string {
+    return boardId ? `?board=${encodeURIComponent(boardId)}` : ''
+  }
+
+  // The user's boards, then the boards shared with everyone
+  async getBoards(): Promise<ApiResponse<Board[]>> {
+    return this.request<Board[]>('/boards')
+  }
+
+  async createBoard(data: BoardRequest): Promise<ApiResponse<Board>> {
+    return this.request<Board>('/boards', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateBoard(id: string, data: BoardRequest): Promise<ApiResponse<Board>> {
+    return this.request<Board>(`/boards/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  // ids: the user's own boards in their new order
+  async reorderBoards(ids: string[]): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/boards/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ boards: ids }),
+    })
+  }
+
+  // With moveTo the board's tiles and groups go to that board, otherwise
+  // they are deleted with it
+  async deleteBoard(id: string, moveTo?: string): Promise<ApiResponse<void>> {
+    const query = moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : ''
+    return this.request<void>(`/boards/${id}${query}`, { method: 'DELETE' })
+  }
+
+  // The kinds of the integrations a board's service tiles show
+  async getBoardIntegrations(id: string): Promise<ApiResponse<BoardIntegration[]>> {
+    return this.request<BoardIntegration[]>(`/boards/${id}/integrations`)
+  }
+
+  async getServices(boardId?: string): Promise<ApiResponse<Service[]>> {
+    return this.request<Service[]>(`/services${this.boardQuery(boardId)}`)
   }
 
   async getService(id: string): Promise<ApiResponse<Service>> {
@@ -316,8 +381,8 @@ class ApiClient {
   // Groups
   // ============================================
 
-  async getGroups(): Promise<ApiResponse<Group[]>> {
-    return this.request<Group[]>('/groups')
+  async getGroups(boardId?: string): Promise<ApiResponse<Group[]>> {
+    return this.request<Group[]>(`/groups${this.boardQuery(boardId)}`)
   }
 
   async getGroup(id: string): Promise<ApiResponse<Group>> {
@@ -363,8 +428,8 @@ class ApiClient {
     return this.request<WidgetTypeMeta[]>('/widgets/types')
   }
 
-  async getWidgets(): Promise<ApiResponse<Widget[]>> {
-    return this.request<Widget[]>('/widgets')
+  async getWidgets(boardId?: string): Promise<ApiResponse<Widget[]>> {
+    return this.request<Widget[]>(`/widgets${this.boardQuery(boardId)}`)
   }
 
   async createWidget(data: WidgetCreateRequest): Promise<ApiResponse<Widget>> {
@@ -383,6 +448,35 @@ class ApiClient {
 
   async deleteWidget(id: string): Promise<ApiResponse<void>> {
     return this.request<void>(`/widgets/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ============================================
+  // Docker discovery (admins only)
+  // ============================================
+
+  // refresh asks Docker again instead of reusing the server's recent answer
+  async getDockerDiscovery(refresh = false): Promise<ApiResponse<DiscoveryResponse>> {
+    return this.request<DiscoveryResponse>(`/discovery/docker${refresh ? '?refresh=true' : ''}`)
+  }
+
+  async addDiscovered(data: DiscoveryAddRequest): Promise<ApiResponse<Service>> {
+    return this.request<Service>('/discovery/docker/services', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async ignoreDiscovered(key: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/discovery/docker/ignored', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    })
+  }
+
+  async unignoreDiscovered(key: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/discovery/docker/ignored?key=${encodeURIComponent(key)}`, {
       method: 'DELETE',
     })
   }
@@ -436,8 +530,8 @@ class ApiClient {
   }
 
   // Latest data of all polled widgets, before the stream takes over
-  async getDashboardData(): Promise<ApiResponse<Snapshot[]>> {
-    return this.request<Snapshot[]>('/dashboard/data')
+  async getDashboardData(boardId?: string): Promise<ApiResponse<Snapshot[]>> {
+    return this.request<Snapshot[]>(`/dashboard/data${this.boardQuery(boardId)}`)
   }
 
   // Saves the order of services and widgets together
@@ -446,6 +540,16 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify(data),
     })
+  }
+
+  // Uptime and response times of a service; interval is the width of a
+  // data point in minutes
+  async getServiceMetrics(
+    id: string,
+    range: TimeRangeOption = '24h',
+    interval = 5
+  ): Promise<ApiResponse<MetricsResponse>> {
+    return this.request<MetricsResponse>(`/metrics/${id}?range=${range}&interval=${interval}`)
   }
 
   // ============================================
@@ -472,6 +576,47 @@ class ApiClient {
     return this.request<UserPreferences>('/users/me/preferences', {
       method: 'PUT',
       body: JSON.stringify(data),
+    })
+  }
+
+  // ============================================
+  // Dashboard export/import
+  // ============================================
+
+  async exportDashboard(): Promise<ApiResponse<DashboardDocument>> {
+    return this.request<DashboardDocument>('/export')
+  }
+
+  // document is the file's text as is; the server validates it. A dry run
+  // changes nothing and tells what the import would do.
+  // With matchGroups a merge puts tiles into the user's group of the same
+  // name instead of adding a second one.
+  async importDashboard(
+    document: string,
+    mode: ImportMode,
+    dryRun = false,
+    matchGroups = false
+  ): Promise<ApiResponse<ImportSummary>> {
+    const query = new URLSearchParams({
+      mode,
+      ...(dryRun ? { dry_run: '1' } : {}),
+      ...(matchGroups ? { match_groups: '1' } : {}),
+    })
+    return this.request<ImportSummary>(`/import?${query}`, { method: 'POST', body: document })
+  }
+
+  // Turns the config of another dashboard into a document to import; nothing
+  // is changed. host is where docker-compose ports are reached.
+  async convertConfig(
+    config: string,
+    format: ImportFormat | 'auto',
+    host: string
+  ): Promise<ApiResponse<ConvertResult>> {
+    const query = new URLSearchParams({ format, host })
+    return this.request<ConvertResult>(`/import/convert?${query}`, {
+      method: 'POST',
+      body: config,
+      headers: { 'Content-Type': 'text/plain' },
     })
   }
 
@@ -623,10 +768,12 @@ class ApiClient {
   }
 
   async createInitialAdmin(data: RegisterRequest): Promise<ApiResponse<AuthResponse>> {
-    return this.request<AuthResponse>('/setup/admin', {
+    const response = await this.request<AuthResponse>('/setup/admin', {
       method: 'POST',
       body: JSON.stringify(data),
     })
+    if (!response.error) await clearApiCache()
+    return response
   }
 
   // ============================================
@@ -655,6 +802,19 @@ class ApiClient {
     data: UpdateSMTPSettingsRequest
   ): Promise<ApiResponse<{ message: string }>> {
     return this.request<{ message: string }>('/admin/settings/smtp', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async getStatusPageSettings(): Promise<ApiResponse<StatusPageSettings>> {
+    return this.request<StatusPageSettings>('/admin/status-page')
+  }
+
+  async updateStatusPageSettings(
+    data: StatusPageSettings
+  ): Promise<ApiResponse<StatusPageSettings>> {
+    return this.request<StatusPageSettings>('/admin/status-page', {
       method: 'PUT',
       body: JSON.stringify(data),
     })

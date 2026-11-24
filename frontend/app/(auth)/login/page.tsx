@@ -3,14 +3,17 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { getApiUrl } from '@/lib/utils/api-url'
 import OAuthButton from '@/components/OAuthButton'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { api } from '@/lib/api'
+import { clearApiCache } from '@/lib/pwa'
 import type { OAuthProvider } from '@/types'
 
 function LoginForm() {
+  const t = useTranslations('auth.login')
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -55,6 +58,11 @@ function LoginForm() {
       setError(decodeURIComponent(oauthError))
     }
   }, [searchParams])
+
+  // Whoever sees the login form has no session: drop the last user's offline copy
+  useEffect(() => {
+    clearApiCache()
+  }, [])
 
   // Fetch available OAuth providers
   useEffect(() => {
@@ -103,17 +111,15 @@ function LoginForm() {
         data = JSON.parse(text)
       } catch {
         if (text.includes('<!DOCTYPE') || text.includes('<html')) {
-          setError(
-            'Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not "http://backend:8080".'
-          )
+          setError(t('errors.apiUnreachable'))
         } else {
-          setError('API returned an invalid response. Check server configuration.')
+          setError(t('errors.invalidResponse'))
         }
         return
       }
 
       if (!response.ok) {
-        setError(data.error || 'Invalid email or password')
+        setError(data.error || t('errors.invalidCredentials'))
         return
       }
 
@@ -121,10 +127,13 @@ function LoginForm() {
       // The cookie will be sent with all subsequent requests via credentials: 'include'
       // Cookie expiration is controlled by backend based on remember_me flag
 
+      // A different user may have used this device before
+      await clearApiCache()
+
       // Redirect to dashboard
       window.location.href = '/dashboard'
     } catch (err) {
-      setError('Login failed. Please try again.')
+      setError(t('errors.failed'))
       console.error('Login error:', err)
     } finally {
       setIsLoading(false)
@@ -159,10 +168,10 @@ function LoginForm() {
     >
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Welcome back
+          {t('title')}
         </h2>
         <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Sign in to your account
+          {t('subtitle')}
         </p>
       </div>
 
@@ -187,7 +196,7 @@ function LoginForm() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Email
+            {t('email')}
           </label>
           <ThemedInput
             id="email"
@@ -206,7 +215,7 @@ function LoginForm() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Password
+            {t('password')}
           </label>
           <ThemedInput
             id="password"
@@ -233,7 +242,7 @@ function LoginForm() {
               disabled={isLoading}
             />
             <span className="ml-2" style={{ color: 'var(--color-text-secondary)' }}>
-              Remember me
+              {t('rememberMe')}
             </span>
           </label>
           <Link
@@ -242,7 +251,7 @@ function LoginForm() {
             style={{ color: 'var(--color-primary)' }}
             {...linkHover}
           >
-            Forgot password?
+            {t('forgotPassword')}
           </Link>
         </div>
 
@@ -252,10 +261,11 @@ function LoginForm() {
           className="w-full rounded-lg py-2.5 font-medium text-white transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >
-          {isLoading ? 'Signing in...' : 'Sign in'}
+          {isLoading ? t('submitting') : t('submit')}
         </button>
       </form>
 
@@ -276,7 +286,7 @@ function LoginForm() {
                   color: 'var(--color-text-secondary)',
                 }}
               >
-                Or continue with
+                {t('orContinueWith')}
               </span>
             </div>
           </div>
@@ -300,14 +310,14 @@ function LoginForm() {
 
       {registrationEnabled && (
         <div className="mt-6 text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Don&apos;t have an account?{' '}
+          {t('noAccount')}{' '}
           <Link
             href="/register"
             className="font-medium transition"
             style={{ color: 'var(--color-primary)' }}
             {...linkHover}
           >
-            Sign up
+            {t('signUp')}
           </Link>
         </div>
       )}
@@ -316,8 +326,9 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const t = useTranslations('auth.login')
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div>{t('loading')}</div>}>
       <LoginForm />
     </Suspense>
   )

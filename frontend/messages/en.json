@@ -1,0 +1,1492 @@
+{
+  "admin": {
+    "page": {
+      "title": "Admin Settings",
+      "subtitle": "Configure system-wide settings for Nimbus",
+      "immediate": "Changes take effect immediately",
+      "loadFailed": "Failed to load settings",
+      "updateFailed": "Failed to update setting",
+      "registration": {
+        "title": "User Registration",
+        "description": "Control how new users can join your Nimbus instance",
+        "toggle": "Public Registration",
+        "toggleDescription": "Allow new users to register accounts. When disabled, only admins can create new users."
+      },
+      "discovery": {
+        "title": "Docker Discovery",
+        "description": "Containers behind an admin's Docker integration show up under Discovered on the Services page",
+        "toggle": "Auto-add labelled containers",
+        "toggleDescription": "Add containers labelled nimbus.enable=true with a nimbus.url to that admin's dashboard, without asking. Unlabelled containers and guessed addresses are never added on their own."
+      },
+      "smtp": {
+        "title": "Email / SMTP",
+        "description": "Configure SMTP settings for password reset emails"
+      },
+      "statusPage": {
+        "title": "Public status page",
+        "description": "Share the uptime of one group of services on a page that needs no account"
+      }
+    },
+    "smtp": {
+      "saved": "SMTP settings saved successfully",
+      "saveFailed": "Failed to save settings",
+      "testSucceeded": "SMTP connection successful",
+      "testFailed": "Connection test failed",
+      "testError": "Failed to test SMTP connection",
+      "fromEnv": "SMTP is pre-configured. You can override these settings below.",
+      "notConfigured": "SMTP is not configured. Fill in the fields below and enable SMTP to allow password reset emails.",
+      "enable": "Enable SMTP",
+      "enableDescription": "Required for password reset emails",
+      "host": "SMTP Host",
+      "port": "SMTP Port",
+      "encryption": "Encryption",
+      "encryptionModes": {
+        "auto": "Automatic (based on port)",
+        "starttls": "STARTTLS",
+        "tls": "Implicit TLS (port 465)",
+        "none": "None (unencrypted)"
+      },
+      "username": "Username",
+      "password": "Password",
+      "fromEmail": "From Email",
+      "fromName": "From Name",
+      "unencryptedWarning": "Emails are sent unencrypted. Only use this for a relay on a trusted network. Username and password must be left empty, since they would be sent in cleartext.",
+      "skipVerify": "Skip certificate verification",
+      "skipVerifyDescription": "Allows self-signed certificates. Leave off unless your relay needs it.",
+      "saving": "Saving...",
+      "save": "Save settings",
+      "testing": "Testing...",
+      "test": "Test connection"
+    },
+    "statusPage": {
+      "loadFailed": "Failed to load the status page settings",
+      "logoTooLarge": "The logo is larger than 512 KB",
+      "uploadFailed": "Failed to upload the logo",
+      "saved": "Status page saved",
+      "saveFailed": "Failed to save the status page",
+      "loading": "Loading...",
+      "enable": "Enable the status page",
+      "enableDescription": "Anyone who can reach this Nimbus can open /status without signing in. While off, the page does not exist.",
+      "group": "Group to show",
+      "chooseGroup": "Choose a group",
+      "groupMissing": "The group that was chosen is not one of yours, or no longer exists. Choose one of your groups to show the page.",
+      "title": "Title",
+      "groupsNote": "Groups are personal, so the page shows one of your own groups. Only its monitored services appear: name, icon, status and uptime. Nothing else about them is shared.",
+      "logo": "Logo",
+      "currentLogo": "Current logo",
+      "logoFile": "Logo file",
+      "uploading": "Uploading...",
+      "replace": "Replace",
+      "upload": "Upload",
+      "remove": "Remove",
+      "logoHint": "JPG, PNG, GIF or WEBP, up to 512 KB",
+      "showLinks": "Show links",
+      "showLinksDescription": "Makes each service name a link to its URL, and shows icons loaded from a URL. Leave off to keep your addresses private.",
+      "saving": "Saving...",
+      "save": "Save status page",
+      "open": "Open status page"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "API Tokens",
+      "description": "Create personal access tokens for programmatic access. Send them as",
+      "loadFailed": "Failed to load API tokens",
+      "createFailed": "Failed to create token",
+      "confirmRevoke": "Revoke \"{name}\"? Clients using it will stop working immediately.",
+      "never": "Never",
+      "created": "Token created. You won't be able to see this token again — copy it now.",
+      "copied": "Copied!",
+      "copy": "Copy",
+      "createTitle": "Create new token",
+      "namePlaceholder": "Token name (e.g. Hearth dashboard)",
+      "name": "Token name",
+      "scopes": "Scopes",
+      "noScope": "Select at least one scope.",
+      "expires": "Expires",
+      "creating": "Creating…",
+      "create": "Create Token",
+      "empty": "No API tokens yet. Create one above.",
+      "expired": "expired",
+      "dates": "Created {created} · Last used {lastUsed} · Expires {expires}",
+      "revokeLabel": "Revoke {name}",
+      "revoking": "Revoking…",
+      "revoke": "Revoke"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Read services",
+        "description": "Services and groups"
+      },
+      "read:metrics": {
+        "label": "Read metrics",
+        "description": "Uptime, status history and the Prometheus export"
+      },
+      "read:widgets": {
+        "label": "Read widgets",
+        "description": "Widgets and dashboard data"
+      },
+      "write:services": {
+        "label": "Write services",
+        "description": "Create, change, delete and recheck services and groups"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Let an AI assistant read your dashboard through /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# day} other {# days}}",
+      "years": "{count, plural, one {# year} other {# years}}"
+    }
+  },
+  "auth": {
+    "layout": {
+      "tagline": "Your Personal Homelab Dashboard"
+    },
+    "login": {
+      "title": "Welcome back",
+      "subtitle": "Sign in to your account",
+      "email": "Email",
+      "password": "Password",
+      "rememberMe": "Remember me",
+      "forgotPassword": "Forgot password?",
+      "submit": "Sign in",
+      "submitting": "Signing in...",
+      "orContinueWith": "Or continue with",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "loading": "Loading...",
+      "errors": {
+        "apiUnreachable": "Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not \"http://backend:8080\".",
+        "invalidResponse": "API returned an invalid response. Check server configuration.",
+        "invalidCredentials": "Invalid email or password",
+        "failed": "Login failed. Please try again."
+      }
+    },
+    "register": {
+      "title": "Create account",
+      "subtitle": "Get started with Nimbus",
+      "fullName": "Full Name",
+      "namePlaceholder": "John Doe",
+      "email": "Email",
+      "password": "Password",
+      "passwordHint": "Must be at least 8 characters",
+      "confirmPassword": "Confirm Password",
+      "submit": "Create account",
+      "submitting": "Creating account...",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "disabled": {
+        "title": "Registration Disabled",
+        "message": "Public registration is currently disabled for this Nimbus instance.",
+        "contactAdmin": "Please contact an administrator if you need an account."
+      },
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "apiUnreachable": "Cannot reach API server. If using Docker, ensure NEXT_PUBLIC_API_URL is set to your server IP (e.g., http://192.168.1.100:8080), not \"http://backend:8080\".",
+        "invalidResponse": "API returned an invalid response. Check server configuration.",
+        "disabled": "Public registration is currently disabled. Please contact an administrator.",
+        "failed": "Registration failed",
+        "failedRetry": "Registration failed. Please try again."
+      }
+    },
+    "setup": {
+      "checking": "Checking setup status...",
+      "connectionError": {
+        "title": "Connection Error",
+        "message": "Unable to connect to the Nimbus backend.",
+        "hint": "Please ensure the backend server is running and try again.",
+        "retry": "Retry"
+      },
+      "welcome": {
+        "title": "Welcome to Nimbus",
+        "subtitle": "Let's set up your homelab dashboard",
+        "intro": "To get started, create an administrator account.",
+        "getStarted": "Get Started"
+      },
+      "complete": {
+        "title": "Setup Complete!",
+        "redirecting": "Redirecting to your dashboard..."
+      },
+      "create": {
+        "title": "Create Admin Account",
+        "subtitle": "This will be the first administrator",
+        "fullName": "Full Name",
+        "namePlaceholder": "Admin",
+        "email": "Email",
+        "password": "Password",
+        "passwordHint": "Must be at least 8 characters",
+        "confirmPassword": "Confirm Password",
+        "back": "Back",
+        "submit": "Create Admin",
+        "submitting": "Creating..."
+      },
+      "errors": {
+        "passwordMismatch": "Passwords do not match",
+        "passwordTooShort": "Password must be at least 8 characters",
+        "failed": "Failed to create admin account",
+        "failedRetry": "Failed to create admin account. Please try again."
+      }
+    },
+    "forgotPassword": {
+      "title": "Reset your password",
+      "subtitle": "Enter your email and we'll send you a reset link",
+      "email": "Email",
+      "submit": "Send reset link",
+      "submitting": "Sending...",
+      "success": "If an account with that email exists, a password reset link has been sent. Check your inbox.",
+      "backToLogin": "Back to login",
+      "rememberPassword": "Remember your password?",
+      "signIn": "Sign in",
+      "errors": {
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "resetPassword": {
+      "loading": "Loading...",
+      "invalidLink": {
+        "title": "Invalid reset link",
+        "message": "This password reset link is invalid or has expired. Please request a new one.",
+        "requestNew": "Request new reset link"
+      },
+      "title": "Set new password",
+      "subtitle": "Enter your new password below",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Reset password",
+      "submitting": "Resetting...",
+      "success": "Your password has been reset successfully.",
+      "signInWithNew": "Sign in with your new password",
+      "errors": {
+        "passwordTooShort": "Password must be at least 8 characters",
+        "passwordMismatch": "Passwords do not match",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "oauth": {
+      "continueWith": "Continue with {provider}",
+      "connecting": "Connecting..."
+    }
+  },
+  "backup": {
+    "page": {
+      "title": "Export & Import",
+      "description": "Back up your dashboard, move it to another Nimbus, or share its layout."
+    },
+    "export": {
+      "title": "Export",
+      "description": "Download your groups, services, widgets, integrations and preferences as one JSON file, with uploaded icons and wallpaper inside. Integration credentials, Custom API header values and calendar feed addresses are never included; other URLs are exported as you entered them.",
+      "export": "Export dashboard",
+      "exporting": "Exporting…",
+      "failed": "Failed to export the dashboard",
+      "omittedImages": "{count, plural, one {# uploaded image was} other {# uploaded images were}} missing or too large and left out of the file."
+    },
+    "import": {
+      "title": "Import",
+      "description": "Load a file exported from Nimbus. You see what it does before anything changes.",
+      "fileLabel": "Dashboard file",
+      "chooseFile": "Choose file",
+      "noFile": "No file chosen",
+      "howToImport": "How to import",
+      "modes": {
+        "merge": {
+          "label": "Merge",
+          "description": "Add the file to what you have. Your preferences stay as they are. Importing the same file twice adds everything twice."
+        },
+        "replace": {
+          "label": "Replace",
+          "description": "Delete your current dashboard and use the file instead."
+        }
+      },
+      "checking": "Checking the file…",
+      "failed": "The import failed",
+      "tooLarge": "The file is too large. An export is at most 10 MB.",
+      "unreadable": "The file could not be read",
+      "replaceWarning": {
+        "title": "Replace deletes your current dashboard.",
+        "body": "The groups, services and widgets on your default board and on the boards the file lists are deleted, with the status history of those services. So are your integrations and their saved credentials, except those that tiles on your other boards still use. Other boards stay as they are. Your preferences are overwritten. This cannot be undone. Export first if you want a way back."
+      },
+      "customCss": {
+        "title": "This file brings custom CSS (read it before you import)",
+        "description": "It restyles every page behind the login. It cannot load anything from another site, but it can hide or change what you see.",
+        "label": "Custom CSS in the file"
+      },
+      "replaceButton": "Replace my dashboard",
+      "importButton": "Import",
+      "finished": "Import finished.",
+      "openDashboard": "Open the dashboard",
+      "confirm": {
+        "title": "Replace your dashboard?",
+        "message": "This deletes {count, plural, one {# existing item} other {# existing items}}, with the credentials and status history they hold, overwrites your preferences, then imports the file. It cannot be undone.",
+        "confirm": "Replace"
+      },
+      "statusPage": {
+        "kept": "The public status page moves to the group “{group}” from the file.",
+        "offline": "The public status page goes offline: the file has no group “{group}”. Choose a group again under Settings → Admin Settings."
+      },
+      "summary": {
+        "willDo": "This import will",
+        "hasDone": "This import has",
+        "add": "Add",
+        "added": "Added",
+        "delete": "Delete",
+        "deleted": "Deleted",
+        "entities": {
+          "groups": "groups",
+          "services": "services",
+          "widgets": "widgets",
+          "integrations": "integrations"
+        },
+        "preferencesFromFile": "Preferences (theme, layout, wallpaper, status strip): taken from the file",
+        "preferencesKept": "Preferences (theme, layout, wallpaper, status strip): kept as they are",
+        "needsCredentials": "{count, plural, one {# integration comes} other {# integrations come}} without credentials. Enter them under Settings → Integrations.",
+        "needsSecrets": "{count, plural, one {# widget needs its} other {# widgets need their}} secrets (header values, calendar addresses) entered again."
+      }
+    },
+    "wizard": {
+      "title": "Import from another dashboard",
+      "description": "Switch from Homepage, Homarr, Homer or Dashy, or start from a docker-compose file. Paste the config or choose the file. It is added to your dashboard; nothing you have is changed. API keys and passwords in the config are not taken over.",
+      "format": "Format",
+      "detectAutomatically": "Detect automatically",
+      "expects": {
+        "homepage": "Expects services.yaml or bookmarks.yaml.",
+        "homarr": "Expects a board config (JSON) of Homarr 0.x.",
+        "homer": "Expects config.yml.",
+        "dashy": "Expects conf.yml.",
+        "compose": "Expects docker-compose.yml."
+      },
+      "dockerHost": "Docker host",
+      "dockerHostPlaceholder": "This host",
+      "dockerHostHelp": "Only for docker-compose: the host name or IP address its published ports are reached at. Empty means the host of this page.",
+      "config": "Config",
+      "configPlaceholder": "Paste the YAML or JSON here",
+      "configFile": "Config file",
+      "chooseFile": "Choose file",
+      "convert": "Convert",
+      "working": "Working…",
+      "tooLarge": "The file is too large. A config is at most 1 MB.",
+      "checkFailed": "The import could not be checked",
+      "convertFailed": "The config could not be converted",
+      "importFailed": "The import failed",
+      "readAs": "Read as <b>{format}</b>: {services} services, {groups} groups, {integrations} integrations.",
+      "warnings": "Not everything could be taken over ({count})",
+      "groups": "Groups",
+      "groupInConfig": "Group in the config",
+      "goesInto": "Goes into",
+      "groupFor": "Group for {name}",
+      "newGroup": "New group “{name}”",
+      "defaultGroup": "{name} (default)",
+      "services": "Services",
+      "name": "Name",
+      "url": "URL",
+      "group": "Group",
+      "integration": "Integration",
+      "integrations": "Integrations",
+      "app": "App",
+      "address": "Address",
+      "credentialsNote": "Credentials are not taken over. Enter them under Settings → Integrations after the import.",
+      "import": "Import",
+      "finished": "Import finished.",
+      "openDashboard": "Open the dashboard"
+    }
+  },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Close",
+      "yourBoards": "Your boards",
+      "nameOf": "Name of {name}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "delete": "Delete {name}",
+      "defaultBoard": "Default board, at /dashboard",
+      "shared": "Shared with every user, read-only",
+      "newBoard": "New board",
+      "namePlaceholder": "e.g. Family",
+      "create": "Create",
+      "share": "Share with every user, read-only",
+      "shareHint": "Every user sees all tiles of a shared board, also admin-only widgets such as Docker containers, system stats and custom API data."
+    },
+    "deleteDialog": {
+      "title": "Delete “{name}”?",
+      "tilesLegend": "Its services, widgets and groups:",
+      "moveTo": "Move them to",
+      "moveToLabel": "Board to move them to",
+      "deleteTiles": "Delete them with the board",
+      "warning": "This deletes them for good. It cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete board"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (this board)",
+      "thisBoard": "This board",
+      "hint": "On another board it is added at the end, outside any group."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board:",
+      "manage": "Manage boards",
+      "shared": "shared"
+    }
+  },
+  "dashboard": {
+    "view": {
+      "loading": "Loading dashboard...",
+      "readOnlyShared": "Read-only: shared board",
+      "widgetsFailed": "Widgets could not be loaded. Reload the page to see them; until then the order cannot be changed.",
+      "emptyGroup": {
+        "title": "Nothing in this group yet",
+        "description": "Add a service or a widget to this group to see it here.",
+        "addService": "Add Service"
+      },
+      "deleteWidget": {
+        "title": "Delete Widget",
+        "message": "Are you sure you want to delete this widget? This cannot be undone.",
+        "confirm": "Delete"
+      },
+      "deleteGroup": {
+        "title": "Delete Group",
+        "confirm": "Are you sure you want to delete “{name}”?",
+        "moveNote": "Services and widgets in this group will be moved to the default group.",
+        "deleteContents": "Permanently delete all services and widgets in this group",
+        "warning": "Warning: This will permanently delete all services and widgets in this group. This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Read-only: managed by config file",
+      "done": "Done",
+      "edit": "Edit",
+      "addWidget": "Add Widget",
+      "addService": "Add Service"
+    },
+    "stats": {
+      "totalServices": "Total Services",
+      "online": "Online",
+      "offline": "Offline",
+      "avgResponse": "Avg Response"
+    },
+    "kpis": {
+      "loading": "Loading",
+      "lastUpdateFailed": "Last update failed: {error}",
+      "stale": "This data may be out of date"
+    },
+    "statusStrip": {
+      "label": "Status",
+      "down": "{count} down",
+      "operational": "Operational",
+      "customApi": "Custom API"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitoring disabled for this group",
+      "tabs": {
+        "edit": "Edit group",
+        "delete": "Delete group",
+        "addNew": "Add new group",
+        "add": "Add"
+      },
+      "sections": {
+        "addGroup": "Add group",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "edit": "Edit {name}",
+        "delete": "Delete {name}",
+        "dropHere": "Drop a tile here.",
+        "empty": "Nothing in this group yet."
+      },
+      "form": {
+        "editTitle": "Edit Group",
+        "createTitle": "Create Group",
+        "close": "Close",
+        "name": "Name",
+        "namePlaceholder": "Enter group name",
+        "charCount": "{count}/35 characters",
+        "color": "Color",
+        "colors": {
+          "indigo": "Indigo",
+          "red": "Red",
+          "orange": "Orange",
+          "yellow": "Yellow",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "violet": "Violet",
+          "pink": "Pink",
+          "slate": "Slate"
+        },
+        "customColor": "Custom color",
+        "colorCode": "Color code",
+        "preview": "Preview",
+        "previewName": "Group Name",
+        "tileStyle": "Tile style",
+        "tileStyles": {
+          "cards": {
+            "label": "Cards",
+            "description": "Full tiles with status and details"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "One line each, for many quick links"
+          }
+        },
+        "monitoring": "Enable Monitoring",
+        "monitoringDescription": "When disabled, services in this group won't be health-checked and won't appear in metrics",
+        "nameRequired": "Group name is required",
+        "nameTooLong": "Group name must be 35 characters or less",
+        "invalidColor": "Invalid color format. Use hex format (e.g., #6366f1)",
+        "saveFailed": "Failed to save group",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "Save Changes",
+        "create": "Create Group"
+      },
+      "selector": {
+        "label": "Group",
+        "loading": "Loading groups...",
+        "noGroups": "No groups available",
+        "none": "No group",
+        "defaultOption": "{name} (Default)",
+        "hint": "Assign this service to a group for organization"
+      },
+      "monitoringLock": {
+        "default": "When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks",
+        "groupDisabled": "Monitoring is disabled for the \"{name}\" group, so services in it are never health-checked"
+      }
+    },
+    "discovered": {
+      "loadFailed": "Failed to load discovered containers",
+      "actionFailed": "Something went wrong",
+      "unavailable": "Discovered containers could not be loaded: {error}",
+      "link": "{count, plural, one {# discovered container} other {# discovered containers}}",
+      "title": "Discovered",
+      "none": "No new containers.",
+      "intro": "Containers from your Docker integrations. Check a guessed address before adding.",
+      "refresh": "Refresh",
+      "suggestion": "This container asks for a {name} integration. <link>Set it up</link> (it still needs its credentials), then link it to the service.",
+      "labelled": "labelled",
+      "noAddress": "No address found",
+      "guess": "guess",
+      "review": "Review",
+      "reviewLabel": "Review {name}",
+      "add": "Add",
+      "addLabel": "Add {name}",
+      "edit": "Edit",
+      "editLabel": "Edit {name}",
+      "ignore": "Ignore",
+      "ignoreLabel": "Ignore {name}",
+      "name": "Name",
+      "address": "Address",
+      "group": "Group",
+      "groupPlaceholder": "None",
+      "guessHint": "The address is a guess from the container's published port. Change it if the service is reached another way.",
+      "addService": "Add service",
+      "cancel": "Cancel",
+      "ignored": "Ignored ({count})",
+      "unignore": "Un-ignore",
+      "unignoreLabel": "Stop ignoring {name}"
+    },
+    "board": {
+      "notFound": "Board not found",
+      "notFoundDescription": "It does not exist, or it is no longer shared with you.",
+      "goToDashboard": "Go to your dashboard"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integrations",
+      "description": "Connect Nimbus to your apps. Link an integration to a service on its <link>edit page</link> to show live numbers on the tile.",
+      "add": "Add Integration",
+      "emptyTitle": "No integrations yet",
+      "supportedApps": "Supported apps: {apps}.",
+      "noneAvailable": "This server has no integrations available.",
+      "test": "Test",
+      "testing": "Testing...",
+      "testFailed": "Test failed",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Delete Integration",
+      "deleteMessage": "Delete \"{name}\"? Services linked to it lose their live numbers.",
+      "status": {
+        "needsCredentials": "Needs credentials: edit to enter them",
+        "notTested": "Not tested",
+        "connected": "Connected",
+        "failed": "Failed",
+        "failedWith": "Failed: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Add Integration",
+      "editTitle": "Edit {name}",
+      "close": "Close",
+      "app": "App",
+      "name": "Name",
+      "url": "URL",
+      "urlHelp": "The address Nimbus uses to reach the app, including any sub path.",
+      "signInWith": "Sign in with",
+      "auth": {
+        "none": "None",
+        "apiKey": "API key",
+        "token": "Token",
+        "basic": "Username and password"
+      },
+      "username": "Username",
+      "password": "Password",
+      "savedPlaceholder": "Saved; leave empty to keep",
+      "credentialsNote": "Credentials are stored encrypted and never sent back to the browser.",
+      "forExample": "For example {value}",
+      "refresh": "Refresh every (seconds)",
+      "verifyTls": "Verify TLS certificate",
+      "verifyTlsHint": "Turn off for apps with a self-signed certificate",
+      "verifyTlsWarning": "Without this check Nimbus can't tell the app from an impostor, and whoever answers gets the credentials. Only turn it off for a self-signed certificate on a network you trust.",
+      "connectedIn": "Connected in {ms} ms",
+      "connectionFailed": "Connection failed: {error}",
+      "usernameMissing": "Enter the username too",
+      "passwordMissing": "Enter the password too, or leave both empty to keep the saved ones",
+      "testFailed": "Test failed",
+      "saveFailed": "Failed to save integration",
+      "test": "Test connection",
+      "testSaved": "Test saved connection",
+      "testing": "Testing...",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "add": "Add Integration"
+    },
+    "selector": {
+      "label": "Live numbers",
+      "description": "Show numbers from an app, like Sonarr's queue, on this tile.",
+      "none": "None",
+      "loading": "Loading integrations...",
+      "manage": "Manage integrations"
+    }
+  },
+  "language": {
+    "label": "Language",
+    "automatic": "Automatic (browser)",
+    "hint": "Automatic follows the language of your browser",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Metrics",
+      "userManagement": "User Management",
+      "admin": "Admin",
+      "profileSettings": "Profile Settings",
+      "themeSettings": "Theme Settings",
+      "settings": "Settings"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Metrics",
+      "users": "Users",
+      "settings": "Settings"
+    },
+    "hostedByNimbusCloud": "Hosted by Nimbus Cloud",
+    "header": {
+      "openMenu": "Open navigation menu"
+    },
+    "sidebar": {
+      "addService": "Add Service",
+      "signOut": "Sign out",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "close": "Close sidebar"
+    },
+    "userMenu": {
+      "loading": "Loading...",
+      "fallbackName": "User",
+      "editLayout": "Edit layout",
+      "doneEditing": "Done editing",
+      "profileSettings": "Profile Settings",
+      "newBoard": "New board",
+      "installApp": "Install app",
+      "signOut": "Sign Out"
+    },
+    "search": {
+      "label": "Search services",
+      "shortcutTitle": "Search services (/ or Ctrl+K)",
+      "loading": "Loading services...",
+      "loadFailed": "Could not load your services: {error}",
+      "noResults": "No services match"
+    },
+    "topBar": {
+      "heading": "Dashboard",
+      "weatherIn": "{condition} in {location}"
+    },
+    "themeToggle": {
+      "label": "Toggle theme",
+      "labelAuto": "Toggle theme (currently auto)",
+      "autoTitle": "Auto mode - click to switch to manual"
+    },
+    "configFile": {
+      "title": "Managed by config file.",
+      "readOnly": "This dashboard is read-only: its groups, services, widgets and integrations are set in the file NIMBUS_CONFIG_FILE points at. Change the file to change the dashboard.",
+      "editable": "This dashboard follows the file NIMBUS_CONFIG_FILE points at. What you change here can be overwritten when the file changes or the server restarts.",
+      "preferences": "Theme, layout and wallpaper settings come from the file too: changes to them are not saved.",
+      "readOnlyNote": "This dashboard is managed by a config file and is read-only. Change the file instead."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Notifications",
+      "description": "Get alerts through a webhook, Discord, Slack, ntfy, Gotify, Telegram or Pushover when services change status",
+      "add": "Add Webhook",
+      "loadFailed": "Failed to load webhooks",
+      "saveFailed": "Failed to save webhook",
+      "confirmDelete": "Are you sure you want to delete this webhook?",
+      "testSent": "Test notification sent successfully!",
+      "testFailed": "Test failed: {error}",
+      "unknownError": "Unknown error",
+      "empty": "No webhooks configured yet",
+      "createFirst": "Create your first webhook"
+    },
+    "card": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "triggers": "Triggers: {triggers}",
+      "offline": "Offline",
+      "online": "Online",
+      "none": "None",
+      "sent": "Sent: {count}",
+      "failed": "Failed: {count}",
+      "lastTriggered": "Last triggered: {date}",
+      "never": "Never",
+      "enabledLabel": "{name} enabled",
+      "disable": "Disable webhook",
+      "enable": "Enable webhook",
+      "test": "Test",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "addTitle": "Add Webhook",
+      "editTitle": "Edit Webhook",
+      "close": "Close",
+      "name": "Name",
+      "namePlaceholder": "Homelab alerts",
+      "type": "Type",
+      "optional": "{label} (optional)",
+      "savedSecret": "Saved. Leave blank to keep it",
+      "removeToken": "Remove the saved access token",
+      "priority": "Priority",
+      "priorities": {
+        "min": "Min",
+        "low": "Low",
+        "default": "Default",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "verifyTls": "Verify TLS certificate",
+      "verifyTlsDescription": "Turn off for a server with a self-signed certificate",
+      "triggers": "Trigger Events",
+      "onOffline": "When service goes offline",
+      "onOnline": "When service comes back online",
+      "retries": "Notification Retries",
+      "retriesHint": "For offline alerts: re-check before sending to prevent false positives.",
+      "retryCount": "Retries (0-5)",
+      "retryDelay": "Delay (10-300s)",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "create": "Create Webhook",
+      "saveFailed": "Failed to save webhook",
+      "errors": {
+        "required": "{field} is required",
+        "nameTooLong": "Name must be 100 characters or less",
+        "invalidUrl": "Enter a full URL, starting with http:// or https://",
+        "ntfyTopic": "The URL must end with the topic, like https://ntfy.sh/my-topic",
+        "invalidChatId": "Chat ID must be a number or a public @channelname",
+        "noTrigger": "Select at least one trigger event"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Generic",
+        "description": "Standard JSON payload",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "discord": {
+        "description": "Discord-compatible embed format",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "slack": {
+        "description": "Slack Block Kit format",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "ntfy": {
+        "description": "Push to an ntfy topic, on ntfy.sh or your own server",
+        "url": {
+          "label": "Topic URL",
+          "help": "The server address followed by the topic name."
+        },
+        "token": {
+          "label": "Access token",
+          "help": "Only needed for protected topics."
+        }
+      },
+      "gotify": {
+        "description": "Push to a Gotify server",
+        "url": {
+          "label": "Server URL"
+        },
+        "token": {
+          "label": "App token",
+          "help": "Create an application in Gotify and copy its token."
+        }
+      },
+      "telegram": {
+        "description": "Message from your Telegram bot",
+        "token": {
+          "label": "Bot token",
+          "help": "From @BotFather."
+        },
+        "chatId": {
+          "label": "Chat ID",
+          "help": "A user, group or channel ID, or a public @channelname."
+        }
+      },
+      "pushover": {
+        "description": "Push through Pushover",
+        "token": {
+          "label": "App token",
+          "help": "The API token of your Pushover application."
+        },
+        "userKey": {
+          "label": "User key",
+          "help": "Your user key or a group key."
+        }
+      }
+    }
+  },
+  "preferences": {
+    "saveThemeFailed": "Failed to save the theme",
+    "uploadWallpaperFailed": "Failed to upload wallpaper"
+  },
+  "services": {
+    "tile": {
+      "move": "Move {name}",
+      "edit": "Edit {name}",
+      "notMonitored": "Not monitored"
+    },
+    "status": {
+      "online": "online",
+      "offline": "offline",
+      "unknown": "unknown",
+      "notMonitored": "not monitored"
+    },
+    "icon": {
+      "alt": "{name} icon"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget is} other {# widgets are}} only shown in grid view."
+    },
+    "hoverDetail": {
+      "loading": "Loading…",
+      "loadFailed": "Details could not be loaded",
+      "uptime": "Uptime (24h)",
+      "noChecks": "No checks",
+      "responseTime": "Response time",
+      "lastCheck": "Last check",
+      "never": "Never",
+      "lastError": "Last error"
+    },
+    "modal": {
+      "title": "Edit Service",
+      "close": "Close"
+    },
+    "form": {
+      "name": "Service Name",
+      "namePlaceholder": "e.g., Plex Media Server",
+      "url": "Service URL",
+      "urlHint": "The URL where your service can be accessed",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of what this service does",
+      "monitoring": "Enable Monitoring",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "creating": "Creating...",
+      "create": "Create Service",
+      "errors": {
+        "loadGroups": "Failed to load groups: {message}",
+        "loadGroupsRetry": "Failed to load groups. Please try again.",
+        "nameRequired": "Service name is required",
+        "urlRequired": "Service URL is required",
+        "invalidUrl": "Please enter a valid URL (e.g., https://example.com)",
+        "uploadFailed": "Image upload failed: {message}",
+        "saveFailed": "Unable to save service. Please try again.",
+        "updateFailed": "Unable to update service. Please try again.",
+        "createFailed": "Unable to create service. Please try again."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Icon Type",
+      "emoji": "Emoji",
+      "uploadImage": "Upload Image",
+      "imageUrl": "Image URL",
+      "autoFetch": "Auto-fetch icon",
+      "autoFetching": "Finding icon...",
+      "autoFetchHint": "Look up a curated icon by service name, falling back to the site favicon",
+      "autoFetchNeedsInput": "Enter a service name or URL first",
+      "notFound": "Couldn't find an icon — try uploading manually",
+      "fetchFailed": "Failed to fetch icon",
+      "emojiLabel": "Icon (Emoji)",
+      "pickEmoji": "Pick Emoji",
+      "emojiHint": "Click \"Pick Emoji\" or paste an emoji (letters and numbers are not allowed)",
+      "preview": "Preview:",
+      "previewAlt": "Icon preview",
+      "uploadLabel": "Upload Icon Image",
+      "uploadHint": "Max size: 512KB. Formats: JPG, PNG, GIF, WEBP",
+      "remove": "Remove",
+      "urlHint": "Enter the URL of an image to use as your service icon",
+      "notAnImage": "Please select an image file",
+      "tooLarge": "Image must be less than 512KB"
+    },
+    "emojiPicker": {
+      "title": "Choose an Emoji",
+      "close": "Close",
+      "categories": {
+        "smileys": "Smileys & People",
+        "animals": "Animals & Nature",
+        "food": "Food & Drink",
+        "activities": "Activities & Sports",
+        "travel": "Travel & Places",
+        "objects": "Objects",
+        "symbols": "Symbols",
+        "tech": "Tech & Science"
+      }
+    }
+  },
+  "settings": {
+    "home": {
+      "title": "Settings",
+      "subtitle": "Configure your dashboard preferences",
+      "sections": {
+        "theme": {
+          "title": "Theme",
+          "description": "Customize colors, dark mode, and background"
+        },
+        "profile": {
+          "title": "Profile",
+          "description": "Manage your account and personal information"
+        },
+        "notifications": {
+          "title": "Notifications",
+          "description": "Configure webhooks for service status alerts"
+        },
+        "integrations": {
+          "title": "Integrations",
+          "description": "Connect apps like Sonarr and Radarr to show live numbers"
+        },
+        "apiTokens": {
+          "title": "API Tokens",
+          "description": "Create tokens for programmatic API access"
+        },
+        "backup": {
+          "title": "Export & Import",
+          "description": "Back up your dashboard or move it to another Nimbus"
+        },
+        "admin": {
+          "title": "Admin Settings",
+          "description": "Configure system-wide settings for Nimbus"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profile",
+      "loading": "Loading...",
+      "picture": "Profile Picture",
+      "defaultName": "User",
+      "uploading": "Uploading...",
+      "upload": "Upload Picture",
+      "pictureHint": "JPG, PNG or GIF (max 5MB)",
+      "notImage": "Please select an image file",
+      "tooLarge": "Image size must be less than 5MB",
+      "syncedFrom": "Profile picture synced from {provider}",
+      "updateIn": "Update your picture in your {provider} account",
+      "signInMethod": "Sign-in Method",
+      "emailPassword": "Email & Password",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "roles": {
+        "admin": "admin",
+        "user": "user"
+      }
+    },
+    "password": {
+      "title": "Change Password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "tooShort": "New password must be at least 8 characters",
+      "mismatch": "New passwords do not match",
+      "sameAsCurrent": "New password must be different from current password",
+      "changed": "Password changed successfully",
+      "unexpected": "Something went wrong. Please try again.",
+      "changing": "Changing...",
+      "submit": "Change password"
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "lastAdmin": "You are the only admin. Promote another user to admin before you can delete this account.",
+      "description": "Permanently delete your account and all associated data. This action cannot be undone.",
+      "statsError": "Couldn’t verify admin status. The server will block the deletion if you are the only admin.",
+      "deleteMine": "Delete my account",
+      "deleteAccount": "Delete account",
+      "dialogBody": "This will permanently delete your account, services, groups, preferences, and all other associated data. This cannot be undone.",
+      "typeToConfirm": "Type <mono>{email}</mono> to confirm.",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "unexpected": "Something went wrong. Please try again."
+    },
+    "theme": {
+      "page": {
+        "title": "Theme Settings",
+        "subtitle": "Customize the appearance of your dashboard",
+        "autosave": "Changes are saved automatically"
+      },
+      "mode": {
+        "title": "Theme Mode",
+        "description": "Choose between light and dark theme",
+        "auto": "Automatic (follow system)",
+        "autoDescription": "Automatically switch between light and dark based on your system preferences",
+        "autoDescriptionCurrent": "Automatically switch between light and dark based on your system preferences (currently: {mode})",
+        "current": {
+          "light": "light",
+          "dark": "dark"
+        },
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "accent": {
+        "title": "Accent Color",
+        "description": "Choose your preferred accent color",
+        "colors": {
+          "skyBlue": "Sky Blue (Default)",
+          "purple": "Purple",
+          "pink": "Pink",
+          "red": "Red",
+          "orange": "Orange",
+          "yellow": "Yellow",
+          "green": "Green",
+          "teal": "Teal"
+        },
+        "custom": "Custom color:",
+        "reset": "Reset"
+      },
+      "links": {
+        "title": "Link Behavior",
+        "description": "Choose how service links should open",
+        "newTab": "Open services in new tab",
+        "newTabDescription": "When enabled, clicking a service will open it in a new tab"
+      },
+      "resizing": {
+        "title": "Card Resizing",
+        "description": "Control whether service cards can have different sizes",
+        "toggle": "Enable card resizing",
+        "toggleDescription": "When enabled, you can resize cards in edit mode by clicking them. When disabled, all cards display as standard size (2x1)"
+      },
+      "grouping": {
+        "title": "Service Grouping",
+        "description": "Organize your services into groups, shown as tabs or as sections",
+        "toggle": "Enable service grouping",
+        "toggleDescription": "When enabled, you can organize services into groups. Create, rename, and reorder groups in edit mode. When disabled, all services are shown in a single view",
+        "showAs": "Show groups as",
+        "display": {
+          "tabs": "tabs",
+          "sections": "sections"
+        },
+        "tabsHint": "One group at a time, picked with a tab",
+        "sectionsHint": "All groups on one page, each under its own header that can be collapsed"
+      },
+      "cardDisplay": {
+        "title": "Card Display",
+        "description": "Customize how service cards are displayed",
+        "list": "List view",
+        "listDescription": "Display services in a compact list instead of a grid",
+        "size": "Card Size",
+        "scales": {
+          "small": "small",
+          "medium": "medium",
+          "large": "large"
+        },
+        "listHint": "Card size only applies to grid view",
+        "gridHint": "Adjust the grid density - smaller cards show more services per row"
+      },
+      "gallery": {
+        "title": "Theme",
+        "description": "A theme sets every colour, light or dark, and its own accent. You can still pick another accent colour on top. Choosing a mode the theme doesn't have goes back to Default.",
+        "muted": "Muted",
+        "default": "Default",
+        "dark": "Dark",
+        "light": "Light",
+        "lightOrDark": "Light or dark"
+      },
+      "transfer": {
+        "title": "Export & Import",
+        "description": "Save your theme as a file, or load one: theme, mode, accent, font, icon source, glass settings and custom CSS. The wallpaper image is not part of it.",
+        "export": "Export theme",
+        "import": "Import theme",
+        "fileLabel": "Theme file",
+        "tooLarge": "This file is too large to be a theme",
+        "willSet": "This file will set",
+        "fields": {
+          "themePreset": "theme preset",
+          "themeMode": "theme mode",
+          "themeAccentColor": "theme accent color",
+          "themeFont": "theme font",
+          "kpiMono": "kpi mono",
+          "iconSource": "icon source",
+          "wallpaperBlur": "wallpaper blur",
+          "wallpaperDim": "wallpaper dim",
+          "cardOpacity": "card opacity",
+          "cardBlur": "card blur"
+        },
+        "none": "none",
+        "cssReview": "Custom CSS (read it before you apply)",
+        "cssClears": "Custom CSS (none: clears yours)",
+        "cssLabel": "Custom CSS in the file",
+        "applying": "Applying...",
+        "apply": "Apply theme",
+        "cancel": "Cancel",
+        "errors": {
+          "notJson": "This is not a JSON file",
+          "notTheme": "This is not a Nimbus theme file",
+          "newerVersion": "This theme file was made by a newer version of Nimbus",
+          "invalidField": "The theme file has an invalid {field}"
+        }
+      },
+      "wallpaper": {
+        "title": "Wallpaper",
+        "description": "Upload an image (up to 8 MB) or use an image URL. Blur, dim and see-through cards make it look like glass.",
+        "urlLabel": "Wallpaper URL",
+        "uploadedPlaceholder": "Uploaded image",
+        "fileLabel": "Wallpaper file",
+        "uploading": "Uploading...",
+        "upload": "Upload",
+        "clear": "Clear",
+        "tooLarge": "The image is larger than 8 MB",
+        "previewCard": "Card",
+        "previewText": "How tiles will look",
+        "sliders": {
+          "wallpaperBlur": "Wallpaper blur",
+          "wallpaperDim": "Wallpaper dim",
+          "cardOpacity": "Card opacity",
+          "cardBlur": "Card blur"
+        },
+        "dimNote": "Cards under 60% opacity keep the wallpaper dimmed at least {min}%, so text stays readable."
+      },
+      "font": {
+        "title": "Font",
+        "description": "The fonts are part of Nimbus: nothing is loaded from another site",
+        "names": {
+          "default": "Default",
+          "system": "System"
+        },
+        "kpiMono": "Monospace KPI labels",
+        "kpiMonoDescription": "Show the small labels above the numbers on tiles, widgets and the status strip in JetBrains Mono"
+      },
+      "iconSource": {
+        "title": "Icon Source",
+        "description": "Where \"Auto-fetch icon\" on a service looks for an icon by the service's name",
+        "label": "Icon set",
+        "hint": "Used for icons you fetch from now on; icons you already have stay as they are"
+      },
+      "layout": {
+        "title": "Dashboard Layout",
+        "description": "Canvas only changes the dashboard; other pages keep the sidebar.",
+        "modes": {
+          "classic": {
+            "label": "Classic",
+            "description": "Sidebar, stats and your tiles"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "The dashboard fills the page, with a top bar"
+          }
+        },
+        "darkHint": "Canvas looks best in dark mode, with a wallpaper.",
+        "useDark": "Use dark mode"
+      },
+      "customCss": {
+        "title": "Custom CSS",
+        "description": "Your own CSS on top of the theme. It only applies to you, on the pages behind the login.",
+        "safeMode": "Safe mode: your custom CSS is off until you reload without <code>?safe=1</code>.",
+        "saving": "Saving...",
+        "save": "Save CSS",
+        "help": "CSS only. <code>@import</code>, <code>image-set()</code> and any <code>url()</code> that is not an inline <code>data:</code> image are refused, so a theme can never load something from another site. If your CSS hides the page, add <code>?safe=1</code> to the address (for example <code>/settings/theme?safe=1</code>) to open it without your CSS."
+      },
+      "statusStrip": {
+        "title": "Status Strip",
+        "description": "A row of key numbers at the top of the dashboard, with whether all services are up.",
+        "show": "Show the status strip",
+        "loading": "Loading your integrations and widgets...",
+        "number": "Number {number}",
+        "remove": "Remove number {number}",
+        "unavailable": "No longer available",
+        "add": "Add number",
+        "loadError": "Could not load your integrations or widgets: {error}",
+        "empty": "Add an integration or a custom API widget to pick numbers from.",
+        "hint": "Integrations show numbers once a service or widget uses them.",
+        "customApi": "Custom API"
+      }
+    }
+  },
+  "time": {
+    "justNow": "just now",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Cancel"
+    }
+  },
+  "weather": {
+    "clear": "Clear",
+    "partlyCloudy": "Partly cloudy",
+    "overcast": "Overcast",
+    "fog": "Fog",
+    "drizzle": "Drizzle",
+    "rain": "Rain",
+    "snow": "Snow",
+    "thunderstorm": "Thunderstorm",
+    "unknown": "Unknown"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "Verify TLS certificate",
+      "integrationsError": "Could not load your integrations: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Clock",
+        "description": "Time and date, in any timezone"
+      },
+      "markdown": {
+        "name": "Note",
+        "description": "Text with Markdown formatting"
+      },
+      "bookmarks": {
+        "name": "Bookmarks",
+        "description": "A compact list of links"
+      },
+      "weather": {
+        "name": "Weather",
+        "description": "Current weather and a short forecast"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "Latest items from up to three feeds"
+      },
+      "custom_api": {
+        "name": "Custom API",
+        "description": "Up to four values from any JSON API"
+      },
+      "system_stats": {
+        "name": "System stats",
+        "description": "CPU, memory, disk and uptime of the Nimbus server"
+      },
+      "docker_containers": {
+        "name": "Docker containers",
+        "description": "Containers of a Docker integration and their state"
+      },
+      "calendar": {
+        "name": "Calendar",
+        "description": "Upcoming episodes, movies and iCal events"
+      },
+      "iframe": {
+        "name": "Embed",
+        "description": "Show a web page inside a tile"
+      }
+    },
+    "card": {
+      "refresh": "Refresh widget",
+      "edit": "Edit widget",
+      "delete": "Delete widget",
+      "updateFailed": "Last update failed: {error}",
+      "outOfDate": "This data may be out of date",
+      "loadFailed": "Could not load: {error}",
+      "loading": "Loading",
+      "unsupported": "This widget type ({type}) is not supported by this version of Nimbus."
+    },
+    "modal": {
+      "addWidget": "Add Widget",
+      "addTitle": "Add {name}",
+      "editTitle": "Edit {name}",
+      "back": "Back to widget types",
+      "close": "Close",
+      "cannotEdit": "This widget type ({type}) can't be edited in this version of Nimbus.",
+      "titleLabel": "Title <muted>(optional)</muted>",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "saveFailed": "Failed to save widget",
+      "chooseIntegration": "Choose an integration",
+      "integration": {
+        "label": "Integration",
+        "description": "The {names} integration this widget reads.",
+        "empty": "Choose a {names} integration"
+      }
+    },
+    "bookmarks": {
+      "empty": "No bookmarks yet",
+      "form": {
+        "label": "Bookmarks",
+        "icon": "Bookmark {n} icon",
+        "name": "Bookmark {n} name",
+        "url": "Bookmark {n} URL",
+        "namePlaceholder": "Name",
+        "remove": "Remove bookmark {n}",
+        "add": "Add bookmark",
+        "hint": "The icon can be an emoji or an image URL."
+      }
+    },
+    "calendar": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "hasEvents": "{day}, has events",
+      "nothingOnDay": "Nothing on this day",
+      "nothingComing": "Nothing coming up",
+      "failed": "{count, plural, one {# source could not be loaded} other {# sources could not be loaded}}",
+      "form": {
+        "sources": "Sonarr and Radarr",
+        "loadingIntegrations": "Loading integrations...",
+        "noIntegrations": "No Sonarr or Radarr yet. <link>Add one</link> to see what is coming.",
+        "feeds": "Calendar feeds (iCal)",
+        "feedUrl": "Calendar {n} URL",
+        "removeFeed": "Remove calendar {n}",
+        "addFeed": "Add calendar",
+        "feedsHint": "The secret iCal address of a Google, Outlook or Nextcloud calendar works; once saved it shows as ******** and is kept as long as you leave it. Repeating events only show on their first date.",
+        "days": "Days ahead in the agenda",
+        "verifyTlsHint": "Turn off for calendars on your LAN with a self-signed certificate"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Unknown timezone: {timezone}",
+      "form": {
+        "timezone": "Timezone",
+        "timezonePlaceholder": "Your browser's timezone",
+        "timezoneHint": "For example Europe/Amsterdam",
+        "date": "Date",
+        "dateShort": "Short",
+        "dateLong": "Long",
+        "dateHidden": "Hidden",
+        "hour12": "12-hour clock",
+        "seconds": "Show seconds"
+      }
+    },
+    "customApi": {
+      "notFound": "Nothing found at {path}",
+      "form": {
+        "urlHint": "The Nimbus server fetches this URL; it must return JSON.",
+        "verifyTlsHint": "Turn off for apps with a self-signed certificate",
+        "values": "Values",
+        "valueLabel": "Value {n} label",
+        "valuePath": "Value {n} path",
+        "valueUnit": "Value {n} unit",
+        "labelPlaceholder": "Label",
+        "unitPlaceholder": "Unit",
+        "removeValue": "Remove value {n}",
+        "addValue": "Add value",
+        "pathsHint": "Paths use dots and indexes: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> for the last item, <code>items.length</code> to count.",
+        "headers": "Headers (optional)",
+        "headerName": "Header {n} name",
+        "headerValue": "Header {n} value",
+        "valuePlaceholder": "Value",
+        "removeHeader": "Remove header {n}",
+        "addHeader": "Add header",
+        "headersHint": "Saved values show as ******** and are kept as long as you leave them. They are stored with the widget, not encrypted; for apps Nimbus supports, use an integration instead."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} of {total} running",
+      "empty": "No containers",
+      "form": {
+        "hideStopped": "Hide stopped containers",
+        "hideStoppedHint": "The count still includes them"
+      }
+    },
+    "embed": {
+      "empty": "No URL set",
+      "frameTitle": "Embedded page",
+      "form": {
+        "hint": "Some sites refuse to be embedded. Your browser loads the page, not the Nimbus server. The page fills the tile; change the tile size in edit mode."
+      }
+    },
+    "note": {
+      "empty": "Empty note",
+      "form": {
+        "label": "Note",
+        "placeholder": "# Title\n- a list item\n[a link](https://example.com)",
+        "hint": "Markdown is supported. HTML is not."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# feed could not be loaded} other {# feeds could not be loaded}}",
+      "empty": "No items yet",
+      "untitled": "Untitled",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "Feed {n} URL",
+        "removeFeed": "Remove feed {n}",
+        "addFeed": "Add feed",
+        "feedsHint": "RSS, Atom and JSON Feed work. Items from all feeds are merged, newest first.",
+        "limit": "Number of items",
+        "verifyTlsHint": "Turn off for feeds on your LAN with a self-signed certificate"
+      }
+    },
+    "systemStats": {
+      "disk": "Disk",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Up {uptime}",
+      "uptime": {
+        "days": "{days}d {hours}h",
+        "hours": "{hours}h {minutes}m",
+        "minutes": "{minutes}m"
+      },
+      "form": {
+        "diskHint": "A path on the Nimbus server; the tile shows the use of the disk it is on. In Docker, mount a host disk into the container to see it."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · feels like {temperature}",
+      "wind": "wind {speed} {unit}",
+      "form": {
+        "chosenPlace": "Chosen place",
+        "search": "Find a place",
+        "searchPlaceholder": "City name",
+        "searchButton": "Search places",
+        "searchFailed": "Location search failed",
+        "noResults": "No places found",
+        "searchHint": "The search goes to Open-Meteo from your browser. You can also enter coordinates below.",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "location": "Name on the tile",
+        "units": "Units"
+      }
+    }
+  }
+}

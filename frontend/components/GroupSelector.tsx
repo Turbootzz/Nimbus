@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { Group } from '@/types'
 
 interface GroupSelectorProps {
@@ -17,10 +18,11 @@ export default function GroupSelector({
   isLoading = false,
   disabled = false,
 }: GroupSelectorProps) {
+  const t = useTranslations('dashboard.groups.selector')
   return (
     <div>
       <label htmlFor="group_id" className="text-text-secondary mb-2 block text-sm font-medium">
-        Group
+        {t('label')}
       </label>
       <div className="relative">
         <select
@@ -36,16 +38,15 @@ export default function GroupSelector({
           disabled={disabled || isLoading}
         >
           {isLoading ? (
-            <option value="">Loading groups...</option>
+            <option value="">{t('loading')}</option>
           ) : groups.length === 0 ? (
-            <option value="">No groups available</option>
+            <option value="">{t('noGroups')}</option>
           ) : (
             <>
-              <option value="">No group</option>
+              <option value="">{t('none')}</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
-                  {group.name}
-                  {group.is_default ? ' (Default)' : ''}
+                  {group.is_default ? t('defaultOption', { name: group.name }) : group.name}
                 </option>
               ))}
             </>
@@ -63,9 +64,7 @@ export default function GroupSelector({
           </svg>
         </div>
       </div>
-      <p className="text-text-muted mt-1 text-xs">
-        Assign this service to a group for organization
-      </p>
+      <p className="text-text-muted mt-1 text-xs">{t('hint')}</p>
     </div>
   )
 }

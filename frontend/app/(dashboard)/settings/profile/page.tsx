@@ -1,17 +1,20 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 import UserAvatar from '@/components/UserAvatar'
 import ChangePasswordSection from '@/components/ChangePasswordSection'
 import DangerZoneSection from '@/components/DangerZoneSection'
+import LanguageSettings from '@/components/LanguageSettings'
 import GoogleIcon from '@/components/icons/GoogleIcon'
 import GitHubIcon from '@/components/icons/GitHubIcon'
 import DiscordIcon from '@/components/icons/DiscordIcon'
 import OIDCIcon from '@/components/icons/OIDCIcon'
 
 export default function ProfilePage() {
+  const t = useTranslations('settings.profile')
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
@@ -40,13 +43,13 @@ export default function ProfilePage() {
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
-      setUploadError('Please select an image file')
+      setUploadError(t('notImage'))
       return
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      setUploadError('Image size must be less than 5MB')
+      setUploadError(t('tooLarge'))
       return
     }
 
@@ -90,7 +93,7 @@ export default function ProfilePage() {
       case 'discord':
         return 'Discord'
       case 'local':
-        return 'Email & Password'
+        return t('emailPassword')
       case 'oidc':
         return 'SSO'
       default:
@@ -102,12 +105,14 @@ export default function ProfilePage() {
     return (
       <div className="p-4 sm:p-6">
         <h1
-          className="mb-4 text-2xl font-bold sm:text-3xl"
+          className="wallpaper-panel mb-4 text-2xl font-bold sm:text-3xl"
           style={{ color: 'var(--color-text-primary)' }}
         >
-          Profile
+          {t('title')}
         </h1>
-        <p style={{ color: 'var(--color-text-secondary)' }}>Loading...</p>
+        <p className="wallpaper-panel" style={{ color: 'var(--color-text-secondary)' }}>
+          {t('loading')}
+        </p>
       </div>
     )
   }
@@ -115,10 +120,10 @@ export default function ProfilePage() {
   return (
     <div className="p-4 sm:p-6">
       <h1
-        className="mb-4 text-2xl font-bold sm:text-3xl"
+        className="wallpaper-panel mb-4 text-2xl font-bold sm:text-3xl"
         style={{ color: 'var(--color-text-primary)' }}
       >
-        Profile
+        {t('title')}
       </h1>
 
       <div
@@ -135,12 +140,12 @@ export default function ProfilePage() {
               className="mb-3 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Profile Picture
+              {t('picture')}
             </label>
             <div className="flex items-center space-x-4">
               <UserAvatar
                 avatarUrl={user?.avatar_url}
-                name={user?.name || 'User'}
+                name={user?.name || t('defaultName')}
                 size={80}
                 className="h-20 w-20"
               />
@@ -156,7 +161,7 @@ export default function ProfilePage() {
                       color: 'var(--color-text-primary)',
                     }}
                   >
-                    {isUploading ? 'Uploading...' : 'Upload Picture'}
+                    {isUploading ? t('uploading') : t('upload')}
                   </label>
                   <input
                     id="avatar-upload"
@@ -167,7 +172,7 @@ export default function ProfilePage() {
                     className="hidden"
                   />
                   <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    JPG, PNG or GIF (max 5MB)
+                    {t('pictureHint')}
                   </p>
                   {uploadError && (
                     <p className="mt-1 text-xs" style={{ color: 'var(--color-error)' }}>
@@ -178,10 +183,10 @@ export default function ProfilePage() {
               ) : (
                 <div className="flex-1">
                   <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                    Profile picture synced from {getProviderName(user?.provider || '')}
+                    {t('syncedFrom', { provider: getProviderName(user?.provider || '') })}
                   </p>
                   <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    Update your picture in your {getProviderName(user?.provider || '')} account
+                    {t('updateIn', { provider: getProviderName(user?.provider || '') })}
                   </p>
                 </div>
               )}
@@ -196,7 +201,7 @@ export default function ProfilePage() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Sign-in Method
+              {t('signInMethod')}
             </label>
             <div className="flex items-center space-x-2">
               {getProviderIcon(user?.provider || 'local')}
@@ -212,7 +217,7 @@ export default function ProfilePage() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Name
+              {t('name')}
             </label>
             <p className="text-lg" style={{ color: 'var(--color-text-primary)' }}>
               {user?.name}
@@ -225,7 +230,7 @@ export default function ProfilePage() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Email
+              {t('email')}
             </label>
             <p className="text-lg" style={{ color: 'var(--color-text-primary)' }}>
               {user?.email}
@@ -238,12 +243,15 @@ export default function ProfilePage() {
               className="mb-1 block text-sm font-medium"
               style={{ color: 'var(--color-text-secondary)' }}
             >
-              Role
+              {t('role')}
             </label>
             <p className="text-lg capitalize" style={{ color: 'var(--color-text-primary)' }}>
-              {user?.role}
+              {user && t(`roles.${user.role}`)}
             </p>
           </div>
+
+          <div className="border-t" style={{ borderColor: 'var(--color-card-border)' }} />
+          <LanguageSettings />
 
           {/* Change Password (local auth only) */}
           {user?.provider === 'local' && (

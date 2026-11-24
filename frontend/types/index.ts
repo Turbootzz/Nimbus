@@ -1,3 +1,5 @@
+import type { Language } from '@/i18n/locale'
+
 // User types
 export interface User {
   id: string
@@ -10,6 +12,16 @@ export interface User {
   last_activity_at?: string
   created_at: string
   updated_at?: string
+  // Set when this user's dashboard comes from a config file (NIMBUS_CONFIG_FILE)
+  config_file?: ConfigFileStatus
+}
+
+// What the config file locks for its owner
+export interface ConfigFileStatus {
+  // Groups, services, widgets and integrations can't be edited
+  read_only: boolean
+  // The look and layout settings can't be edited either
+  preferences: boolean
 }
 
 // Auth types
@@ -36,8 +48,41 @@ export type CardSize = '1x1' | '2x1' | '1x2' | '2x2'
 export type CardScale = 'small' | 'medium' | 'large'
 export type ViewMode = 'grid' | 'list'
 
+// Board types. A board is one dashboard: its own groups, services and
+// widgets. Every user has a default board (/dashboard).
+export interface Board {
+  id: string
+  name: string
+  slug: string // /board/<slug>
+  position: number
+  is_default: boolean
+  is_shared: boolean // every user sees it; only its owner edits it
+  visibility: 'all'
+  owned: boolean // false for a board someone else shares
+  can_edit: boolean
+}
+
+// Omitted fields keep their value. Without a slug a new board gets one from
+// its name.
+export interface BoardRequest {
+  name?: string
+  slug?: string
+  is_shared?: boolean
+}
+
+// What a viewer of a shared board learns about an integration on it: enough
+// to label its numbers (see kpisForIntegration). kpis are its kind's, as a
+// viewer may not get an admin-only kind from /integrations/kinds.
+export interface BoardIntegration {
+  id: string
+  kind: string
+  options: Record<string, boolean>
+  kpis?: Kpi[]
+}
+
 export interface Service {
   id: string
+  board_id?: string
   name: string
   url: string
   icon?: string
@@ -64,6 +109,7 @@ export interface ServiceCreateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  board_id?: string // the default board when omitted
   integration_id?: string
   monitoring_enabled?: boolean
 }
@@ -77,6 +123,7 @@ export interface ServiceUpdateRequest {
   description?: string
   card_size?: CardSize
   group_id?: string
+  board_id?: string // another board moves the service there, ungrouped
   integration_id?: string // '' unlinks, omitted keeps the link
   monitoring_enabled?: boolean
 }
@@ -97,6 +144,20 @@ export interface Kpi {
   key: string
   label: string
   unit?: string
+  option?: string // only applies when the integration has this option set
+  without?: string // only applies when the integration has this option not set
+}
+
+// A setting of a kind, shown as a text field in the integration form
+export interface IntegrationOption {
+  key: string
+  label: string
+  help?: string
+  placeholder?: string
+  type?: 'number' // text when left out; the value is text either way
+  required?: boolean
+  max_length?: number
+  pattern?: string // the whole value must match
 }
 
 // A kind of app Nimbus can connect to, from GET /integrations/kinds
@@ -107,9 +168,10 @@ export interface IntegrationKindMeta {
   default_port?: number
   auth_types: IntegrationAuthType[] // first one is the default
   kpis?: Kpi[]
+  options?: IntegrationOption[]
   url_hint?: string // example URL for the form
+  hint?: string // extra help under the URL
   admin_only?: boolean // only listed for admins
-  docker_socket?: boolean // also takes unix:///path (the server's DOCKER_SOCKET)
 }
 
 // Never contains credentials, only whether they are set
@@ -145,6 +207,7 @@ export interface IntegrationRequest {
   auth_type?: IntegrationAuthType
   credentials?: IntegrationCredentials
   verify_tls?: boolean
+  options?: Record<string, string>
   refresh_seconds?: number
 }
 
@@ -157,11 +220,14 @@ export interface IntegrationTestResult {
 // Payload of an integration snapshot
 export interface IntegrationPayload {
   kpis?: Record<string, number | string>
+  // Labels and units from live data, for KPIs of the kind by key
+  kpi_defs?: Kpi[]
 }
 
 // Widget types (dashboard tiles that are not links)
 export interface Widget {
   id: string
+  board_id?: string
   type: string
   title: string
   group_id: string | null
@@ -194,6 +260,7 @@ export interface WidgetCreateRequest {
   type: string
   title?: string
   group_id?: string
+  board_id?: string // the default board when omitted
   integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
@@ -203,6 +270,7 @@ export interface WidgetCreateRequest {
 export interface WidgetUpdateRequest {
   title?: string
   group_id?: string
+  board_id?: string // another board moves the widget there, ungrouped
   integration_id?: string
   config?: Record<string, unknown>
   card_size?: CardSize
@@ -393,27 +461,35 @@ export interface TileReorderRequest {
 }
 
 // Group types
+// cards: full tiles; chips: one-line links for a quick-launch group
+export type TileStyle = 'cards' | 'chips'
+
 export interface Group {
   id: string
+  board_id?: string
   name: string
   color: string
   position: number
   is_default: boolean
   monitoring_enabled: boolean
+  tile_style?: TileStyle // cards when missing
   created_at: string
   updated_at?: string
 }
 
 export interface GroupCreateRequest {
   name: string
+  board_id?: string // the default board when omitted
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupUpdateRequest {
   name?: string
   color?: string
   monitoring_enabled?: boolean
+  tile_style?: TileStyle
 }
 
 export interface GroupPosition {
@@ -441,6 +517,20 @@ export interface Theme {
   accent_color?: string
 }
 
+// The values are listed in lib/theme-presets.ts
+export type ThemePreset =
+  | 'default'
+  | 'catppuccin-mocha'
+  | 'catppuccin-latte'
+  | 'nord'
+  | 'dracula'
+  | 'gruvbox-dark'
+  | 'gruvbox-light'
+  | 'tokyo-night'
+export type ThemeFont = 'default' | 'system' | 'inter' | 'jetbrains-mono'
+export type IconSource =
+  'dashboard-icons-svg' | 'dashboard-icons-png' | 'dashboard-icons-webp' | 'selfhst'
+
 export interface UserPreferences {
   theme_mode: 'light' | 'dark' | 'auto'
   theme_background?: string
@@ -455,7 +545,14 @@ export interface UserPreferences {
   card_opacity: number // %, 0-100
   card_blur: number // px, 0-40
   layout_mode: LayoutMode
+  group_display: GroupDisplay | null // null follows the layout
   status_strip: StatusStrip
+  theme_preset?: ThemePreset
+  theme_font?: ThemeFont
+  kpi_mono?: boolean // monospace KPI labels
+  icon_source?: IconSource
+  custom_css?: string
+  language?: Language | null // null follows the browser
   updated_at?: string
 }
 
@@ -483,6 +580,9 @@ export interface StatusStrip {
 // classic: sidebar and stats cards; canvas: full-bleed dashboard with a top bar
 export type LayoutMode = 'classic' | 'canvas'
 
+// tabs: one group at a time; sections: all groups stacked under a header
+export type GroupDisplay = 'tabs' | 'sections'
+
 export interface PreferencesUpdateRequest {
   theme_mode?: 'light' | 'dark' | 'auto'
   theme_background?: string | null
@@ -497,7 +597,14 @@ export interface PreferencesUpdateRequest {
   card_opacity?: number
   card_blur?: number
   layout_mode?: LayoutMode
+  group_display?: GroupDisplay
   status_strip?: StatusStrip
+  theme_preset?: ThemePreset
+  theme_font?: ThemeFont
+  kpi_mono?: boolean
+  icon_source?: IconSource
+  custom_css?: string // "" clears it
+  language?: Language | null // null: follow the browser
 }
 
 // API response types
@@ -505,6 +612,8 @@ export interface ApiError {
   message: string
   code?: string
   details?: unknown
+  // Per-field validation messages, keyed by the request field name
+  fields?: Record<string, string>
 }
 
 export interface ApiResponse<T> {
@@ -564,6 +673,9 @@ export interface MetricsResponse {
   min_response_time: number
   max_response_time: number
   data_points: MetricDataPoint[]
+  last_checked_at?: string // latest check, also when older than the range
+  last_error?: string // latest failed check within the range
+  last_error_at?: string
 }
 
 export type TimeRangeOption = '1h' | '6h' | '24h' | '7d' | '30d'
@@ -585,7 +697,20 @@ export interface OAuthProviderStatus {
 }
 
 // Webhook types
-export type WebhookFormat = 'generic' | 'discord' | 'slack'
+export type WebhookFormat =
+  'generic' | 'discord' | 'slack' | 'ntfy' | 'gotify' | 'telegram' | 'pushover'
+
+// Non-secret settings of a notification target
+export interface WebhookOptions {
+  priority?: number // ntfy: 1-5
+  chat_id?: string // Telegram
+}
+
+// Secrets are write-only: the API never returns them
+export interface WebhookCredentials {
+  token?: string
+  user_key?: string // Pushover
+}
 
 export interface WebhookTriggers {
   on_offline: boolean
@@ -599,6 +724,9 @@ export interface Webhook {
   enabled: boolean
   triggers: WebhookTriggers
   format: WebhookFormat
+  options?: WebhookOptions
+  has_credentials?: boolean
+  verify_tls?: boolean
   retry_count: number
   retry_delay_seconds: number
   last_triggered_at?: string
@@ -612,10 +740,13 @@ export interface Webhook {
 
 export interface WebhookCreateRequest {
   name: string
-  url: string
+  url?: string // not used by Telegram and Pushover
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  options?: WebhookOptions
+  credentials?: WebhookCredentials
+  verify_tls?: boolean // false allows a self-signed certificate
   retry_count?: number
   retry_delay_seconds?: number
 }
@@ -626,6 +757,9 @@ export interface WebhookUpdateRequest {
   enabled?: boolean
   triggers?: WebhookTriggers
   format?: WebhookFormat
+  options?: WebhookOptions
+  credentials?: WebhookCredentials // omitted keeps the stored secrets
+  verify_tls?: boolean
   retry_count?: number
   retry_delay_seconds?: number
 }
@@ -653,18 +787,24 @@ export interface WebhookTestResult {
 }
 
 // API token types (personal access tokens)
+export type ApiTokenScope =
+  'read:services' | 'read:metrics' | 'read:widgets' | 'write:services' | 'mcp'
+
 export interface ApiToken {
   id: string
   name: string
   token_prefix: string
-  read_only: boolean
+  scopes: ApiTokenScope[]
+  read_only: boolean // derived: no write:services scope
   last_used_at: string | null
+  expires_at: string | null
   created_at: string
 }
 
 export interface ApiTokenCreateRequest {
   name: string
-  read_only: boolean
+  scopes: ApiTokenScope[]
+  expires_at?: string // ISO timestamp; omit for a token that never expires
 }
 
 export interface ApiTokenCreateResponse {
@@ -729,4 +869,172 @@ export interface SystemSettingsResponse {
 
 export interface UpdateSettingRequest {
   value: string
+}
+
+// Dashboard export/import (docs/CONFIGURATION.md describes the document)
+export type ImportMode = 'merge' | 'replace'
+
+export interface DashboardDocument {
+  version: number
+  // Uploaded images an export left out because they were missing or too large
+  omitted_images?: number
+  [key: string]: unknown
+}
+
+export interface ImportCount {
+  created: number
+  removed: number
+}
+
+// The parts of a dashboard document the import wizard shows and maps
+export interface DocumentGroup {
+  ref?: string
+  name: string
+  default?: boolean
+  [key: string]: unknown
+}
+
+export interface DocumentService {
+  name: string
+  url: string
+  group_ref?: string
+  integration_ref?: string
+  [key: string]: unknown
+}
+
+export interface DocumentIntegration {
+  ref?: string
+  kind: string
+  name: string
+  base_url: string
+  [key: string]: unknown
+}
+
+export interface DocumentWidget {
+  type: string
+  group_ref?: string
+  [key: string]: unknown
+}
+
+export interface ConvertedDocument extends DashboardDocument {
+  groups: DocumentGroup[]
+  services: DocumentService[]
+  integrations: DocumentIntegration[]
+  widgets: DocumentWidget[]
+}
+
+// Other dashboards whose config can be converted
+export type ImportFormat = 'homepage' | 'homarr' | 'homer' | 'dashy' | 'compose'
+
+// A converted config: the document to import and what was left out
+export interface ConvertResult {
+  format: ImportFormat
+  document: ConvertedDocument
+  warnings: string[]
+}
+
+export interface ImportSummary {
+  mode: ImportMode
+  dry_run: boolean
+  groups: ImportCount
+  services: ImportCount
+  widgets: ImportCount
+  integrations: ImportCount
+  preferences: boolean
+  needs_credentials: number
+  needs_secrets: number
+  custom_css?: string // the custom CSS a replace applies
+  // Set by a replace while the public status page shows one of the user's
+  // groups: kept when the file has a group with that name, which it then shows
+  status_page?: { group: string; kept: boolean }
+}
+
+// One problem in an imported document, e.g. path "services[2].url"
+export interface ImportIssue {
+  path: string
+  message: string
+}
+
+// =====================================// Docker discovery
+// ============================================
+
+// A container that can become a service. Every text field comes from
+// container labels: render it as plain text only.
+export interface DiscoveredContainer {
+  key: string // stable across re-creates: "<integration id>/<container name>"
+  integration_id: string
+  integration_name: string
+  container: string
+  image: string
+  state: string
+  enabled: boolean // labelled nimbus.enable=true
+  name: string
+  url: string
+  url_guessed: boolean // from a published port, not from a label
+  icon_url: string
+  group: string
+  description: string
+  integration?: DiscoveredIntegration // asked for with nimbus.widget
+  ignored: boolean
+}
+
+// An integration to set up; credentials are entered in the integration form
+export interface DiscoveredIntegration {
+  kind: string
+  name: string
+  base_url: string
+}
+
+// Where the Discovered tray leaves an integration for the integration form.
+// sessionStorage, not the address: a link from elsewhere can't fill the form.
+export const INTEGRATION_PREFILL_KEY = 'nimbus:integration-prefill'
+
+export interface DiscoveryResponse {
+  integrations: number // Docker integrations that were read
+  containers: DiscoveredContainer[]
+  errors: { integration_id: string; integration_name: string; error: string }[]
+}
+
+export interface DiscoveryAddRequest {
+  key: string
+  name: string
+  url: string
+  icon_url?: string
+  group?: string
+  description?: string
+}
+
+// Public status page: the admin configuration
+export interface StatusPageSettings {
+  enabled: boolean
+  group_id: string
+  title: string
+  logo: string // File name of an uploaded service icon, or empty
+  show_links: boolean
+}
+
+export type StatusPageOverall = 'operational' | 'degraded' | 'outage' | 'unknown'
+
+// One row of the public status page. Uptime values are percentages; null
+// means there were no checks in that period.
+export interface PublicStatusService {
+  name: string
+  icon: string
+  icon_type: 'emoji' | 'image_upload' | 'image_url'
+  icon_image_path?: string
+  status: 'online' | 'offline' | 'unknown'
+  url?: string // Only when the admin shows links
+  uptime_24h: number | null
+  uptime_7d: number | null
+  bars_24h: (number | null)[]
+  bars_7d: (number | null)[]
+}
+
+// What anonymous visitors get from GET /public/status
+export interface PublicStatusPage {
+  title: string
+  logo?: string
+  overall: StatusPageOverall
+  updated_at: string
+  services: PublicStatusService[]
 }

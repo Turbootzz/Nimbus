@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"testing"
@@ -41,7 +42,77 @@ func TestUptimeKuma(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, map[string]any{"up": 2, "down": 1, "up_percent": 67}, payload.KPIs)
 
+	for _, kpi := range impl.Meta().KPIs {
+		_, reported := payload.KPIs[kpi.Key]
+		assert.Equal(t, kpi.Option != uptimeKumaSlug, reported, kpi.Key)
+	}
+
 	assert.ErrorIs(t, impl.Test(ctx, newTestConn(server.URL, models.IntegrationCredentials{APIKey: "x"})), errRejected)
+	assertUnreachable(t, impl, "/metrics")
+}
+
+func TestUptimeKumaStatusPage(t *testing.T) {
+	impl := registered(t, "uptime_kuma")
+	public := func(body string) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			assert.Empty(t, r.Header.Get("Authorization"), "the API key is not for public endpoints")
+			fmt.Fprint(w, body)
+		}
+	}
+	// Shapes of Uptime Kuma 1.23 and 2.x: heartbeats oldest first, uptime as a ratio
+	server := fakeApp(t, map[string]http.HandlerFunc{
+		"GET /api/status-page/homelab": public(`{"config":{"slug":"homelab","title":"Homelab"},"incident":null,
+			"publicGroupList":[{"id":1,"name":"Services","monitorList":[{"id":1,"name":"Plex"},{"id":2,"name":"NAS"}]}],
+			"maintenanceList":[]}`),
+		"GET /api/status-page/heartbeat/homelab": public(`{
+			"heartbeatList":{
+				"1":[{"status":0,"time":"2026-11-18 10:00:00","msg":"","ping":null},{"status":1,"time":"2026-11-18 10:01:00","msg":"","ping":12}],
+				"2":[{"status":1,"time":"2026-11-18 10:00:00","msg":"","ping":3},{"status":0,"time":"2026-11-18 10:01:00","msg":"","ping":null}],
+				"3":[{"status":1,"time":"2026-11-18 10:01:00","msg":"","ping":5}],
+				"4":[{"status":3,"time":"2026-11-18 10:01:00","msg":"","ping":null}],
+				"5":[]
+			},
+			"uptimeList":{"1_24":0.9987,"2_24":0.5,"3_24":1,"4_24":1,"5_24":0}
+		}`),
+		"GET /api/status-page/gone": func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			fmt.Fprint(w, `{"status":"fail","msg":"Status Page Not Found"}`)
+		},
+		"GET /api/status-page/other-app": public(`{"ok":true}`),
+		// What the server sees when the slug is escaped: one odd segment
+		"GET /api/status-page/../../metrics?x": func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "/api/status-page/..%2F..%2Fmetrics%3Fx", r.RequestURI)
+			w.WriteHeader(http.StatusNotFound)
+		},
+	})
+	ctx := context.Background()
+	conn := newTestConn(server.URL, models.IntegrationCredentials{APIKey: "unused"})
+	conn.Options = json.RawMessage(`{"status_page_slug":"Homelab"}`)
+
+	require.NoError(t, impl.Test(ctx, conn))
+	payload, err := impl.Fetch(ctx, conn)
+	require.NoError(t, err)
+	// Real uptime takes the place of the share that is up
+	assert.Equal(t, map[string]any{"up": 2, "down": 1, "uptime": 69.97}, payload.KPIs)
+	for _, kpi := range impl.Meta().KPIs {
+		_, reported := payload.KPIs[kpi.Key]
+		assert.Equal(t, kpi.Without != uptimeKumaSlug, reported, kpi.Key)
+	}
+
+	conn.Options = json.RawMessage(`{"status_page_slug":"gone"}`)
+	assert.EqualError(t, impl.Test(ctx, conn), "/api/status-page/gone returned status 404")
+	conn.Options = json.RawMessage(`{"status_page_slug":"other-app"}`)
+	assert.EqualError(t, impl.Test(ctx, conn), "/api/status-page/other-app returned an unexpected response")
+
+	// The slug can't leave its path segment
+	conn.Options = json.RawMessage(`{"status_page_slug":"../../metrics?x"}`)
+	assert.Error(t, impl.Test(ctx, conn))
+
+	closed := newTestConn("http://127.0.0.1:1", models.IntegrationCredentials{})
+	closed.Options = json.RawMessage(`{"status_page_slug":"homelab"}`)
+	err = impl.Test(ctx, closed)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "/api/status-page/homelab could not be reached: ")
 }
 
 func TestUptimeKumaNeedsItsMetrics(t *testing.T) {

@@ -1,6 +1,8 @@
 'use client'
 
-import { ClockIcon } from '@heroicons/react/24/outline'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
+import { useTranslations } from 'next-intl'
+import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
   getStatusColor,
@@ -10,14 +12,17 @@ import {
 } from '@/lib/status-utils'
 import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
-import EditOverlay from '@/components/EditOverlay'
+import EditOverlay, { overlayActionClass } from '@/components/EditOverlay'
 import KpiRow, { type ServiceKpis } from '@/components/KpiRow'
+import { useServiceDetail } from '@/components/ServiceHoverDetail'
 
 interface ServiceCardProps {
   service: Service
   openInNewTab: boolean
   isEditMode?: boolean
   onSizeChange?: (id: string, newSize: CardSize) => void
+  // Shows a pencil in edit mode
+  onEdit?: (service: Service) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   enableCardResizing?: boolean
@@ -34,6 +39,7 @@ export default function ServiceCard({
   openInNewTab,
   isEditMode = false,
   onSizeChange,
+  onEdit,
   dragHandleProps,
   isDragging = false,
   enableCardResizing = true,
@@ -41,16 +47,21 @@ export default function ServiceCard({
   isMonitored,
   kpis,
 }: ServiceCardProps) {
+  const t = useTranslations('services')
   const monitored = isMonitored ?? service.monitoring_enabled
   // When card resizing is disabled, always use 2x1
   const cardSize = enableCardResizing ? service.card_size || '2x1' : '2x1'
   // In edit mode, the wrapper div handles grid spanning, so card just fills container
   const gridSpan = isEditMode ? '' : sizeToGridSpan[cardSize]
 
+  // Uptime and last error, on hover, focus or a long press
+  const detail = useServiceDetail(service, monitored, !isEditMode)
+
   const linkProps = {
     href: service.url,
     target: openInNewTab ? '_blank' : '_self',
     ...(openInNewTab && { rel: 'noopener noreferrer' }),
+    ...detail.triggerProps,
   }
 
   const handleClick = () => {
@@ -60,12 +71,28 @@ export default function ServiceCard({
     }
   }
 
+  const editActions = onEdit && (
+    <button
+      type="button"
+      onClick={(e) => {
+        // A click on the tile itself changes its size
+        e.stopPropagation()
+        onEdit(service)
+      }}
+      className={overlayActionClass}
+      aria-label={t('tile.edit', { name: service.name })}
+    >
+      <PencilIcon className="h-4 w-4" />
+    </button>
+  )
+
   const variantProps = {
     service,
     gridSpan,
     linkProps,
     isEditMode,
     onSizeChange: handleClick,
+    editActions,
     dragHandleProps,
     isDragging,
     cardSize,
@@ -75,31 +102,24 @@ export default function ServiceCard({
     kpis,
   }
 
-  // When resizing is disabled, always use StandardCard (2x1)
-  if (!enableCardResizing) {
-    return <StandardCard {...variantProps} />
-  }
+  // When resizing is disabled, cardSize is always 2x1 (StandardCard)
+  const Variant = cardSize === '1x1' ? CompactCard : cardSize === '2x2' ? LargeCard : StandardCard
 
-  switch (cardSize) {
-    case '1x1':
-      return <CompactCard {...variantProps} />
-    case '2x2':
-      return <LargeCard {...variantProps} />
-    default:
-      return <StandardCard {...variantProps} />
-  }
+  return (
+    <>
+      <Variant {...variantProps} />
+      {detail.popover}
+    </>
+  )
 }
 
 interface CardVariantProps {
   service: Service
   gridSpan: string
-  linkProps: {
-    href: string
-    target: string
-    rel?: string
-  }
+  linkProps: AnchorHTMLAttributes<HTMLAnchorElement>
   isEditMode: boolean
   onSizeChange: () => void
+  editActions?: ReactNode
   dragHandleProps?: Record<string, unknown>
   isDragging: boolean
   cardSize: CardSize
@@ -141,6 +161,7 @@ function CompactCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -166,6 +187,7 @@ function CompactCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
           compact
         />
       )}
@@ -206,6 +228,7 @@ function StandardCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -214,6 +237,7 @@ function StandardCard({
   monitored,
   kpis,
 }: CardVariantProps) {
+  const t = useTranslations('services')
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].standard
   const titleSize = scaleText[cardScale].title
@@ -233,17 +257,21 @@ function StandardCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
         />
       )}
-      <div className={`${marginBottom} flex items-start justify-between`}>
+      {/* Edit mode leaves room for the overlay, as widgets do */}
+      <div
+        className={`${marginBottom} ${isEditMode ? 'mt-7' : ''} flex items-start justify-between`}
+      >
         <ServiceIcon service={service} size={iconSize} />
         {monitored ? (
           <div className={`flex items-center ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
-            <span className="ml-1 text-sm capitalize">{service.status}</span>
+            <span className="ml-1 text-sm capitalize">{t(`status.${service.status}`)}</span>
           </div>
         ) : (
-          <span className="text-text-muted text-xs">Not monitored</span>
+          <span className="text-text-muted text-xs">{t('tile.notMonitored')}</span>
         )}
       </div>
 
@@ -297,6 +325,7 @@ function LargeCard({
   linkProps,
   isEditMode,
   onSizeChange,
+  editActions,
   dragHandleProps,
   isDragging,
   cardSize,
@@ -305,6 +334,7 @@ function LargeCard({
   monitored,
   kpis,
 }: CardVariantProps) {
+  const t = useTranslations('services')
   const padding = scalePadding[cardScale].standard
   const iconSize = scaleIconSizes[cardScale].large
   const largeTitleSizes: Record<CardScale, string> = {
@@ -330,17 +360,18 @@ function LargeCard({
           dragHandleProps={dragHandleProps}
           cardSize={cardSize}
           showSizeBadge={showSizeBadge}
+          actions={editActions}
         />
       )}
-      {/* Status in top right */}
-      <div className={`${marginBottom} flex justify-end`}>
+      {/* Status in top right, below the overlay in edit mode */}
+      <div className={`${marginBottom} ${isEditMode ? 'mt-7' : ''} flex justify-end`}>
         {monitored ? (
           <div className={`flex items-center text-sm ${getStatusColor(service.status)}`}>
             {getStatusIcon(service.status)}
-            <span className="ml-1 capitalize">{service.status}</span>
+            <span className="ml-1 capitalize">{t(`status.${service.status}`)}</span>
           </div>
         ) : (
-          <span className="text-text-muted text-xs">Not monitored</span>
+          <span className="text-text-muted text-xs">{t('tile.notMonitored')}</span>
         )}
       </div>
 

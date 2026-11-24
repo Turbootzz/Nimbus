@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -24,6 +24,8 @@ type ServiceHandler struct {
 	healthCheckService *services.HealthCheckService
 	integrationRepo    repository.IntegrationRepositoryInterface
 	poller             services.Poller
+	preferencesRepo    *repository.PreferencesRepository // icon source; may be nil
+	boards             *services.BoardService            // nil: one dashboard per user
 }
 
 func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService, integrationRepo repository.IntegrationRepositoryInterface) *ServiceHandler {
@@ -39,6 +41,12 @@ func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *rep
 // integration link changes, so its KPIs are fetched at once
 func (h *ServiceHandler) SetPoller(p services.Poller) {
 	h.poller = p
+}
+
+// SetBoards makes the handler board-aware: lists take ?board=, and a service
+// can be created on, or moved to, another board of the user
+func (h *ServiceHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func (h *ServiceHandler) kickPoller() {
@@ -83,9 +91,10 @@ func sameID(a, b *string) bool {
 	return *a == *b
 }
 
-// validateGroupOwnership checks that a group exists and belongs to the user.
+// validateGroupOwnership checks that a group exists, belongs to the user and
+// is on the service's board (boardID; "" skips that check).
 // Returns true if valid, false if validation failed (response already sent).
-func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID string) bool {
+func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID, boardID string) bool {
 	if h.groupRepo == nil {
 		c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Group validation unavailable",
@@ -119,6 +128,12 @@ func (h *ServiceHandler) validateGroupOwnership(c *fiber.Ctx, groupID, userID st
 		})
 		return false
 	}
+	if boardID != "" && group.BoardID != boardID {
+		c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid group_id: group is on another board",
+		})
+		return false
+	}
 	return true
 }
 
@@ -138,89 +153,24 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.Name == "" || req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name and URL are required",
-		})
+	service, err := services.NewServiceFromRequest(&req)
+	if err != nil {
+		return serviceError(c, err, "create service", nil)
 	}
 
-	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
-		})
+	// The board: the user's default one unless the request names another of theirs
+	boardID := ""
+	if req.BoardID != nil {
+		boardID = *req.BoardID
 	}
-
-	// Validate and set icon fields
-	iconType := req.IconType
-	if iconType == "" {
-		iconType = models.IconTypeEmoji
-	}
-
-	// Validate icon_type
-	if iconType != models.IconTypeEmoji && iconType != models.IconTypeImageUpload && iconType != models.IconTypeImageURL {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid icon_type. Must be 'emoji', 'image_upload', or 'image_url'",
-		})
-	}
-
-	// Set default emoji if emoji type and no icon provided
-	icon := req.Icon
-	if iconType == models.IconTypeEmoji && icon == "" {
-		icon = models.DefaultIcon
-	}
-
-	// Validate icon_image_path for image types
-	iconImagePath := strings.TrimSpace(req.IconImagePath)
-	if iconType == models.IconTypeImageUpload {
-		if iconImagePath == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path is required for image_upload type",
-			})
-		}
-		// Prevent path traversal attacks - only allow filename, no path separators
-		if strings.Contains(iconImagePath, "..") || strings.Contains(iconImagePath, "/") || strings.Contains(iconImagePath, "\\") {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path must be a filename only, no path separators allowed",
-			})
-		}
-	}
-	if iconType == models.IconTypeImageURL {
-		if iconImagePath == "" {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "icon_image_path (URL) is required for image_url type",
-			})
-		}
-		// Validate URL format (no SSRF risk since browser renders the URL, not the server)
-		if err := utils.ValidateIconURL(iconImagePath); err != nil {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": fmt.Sprintf("Invalid image URL: %s", err.Error()),
-			})
-		}
-	}
-
-	// Validate and set card_size
-	cardSize := req.CardSize
-	if cardSize == "" {
-		cardSize = models.DefaultCardSize
-	}
-	if !models.IsValidCardSize(cardSize) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid card_size. Must be '1x1', '2x1', or '2x2'",
-		})
-	}
-
-	// Default monitoring to enabled
-	monitoringEnabled := true
-	if req.MonitoringEnabled != nil {
-		monitoringEnabled = *req.MonitoringEnabled
+	board, err := h.boards.ResolveOwned(c.Context(), userID, boardID)
+	if err != nil {
+		return serviceError(c, err, "create service", boardNotFound)
 	}
 
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+		if !h.validateGroupOwnership(c, *req.GroupID, userID, board.ID()) {
 			return nil // Response already sent
 		}
 	}
@@ -233,23 +183,10 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 		}
 	}
 
-	// Create service
-	service := &models.Service{
-		UserID:            userID,
-		Name:              req.Name,
-		URL:               req.URL,
-		Icon:              icon,
-		IconType:          iconType,
-		IconImagePath:     iconImagePath,
-		Description:       req.Description,
-		Status:            models.StatusUnknown, // Initial status
-		CardSize:          cardSize,
-		GroupID:           req.GroupID,
-		IntegrationID:     integrationID,
-		MonitoringEnabled: monitoringEnabled,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
-	}
+	service.UserID = userID
+	service.BoardID = board.ID()
+	service.GroupID = req.GroupID
+	service.IntegrationID = integrationID
 
 	if err := h.serviceRepo.Create(c.Context(), service); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -265,24 +202,36 @@ func (h *ServiceHandler) CreateService(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(service.ToResponse())
 }
 
-// GetServices retrieves all services for the authenticated user
+// GetServices retrieves the services of one board: ?board=<id>, or the
+// user's default board
 func (h *ServiceHandler) GetServices(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
 	}
+	board, err := requestBoard(c, h.boards, userID)
+	if err != nil {
+		return serviceError(c, err, "retrieve services", boardNotFound)
+	}
 
-	// Get all services for user
-	services, err := h.serviceRepo.GetAllByUserID(c.Context(), userID)
+	var list []*models.Service
+	if board.Board == nil {
+		list, err = h.serviceRepo.GetAllByUserID(c.Context(), userID)
+	} else {
+		list, err = h.serviceRepo.GetAllByBoardID(c.Context(), board.Board.ID)
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve services",
 		})
 	}
+	if !board.CanEdit {
+		services.ServicesForViewer(list)
+	}
 
 	// Convert to response format
-	response := make([]models.ServiceResponse, 0, len(services))
-	for _, service := range services {
+	response := make([]models.ServiceResponse, 0, len(list))
+	for _, service := range list {
 		response = append(response, service.ToResponse())
 	}
 
@@ -347,21 +296,6 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate required fields
-	if req.Name == "" || req.URL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name and URL are required",
-		})
-	}
-
-	// Validate URL format
-	parsedURL, err := url.ParseRequestURI(req.URL)
-	if err != nil || parsedURL.Scheme == "" || parsedURL.Host == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid URL format. URL must include scheme (http/https) and host",
-		})
-	}
-
 	// Get existing service to verify ownership
 	existingService, err := h.serviceRepo.GetByID(c.Context(), serviceID)
 	if err != nil {
@@ -382,9 +316,52 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		})
 	}
 
+	// A field the body leaves out keeps its stored value, so a resize or a
+	// group move sends only its own field; one sent empty is still rejected
+	var sent map[string]json.RawMessage
+	if json.Unmarshal(c.Body(), &sent) == nil {
+		if _, ok := sent["name"]; !ok {
+			req.Name = existingService.Name
+		}
+		if _, ok := sent["url"]; !ok {
+			req.URL = existingService.URL
+		}
+		if _, ok := sent["description"]; !ok {
+			req.Description = existingService.Description
+		}
+	}
+
+	// Validate required fields
+	if req.Name == "" || req.URL == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Name and URL are required",
+		})
+	}
+
+	// http(s) only: the URL becomes a link on the tile and a health check
+	// target. A stored URL the request leaves alone is not checked again, so
+	// a service from before this rule can still be resized or moved.
+	if req.URL != existingService.URL {
+		if err := utils.ValidateServiceURL(req.URL); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid URL: " + err.Error(),
+			})
+		}
+	}
+
+	// Another board of the user moves the service there, out of its group
+	boardID, moved := existingService.BoardID, false
+	if req.BoardID != nil && *req.BoardID != "" && !strings.EqualFold(*req.BoardID, boardID) {
+		board, err := h.boards.ResolveOwned(c.Context(), userID, *req.BoardID)
+		if err != nil {
+			return serviceError(c, err, "update service", boardNotFound)
+		}
+		boardID, moved = board.ID(), true
+	}
+
 	// Validate group_id belongs to user if provided
 	if req.GroupID != nil && *req.GroupID != "" {
-		if !h.validateGroupOwnership(c, *req.GroupID, userID) {
+		if !h.validateGroupOwnership(c, *req.GroupID, userID, boardID) {
 			return nil // Response already sent
 		}
 	}
@@ -501,6 +478,18 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 		existingService.MonitoringEnabled = *req.MonitoringEnabled
 	}
 	existingService.UpdatedAt = time.Now()
+
+	if moved {
+		notFound := map[error]string{repository.ErrBoardNotFound: "Board not found", repository.ErrTileNotFound: "Service not found"}
+		position, err := h.boards.MoveTile(c.Context(), userID, models.TileKindService, serviceID, boardID)
+		if err != nil {
+			return serviceError(c, err, "move service", notFound)
+		}
+		existingService.BoardID, existingService.Position = boardID, position
+		if req.GroupID == nil {
+			existingService.GroupID = nil
+		}
+	}
 
 	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

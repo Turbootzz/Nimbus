@@ -89,9 +89,13 @@ func (h *PreferencesHandler) GetPreferences(c *fiber.Ctx) error {
 			EnableServiceGrouping: true,
 			CardScale:             "medium",
 			ViewMode:              "grid",
-			CardOpacity:           100,
+			CardOpacity:           75,
+			CardBlur:              12,
 			LayoutMode:            "canvas",
 			StatusStrip:           models.StatusStrip{Chips: []models.StatusChip{}},
+			ThemePreset:           models.DefaultThemePreset,
+			ThemeFont:             models.DefaultThemeFont,
+			IconSource:            models.DefaultIconSource,
 			UpdatedAt:             time.Time{}, // Zero value for time
 		})
 	}
@@ -155,6 +159,22 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error":  "Validation failed",
 				"fields": map[string]string{"theme_accent_color": "theme_accent_color must be a valid hex color (e.g., #3B82F6)"},
+			})
+		}
+	}
+
+	if language := req.Language.GetValue(); req.Language.IsSet() && language != nil && !models.ValidLanguage(*language) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":  "Validation failed",
+			"fields": map[string]string{"language": "language must be one of: " + models.Languages},
+		})
+	}
+
+	if req.CustomCSS != nil {
+		if err := utils.ValidateCustomCSS(*req.CustomCSS); err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error":  "Validation failed",
+				"fields": map[string]string{"custom_css": err.Error()},
 			})
 		}
 	}

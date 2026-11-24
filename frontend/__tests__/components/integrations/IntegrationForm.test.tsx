@@ -75,6 +75,17 @@ describe('IntegrationForm', () => {
     expect(screen.queryByLabelText('Token')).not.toBeInTheDocument()
   })
 
+  it("shows a kind's hint under the URL", () => {
+    const withHint = [
+      { ...kinds[0], hint: 'Through Portainer: use an API key.' },
+      ...kinds.slice(1),
+    ]
+    render(<IntegrationForm kinds={withHint} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.getByText(/Through Portainer: use an API key\./)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: kinds[1].kind } })
+    expect(screen.queryByText(/Through Portainer/)).not.toBeInTheDocument()
+  })
+
   it('keeps saved credentials when editing without typing new ones', async () => {
     const integration = makeIntegration()
     vi.mocked(api.updateIntegration).mockResolvedValue({ data: integration })
@@ -149,5 +160,100 @@ describe('IntegrationForm', () => {
       />
     )
     expect(screen.getByLabelText('API key')).toHaveAttribute('autocomplete', 'new-password')
+  })
+
+  // A kind that declares options; the form has no code per kind
+  const withOptions = [
+    ...kinds,
+    {
+      kind: 'proxmox',
+      name: 'Proxmox VE',
+      auth_types: ['token' as const],
+      options: [
+        {
+          key: 'node',
+          label: 'Node',
+          help: 'Only count this node.',
+          placeholder: 'pve',
+          max_length: 63,
+          pattern: '[a-z0-9]+',
+        },
+        { key: 'pool', label: 'Pool', required: true },
+        { key: 'limit', label: 'Limit', type: 'number' as const },
+      ],
+    },
+  ]
+
+  it('renders the options a kind declares and sends them', async () => {
+    vi.mocked(api.createIntegration).mockResolvedValue({ data: makeIntegration() })
+    render(<IntegrationForm kinds={withOptions} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.queryByLabelText('Node')).not.toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'proxmox' } })
+    const node = screen.getByLabelText('Node')
+    expect(node).toHaveAttribute('placeholder', 'pve')
+    expect(node).toHaveAttribute('maxlength', '63')
+    expect(node).toHaveAttribute('pattern', '[a-z0-9]+')
+    expect(node).toHaveAccessibleDescription('Only count this node.')
+    expect(screen.getByLabelText('Pool')).toBeRequired()
+    expect(screen.getByLabelText('Limit')).toHaveAttribute('type', 'number')
+
+    fireEvent.change(node, { target: { value: ' pve1 ' } })
+    fireEvent.change(screen.getByLabelText('URL'), { target: { value: 'https://pve.lan:8006' } })
+    fireEvent.change(screen.getByLabelText('Token'), { target: { value: 't' } })
+    fireEvent.submit(node.closest('form')!)
+    await waitFor(() => expect(api.createIntegration).toHaveBeenCalled())
+    expect(vi.mocked(api.createIntegration).mock.calls[0][0].options).toEqual({ node: 'pve1' })
+
+    // Another kind starts without them
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'sonarr' } })
+    expect(screen.queryByLabelText('Node')).not.toBeInTheDocument()
+  })
+
+  it('drops the error and the options of the previous kind', async () => {
+    vi.mocked(api.createIntegration).mockResolvedValue({
+      error: { message: 'Node is not valid; it looks like pve' },
+    })
+    render(<IntegrationForm kinds={withOptions} onClose={() => {}} onSaved={() => {}} />)
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'proxmox' } })
+    fireEvent.change(screen.getByLabelText('Node'), { target: { value: 'x' } })
+    fireEvent.submit(screen.getByLabelText('Node').closest('form')!)
+    expect(await screen.findByText('Node is not valid; it looks like pve')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'sonarr' } })
+    expect(screen.queryByText(/Node is not valid/)).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('App'), { target: { value: 'proxmox' } })
+    expect(screen.getByLabelText('Node')).toHaveValue('')
+  })
+
+  it('shows the stored options when editing and removes a cleared one', async () => {
+    const integration = makeIntegration({
+      kind: 'proxmox',
+      auth_type: 'token',
+      options: { node: 'pve1', pool: 'lab' },
+    })
+    vi.mocked(api.updateIntegration).mockResolvedValue({ data: integration })
+    render(
+      <IntegrationForm
+        kinds={withOptions}
+        integration={integration}
+        onClose={() => {}}
+        onSaved={() => {}}
+      />
+    )
+    expect(screen.getByLabelText('Node')).toHaveValue('pve1')
+    expect(screen.getByLabelText('Pool')).toHaveValue('lab')
+
+    fireEvent.change(screen.getByLabelText('Node'), { target: { value: '' } })
+    fireEvent.click(screen.getByText('Save Changes'))
+    await waitFor(() => expect(api.updateIntegration).toHaveBeenCalled())
+    expect(vi.mocked(api.updateIntegration).mock.calls[0][1].options).toEqual({ pool: 'lab' })
+  })
+
+  it('warns when the TLS check is turned off', () => {
+    render(<IntegrationForm kinds={kinds} onClose={() => {}} onSaved={() => {}} />)
+    expect(screen.queryByText(/self-signed certificate on a network/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Verify TLS certificate'))
+    expect(screen.getByText(/self-signed certificate on a network/)).toBeInTheDocument()
   })
 })

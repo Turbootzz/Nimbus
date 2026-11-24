@@ -1,0 +1,1492 @@
+{
+  "admin": {
+    "page": {
+      "title": "Ajustes de administración",
+      "subtitle": "Configura los ajustes de Nimbus para todo el sistema",
+      "immediate": "Los cambios se aplican de inmediato",
+      "loadFailed": "No se pudieron cargar los ajustes",
+      "updateFailed": "No se pudo actualizar el ajuste",
+      "registration": {
+        "title": "Registro de usuarios",
+        "description": "Controla cómo pueden unirse nuevos usuarios a tu instancia de Nimbus",
+        "toggle": "Registro público",
+        "toggleDescription": "Permite que nuevos usuarios creen cuentas. Si está desactivado, solo los administradores pueden crear usuarios."
+      },
+      "discovery": {
+        "title": "Detección de Docker",
+        "description": "Los contenedores tras la integración de Docker de un administrador aparecen en Descubiertos, en la página Servicios",
+        "toggle": "Añadir automáticamente contenedores etiquetados",
+        "toggleDescription": "Añade sin preguntar los contenedores con la etiqueta nimbus.enable=true y un nimbus.url al panel de ese administrador. Los contenedores sin etiqueta y las direcciones adivinadas nunca se añaden por sí solos."
+      },
+      "smtp": {
+        "title": "Correo / SMTP",
+        "description": "Configura SMTP para los correos de restablecimiento de contraseña"
+      },
+      "statusPage": {
+        "title": "Página de estado pública",
+        "description": "Comparte el tiempo de actividad de un grupo de servicios en una página que no necesita cuenta"
+      }
+    },
+    "smtp": {
+      "saved": "Ajustes de SMTP guardados",
+      "saveFailed": "No se pudieron guardar los ajustes",
+      "testSucceeded": "Conexión SMTP correcta",
+      "testFailed": "La prueba de conexión falló",
+      "testError": "No se pudo probar la conexión SMTP",
+      "fromEnv": "SMTP está preconfigurado. Puedes sobrescribir estos ajustes abajo.",
+      "notConfigured": "SMTP no está configurado. Rellena los campos de abajo y activa SMTP para permitir los correos de restablecimiento de contraseña.",
+      "enable": "Activar SMTP",
+      "enableDescription": "Necesario para los correos de restablecimiento de contraseña",
+      "host": "Servidor SMTP",
+      "port": "Puerto SMTP",
+      "encryption": "Cifrado",
+      "encryptionModes": {
+        "auto": "Automático (según el puerto)",
+        "starttls": "STARTTLS",
+        "tls": "TLS implícito (puerto 465)",
+        "none": "Ninguno (sin cifrar)"
+      },
+      "username": "Usuario",
+      "password": "Contraseña",
+      "fromEmail": "Correo del remitente",
+      "fromName": "Nombre del remitente",
+      "unencryptedWarning": "Los correos se envían sin cifrar. Úsalo solo para un relay en una red de confianza. El usuario y la contraseña deben quedar vacíos, ya que se enviarían en texto plano.",
+      "skipVerify": "Omitir la verificación del certificado",
+      "skipVerifyDescription": "Permite certificados autofirmados. Déjalo desactivado salvo que tu relay lo necesite.",
+      "saving": "Guardando...",
+      "save": "Guardar ajustes",
+      "testing": "Probando...",
+      "test": "Probar conexión"
+    },
+    "statusPage": {
+      "loadFailed": "No se pudieron cargar los ajustes de la página de estado",
+      "logoTooLarge": "El logo supera los 512 KB",
+      "uploadFailed": "No se pudo subir el logo",
+      "saved": "Página de estado guardada",
+      "saveFailed": "No se pudo guardar la página de estado",
+      "loading": "Cargando...",
+      "enable": "Activar la página de estado",
+      "enableDescription": "Cualquiera que pueda acceder a este Nimbus puede abrir /status sin iniciar sesión. Mientras esté desactivada, la página no existe.",
+      "group": "Grupo que se muestra",
+      "chooseGroup": "Elige un grupo",
+      "groupMissing": "El grupo elegido no es tuyo o ya no existe. Elige uno de tus grupos para mostrar la página.",
+      "title": "Título",
+      "groupsNote": "Los grupos son personales, así que la página muestra uno de tus propios grupos. Solo aparecen sus servicios supervisados: nombre, icono, estado y tiempo de actividad. No se comparte nada más sobre ellos.",
+      "logo": "Logo",
+      "currentLogo": "Logo actual",
+      "logoFile": "Archivo del logo",
+      "uploading": "Subiendo...",
+      "replace": "Reemplazar",
+      "upload": "Subir",
+      "remove": "Quitar",
+      "logoHint": "JPG, PNG, GIF o WEBP, hasta 512 KB",
+      "showLinks": "Mostrar enlaces",
+      "showLinksDescription": "Convierte el nombre de cada servicio en un enlace a su URL y muestra iconos cargados desde una URL. Déjalo desactivado para mantener privadas tus direcciones.",
+      "saving": "Guardando...",
+      "save": "Guardar página de estado",
+      "open": "Abrir página de estado"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "Tokens de API",
+      "description": "Crea tokens de acceso personales para el acceso programático. Envíalos como",
+      "loadFailed": "No se pudieron cargar los tokens de API",
+      "createFailed": "No se pudo crear el token",
+      "confirmRevoke": "¿Revocar \"{name}\"? Los clientes que lo usan dejarán de funcionar de inmediato.",
+      "never": "Nunca",
+      "created": "Token creado. No podrás volver a ver este token — cópialo ahora.",
+      "copied": "¡Copiado!",
+      "copy": "Copiar",
+      "createTitle": "Crear un token nuevo",
+      "namePlaceholder": "Nombre del token (p. ej. panel Hearth)",
+      "name": "Nombre del token",
+      "scopes": "Permisos",
+      "noScope": "Selecciona al menos un permiso.",
+      "expires": "Caduca",
+      "creating": "Creando…",
+      "create": "Crear token",
+      "empty": "Aún no hay tokens de API. Crea uno arriba.",
+      "expired": "caducado",
+      "dates": "Creado: {created} · Último uso: {lastUsed} · Caduca: {expires}",
+      "revokeLabel": "Revocar {name}",
+      "revoking": "Revocando…",
+      "revoke": "Revocar"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Leer servicios",
+        "description": "Servicios y grupos"
+      },
+      "read:metrics": {
+        "label": "Leer métricas",
+        "description": "Tiempo de actividad, historial de estado y la exportación de Prometheus"
+      },
+      "read:widgets": {
+        "label": "Leer widgets",
+        "description": "Widgets y datos del panel"
+      },
+      "write:services": {
+        "label": "Escribir servicios",
+        "description": "Crear, cambiar, eliminar y volver a comprobar servicios y grupos"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Permite que un asistente de IA lea tu panel a través de /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# día} other {# días}}",
+      "years": "{count, plural, one {# año} other {# años}}"
+    }
+  },
+  "auth": {
+    "layout": {
+      "tagline": "Tu panel personal para el homelab"
+    },
+    "login": {
+      "title": "Hola de nuevo",
+      "subtitle": "Inicia sesión en tu cuenta",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "rememberMe": "Recordarme",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "submit": "Iniciar sesión",
+      "submitting": "Iniciando sesión...",
+      "orContinueWith": "O continúa con",
+      "noAccount": "¿No tienes una cuenta?",
+      "signUp": "Regístrate",
+      "loading": "Cargando...",
+      "errors": {
+        "apiUnreachable": "No se puede acceder al servidor de la API. Si usas Docker, asegúrate de que NEXT_PUBLIC_API_URL apunte a la IP de tu servidor (p. ej., http://192.168.1.100:8080), no a \"http://backend:8080\".",
+        "invalidResponse": "La API devolvió una respuesta no válida. Revisa la configuración del servidor.",
+        "invalidCredentials": "Correo electrónico o contraseña incorrectos",
+        "failed": "No se pudo iniciar sesión. Inténtalo de nuevo."
+      }
+    },
+    "register": {
+      "title": "Crear cuenta",
+      "subtitle": "Empieza con Nimbus",
+      "fullName": "Nombre completo",
+      "namePlaceholder": "Juan Pérez",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "passwordHint": "Debe tener al menos 8 caracteres",
+      "confirmPassword": "Confirmar contraseña",
+      "submit": "Crear cuenta",
+      "submitting": "Creando cuenta...",
+      "haveAccount": "¿Ya tienes una cuenta?",
+      "signIn": "Iniciar sesión",
+      "disabled": {
+        "title": "Registro desactivado",
+        "message": "El registro público está desactivado en esta instancia de Nimbus.",
+        "contactAdmin": "Ponte en contacto con un administrador si necesitas una cuenta."
+      },
+      "errors": {
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "apiUnreachable": "No se puede acceder al servidor de la API. Si usas Docker, asegúrate de que NEXT_PUBLIC_API_URL apunte a la IP de tu servidor (p. ej., http://192.168.1.100:8080), no a \"http://backend:8080\".",
+        "invalidResponse": "La API devolvió una respuesta no válida. Revisa la configuración del servidor.",
+        "disabled": "El registro público está desactivado. Ponte en contacto con un administrador.",
+        "failed": "No se pudo completar el registro",
+        "failedRetry": "No se pudo completar el registro. Inténtalo de nuevo."
+      }
+    },
+    "setup": {
+      "checking": "Comprobando el estado de la configuración...",
+      "connectionError": {
+        "title": "Error de conexión",
+        "message": "No se puede conectar con el backend de Nimbus.",
+        "hint": "Asegúrate de que el servidor backend esté en marcha e inténtalo de nuevo.",
+        "retry": "Reintentar"
+      },
+      "welcome": {
+        "title": "Bienvenido a Nimbus",
+        "subtitle": "Vamos a configurar tu panel del homelab",
+        "intro": "Para empezar, crea una cuenta de administrador.",
+        "getStarted": "Empezar"
+      },
+      "complete": {
+        "title": "¡Configuración completada!",
+        "redirecting": "Redirigiendo a tu panel..."
+      },
+      "create": {
+        "title": "Crear cuenta de administrador",
+        "subtitle": "Será el primer administrador",
+        "fullName": "Nombre completo",
+        "namePlaceholder": "Admin",
+        "email": "Correo electrónico",
+        "password": "Contraseña",
+        "passwordHint": "Debe tener al menos 8 caracteres",
+        "confirmPassword": "Confirmar contraseña",
+        "back": "Atrás",
+        "submit": "Crear administrador",
+        "submitting": "Creando..."
+      },
+      "errors": {
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "failed": "No se pudo crear la cuenta de administrador",
+        "failedRetry": "No se pudo crear la cuenta de administrador. Inténtalo de nuevo."
+      }
+    },
+    "forgotPassword": {
+      "title": "Restablece tu contraseña",
+      "subtitle": "Introduce tu correo electrónico y te enviaremos un enlace para restablecerla",
+      "email": "Correo electrónico",
+      "submit": "Enviar enlace",
+      "submitting": "Enviando...",
+      "success": "Si existe una cuenta con ese correo electrónico, te hemos enviado un enlace para restablecer la contraseña. Revisa tu bandeja de entrada.",
+      "backToLogin": "Volver a iniciar sesión",
+      "rememberPassword": "¿Recuerdas tu contraseña?",
+      "signIn": "Iniciar sesión",
+      "errors": {
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      }
+    },
+    "resetPassword": {
+      "loading": "Cargando...",
+      "invalidLink": {
+        "title": "Enlace no válido",
+        "message": "Este enlace para restablecer la contraseña no es válido o ha caducado. Solicita uno nuevo.",
+        "requestNew": "Solicitar un nuevo enlace"
+      },
+      "title": "Establecer nueva contraseña",
+      "subtitle": "Introduce tu nueva contraseña a continuación",
+      "newPassword": "Nueva contraseña",
+      "confirmPassword": "Confirmar nueva contraseña",
+      "submit": "Restablecer contraseña",
+      "submitting": "Restableciendo...",
+      "success": "Tu contraseña se ha restablecido correctamente.",
+      "signInWithNew": "Inicia sesión con tu nueva contraseña",
+      "errors": {
+        "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",
+        "passwordMismatch": "Las contraseñas no coinciden",
+        "generic": "Algo salió mal. Inténtalo de nuevo."
+      }
+    },
+    "oauth": {
+      "continueWith": "Continuar con {provider}",
+      "connecting": "Conectando..."
+    }
+  },
+  "backup": {
+    "page": {
+      "title": "Exportar e importar",
+      "description": "Haz una copia de seguridad de tu panel, llévalo a otro Nimbus o comparte su diseño."
+    },
+    "export": {
+      "title": "Exportar",
+      "description": "Descarga tus grupos, servicios, widgets, integraciones y preferencias en un solo archivo JSON, con los iconos y el fondo de pantalla subidos incluidos. Las credenciales de las integraciones, los valores de cabecera de los widgets de API personalizada y las direcciones de los feeds de calendario nunca se incluyen; las demás URL se exportan tal como las introdujiste.",
+      "export": "Exportar panel",
+      "exporting": "Exportando…",
+      "failed": "No se pudo exportar el panel",
+      "omittedImages": "{count, plural, one {# imagen subida faltaba o era demasiado grande y se dejó} other {# imágenes subidas faltaban o eran demasiado grandes y se dejaron}} fuera del archivo."
+    },
+    "import": {
+      "title": "Importar",
+      "description": "Carga un archivo exportado desde Nimbus. Verás lo que hace antes de que cambie nada.",
+      "fileLabel": "Archivo del panel",
+      "chooseFile": "Elegir archivo",
+      "noFile": "Ningún archivo elegido",
+      "howToImport": "Cómo importar",
+      "modes": {
+        "merge": {
+          "label": "Combinar",
+          "description": "Añade el archivo a lo que ya tienes. Tus preferencias se quedan como están. Importar el mismo archivo dos veces lo añade todo dos veces."
+        },
+        "replace": {
+          "label": "Reemplazar",
+          "description": "Elimina tu panel actual y usa el archivo en su lugar."
+        }
+      },
+      "checking": "Comprobando el archivo…",
+      "failed": "La importación falló",
+      "tooLarge": "El archivo es demasiado grande. Una exportación ocupa como máximo 10 MB.",
+      "unreadable": "No se pudo leer el archivo",
+      "replaceWarning": {
+        "title": "Reemplazar elimina tu panel actual.",
+        "body": "Se eliminan los grupos, servicios y widgets de tu tablero predeterminado y de los tableros que incluye el archivo, junto con el historial de estado de esos servicios. También se eliminan tus integraciones y sus credenciales guardadas, salvo las que los mosaicos de tus otros tableros siguen usando. Los demás tableros se quedan como están. Se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero si quieres poder volver atrás."
+      },
+      "customCss": {
+        "title": "Este archivo trae CSS personalizado (léelo antes de importar)",
+        "description": "Cambia el estilo de todas las páginas tras el inicio de sesión. No puede cargar nada de otro sitio, pero puede ocultar o cambiar lo que ves.",
+        "label": "CSS personalizado del archivo"
+      },
+      "replaceButton": "Reemplazar mi panel",
+      "importButton": "Importar",
+      "finished": "Importación terminada.",
+      "openDashboard": "Abrir el panel",
+      "confirm": {
+        "title": "¿Reemplazar tu panel?",
+        "message": "Esto elimina {count, plural, one {# elemento existente} other {# elementos existentes}}, con las credenciales y el historial de estado asociados, sobrescribe tus preferencias y después importa el archivo. No se puede deshacer.",
+        "confirm": "Reemplazar"
+      },
+      "statusPage": {
+        "kept": "La página de estado pública pasa al grupo «{group}» del archivo.",
+        "offline": "La página de estado pública se desconecta: el archivo no tiene ningún grupo «{group}». Vuelve a elegir un grupo en Ajustes → Ajustes de administración."
+      },
+      "summary": {
+        "willDo": "Esta importación va a",
+        "hasDone": "Esta importación ha",
+        "add": "Añadir",
+        "added": "Añadido",
+        "delete": "Eliminar",
+        "deleted": "Eliminado",
+        "entities": {
+          "groups": "grupos",
+          "services": "servicios",
+          "widgets": "widgets",
+          "integrations": "integraciones"
+        },
+        "preferencesFromFile": "Preferencias (tema, diseño, fondo de pantalla, barra de estado): tomadas del archivo",
+        "preferencesKept": "Preferencias (tema, diseño, fondo de pantalla, barra de estado): se quedan como están",
+        "needsCredentials": "{count, plural, one {# integración llega} other {# integraciones llegan}} sin credenciales. Introdúcelas en Ajustes → Integraciones.",
+        "needsSecrets": "{count, plural, one {# widget necesita} other {# widgets necesitan}} que vuelvas a introducir sus secretos (valores de cabecera, direcciones de calendario)."
+      }
+    },
+    "wizard": {
+      "title": "Importar desde otro panel",
+      "description": "Cámbiate desde Homepage, Homarr, Homer o Dashy, o empieza con un archivo docker-compose. Pega la configuración o elige el archivo. Se añade a tu panel; no se cambia nada de lo que tienes. Las claves de API y contraseñas de la configuración no se transfieren.",
+      "format": "Formato",
+      "detectAutomatically": "Detectar automáticamente",
+      "expects": {
+        "homepage": "Espera services.yaml o bookmarks.yaml.",
+        "homarr": "Espera una configuración de tablero (JSON) de Homarr 0.x.",
+        "homer": "Espera config.yml.",
+        "dashy": "Espera conf.yml.",
+        "compose": "Espera docker-compose.yml."
+      },
+      "dockerHost": "Host de Docker",
+      "dockerHostPlaceholder": "Este host",
+      "dockerHostHelp": "Solo para docker-compose: el nombre de host o la dirección IP en la que se alcanzan sus puertos publicados. Vacío significa el host de esta página.",
+      "config": "Configuración",
+      "configPlaceholder": "Pega aquí el YAML o JSON",
+      "configFile": "Archivo de configuración",
+      "chooseFile": "Elegir archivo",
+      "convert": "Convertir",
+      "working": "Procesando…",
+      "tooLarge": "El archivo es demasiado grande. Una configuración ocupa como máximo 1 MB.",
+      "checkFailed": "No se pudo comprobar la importación",
+      "convertFailed": "No se pudo convertir la configuración",
+      "importFailed": "La importación falló",
+      "readAs": "Leído como <b>{format}</b>: {services, plural, one {# servicio} other {# servicios}}, {groups, plural, one {# grupo} other {# grupos}}, {integrations, plural, one {# integración} other {# integraciones}}.",
+      "warnings": "No se pudo transferir todo ({count})",
+      "groups": "Grupos",
+      "groupInConfig": "Grupo en la configuración",
+      "goesInto": "Va a",
+      "groupFor": "Grupo para {name}",
+      "newGroup": "Nuevo grupo «{name}»",
+      "defaultGroup": "{name} (predeterminado)",
+      "services": "Servicios",
+      "name": "Nombre",
+      "url": "URL",
+      "group": "Grupo",
+      "integration": "Integración",
+      "integrations": "Integraciones",
+      "app": "App",
+      "address": "Dirección",
+      "credentialsNote": "Las credenciales no se transfieren. Introdúcelas en Ajustes → Integraciones después de importar.",
+      "import": "Importar",
+      "finished": "Importación terminada.",
+      "openDashboard": "Abrir el panel"
+    }
+  },
+  "boards": {
+    "manager": {
+      "title": "Tableros",
+      "close": "Cerrar",
+      "yourBoards": "Tus tableros",
+      "nameOf": "Nombre de {name}",
+      "moveUp": "Subir {name}",
+      "moveDown": "Bajar {name}",
+      "delete": "Eliminar {name}",
+      "defaultBoard": "Tablero predeterminado, en /dashboard",
+      "shared": "Compartido con todos los usuarios, solo lectura",
+      "newBoard": "Nuevo tablero",
+      "namePlaceholder": "p. ej., Familia",
+      "create": "Crear",
+      "share": "Compartir con todos los usuarios, solo lectura",
+      "shareHint": "Todos los usuarios ven todos los mosaicos de un tablero compartido, incluidos los widgets solo para administradores, como contenedores de Docker, estadísticas del sistema y datos de API personalizados."
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar “{name}”?",
+      "tilesLegend": "Sus servicios, widgets y grupos:",
+      "moveTo": "Moverlos a",
+      "moveToLabel": "Tablero al que moverlos",
+      "deleteTiles": "Eliminarlos con el tablero",
+      "warning": "Se eliminarán para siempre. No se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar tablero"
+    },
+    "select": {
+      "label": "Tablero",
+      "current": "{name} (este tablero)",
+      "thisBoard": "Este tablero",
+      "hint": "En otro tablero se añade al final, fuera de cualquier grupo."
+    },
+    "switcher": {
+      "title": "Tableros",
+      "current": "Tablero:",
+      "manage": "Gestionar tableros",
+      "shared": "compartido"
+    }
+  },
+  "dashboard": {
+    "view": {
+      "loading": "Cargando panel...",
+      "readOnlyShared": "Solo lectura: tablero compartido",
+      "widgetsFailed": "No se pudieron cargar los widgets. Recarga la página para verlos; hasta entonces no se puede cambiar el orden.",
+      "emptyGroup": {
+        "title": "Todavía no hay nada en este grupo",
+        "description": "Añade un servicio o un widget a este grupo para verlo aquí.",
+        "addService": "Añadir servicio"
+      },
+      "deleteWidget": {
+        "title": "Eliminar widget",
+        "message": "¿Seguro que quieres eliminar este widget? No se puede deshacer.",
+        "confirm": "Eliminar"
+      },
+      "deleteGroup": {
+        "title": "Eliminar grupo",
+        "confirm": "¿Seguro que quieres eliminar «{name}»?",
+        "moveNote": "Los servicios y widgets de este grupo se moverán al grupo predeterminado.",
+        "deleteContents": "Eliminar definitivamente todos los servicios y widgets de este grupo",
+        "warning": "Atención: esto eliminará definitivamente todos los servicios y widgets de este grupo. Esta acción no se puede deshacer.",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Solo lectura: gestionado por un archivo de configuración",
+      "done": "Listo",
+      "edit": "Editar",
+      "addWidget": "Añadir widget",
+      "addService": "Añadir servicio"
+    },
+    "stats": {
+      "totalServices": "Servicios totales",
+      "online": "En línea",
+      "offline": "Sin conexión",
+      "avgResponse": "Respuesta media"
+    },
+    "kpis": {
+      "loading": "Cargando",
+      "lastUpdateFailed": "Falló la última actualización: {error}",
+      "stale": "Es posible que estos datos estén desactualizados"
+    },
+    "statusStrip": {
+      "label": "Estado",
+      "down": "{count, plural, one {# caído} other {# caídos}}",
+      "operational": "Todo operativo",
+      "customApi": "API personalizada"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitorización desactivada para este grupo",
+      "tabs": {
+        "edit": "Editar grupo",
+        "delete": "Eliminar grupo",
+        "addNew": "Añadir grupo nuevo",
+        "add": "Añadir"
+      },
+      "sections": {
+        "addGroup": "Añadir grupo",
+        "moveUp": "Subir {name}",
+        "moveDown": "Bajar {name}",
+        "edit": "Editar {name}",
+        "delete": "Eliminar {name}",
+        "dropHere": "Suelta un mosaico aquí.",
+        "empty": "Todavía no hay nada en este grupo."
+      },
+      "form": {
+        "editTitle": "Editar grupo",
+        "createTitle": "Crear grupo",
+        "close": "Cerrar",
+        "name": "Nombre",
+        "namePlaceholder": "Escribe el nombre del grupo",
+        "charCount": "{count}/35 caracteres",
+        "color": "Color",
+        "colors": {
+          "indigo": "Índigo",
+          "red": "Rojo",
+          "orange": "Naranja",
+          "yellow": "Amarillo",
+          "green": "Verde",
+          "teal": "Verde azulado",
+          "blue": "Azul",
+          "violet": "Violeta",
+          "pink": "Rosa",
+          "slate": "Pizarra"
+        },
+        "customColor": "Color personalizado",
+        "colorCode": "Código de color",
+        "preview": "Vista previa",
+        "previewName": "Nombre del grupo",
+        "tileStyle": "Estilo de mosaico",
+        "tileStyles": {
+          "cards": {
+            "label": "Tarjetas",
+            "description": "Mosaicos completos con estado y detalles"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "Una línea cada uno, para muchos enlaces rápidos"
+          }
+        },
+        "monitoring": "Activar monitorización",
+        "monitoringDescription": "Si está desactivada, los servicios de este grupo no se comprueban ni aparecen en las métricas",
+        "nameRequired": "El nombre del grupo es obligatorio",
+        "nameTooLong": "El nombre del grupo debe tener 35 caracteres o menos",
+        "invalidColor": "Formato de color no válido. Usa el formato hexadecimal (p. ej., #6366f1)",
+        "saveFailed": "No se pudo guardar el grupo",
+        "cancel": "Cancelar",
+        "saving": "Guardando...",
+        "save": "Guardar cambios",
+        "create": "Crear grupo"
+      },
+      "selector": {
+        "label": "Grupo",
+        "loading": "Cargando grupos...",
+        "noGroups": "No hay grupos disponibles",
+        "none": "Sin grupo",
+        "defaultOption": "{name} (predeterminado)",
+        "hint": "Asigna este servicio a un grupo para organizarlo"
+      },
+      "monitoringLock": {
+        "default": "Si está desactivada, este servicio no se comprueba, no aparece en las métricas y no activa webhooks",
+        "groupDisabled": "La monitorización está desactivada para el grupo «{name}», así que sus servicios nunca se comprueban"
+      }
+    },
+    "discovered": {
+      "loadFailed": "No se pudieron cargar los contenedores descubiertos",
+      "actionFailed": "Algo salió mal",
+      "unavailable": "No se pudieron cargar los contenedores descubiertos: {error}",
+      "link": "{count, plural, one {# contenedor descubierto} other {# contenedores descubiertos}}",
+      "title": "Descubiertos",
+      "none": "No hay contenedores nuevos.",
+      "intro": "Contenedores de tus integraciones de Docker. Revisa una dirección supuesta antes de añadirla.",
+      "refresh": "Actualizar",
+      "suggestion": "Este contenedor pide una integración de {name}. <link>Configúrala</link> (todavía necesita sus credenciales) y luego vincúlala al servicio.",
+      "labelled": "etiquetado",
+      "noAddress": "No se encontró ninguna dirección",
+      "guess": "supuesta",
+      "review": "Revisar",
+      "reviewLabel": "Revisar {name}",
+      "add": "Añadir",
+      "addLabel": "Añadir {name}",
+      "edit": "Editar",
+      "editLabel": "Editar {name}",
+      "ignore": "Ignorar",
+      "ignoreLabel": "Ignorar {name}",
+      "name": "Nombre",
+      "address": "Dirección",
+      "group": "Grupo",
+      "groupPlaceholder": "Ninguno",
+      "guessHint": "La dirección se ha deducido del puerto publicado del contenedor. Cámbiala si se accede al servicio de otra forma.",
+      "addService": "Añadir servicio",
+      "cancel": "Cancelar",
+      "ignored": "Ignorados ({count})",
+      "unignore": "Dejar de ignorar",
+      "unignoreLabel": "Dejar de ignorar {name}"
+    },
+    "board": {
+      "notFound": "Tablero no encontrado",
+      "notFoundDescription": "No existe o ya no se comparte contigo.",
+      "goToDashboard": "Ir a tu panel"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integraciones",
+      "description": "Conecta Nimbus con tus apps. Vincula una integración a un servicio en su <link>página de edición</link> para mostrar cifras en directo en el mosaico.",
+      "add": "Añadir integración",
+      "emptyTitle": "Aún no hay integraciones",
+      "supportedApps": "Apps compatibles: {apps}.",
+      "noneAvailable": "Este servidor no tiene integraciones disponibles.",
+      "test": "Probar",
+      "testing": "Probando...",
+      "testFailed": "La prueba falló",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleteTitle": "Eliminar integración",
+      "deleteMessage": "¿Eliminar «{name}»? Los servicios vinculados a ella pierden sus cifras en directo.",
+      "status": {
+        "needsCredentials": "Faltan credenciales: edítala para introducirlas",
+        "notTested": "Sin probar",
+        "connected": "Conectada",
+        "failed": "Falló",
+        "failedWith": "Falló: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Añadir integración",
+      "editTitle": "Editar {name}",
+      "close": "Cerrar",
+      "app": "App",
+      "name": "Nombre",
+      "url": "URL",
+      "urlHelp": "La dirección que usa Nimbus para llegar a la app, incluida cualquier subruta.",
+      "signInWith": "Iniciar sesión con",
+      "auth": {
+        "none": "Ninguna",
+        "apiKey": "Clave de API",
+        "token": "Token",
+        "basic": "Usuario y contraseña"
+      },
+      "username": "Usuario",
+      "password": "Contraseña",
+      "savedPlaceholder": "Guardado; déjalo vacío para conservarlo",
+      "credentialsNote": "Las credenciales se guardan cifradas y nunca se devuelven al navegador.",
+      "forExample": "Por ejemplo {value}",
+      "refresh": "Actualizar cada (segundos)",
+      "verifyTls": "Verificar certificado TLS",
+      "verifyTlsHint": "Desactívalo para apps con un certificado autofirmado",
+      "verifyTlsWarning": "Sin esta comprobación, Nimbus no puede distinguir la app de un impostor, y quien responda recibe las credenciales. Desactívalo solo para un certificado autofirmado en una red de confianza.",
+      "connectedIn": "Conectado en {ms} ms",
+      "connectionFailed": "La conexión falló: {error}",
+      "usernameMissing": "Introduce también el usuario",
+      "passwordMissing": "Introduce también la contraseña, o deja ambos vacíos para conservar los guardados",
+      "testFailed": "La prueba falló",
+      "saveFailed": "No se pudo guardar la integración",
+      "test": "Probar conexión",
+      "testSaved": "Probar conexión guardada",
+      "testing": "Probando...",
+      "cancel": "Cancelar",
+      "save": "Guardar cambios",
+      "saving": "Guardando...",
+      "add": "Añadir integración"
+    },
+    "selector": {
+      "label": "Cifras en directo",
+      "description": "Muestra cifras de una app, como la cola de Sonarr, en este mosaico.",
+      "none": "Ninguna",
+      "loading": "Cargando integraciones...",
+      "manage": "Gestionar integraciones"
+    }
+  },
+  "language": {
+    "label": "Idioma",
+    "automatic": "Automático (navegador)",
+    "hint": "Automático sigue el idioma de tu navegador",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Panel",
+      "services": "Servicios",
+      "metrics": "Métricas",
+      "userManagement": "Gestión de usuarios",
+      "admin": "Administración",
+      "profileSettings": "Ajustes del perfil",
+      "themeSettings": "Ajustes del tema",
+      "settings": "Ajustes"
+    },
+    "nav": {
+      "dashboard": "Panel",
+      "services": "Servicios",
+      "metrics": "Métricas",
+      "users": "Usuarios",
+      "settings": "Ajustes"
+    },
+    "hostedByNimbusCloud": "Alojado en Nimbus Cloud",
+    "header": {
+      "openMenu": "Abrir el menú de navegación"
+    },
+    "sidebar": {
+      "addService": "Añadir servicio",
+      "signOut": "Cerrar sesión",
+      "expand": "Expandir la barra lateral",
+      "collapse": "Contraer la barra lateral",
+      "close": "Cerrar la barra lateral"
+    },
+    "userMenu": {
+      "loading": "Cargando...",
+      "fallbackName": "Usuario",
+      "editLayout": "Editar diseño",
+      "doneEditing": "Terminar de editar",
+      "profileSettings": "Ajustes del perfil",
+      "newBoard": "Nuevo tablero",
+      "installApp": "Instalar la app",
+      "signOut": "Cerrar sesión"
+    },
+    "search": {
+      "label": "Buscar servicios",
+      "shortcutTitle": "Buscar servicios (/ o Ctrl+K)",
+      "loading": "Cargando servicios...",
+      "loadFailed": "No se pudieron cargar tus servicios: {error}",
+      "noResults": "Ningún servicio coincide"
+    },
+    "topBar": {
+      "heading": "Panel",
+      "weatherIn": "{condition} en {location}"
+    },
+    "themeToggle": {
+      "label": "Cambiar tema",
+      "labelAuto": "Cambiar tema (ahora automático)",
+      "autoTitle": "Modo automático: haz clic para elegirlo tú"
+    },
+    "configFile": {
+      "title": "Gestionado por un archivo de configuración.",
+      "readOnly": "Este panel es de solo lectura: sus grupos, servicios, widgets e integraciones se definen en el archivo al que apunta NIMBUS_CONFIG_FILE. Cambia el archivo para cambiar el panel.",
+      "editable": "Este panel sigue el archivo al que apunta NIMBUS_CONFIG_FILE. Lo que cambies aquí puede sobrescribirse cuando el archivo cambie o el servidor se reinicie.",
+      "preferences": "Los ajustes de tema, diseño y fondo de pantalla también vienen del archivo: los cambios en ellos no se guardan.",
+      "readOnlyNote": "Este panel lo gestiona un archivo de configuración y es de solo lectura. Cambia el archivo en su lugar."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Notificaciones",
+      "description": "Recibe alertas por webhook, Discord, Slack, ntfy, Gotify, Telegram o Pushover cuando los servicios cambian de estado",
+      "add": "Añadir webhook",
+      "loadFailed": "No se pudieron cargar los webhooks",
+      "saveFailed": "No se pudo guardar el webhook",
+      "confirmDelete": "¿Seguro que quieres eliminar este webhook?",
+      "testSent": "¡Notificación de prueba enviada!",
+      "testFailed": "La prueba falló: {error}",
+      "unknownError": "Error desconocido",
+      "empty": "Aún no hay webhooks configurados",
+      "createFirst": "Crea tu primer webhook"
+    },
+    "card": {
+      "active": "Activo",
+      "disabled": "Desactivado",
+      "triggers": "Disparadores: {triggers}",
+      "offline": "Sin conexión",
+      "online": "En línea",
+      "none": "Ninguno",
+      "sent": "Enviadas: {count}",
+      "failed": "Fallidas: {count}",
+      "lastTriggered": "Último disparo: {date}",
+      "never": "Nunca",
+      "enabledLabel": "{name} activado",
+      "disable": "Desactivar webhook",
+      "enable": "Activar webhook",
+      "test": "Probar",
+      "edit": "Editar",
+      "delete": "Eliminar"
+    },
+    "form": {
+      "addTitle": "Añadir webhook",
+      "editTitle": "Editar webhook",
+      "close": "Cerrar",
+      "name": "Nombre",
+      "namePlaceholder": "Alertas del homelab",
+      "type": "Tipo",
+      "optional": "{label} (opcional)",
+      "savedSecret": "Guardado. Déjalo en blanco para conservarlo",
+      "removeToken": "Quitar el token de acceso guardado",
+      "priority": "Prioridad",
+      "priorities": {
+        "min": "Mínima",
+        "low": "Baja",
+        "default": "Predeterminada",
+        "high": "Alta",
+        "urgent": "Urgente"
+      },
+      "verifyTls": "Verificar el certificado TLS",
+      "verifyTlsDescription": "Desactívalo para un servidor con un certificado autofirmado",
+      "triggers": "Eventos que lo disparan",
+      "onOffline": "Cuando un servicio se desconecta",
+      "onOnline": "Cuando un servicio vuelve a estar en línea",
+      "retries": "Reintentos de notificación",
+      "retriesHint": "Para alertas de desconexión: vuelve a comprobar antes de enviar para evitar falsos positivos.",
+      "retryCount": "Reintentos (0-5)",
+      "retryDelay": "Espera (10-300 s)",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "create": "Crear webhook",
+      "saveFailed": "No se pudo guardar el webhook",
+      "errors": {
+        "required": "{field}: campo obligatorio",
+        "nameTooLong": "El nombre debe tener 100 caracteres o menos",
+        "invalidUrl": "Introduce una URL completa que empiece por http:// o https://",
+        "ntfyTopic": "La URL debe terminar con el topic, como https://ntfy.sh/my-topic",
+        "invalidChatId": "El ID de chat debe ser un número o un @nombredelcanal público",
+        "noTrigger": "Selecciona al menos un evento"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Genérico",
+        "description": "Payload JSON estándar",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "discord": {
+        "description": "Formato embed compatible con Discord",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "slack": {
+        "description": "Formato Slack Block Kit",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "ntfy": {
+        "description": "Push a un topic de ntfy, en ntfy.sh o en tu propio servidor",
+        "url": {
+          "label": "URL del topic",
+          "help": "La dirección del servidor seguida del nombre del topic."
+        },
+        "token": {
+          "label": "Token de acceso",
+          "help": "Solo hace falta para topics protegidos."
+        }
+      },
+      "gotify": {
+        "description": "Push a un servidor Gotify",
+        "url": {
+          "label": "URL del servidor"
+        },
+        "token": {
+          "label": "Token de la app",
+          "help": "Crea una aplicación en Gotify y copia su token."
+        }
+      },
+      "telegram": {
+        "description": "Mensaje de tu bot de Telegram",
+        "token": {
+          "label": "Token del bot",
+          "help": "De @BotFather."
+        },
+        "chatId": {
+          "label": "ID de chat",
+          "help": "Un ID de usuario, grupo o canal, o un @nombredelcanal público."
+        }
+      },
+      "pushover": {
+        "description": "Push a través de Pushover",
+        "token": {
+          "label": "Token de la app",
+          "help": "El token de API de tu aplicación de Pushover."
+        },
+        "userKey": {
+          "label": "Clave de usuario",
+          "help": "Tu clave de usuario o una clave de grupo."
+        }
+      }
+    }
+  },
+  "preferences": {
+    "saveThemeFailed": "No se pudo guardar el tema",
+    "uploadWallpaperFailed": "No se pudo subir el fondo de pantalla"
+  },
+  "services": {
+    "tile": {
+      "move": "Mover {name}",
+      "edit": "Editar {name}",
+      "notMonitored": "Sin monitorizar"
+    },
+    "status": {
+      "online": "conectado",
+      "offline": "desconectado",
+      "unknown": "desconocido",
+      "notMonitored": "sin monitorizar"
+    },
+    "icon": {
+      "alt": "Icono de {name}"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget solo se muestra} other {# widgets solo se muestran}} en la vista de cuadrícula."
+    },
+    "hoverDetail": {
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar los detalles",
+      "uptime": "Disponibilidad (24 h)",
+      "noChecks": "Sin comprobaciones",
+      "responseTime": "Tiempo de respuesta",
+      "lastCheck": "Última comprobación",
+      "never": "Nunca",
+      "lastError": "Último error"
+    },
+    "modal": {
+      "title": "Editar servicio",
+      "close": "Cerrar"
+    },
+    "form": {
+      "name": "Nombre del servicio",
+      "namePlaceholder": "p. ej., Plex Media Server",
+      "url": "URL del servicio",
+      "urlHint": "La URL en la que se puede acceder a tu servicio",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Breve descripción de lo que hace este servicio",
+      "monitoring": "Activar monitorización",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "creating": "Creando...",
+      "create": "Crear servicio",
+      "errors": {
+        "loadGroups": "No se pudieron cargar los grupos: {message}",
+        "loadGroupsRetry": "No se pudieron cargar los grupos. Inténtalo de nuevo.",
+        "nameRequired": "El nombre del servicio es obligatorio",
+        "urlRequired": "La URL del servicio es obligatoria",
+        "invalidUrl": "Introduce una URL válida (p. ej., https://example.com)",
+        "uploadFailed": "No se pudo subir la imagen: {message}",
+        "saveFailed": "No se pudo guardar el servicio. Inténtalo de nuevo.",
+        "updateFailed": "No se pudo actualizar el servicio. Inténtalo de nuevo.",
+        "createFailed": "No se pudo crear el servicio. Inténtalo de nuevo."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Tipo de icono",
+      "emoji": "Emoji",
+      "uploadImage": "Subir imagen",
+      "imageUrl": "URL de imagen",
+      "autoFetch": "Obtener icono automáticamente",
+      "autoFetching": "Buscando icono...",
+      "autoFetchHint": "Busca un icono por el nombre del servicio y, si no, el favicon del sitio",
+      "autoFetchNeedsInput": "Introduce primero un nombre de servicio o una URL",
+      "notFound": "No se encontró ningún icono — prueba a subir uno manualmente",
+      "fetchFailed": "No se pudo obtener el icono",
+      "emojiLabel": "Icono (emoji)",
+      "pickEmoji": "Elegir emoji",
+      "emojiHint": "Haz clic en «Elegir emoji» o pega un emoji (no se permiten letras ni números)",
+      "preview": "Vista previa:",
+      "previewAlt": "Vista previa del icono",
+      "uploadLabel": "Subir imagen de icono",
+      "uploadHint": "Tamaño máx.: 512 KB. Formatos: JPG, PNG, GIF, WEBP",
+      "remove": "Quitar",
+      "urlHint": "Introduce la URL de una imagen para usarla como icono del servicio",
+      "notAnImage": "Selecciona un archivo de imagen",
+      "tooLarge": "La imagen debe pesar menos de 512 KB"
+    },
+    "emojiPicker": {
+      "title": "Elegir un emoji",
+      "close": "Cerrar",
+      "categories": {
+        "smileys": "Caras y personas",
+        "animals": "Animales y naturaleza",
+        "food": "Comida y bebida",
+        "activities": "Actividades y deportes",
+        "travel": "Viajes y lugares",
+        "objects": "Objetos",
+        "symbols": "Símbolos",
+        "tech": "Tecnología y ciencia"
+      }
+    }
+  },
+  "settings": {
+    "home": {
+      "title": "Ajustes",
+      "subtitle": "Configura las preferencias de tu panel",
+      "sections": {
+        "theme": {
+          "title": "Tema",
+          "description": "Personaliza los colores, el modo oscuro y el fondo"
+        },
+        "profile": {
+          "title": "Perfil",
+          "description": "Gestiona tu cuenta y tu información personal"
+        },
+        "notifications": {
+          "title": "Notificaciones",
+          "description": "Configura webhooks para recibir alertas del estado de los servicios"
+        },
+        "integrations": {
+          "title": "Integraciones",
+          "description": "Conecta apps como Sonarr y Radarr para mostrar cifras en directo"
+        },
+        "apiTokens": {
+          "title": "Tokens de API",
+          "description": "Crea tokens para acceder a la API mediante programación"
+        },
+        "backup": {
+          "title": "Exportar e importar",
+          "description": "Haz una copia de seguridad de tu panel o llévalo a otro Nimbus"
+        },
+        "admin": {
+          "title": "Ajustes de administración",
+          "description": "Configura los ajustes de Nimbus para todo el sistema"
+        }
+      }
+    },
+    "profile": {
+      "title": "Perfil",
+      "loading": "Cargando...",
+      "picture": "Foto de perfil",
+      "defaultName": "Usuario",
+      "uploading": "Subiendo...",
+      "upload": "Subir foto",
+      "pictureHint": "JPG, PNG o GIF (máx. 5 MB)",
+      "notImage": "Selecciona un archivo de imagen",
+      "tooLarge": "La imagen debe ocupar menos de 5 MB",
+      "syncedFrom": "Foto de perfil sincronizada desde {provider}",
+      "updateIn": "Cambia tu foto en tu cuenta de {provider}",
+      "signInMethod": "Método de inicio de sesión",
+      "emailPassword": "Correo electrónico y contraseña",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "role": "Rol",
+      "roles": {
+        "admin": "administrador",
+        "user": "usuario"
+      }
+    },
+    "password": {
+      "title": "Cambiar contraseña",
+      "current": "Contraseña actual",
+      "new": "Nueva contraseña",
+      "confirm": "Confirma la nueva contraseña",
+      "tooShort": "La nueva contraseña debe tener al menos 8 caracteres",
+      "mismatch": "Las nuevas contraseñas no coinciden",
+      "sameAsCurrent": "La nueva contraseña debe ser distinta de la actual",
+      "changed": "Contraseña cambiada correctamente",
+      "unexpected": "Algo salió mal. Inténtalo de nuevo.",
+      "changing": "Cambiando...",
+      "submit": "Cambiar contraseña"
+    },
+    "dangerZone": {
+      "title": "Zona de peligro",
+      "lastAdmin": "Eres el único administrador. Haz administrador a otro usuario antes de poder eliminar esta cuenta.",
+      "description": "Elimina de forma permanente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "statsError": "No se pudo comprobar tu estado de administrador. El servidor bloqueará la eliminación si eres el único administrador.",
+      "deleteMine": "Eliminar mi cuenta",
+      "deleteAccount": "Eliminar cuenta",
+      "dialogBody": "Esto eliminará de forma permanente tu cuenta, servicios, grupos, preferencias y todos los demás datos asociados. No se puede deshacer.",
+      "typeToConfirm": "Escribe <mono>{email}</mono> para confirmar.",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando...",
+      "unexpected": "Algo salió mal. Inténtalo de nuevo."
+    },
+    "theme": {
+      "page": {
+        "title": "Ajustes del tema",
+        "subtitle": "Personaliza el aspecto de tu panel",
+        "autosave": "Los cambios se guardan automáticamente"
+      },
+      "mode": {
+        "title": "Modo del tema",
+        "description": "Elige entre el tema claro y el oscuro",
+        "auto": "Automático (según el sistema)",
+        "autoDescription": "Cambia automáticamente entre claro y oscuro según las preferencias de tu sistema",
+        "autoDescriptionCurrent": "Cambia automáticamente entre claro y oscuro según las preferencias de tu sistema (ahora: {mode})",
+        "current": {
+          "light": "claro",
+          "dark": "oscuro"
+        },
+        "light": "Claro",
+        "dark": "Oscuro"
+      },
+      "accent": {
+        "title": "Color de acento",
+        "description": "Elige tu color de acento preferido",
+        "colors": {
+          "skyBlue": "Azul cielo (predeterminado)",
+          "purple": "Morado",
+          "pink": "Rosa",
+          "red": "Rojo",
+          "orange": "Naranja",
+          "yellow": "Amarillo",
+          "green": "Verde",
+          "teal": "Verde azulado"
+        },
+        "custom": "Color personalizado:",
+        "reset": "Restablecer"
+      },
+      "links": {
+        "title": "Comportamiento de los enlaces",
+        "description": "Elige cómo se abren los enlaces de los servicios",
+        "newTab": "Abrir servicios en una pestaña nueva",
+        "newTabDescription": "Si está activado, al hacer clic en un servicio se abre en una pestaña nueva"
+      },
+      "resizing": {
+        "title": "Tamaño de las tarjetas",
+        "description": "Controla si las tarjetas de servicio pueden tener distintos tamaños",
+        "toggle": "Permitir cambiar el tamaño de las tarjetas",
+        "toggleDescription": "Si está activado, puedes cambiar el tamaño de las tarjetas en el modo de edición haciendo clic en ellas. Si está desactivado, todas las tarjetas tienen el tamaño estándar (2x1)"
+      },
+      "grouping": {
+        "title": "Agrupar servicios",
+        "description": "Organiza tus servicios en grupos, mostrados como pestañas o como secciones",
+        "toggle": "Activar la agrupación de servicios",
+        "toggleDescription": "Si está activado, puedes organizar los servicios en grupos. Crea, renombra y reordena grupos en el modo de edición. Si está desactivado, todos los servicios se muestran en una sola vista",
+        "showAs": "Mostrar grupos como",
+        "display": {
+          "tabs": "pestañas",
+          "sections": "secciones"
+        },
+        "tabsHint": "Un grupo cada vez, elegido con una pestaña",
+        "sectionsHint": "Todos los grupos en una página, cada uno bajo su propio encabezado plegable"
+      },
+      "cardDisplay": {
+        "title": "Visualización de tarjetas",
+        "description": "Personaliza cómo se muestran las tarjetas de servicio",
+        "list": "Vista de lista",
+        "listDescription": "Muestra los servicios en una lista compacta en lugar de una cuadrícula",
+        "size": "Tamaño de tarjeta",
+        "scales": {
+          "small": "pequeño",
+          "medium": "mediano",
+          "large": "grande"
+        },
+        "listHint": "El tamaño de tarjeta solo se aplica a la vista de cuadrícula",
+        "gridHint": "Ajusta la densidad de la cuadrícula - las tarjetas más pequeñas muestran más servicios por fila"
+      },
+      "gallery": {
+        "title": "Tema",
+        "description": "Un tema define cada color, claro u oscuro, y su propio acento. Aun así puedes elegir otro color de acento encima. Si eliges un modo que el tema no tiene, se vuelve a Predeterminado.",
+        "muted": "Atenuado",
+        "default": "Predeterminado",
+        "dark": "Oscuro",
+        "light": "Claro",
+        "lightOrDark": "Claro u oscuro"
+      },
+      "transfer": {
+        "title": "Exportar e importar",
+        "description": "Guarda tu tema como archivo o carga uno: tema, modo, acento, fuente, origen de iconos, ajustes de cristal y CSS personalizado. La imagen de fondo no se incluye.",
+        "export": "Exportar tema",
+        "import": "Importar tema",
+        "fileLabel": "Archivo de tema",
+        "tooLarge": "Este archivo es demasiado grande para ser un tema",
+        "willSet": "Este archivo establecerá",
+        "fields": {
+          "themePreset": "tema",
+          "themeMode": "modo del tema",
+          "themeAccentColor": "color de acento",
+          "themeFont": "fuente",
+          "kpiMono": "etiquetas KPI monoespaciadas",
+          "iconSource": "origen de iconos",
+          "wallpaperBlur": "desenfoque del fondo",
+          "wallpaperDim": "atenuación del fondo",
+          "cardOpacity": "opacidad de las tarjetas",
+          "cardBlur": "desenfoque de las tarjetas"
+        },
+        "none": "ninguno",
+        "cssReview": "CSS personalizado (léelo antes de aplicarlo)",
+        "cssClears": "CSS personalizado (ninguno: borra el tuyo)",
+        "cssLabel": "CSS personalizado del archivo",
+        "applying": "Aplicando...",
+        "apply": "Aplicar tema",
+        "cancel": "Cancelar",
+        "errors": {
+          "notJson": "No es un archivo JSON",
+          "notTheme": "No es un archivo de tema de Nimbus",
+          "newerVersion": "Este archivo de tema se creó con una versión más reciente de Nimbus",
+          "invalidField": "El archivo de tema tiene un valor de {field} no válido"
+        }
+      },
+      "wallpaper": {
+        "title": "Fondo de pantalla",
+        "description": "Sube una imagen (hasta 8 MB) o usa la URL de una imagen. El desenfoque, la atenuación y las tarjetas translúcidas le dan un aspecto de cristal.",
+        "urlLabel": "URL del fondo de pantalla",
+        "uploadedPlaceholder": "Imagen subida",
+        "fileLabel": "Archivo del fondo de pantalla",
+        "uploading": "Subiendo...",
+        "upload": "Subir",
+        "clear": "Quitar",
+        "tooLarge": "La imagen ocupa más de 8 MB",
+        "previewCard": "Tarjeta",
+        "previewText": "Así se verán los mosaicos",
+        "sliders": {
+          "wallpaperBlur": "Desenfoque del fondo",
+          "wallpaperDim": "Atenuación del fondo",
+          "cardOpacity": "Opacidad de las tarjetas",
+          "cardBlur": "Desenfoque de las tarjetas"
+        },
+        "dimNote": "Con una opacidad de tarjeta inferior al 60 %, el fondo se mantiene atenuado al menos un {min} % para que el texto se lea bien."
+      },
+      "font": {
+        "title": "Fuente",
+        "description": "Las fuentes vienen con Nimbus: no se carga nada de otro sitio",
+        "names": {
+          "default": "Predeterminada",
+          "system": "Sistema"
+        },
+        "kpiMono": "Etiquetas KPI monoespaciadas",
+        "kpiMonoDescription": "Muestra en JetBrains Mono las etiquetas pequeñas sobre las cifras en mosaicos, widgets y la barra de estado"
+      },
+      "iconSource": {
+        "title": "Origen de iconos",
+        "description": "Dónde busca «Obtener icono automáticamente» un icono para un servicio a partir de su nombre",
+        "label": "Conjunto de iconos",
+        "hint": "Se aplica a los iconos que obtengas a partir de ahora; los que ya tienes se quedan como están"
+      },
+      "layout": {
+        "title": "Diseño del panel",
+        "description": "Canvas solo cambia el panel; las demás páginas mantienen la barra lateral.",
+        "modes": {
+          "classic": {
+            "label": "Clásico",
+            "description": "Barra lateral, estadísticas y tus mosaicos"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "El panel ocupa toda la página, con una barra superior"
+          }
+        },
+        "darkHint": "Canvas se ve mejor en modo oscuro, con un fondo de pantalla.",
+        "useDark": "Usar modo oscuro"
+      },
+      "customCss": {
+        "title": "CSS personalizado",
+        "description": "Tu propio CSS sobre el tema. Solo se aplica a ti, en las páginas que requieren iniciar sesión.",
+        "safeMode": "Modo seguro: tu CSS personalizado está desactivado hasta que recargues sin <code>?safe=1</code>.",
+        "saving": "Guardando...",
+        "save": "Guardar CSS",
+        "help": "Solo CSS. <code>@import</code>, <code>image-set()</code> y cualquier <code>url()</code> que no sea una imagen <code>data:</code> en línea se rechazan, para que un tema nunca pueda cargar nada de otro sitio. Si tu CSS oculta la página, añade <code>?safe=1</code> a la dirección (por ejemplo, <code>/settings/theme?safe=1</code>) para abrirla sin tu CSS."
+      },
+      "statusStrip": {
+        "title": "Barra de estado",
+        "description": "Una fila de cifras clave en la parte superior del panel, que también indica si todos los servicios están activos.",
+        "show": "Mostrar la barra de estado",
+        "loading": "Cargando tus integraciones y widgets...",
+        "number": "Cifra {number}",
+        "remove": "Quitar cifra {number}",
+        "unavailable": "Ya no está disponible",
+        "add": "Añadir cifra",
+        "loadError": "No se pudieron cargar tus integraciones o widgets: {error}",
+        "empty": "Añade una integración o un widget de API personalizada para elegir cifras.",
+        "hint": "Las integraciones muestran cifras en cuanto un servicio o widget las usa.",
+        "customApi": "API personalizada"
+      }
+    }
+  },
+  "time": {
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace {count} min",
+    "hoursAgo": "hace {count} h",
+    "daysAgo": "hace {count} d"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Cancelar"
+    }
+  },
+  "weather": {
+    "clear": "Despejado",
+    "partlyCloudy": "Parcialmente nublado",
+    "overcast": "Cubierto",
+    "fog": "Niebla",
+    "drizzle": "Llovizna",
+    "rain": "Lluvia",
+    "snow": "Nieve",
+    "thunderstorm": "Tormenta",
+    "unknown": "Desconocido"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "Verificar el certificado TLS",
+      "integrationsError": "No se pudieron cargar tus integraciones: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Reloj",
+        "description": "Hora y fecha, en cualquier zona horaria"
+      },
+      "markdown": {
+        "name": "Nota",
+        "description": "Texto con formato Markdown"
+      },
+      "bookmarks": {
+        "name": "Marcadores",
+        "description": "Una lista compacta de enlaces"
+      },
+      "weather": {
+        "name": "Tiempo",
+        "description": "El tiempo actual y un pronóstico breve"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "Las últimas entradas de hasta tres feeds"
+      },
+      "custom_api": {
+        "name": "API personalizada",
+        "description": "Hasta cuatro valores de cualquier API JSON"
+      },
+      "system_stats": {
+        "name": "Estadísticas del sistema",
+        "description": "CPU, memoria, disco y tiempo activo del servidor de Nimbus"
+      },
+      "docker_containers": {
+        "name": "Contenedores Docker",
+        "description": "Los contenedores de una integración Docker y su estado"
+      },
+      "calendar": {
+        "name": "Calendario",
+        "description": "Próximos episodios, películas y eventos iCal"
+      },
+      "iframe": {
+        "name": "Página web",
+        "description": "Muestra una página web dentro de un mosaico"
+      }
+    },
+    "card": {
+      "refresh": "Actualizar widget",
+      "edit": "Editar widget",
+      "delete": "Eliminar widget",
+      "updateFailed": "La última actualización falló: {error}",
+      "outOfDate": "Estos datos pueden estar desactualizados",
+      "loadFailed": "No se pudo cargar: {error}",
+      "loading": "Cargando",
+      "unsupported": "Esta versión de Nimbus no admite este tipo de widget ({type})."
+    },
+    "modal": {
+      "addWidget": "Añadir widget",
+      "addTitle": "Añadir widget {name}",
+      "editTitle": "Editar widget {name}",
+      "back": "Volver a los tipos de widget",
+      "close": "Cerrar",
+      "cannotEdit": "Este tipo de widget ({type}) no se puede editar en esta versión de Nimbus.",
+      "titleLabel": "Título <muted>(opcional)</muted>",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "saveFailed": "No se pudo guardar el widget",
+      "chooseIntegration": "Elige una integración",
+      "integration": {
+        "label": "Integración",
+        "description": "La integración de {names} que lee este widget.",
+        "empty": "Elige una integración de {names}"
+      }
+    },
+    "bookmarks": {
+      "empty": "Aún no hay marcadores",
+      "form": {
+        "label": "Marcadores",
+        "icon": "Icono del marcador {n}",
+        "name": "Nombre del marcador {n}",
+        "url": "URL del marcador {n}",
+        "namePlaceholder": "Nombre",
+        "remove": "Quitar marcador {n}",
+        "add": "Añadir marcador",
+        "hint": "El icono puede ser un emoji o la URL de una imagen."
+      }
+    },
+    "calendar": {
+      "today": "Hoy",
+      "tomorrow": "Mañana",
+      "hasEvents": "{day}, tiene eventos",
+      "nothingOnDay": "Nada este día",
+      "nothingComing": "Nada próximamente",
+      "failed": "{count, plural, one {# fuente no se pudo cargar} other {# fuentes no se pudieron cargar}}",
+      "form": {
+        "sources": "Sonarr y Radarr",
+        "loadingIntegrations": "Cargando integraciones...",
+        "noIntegrations": "Aún no hay Sonarr ni Radarr. <link>Añade uno</link> para ver lo que viene.",
+        "feeds": "Feeds de calendario (iCal)",
+        "feedUrl": "URL del calendario {n}",
+        "removeFeed": "Quitar calendario {n}",
+        "addFeed": "Añadir calendario",
+        "feedsHint": "Funciona la dirección iCal secreta de un calendario de Google, Outlook o Nextcloud; una vez guardada se muestra como ******** y se conserva mientras no la cambies. Los eventos que se repiten solo aparecen en su primera fecha.",
+        "days": "Días por delante en la agenda",
+        "verifyTlsHint": "Desactívalo para calendarios de tu red local con un certificado autofirmado"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Zona horaria desconocida: {timezone}",
+      "form": {
+        "timezone": "Zona horaria",
+        "timezonePlaceholder": "La zona horaria de tu navegador",
+        "timezoneHint": "Por ejemplo Europe/Madrid",
+        "date": "Fecha",
+        "dateShort": "Corta",
+        "dateLong": "Larga",
+        "dateHidden": "Oculta",
+        "hour12": "Formato de 12 horas",
+        "seconds": "Mostrar segundos"
+      }
+    },
+    "customApi": {
+      "notFound": "No se encontró nada en {path}",
+      "form": {
+        "urlHint": "El servidor de Nimbus consulta esta URL; debe devolver JSON.",
+        "verifyTlsHint": "Desactívalo para apps con un certificado autofirmado",
+        "values": "Valores",
+        "valueLabel": "Etiqueta del valor {n}",
+        "valuePath": "Ruta del valor {n}",
+        "valueUnit": "Unidad del valor {n}",
+        "labelPlaceholder": "Etiqueta",
+        "unitPlaceholder": "Unidad",
+        "removeValue": "Quitar valor {n}",
+        "addValue": "Añadir valor",
+        "pathsHint": "Las rutas usan puntos e índices: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> para el último elemento, <code>items.length</code> para contar.",
+        "headers": "Cabeceras (opcional)",
+        "headerName": "Nombre de la cabecera {n}",
+        "headerValue": "Valor de la cabecera {n}",
+        "valuePlaceholder": "Valor",
+        "removeHeader": "Quitar cabecera {n}",
+        "addHeader": "Añadir cabecera",
+        "headersHint": "Los valores guardados se muestran como ******** y se conservan mientras no los cambies. Se guardan con el widget, sin cifrar; para las apps que admite Nimbus, mejor usa una integración."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} de {total} en ejecución",
+      "empty": "No hay contenedores",
+      "form": {
+        "hideStopped": "Ocultar contenedores detenidos",
+        "hideStoppedHint": "Siguen contando en el total"
+      }
+    },
+    "embed": {
+      "empty": "No hay ninguna URL configurada",
+      "frameTitle": "Página incrustada",
+      "form": {
+        "hint": "Algunos sitios no permiten que se incrusten. Tu navegador carga la página, no el servidor de Nimbus. La página llena el mosaico; cambia su tamaño en el modo de edición."
+      }
+    },
+    "note": {
+      "empty": "Nota vacía",
+      "form": {
+        "label": "Nota",
+        "placeholder": "# Título\n- un elemento de lista\n[un enlace](https://example.com)",
+        "hint": "Se admite Markdown, pero no HTML."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# feed no se pudo cargar} other {# feeds no se pudieron cargar}}",
+      "empty": "Aún no hay entradas",
+      "untitled": "Sin título",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "URL del feed {n}",
+        "removeFeed": "Quitar feed {n}",
+        "addFeed": "Añadir feed",
+        "feedsHint": "Funcionan RSS, Atom y JSON Feed. Las entradas de todos los feeds se combinan, de la más reciente a la más antigua.",
+        "limit": "Número de entradas",
+        "verifyTlsHint": "Desactívalo para feeds de tu red local con un certificado autofirmado"
+      }
+    },
+    "systemStats": {
+      "disk": "Disco",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Activo desde hace {uptime}",
+      "uptime": {
+        "days": "{days} d {hours} h",
+        "hours": "{hours} h {minutes} min",
+        "minutes": "{minutes} min"
+      },
+      "form": {
+        "diskHint": "Una ruta en el servidor de Nimbus; el mosaico muestra el uso del disco en el que está. En Docker, monta un disco del host en el contenedor para verlo."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · sensación de {temperature}",
+      "wind": "viento {speed} {unit}",
+      "form": {
+        "chosenPlace": "Lugar elegido",
+        "search": "Buscar un lugar",
+        "searchPlaceholder": "Nombre de la ciudad",
+        "searchButton": "Buscar lugares",
+        "searchFailed": "La búsqueda de ubicación falló",
+        "noResults": "No se encontraron lugares",
+        "searchHint": "La búsqueda va a Open-Meteo desde tu navegador. También puedes introducir coordenadas abajo.",
+        "latitude": "Latitud",
+        "longitude": "Longitud",
+        "location": "Nombre en el mosaico",
+        "units": "Unidades"
+      }
+    }
+  }
+}

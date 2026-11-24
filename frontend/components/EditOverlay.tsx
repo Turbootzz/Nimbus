@@ -13,6 +13,10 @@ interface EditOverlayProps {
   actions?: ReactNode
 }
 
+// Buttons passed as actions share this look
+export const overlayActionClass =
+  'bg-card/90 text-text-muted hover:text-text-primary rounded p-1 transition-colors'
+
 // Edit mode overlay for dashboard tiles: drag handle, actions and size badge
 export default function EditOverlay({
   dragHandleProps,

@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest watch",
     "test:coverage": "vitest run --coverage",
-    "ci-check": "npm run format-check && npm run lint && npm run type-check && npm test && npm run build"
+    "check-messages": "node scripts/check-messages.mjs",
+    "ci-check": "npm run format-check && npm run lint && npm run check-messages && npm run type-check && npm test && npm run build"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -23,6 +24,7 @@
     "date-fns": "^4.4.0",
     "jose": "^6.2.12",
     "next": "16.4.5",
+    "next-intl": "^4.14.10",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-markdown": "^10.1.0",

@@ -4,6 +4,8 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -92,6 +94,22 @@ func (s *StatusStrip) Scan(src any) error {
 	return nil
 }
 
+// The values a new user starts with; same as the column defaults
+const (
+	DefaultThemePreset = "default"
+	DefaultThemeFont   = "default"
+	DefaultIconSource  = "dashboard-icons-svg"
+)
+
+// Languages are the interface languages a user can pick (the frontend's
+// locales); no language follows the browser
+const Languages = "en nl de fr es"
+
+// ValidLanguage reports whether code is one of Languages
+func ValidLanguage(code string) bool {
+	return slices.Contains(strings.Fields(Languages), code)
+}
+
 // UserPreferences represents a user's theme and UI preferences
 type UserPreferences struct {
 	ID                    string      `json:"id" db:"id"`
@@ -109,7 +127,14 @@ type UserPreferences struct {
 	CardOpacity           int         `json:"card_opacity" db:"card_opacity"`     // %, 0-100
 	CardBlur              int         `json:"card_blur" db:"card_blur"`           // px, 0-40
 	LayoutMode            string      `json:"layout_mode" db:"layout_mode"`       // "classic" or "canvas"
+	GroupDisplay          *string     `json:"group_display" db:"group_display"`   // "tabs" or "sections"; nil follows the layout
 	StatusStrip           StatusStrip `json:"status_strip" db:"status_strip"`
+	ThemePreset           string      `json:"theme_preset" db:"theme_preset"` // see PreferencesUpdateRequest
+	ThemeFont             string      `json:"theme_font" db:"theme_font"`
+	KpiMono               bool        `json:"kpi_mono" db:"kpi_mono"`       // monospace KPI labels
+	IconSource            string      `json:"icon_source" db:"icon_source"` // where auto-fetch looks for icons
+	CustomCSS             string      `json:"custom_css" db:"custom_css"`   // passed utils.ValidateCustomCSS
+	Language              *string     `json:"language" db:"language"`       // one of Languages; nil follows the browser
 	CreatedAt             time.Time   `json:"created_at" db:"created_at"`
 	UpdatedAt             time.Time   `json:"updated_at" db:"updated_at"`
 }
@@ -129,7 +154,20 @@ type PreferencesUpdateRequest struct {
 	CardOpacity           *int           `json:"card_opacity" validate:"omitempty,min=0,max=100"`
 	CardBlur              *int           `json:"card_blur" validate:"omitempty,min=0,max=40"`
 	LayoutMode            *string        `json:"layout_mode" validate:"omitempty,oneof=classic canvas"`
-	StatusStrip           *StatusStrip   `json:"status_strip"`
+	GroupDisplay          *string        `json:"group_display" validate:"omitempty,oneof=tabs sections"`
+	// FollowLayout clears group_display when it is not given. Set by a
+	// dashboard import only, never read from a request.
+	FollowLayout bool         `json:"-"`
+	StatusStrip  *StatusStrip `json:"status_strip"`
+	// The presets and fonts are those of the frontend (lib/theme-presets.ts)
+	ThemePreset *string `json:"theme_preset" validate:"omitempty,oneof=default catppuccin-mocha catppuccin-latte nord dracula gruvbox-dark gruvbox-light tokyo-night"`
+	ThemeFont   *string `json:"theme_font" validate:"omitempty,oneof=default system inter jetbrains-mono"`
+	KpiMono     *bool   `json:"kpi_mono"`
+	IconSource  *string `json:"icon_source" validate:"omitempty,oneof=dashboard-icons-svg dashboard-icons-png dashboard-icons-webp selfhst"`
+	// Checked with utils.ValidateCustomCSS by the handler; "" clears it
+	CustomCSS *string `json:"custom_css"`
+	// Checked with ValidLanguage by the handler; null follows the browser
+	Language NullableString `json:"language"`
 }
 
 // PreferencesResponse is the safe preferences data to return to clients
@@ -147,7 +185,14 @@ type PreferencesResponse struct {
 	CardOpacity           int         `json:"card_opacity"`
 	CardBlur              int         `json:"card_blur"`
 	LayoutMode            string      `json:"layout_mode"`
+	GroupDisplay          *string     `json:"group_display"` // null: tabs in classic, sections in canvas
 	StatusStrip           StatusStrip `json:"status_strip"`
+	ThemePreset           string      `json:"theme_preset"`
+	ThemeFont             string      `json:"theme_font"`
+	KpiMono               bool        `json:"kpi_mono"`
+	IconSource            string      `json:"icon_source"`
+	CustomCSS             string      `json:"custom_css"`
+	Language              *string     `json:"language"` // null: the browser's language
 	UpdatedAt             time.Time   `json:"updated_at"`
 }
 
@@ -167,7 +212,14 @@ func (p *UserPreferences) ToResponse() PreferencesResponse {
 		CardOpacity:           p.CardOpacity,
 		CardBlur:              p.CardBlur,
 		LayoutMode:            p.LayoutMode,
+		GroupDisplay:          p.GroupDisplay,
 		StatusStrip:           p.StatusStrip,
+		ThemePreset:           p.ThemePreset,
+		ThemeFont:             p.ThemeFont,
+		KpiMono:               p.KpiMono,
+		IconSource:            p.IconSource,
+		CustomCSS:             p.CustomCSS,
+		Language:              p.Language,
 		UpdatedAt:             p.UpdatedAt,
 	}
 }

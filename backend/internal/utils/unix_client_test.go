@@ -4,6 +4,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,4 +45,18 @@ func TestUnixSocketClient(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "POST requests are not allowed")
 	assert.Equal(t, []string{http.MethodGet}, methods, "the POST never reached the socket")
+}
+
+func TestReadOnlyClient_DefaultTransport(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	defer server.Close()
+
+	client := ReadOnlyClient(&http.Client{}) // nil Transport
+	resp, err := client.Get(server.URL)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	_, err = client.Post(server.URL, "text/plain", strings.NewReader(""))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "POST requests are not allowed")
 }

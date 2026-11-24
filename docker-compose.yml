@@ -65,11 +65,21 @@ services:
       # DB_PORT: 5432
       # DB_USER: nimbus
       # DB_NAME: nimbus
+      # Instance-wide key for the Prometheus export (see docs/CONFIGURATION.md):
+      PROMETHEUS_API_KEY: ${PROMETHEUS_API_KEY:-}
+      # Requests per minute one API token may make (default 600):
+      API_TOKEN_RATE_LIMIT: ${API_TOKEN_RATE_LIMIT:-}
       # Docker integration over the socket (mount it below too):
       # DOCKER_SOCKET: /var/run/docker.sock
+      # Dashboard from a config file (mount its directory below too);
+      # see docs/CONFIGURATION.md#config-file
+      # NIMBUS_CONFIG_FILE: ${NIMBUS_CONFIG_FILE:-}
+      # NIMBUS_CONFIG_MODE: ${NIMBUS_CONFIG_MODE:-replace}
+      # NIMBUS_CONFIG_READONLY: ${NIMBUS_CONFIG_READONLY:-false}
     volumes:
       - uploads_data:/app/backend/uploads
       # - /var/run/docker.sock:/var/run/docker.sock:ro
+      # - ./config:/config:ro
     ports:
       - "3000:3000"
     depends_on:

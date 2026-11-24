@@ -5,6 +5,7 @@ import {
   ChartBarIcon,
   SwatchIcon,
   CpuChipIcon,
+  SparklesIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
 import NimbusLogo from '@/components/NimbusLogo'
@@ -33,6 +34,12 @@ const features = [
     description:
       'Configurable check intervals, Prometheus metrics export, and mobile responsive design.',
     icon: CpuChipIcon,
+  },
+  {
+    name: 'AI Assistants (MCP)',
+    description:
+      'Ask Claude, Open WebUI or any MCP client what is down or how uptime was this week. Read-only by default, with scoped API tokens.',
+    icon: SparklesIcon,
   },
 ]
 
@@ -156,7 +163,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {features.map((feature) => (
               <div
                 key={feature.name}

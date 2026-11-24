@@ -111,9 +111,14 @@ func (h *SettingsHandler) UpdateSetting(c *fiber.Ctx) error {
 		})
 	}
 
+	// The status page has its own endpoint, which checks who owns the group
+	if strings.HasPrefix(key, services.StatusPageKeyPrefix) {
+		return BadRequest(c, "Use the status page settings to change this")
+	}
+
 	// Validate value for known settings
 	switch key {
-	case "public_registration_enabled", "smtp_enabled", "smtp_tls_skip_verify":
+	case "public_registration_enabled", "smtp_enabled", "smtp_tls_skip_verify", models.SettingDiscoveryAutoAdd:
 		if req.Value != "true" && req.Value != "false" {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "Value must be 'true' or 'false'",

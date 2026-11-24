@@ -1,6 +1,24 @@
 import type { NextConfig } from 'next'
+import createNextIntlPlugin from 'next-intl/plugin'
+
+// The service worker must be revalidated on every load, or a deploy would not
+// reach installed apps
+const workerHeaders = [
+  { key: 'Content-Type', value: 'application/javascript; charset=utf-8' },
+  { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
+]
 
 const nextConfig: NextConfig = {
+  env: {
+    // Names the service worker's static cache, so each build gets a fresh one
+    NEXT_PUBLIC_BUILD_ID: Date.now().toString(36),
+  },
+  async headers() {
+    return [
+      { source: '/sw.js', headers: workerHeaders },
+      { source: '/sw-routing.js', headers: workerHeaders },
+    ]
+  },
   // Don't let `next dev` generate AGENTS.md / CLAUDE.md in the repo
   agentRules: false,
   images: {
@@ -21,4 +39,5 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Reads the language of each request from i18n/request.ts
+export default createNextIntlPlugin()(nextConfig)

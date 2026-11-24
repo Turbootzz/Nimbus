@@ -66,12 +66,24 @@ export interface WidgetFormProps<C> {
   meta?: WidgetTypeMeta
 }
 
+// The types this version knows; also the keys of their name and
+// description in widgets.types
+export type WidgetType =
+  | 'clock'
+  | 'markdown'
+  | 'bookmarks'
+  | 'weather'
+  | 'rss'
+  | 'custom_api'
+  | 'system_stats'
+  | 'docker_containers'
+  | 'calendar'
+  | 'iframe'
+
 // Frontend half of a widget type. Sizes, category and integration needs
 // come from the backend (GET /widgets/types).
 export interface WidgetDefinition<C = Record<string, unknown>> {
-  type: string
-  label: string
-  description: string
+  type: WidgetType
   icon: ComponentType<{ className?: string }>
   // The backend polls it; the renderer needs a snapshot
   polled?: boolean
@@ -88,8 +100,6 @@ function defineWidget<C>(definition: WidgetDefinition<C>): WidgetDefinition {
 const definitions: WidgetDefinition[] = [
   defineWidget<ClockWidgetConfig>({
     type: 'clock',
-    label: 'Clock',
-    description: 'Time and date, in any timezone',
     icon: ClockIcon,
     defaultConfig: { timezone: '', hour12: false, show_seconds: false, date_format: 'short' },
     Renderer: ClockWidget,
@@ -97,8 +107,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<NoteWidgetConfig>({
     type: 'markdown',
-    label: 'Note',
-    description: 'Text with Markdown formatting',
     icon: DocumentTextIcon,
     defaultConfig: { content: '' },
     Renderer: NoteWidget,
@@ -106,8 +114,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<BookmarksWidgetConfig>({
     type: 'bookmarks',
-    label: 'Bookmarks',
-    description: 'A compact list of links',
     icon: BookmarkIcon,
     defaultConfig: { items: [] },
     Renderer: BookmarksWidget,
@@ -115,8 +121,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<WeatherWidgetConfig>({
     type: 'weather',
-    label: 'Weather',
-    description: 'Current weather and a short forecast',
     icon: CloudIcon,
     polled: true,
     defaultConfig: { location: '', units: 'metric' },
@@ -125,8 +129,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<RssWidgetConfig>({
     type: 'rss',
-    label: 'RSS',
-    description: 'Latest items from up to three feeds',
     icon: RssIcon,
     polled: true,
     defaultConfig: { feeds: [''], limit: 10, verify_tls: true },
@@ -135,8 +137,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<CustomApiWidgetConfig>({
     type: 'custom_api',
-    label: 'Custom API',
-    description: 'Up to four values from any JSON API',
     icon: CodeBracketIcon,
     polled: true,
     defaultConfig: {
@@ -150,8 +150,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<SystemStatsWidgetConfig>({
     type: 'system_stats',
-    label: 'System stats',
-    description: 'CPU, memory, disk and uptime of the Nimbus server',
     icon: CpuChipIcon,
     polled: true,
     defaultConfig: { disk_path: '/' },
@@ -160,8 +158,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<DockerContainersWidgetConfig>({
     type: 'docker_containers',
-    label: 'Docker containers',
-    description: 'Containers of a Docker integration and their state',
     icon: CubeIcon,
     polled: true,
     defaultConfig: { hide_stopped: false },
@@ -170,8 +166,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<CalendarWidgetConfig>({
     type: 'calendar',
-    label: 'Calendar',
-    description: 'Upcoming episodes, movies and iCal events',
     icon: CalendarDaysIcon,
     polled: true,
     defaultConfig: { integrations: [], ical_urls: [], days: 14, verify_tls: true },
@@ -180,8 +174,6 @@ const definitions: WidgetDefinition[] = [
   }),
   defineWidget<EmbedWidgetConfig>({
     type: 'iframe',
-    label: 'Embed',
-    description: 'Show a web page inside a tile',
     icon: GlobeAltIcon,
     defaultConfig: { url: '' },
     Renderer: EmbedWidget,

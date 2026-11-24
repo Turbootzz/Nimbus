@@ -32,6 +32,8 @@ vi.mock('@/components/Header', () => ({ default: () => <header data-testid="head
 vi.mock('@/components/layout/CanvasTopBar', () => ({
   default: () => <header data-testid="topbar" />,
 }))
+// Loads the user from the API
+vi.mock('@/components/ConfigFileBanner', () => ({ default: () => null }))
 
 // Counts mounts, like a page that would refetch everything when remounted
 let mounts = 0

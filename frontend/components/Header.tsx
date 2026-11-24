@@ -1,6 +1,7 @@
 'use client'
 
 import { Bars3Icon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import UserMenu from './UserMenu'
 import ThemeToggle from './ThemeToggle'
 import SearchButton from './SearchButton'
@@ -11,7 +12,8 @@ interface HeaderProps {
   title?: string
 }
 
-export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps) {
+export default function Header({ onMenuClick, title }: HeaderProps) {
+  const t = useTranslations('layout')
   const iconHover = useHoverStyle(hoverStyles.iconButton)
 
   return (
@@ -28,7 +30,7 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
         <button
           onClick={onMenuClick}
           className="rounded-md p-2 focus:outline-none lg:hidden"
-          aria-label="Open navigation menu"
+          aria-label={t('header.openMenu')}
           aria-expanded={false}
           style={{ color: 'var(--color-text-secondary)' }}
           {...iconHover}
@@ -39,7 +41,7 @@ export default function Header({ onMenuClick, title = 'Dashboard' }: HeaderProps
         {/* Page title (desktop) */}
         <div className="hidden lg:block">
           <h1 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            {title}
+            {title ?? t('routes.dashboard')}
           </h1>
         </div>
 

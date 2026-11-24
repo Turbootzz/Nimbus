@@ -1,0 +1,1492 @@
+{
+  "admin": {
+    "page": {
+      "title": "Beheerinstellingen",
+      "subtitle": "Stel systeembrede instellingen voor Nimbus in",
+      "immediate": "Wijzigingen gaan direct in",
+      "loadFailed": "Kan instellingen niet laden",
+      "updateFailed": "Kan instelling niet bijwerken",
+      "registration": {
+        "title": "Gebruikersregistratie",
+        "description": "Bepaal hoe nieuwe gebruikers lid kunnen worden van je Nimbus-installatie",
+        "toggle": "Openbare registratie",
+        "toggleDescription": "Laat nieuwe gebruikers zelf een account aanmaken. Staat dit uit, dan kunnen alleen beheerders nieuwe gebruikers aanmaken."
+      },
+      "discovery": {
+        "title": "Docker-detectie",
+        "description": "Containers achter de Docker-integratie van een beheerder verschijnen onder Gevonden op de pagina Services",
+        "toggle": "Gelabelde containers automatisch toevoegen",
+        "toggleDescription": "Voeg containers met het label nimbus.enable=true en een nimbus.url zonder te vragen toe aan het dashboard van die beheerder. Containers zonder label en geraden adressen worden nooit vanzelf toegevoegd."
+      },
+      "smtp": {
+        "title": "E-mail / SMTP",
+        "description": "Stel SMTP in voor e-mails om een wachtwoord te herstellen"
+      },
+      "statusPage": {
+        "title": "Openbare statuspagina",
+        "description": "Deel de uptime van één groep services op een pagina waarvoor geen account nodig is"
+      }
+    },
+    "smtp": {
+      "saved": "SMTP-instellingen opgeslagen",
+      "saveFailed": "Kan instellingen niet opslaan",
+      "testSucceeded": "SMTP-verbinding geslaagd",
+      "testFailed": "Verbindingstest mislukt",
+      "testError": "Kan SMTP-verbinding niet testen",
+      "fromEnv": "SMTP is vooraf ingesteld. Je kunt deze instellingen hieronder overschrijven.",
+      "notConfigured": "SMTP is niet ingesteld. Vul de velden hieronder in en schakel SMTP in om e-mails voor wachtwoordherstel te kunnen versturen.",
+      "enable": "SMTP inschakelen",
+      "enableDescription": "Nodig voor e-mails voor wachtwoordherstel",
+      "host": "SMTP-host",
+      "port": "SMTP-poort",
+      "encryption": "Versleuteling",
+      "encryptionModes": {
+        "auto": "Automatisch (op basis van poort)",
+        "starttls": "STARTTLS",
+        "tls": "Impliciete TLS (poort 465)",
+        "none": "Geen (onversleuteld)"
+      },
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "fromEmail": "Afzenderadres",
+      "fromName": "Afzendernaam",
+      "unencryptedWarning": "E-mails worden onversleuteld verstuurd. Gebruik dit alleen voor een relay op een vertrouwd netwerk. Laat gebruikersnaam en wachtwoord leeg, want die zouden als leesbare tekst worden verstuurd.",
+      "skipVerify": "Certificaatcontrole overslaan",
+      "skipVerifyDescription": "Staat zelfondertekende certificaten toe. Laat dit uit, tenzij je relay het nodig heeft.",
+      "saving": "Opslaan...",
+      "save": "Instellingen opslaan",
+      "testing": "Testen...",
+      "test": "Verbinding testen"
+    },
+    "statusPage": {
+      "loadFailed": "Kan de instellingen van de statuspagina niet laden",
+      "logoTooLarge": "Het logo is groter dan 512 KB",
+      "uploadFailed": "Kan het logo niet uploaden",
+      "saved": "Statuspagina opgeslagen",
+      "saveFailed": "Kan de statuspagina niet opslaan",
+      "loading": "Laden...",
+      "enable": "Statuspagina inschakelen",
+      "enableDescription": "Iedereen die deze Nimbus kan bereiken, kan /status openen zonder in te loggen. Staat dit uit, dan bestaat de pagina niet.",
+      "group": "Groep om te tonen",
+      "chooseGroup": "Kies een groep",
+      "groupMissing": "De gekozen groep is niet van jou of bestaat niet meer. Kies een van je eigen groepen om de pagina te tonen.",
+      "title": "Titel",
+      "groupsNote": "Groepen zijn persoonlijk, dus de pagina toont een van je eigen groepen. Alleen de gemonitorde services daarin verschijnen: naam, pictogram, status en uptime. Verder wordt er niets over gedeeld.",
+      "logo": "Logo",
+      "currentLogo": "Huidig logo",
+      "logoFile": "Logobestand",
+      "uploading": "Uploaden...",
+      "replace": "Vervangen",
+      "upload": "Uploaden",
+      "remove": "Verwijderen",
+      "logoHint": "JPG, PNG, GIF of WEBP, tot 512 KB",
+      "showLinks": "Links tonen",
+      "showLinksDescription": "Maakt van elke servicenaam een link naar de URL en toont pictogrammen die van een URL komen. Laat dit uit om je adressen privé te houden.",
+      "saving": "Opslaan...",
+      "save": "Statuspagina opslaan",
+      "open": "Statuspagina openen"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "API-tokens",
+      "description": "Maak persoonlijke toegangstokens voor toegang vanuit scripts en apps. Stuur ze mee als",
+      "loadFailed": "Kan API-tokens niet laden",
+      "createFailed": "Kan token niet aanmaken",
+      "confirmRevoke": "\"{name}\" intrekken? Clients die het gebruiken, werken meteen niet meer.",
+      "never": "Nooit",
+      "created": "Token aangemaakt. Je kunt dit token hierna niet meer zien — kopieer het nu.",
+      "copied": "Gekopieerd!",
+      "copy": "Kopiëren",
+      "createTitle": "Nieuw token aanmaken",
+      "namePlaceholder": "Tokennaam (bijv. Hearth-dashboard)",
+      "name": "Tokennaam",
+      "scopes": "Rechten",
+      "noScope": "Kies minstens één recht.",
+      "expires": "Verloopt",
+      "creating": "Aanmaken…",
+      "create": "Token aanmaken",
+      "empty": "Nog geen API-tokens. Maak er hierboven een aan.",
+      "expired": "verlopen",
+      "dates": "Aangemaakt {created} · Laatst gebruikt {lastUsed} · Verloopt {expires}",
+      "revokeLabel": "{name} intrekken",
+      "revoking": "Intrekken…",
+      "revoke": "Intrekken"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Services lezen",
+        "description": "Services en groepen"
+      },
+      "read:metrics": {
+        "label": "Statistieken lezen",
+        "description": "Uptime, statusgeschiedenis en de Prometheus-export"
+      },
+      "read:widgets": {
+        "label": "Widgets lezen",
+        "description": "Widgets en dashboardgegevens"
+      },
+      "write:services": {
+        "label": "Services schrijven",
+        "description": "Services en groepen aanmaken, wijzigen, verwijderen en opnieuw controleren"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Laat een AI-assistent je dashboard lezen via /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# dag} other {# dagen}}",
+      "years": "{count, plural, one {# jaar} other {# jaar}}"
+    }
+  },
+  "auth": {
+    "layout": {
+      "tagline": "Je persoonlijke homelab-dashboard"
+    },
+    "login": {
+      "title": "Welkom terug",
+      "subtitle": "Log in op je account",
+      "email": "E-mailadres",
+      "password": "Wachtwoord",
+      "rememberMe": "Ingelogd blijven",
+      "forgotPassword": "Wachtwoord vergeten?",
+      "submit": "Inloggen",
+      "submitting": "Bezig met inloggen...",
+      "orContinueWith": "Of ga verder met",
+      "noAccount": "Nog geen account?",
+      "signUp": "Registreren",
+      "loading": "Laden...",
+      "errors": {
+        "apiUnreachable": "Kan de API-server niet bereiken. Gebruik je Docker, zorg dan dat NEXT_PUBLIC_API_URL naar het IP-adres van je server wijst (bijv. http://192.168.1.100:8080), niet naar \"http://backend:8080\".",
+        "invalidResponse": "De API gaf een ongeldig antwoord. Controleer de serverconfiguratie.",
+        "invalidCredentials": "Onjuist e-mailadres of wachtwoord",
+        "failed": "Inloggen mislukt. Probeer het opnieuw."
+      }
+    },
+    "register": {
+      "title": "Account aanmaken",
+      "subtitle": "Ga aan de slag met Nimbus",
+      "fullName": "Volledige naam",
+      "namePlaceholder": "Jan Jansen",
+      "email": "E-mailadres",
+      "password": "Wachtwoord",
+      "passwordHint": "Minimaal 8 tekens",
+      "confirmPassword": "Wachtwoord bevestigen",
+      "submit": "Account aanmaken",
+      "submitting": "Account wordt aangemaakt...",
+      "haveAccount": "Heb je al een account?",
+      "signIn": "Inloggen",
+      "disabled": {
+        "title": "Registratie uitgeschakeld",
+        "message": "Openbare registratie is momenteel uitgeschakeld voor deze Nimbus-installatie.",
+        "contactAdmin": "Neem contact op met een beheerder als je een account nodig hebt."
+      },
+      "errors": {
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "apiUnreachable": "Kan de API-server niet bereiken. Gebruik je Docker, zorg dan dat NEXT_PUBLIC_API_URL naar het IP-adres van je server wijst (bijv. http://192.168.1.100:8080), niet naar \"http://backend:8080\".",
+        "invalidResponse": "De API gaf een ongeldig antwoord. Controleer de serverconfiguratie.",
+        "disabled": "Openbare registratie is momenteel uitgeschakeld. Neem contact op met een beheerder.",
+        "failed": "Registratie mislukt",
+        "failedRetry": "Registratie mislukt. Probeer het opnieuw."
+      }
+    },
+    "setup": {
+      "checking": "Installatiestatus controleren...",
+      "connectionError": {
+        "title": "Verbindingsfout",
+        "message": "Kan geen verbinding maken met de Nimbus-backend.",
+        "hint": "Controleer of de backendserver draait en probeer het opnieuw.",
+        "retry": "Opnieuw proberen"
+      },
+      "welcome": {
+        "title": "Welkom bij Nimbus",
+        "subtitle": "Laten we je homelab-dashboard instellen",
+        "intro": "Maak om te beginnen een beheerdersaccount aan.",
+        "getStarted": "Aan de slag"
+      },
+      "complete": {
+        "title": "Installatie voltooid!",
+        "redirecting": "Je wordt doorgestuurd naar je dashboard..."
+      },
+      "create": {
+        "title": "Beheerdersaccount aanmaken",
+        "subtitle": "Dit wordt de eerste beheerder",
+        "fullName": "Volledige naam",
+        "namePlaceholder": "Beheerder",
+        "email": "E-mailadres",
+        "password": "Wachtwoord",
+        "passwordHint": "Minimaal 8 tekens",
+        "confirmPassword": "Wachtwoord bevestigen",
+        "back": "Terug",
+        "submit": "Beheerder aanmaken",
+        "submitting": "Aanmaken..."
+      },
+      "errors": {
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "failed": "Beheerdersaccount aanmaken mislukt",
+        "failedRetry": "Beheerdersaccount aanmaken mislukt. Probeer het opnieuw."
+      }
+    },
+    "forgotPassword": {
+      "title": "Wachtwoord resetten",
+      "subtitle": "Vul je e-mailadres in en we sturen je een resetlink",
+      "email": "E-mailadres",
+      "submit": "Resetlink versturen",
+      "submitting": "Versturen...",
+      "success": "Als er een account met dat e-mailadres bestaat, is er een link verstuurd om je wachtwoord te resetten. Kijk in je inbox.",
+      "backToLogin": "Terug naar inloggen",
+      "rememberPassword": "Weet je je wachtwoord weer?",
+      "signIn": "Inloggen",
+      "errors": {
+        "generic": "Er ging iets mis. Probeer het opnieuw."
+      }
+    },
+    "resetPassword": {
+      "loading": "Laden...",
+      "invalidLink": {
+        "title": "Ongeldige resetlink",
+        "message": "Deze resetlink is ongeldig of verlopen. Vraag een nieuwe aan.",
+        "requestNew": "Nieuwe resetlink aanvragen"
+      },
+      "title": "Nieuw wachtwoord instellen",
+      "subtitle": "Vul hieronder je nieuwe wachtwoord in",
+      "newPassword": "Nieuw wachtwoord",
+      "confirmPassword": "Nieuw wachtwoord bevestigen",
+      "submit": "Wachtwoord resetten",
+      "submitting": "Resetten...",
+      "success": "Je wachtwoord is gereset.",
+      "signInWithNew": "Log in met je nieuwe wachtwoord",
+      "errors": {
+        "passwordTooShort": "Wachtwoord moet minimaal 8 tekens lang zijn",
+        "passwordMismatch": "Wachtwoorden komen niet overeen",
+        "generic": "Er ging iets mis. Probeer het opnieuw."
+      }
+    },
+    "oauth": {
+      "continueWith": "Doorgaan met {provider}",
+      "connecting": "Verbinden..."
+    }
+  },
+  "backup": {
+    "page": {
+      "title": "Exporteren & importeren",
+      "description": "Maak een back-up van je dashboard, zet het over naar een andere Nimbus of deel de indeling."
+    },
+    "export": {
+      "title": "Exporteren",
+      "description": "Download je groepen, services, widgets, integraties en voorkeuren als één JSON-bestand, met geüploade pictogrammen en achtergrond erin. Inloggegevens van integraties, headerwaarden van Eigen API-widgets en adressen van kalenderfeeds worden nooit meegenomen; andere URL's worden geëxporteerd zoals je ze hebt ingevuld.",
+      "export": "Dashboard exporteren",
+      "exporting": "Exporteren…",
+      "failed": "Het dashboard kon niet worden geëxporteerd",
+      "omittedImages": "{count, plural, one {# geüploade afbeelding ontbrak of was te groot en is} other {# geüploade afbeeldingen ontbraken of waren te groot en zijn}} niet in het bestand opgenomen."
+    },
+    "import": {
+      "title": "Importeren",
+      "description": "Laad een bestand dat uit Nimbus is geëxporteerd. Je ziet wat het doet voordat er iets verandert.",
+      "fileLabel": "Dashboardbestand",
+      "chooseFile": "Bestand kiezen",
+      "noFile": "Geen bestand gekozen",
+      "howToImport": "Hoe wil je importeren?",
+      "modes": {
+        "merge": {
+          "label": "Samenvoegen",
+          "description": "Voeg het bestand toe aan wat je al hebt. Je voorkeuren blijven zoals ze zijn. Hetzelfde bestand twee keer importeren voegt alles twee keer toe."
+        },
+        "replace": {
+          "label": "Vervangen",
+          "description": "Verwijder je huidige dashboard en gebruik in plaats daarvan het bestand."
+        }
+      },
+      "checking": "Bestand controleren…",
+      "failed": "Het importeren is mislukt",
+      "tooLarge": "Het bestand is te groot. Een export is maximaal 10 MB.",
+      "unreadable": "Het bestand kon niet worden gelezen",
+      "replaceWarning": {
+        "title": "Vervangen verwijdert je huidige dashboard.",
+        "body": "De groepen, services en widgets op je standaardboard en op de boards die in het bestand staan worden verwijderd, met de statusgeschiedenis van die services. Ook je integraties en hun opgeslagen inloggegevens worden verwijderd, behalve integraties die nog door tegels op je andere boards worden gebruikt. Andere boards blijven zoals ze zijn. Je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je terug wilt kunnen."
+      },
+      "customCss": {
+        "title": "Dit bestand bevat eigen CSS (lees het voordat je importeert)",
+        "description": "Het past de stijl aan van elke pagina achter de login. Het kan niets van een andere site laden, maar kan wel verbergen of veranderen wat je ziet.",
+        "label": "Eigen CSS in het bestand"
+      },
+      "replaceButton": "Mijn dashboard vervangen",
+      "importButton": "Importeren",
+      "finished": "Importeren voltooid.",
+      "openDashboard": "Dashboard openen",
+      "confirm": {
+        "title": "Je dashboard vervangen?",
+        "message": "Dit verwijdert {count, plural, one {# bestaand item} other {# bestaande items}}, met de inloggegevens en statusgeschiedenis die erbij horen, overschrijft je voorkeuren en importeert daarna het bestand. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vervangen"
+      },
+      "statusPage": {
+        "kept": "De openbare statuspagina gaat over naar de groep “{group}” uit het bestand.",
+        "offline": "De openbare statuspagina gaat offline: het bestand heeft geen groep “{group}”. Kies opnieuw een groep onder Instellingen → Beheerinstellingen."
+      },
+      "summary": {
+        "willDo": "Deze import gaat",
+        "hasDone": "Deze import heeft",
+        "add": "Toevoegen",
+        "added": "Toegevoegd",
+        "delete": "Verwijderen",
+        "deleted": "Verwijderd",
+        "entities": {
+          "groups": "groepen",
+          "services": "services",
+          "widgets": "widgets",
+          "integrations": "integraties"
+        },
+        "preferencesFromFile": "Voorkeuren (thema, indeling, achtergrond, statusbalk): overgenomen uit het bestand",
+        "preferencesKept": "Voorkeuren (thema, indeling, achtergrond, statusbalk): blijven zoals ze zijn",
+        "needsCredentials": "{count, plural, one {# integratie komt} other {# integraties komen}} zonder inloggegevens. Vul ze in onder Instellingen → Integraties.",
+        "needsSecrets": "{count, plural, one {Bij # widget moeten de geheimen} other {Bij # widgets moeten de geheimen}} (headerwaarden, kalenderadressen) opnieuw worden ingevuld."
+      }
+    },
+    "wizard": {
+      "title": "Importeren uit een ander dashboard",
+      "description": "Stap over van Homepage, Homarr, Homer of Dashy, of begin met een docker-compose-bestand. Plak de config of kies het bestand. Het wordt aan je dashboard toegevoegd; niets van wat je hebt verandert. API-sleutels en wachtwoorden in de config worden niet overgenomen.",
+      "format": "Formaat",
+      "detectAutomatically": "Automatisch herkennen",
+      "expects": {
+        "homepage": "Verwacht services.yaml of bookmarks.yaml.",
+        "homarr": "Verwacht een boardconfig (JSON) van Homarr 0.x.",
+        "homer": "Verwacht config.yml.",
+        "dashy": "Verwacht conf.yml.",
+        "compose": "Verwacht docker-compose.yml."
+      },
+      "dockerHost": "Docker-host",
+      "dockerHostPlaceholder": "Deze host",
+      "dockerHostHelp": "Alleen voor docker-compose: de hostnaam of het IP-adres waarop de gepubliceerde poorten bereikbaar zijn. Leeg betekent de host van deze pagina.",
+      "config": "Config",
+      "configPlaceholder": "Plak hier de YAML of JSON",
+      "configFile": "Configbestand",
+      "chooseFile": "Bestand kiezen",
+      "convert": "Omzetten",
+      "working": "Bezig…",
+      "tooLarge": "Het bestand is te groot. Een config is maximaal 1 MB.",
+      "checkFailed": "De import kon niet worden gecontroleerd",
+      "convertFailed": "De config kon niet worden omgezet",
+      "importFailed": "Het importeren is mislukt",
+      "readAs": "Gelezen als <b>{format}</b>: {services, plural, one {# service} other {# services}}, {groups, plural, one {# groep} other {# groepen}}, {integrations, plural, one {# integratie} other {# integraties}}.",
+      "warnings": "Niet alles kon worden overgenomen ({count})",
+      "groups": "Groepen",
+      "groupInConfig": "Groep in de config",
+      "goesInto": "Gaat naar",
+      "groupFor": "Groep voor {name}",
+      "newGroup": "Nieuwe groep “{name}”",
+      "defaultGroup": "{name} (standaard)",
+      "services": "Services",
+      "name": "Naam",
+      "url": "URL",
+      "group": "Groep",
+      "integration": "Integratie",
+      "integrations": "Integraties",
+      "app": "App",
+      "address": "Adres",
+      "credentialsNote": "Inloggegevens worden niet overgenomen. Vul ze na het importeren in onder Instellingen → Integraties.",
+      "import": "Importeren",
+      "finished": "Importeren voltooid.",
+      "openDashboard": "Dashboard openen"
+    }
+  },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Sluiten",
+      "yourBoards": "Je boards",
+      "nameOf": "Naam van {name}",
+      "moveUp": "{name} omhoog verplaatsen",
+      "moveDown": "{name} omlaag verplaatsen",
+      "delete": "{name} verwijderen",
+      "defaultBoard": "Standaardboard, op /dashboard",
+      "shared": "Gedeeld met alle gebruikers, alleen-lezen",
+      "newBoard": "Nieuw board",
+      "namePlaceholder": "bijv. Gezin",
+      "create": "Aanmaken",
+      "share": "Delen met alle gebruikers, alleen-lezen",
+      "shareHint": "Iedere gebruiker ziet alle tegels van een gedeeld board, ook widgets die alleen voor beheerders zijn, zoals Docker-containers, systeemstatistieken en eigen API-gegevens."
+    },
+    "deleteDialog": {
+      "title": "“{name}” verwijderen?",
+      "tilesLegend": "De services, widgets en groepen erop:",
+      "moveTo": "Verplaatsen naar",
+      "moveToLabel": "Board waar ze naartoe gaan",
+      "deleteTiles": "Samen met het board verwijderen",
+      "warning": "Ze worden definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "cancel": "Annuleren",
+      "confirm": "Board verwijderen"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (dit board)",
+      "thisBoard": "Dit board",
+      "hint": "Op een ander board komt het achteraan, buiten elke groep."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board:",
+      "manage": "Boards beheren",
+      "shared": "gedeeld"
+    }
+  },
+  "dashboard": {
+    "view": {
+      "loading": "Dashboard laden...",
+      "readOnlyShared": "Alleen-lezen: gedeeld board",
+      "widgetsFailed": "Widgets konden niet worden geladen. Laad de pagina opnieuw om ze te zien; tot die tijd kan de volgorde niet worden gewijzigd.",
+      "emptyGroup": {
+        "title": "Nog niets in deze groep",
+        "description": "Voeg een service of widget toe aan deze groep om die hier te zien.",
+        "addService": "Service toevoegen"
+      },
+      "deleteWidget": {
+        "title": "Widget verwijderen",
+        "message": "Weet je zeker dat je deze widget wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Verwijderen"
+      },
+      "deleteGroup": {
+        "title": "Groep verwijderen",
+        "confirm": "Weet je zeker dat je “{name}” wilt verwijderen?",
+        "moveNote": "Services en widgets in deze groep worden naar de standaardgroep verplaatst.",
+        "deleteContents": "Alle services en widgets in deze groep definitief verwijderen",
+        "warning": "Let op: hiermee worden alle services en widgets in deze groep definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+        "cancel": "Annuleren",
+        "delete": "Verwijderen"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Alleen-lezen: beheerd via configuratiebestand",
+      "done": "Klaar",
+      "edit": "Bewerken",
+      "addWidget": "Widget toevoegen",
+      "addService": "Service toevoegen"
+    },
+    "stats": {
+      "totalServices": "Aantal services",
+      "online": "Online",
+      "offline": "Offline",
+      "avgResponse": "Gem. responstijd"
+    },
+    "kpis": {
+      "loading": "Laden",
+      "lastUpdateFailed": "Laatste update mislukt: {error}",
+      "stale": "Deze gegevens zijn mogelijk verouderd"
+    },
+    "statusStrip": {
+      "label": "Status",
+      "down": "{count} offline",
+      "operational": "Alles werkt",
+      "customApi": "Eigen API"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitoring uitgeschakeld voor deze groep",
+      "tabs": {
+        "edit": "Groep bewerken",
+        "delete": "Groep verwijderen",
+        "addNew": "Nieuwe groep toevoegen",
+        "add": "Toevoegen"
+      },
+      "sections": {
+        "addGroup": "Groep toevoegen",
+        "moveUp": "{name} omhoog verplaatsen",
+        "moveDown": "{name} omlaag verplaatsen",
+        "edit": "{name} bewerken",
+        "delete": "{name} verwijderen",
+        "dropHere": "Zet hier een tegel neer.",
+        "empty": "Nog niets in deze groep."
+      },
+      "form": {
+        "editTitle": "Groep bewerken",
+        "createTitle": "Groep aanmaken",
+        "close": "Sluiten",
+        "name": "Naam",
+        "namePlaceholder": "Voer een groepsnaam in",
+        "charCount": "{count}/35 tekens",
+        "color": "Kleur",
+        "colors": {
+          "indigo": "Indigo",
+          "red": "Rood",
+          "orange": "Oranje",
+          "yellow": "Geel",
+          "green": "Groen",
+          "teal": "Blauwgroen",
+          "blue": "Blauw",
+          "violet": "Violet",
+          "pink": "Roze",
+          "slate": "Leisteengrijs"
+        },
+        "customColor": "Eigen kleur",
+        "colorCode": "Kleurcode",
+        "preview": "Voorbeeld",
+        "previewName": "Groepsnaam",
+        "tileStyle": "Tegelstijl",
+        "tileStyles": {
+          "cards": {
+            "label": "Kaarten",
+            "description": "Volledige tegels met status en details"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "Eén regel per stuk, voor veel snelle links"
+          }
+        },
+        "monitoring": "Monitoring inschakelen",
+        "monitoringDescription": "Als dit uit staat, krijgen services in deze groep geen statuscontrole en verschijnen ze niet in de statistieken",
+        "nameRequired": "Groepsnaam is verplicht",
+        "nameTooLong": "Groepsnaam mag maximaal 35 tekens lang zijn",
+        "invalidColor": "Ongeldige kleur. Gebruik hex-notatie (bijv. #6366f1)",
+        "saveFailed": "Groep opslaan mislukt",
+        "cancel": "Annuleren",
+        "saving": "Opslaan...",
+        "save": "Wijzigingen opslaan",
+        "create": "Groep aanmaken"
+      },
+      "selector": {
+        "label": "Groep",
+        "loading": "Groepen laden...",
+        "noGroups": "Geen groepen beschikbaar",
+        "none": "Geen groep",
+        "defaultOption": "{name} (standaard)",
+        "hint": "Wijs deze service toe aan een groep om alles overzichtelijk te houden"
+      },
+      "monitoringLock": {
+        "default": "Als dit uit staat, krijgt deze service geen statuscontrole, verschijnt hij niet in de statistieken en activeert hij geen webhooks",
+        "groupDisabled": "Monitoring staat uit voor de groep “{name}”, dus services daarin krijgen nooit een statuscontrole"
+      }
+    },
+    "discovered": {
+      "loadFailed": "Gevonden containers laden mislukt",
+      "actionFailed": "Er is iets misgegaan",
+      "unavailable": "Gevonden containers konden niet worden geladen: {error}",
+      "link": "{count, plural, one {# gevonden container} other {# gevonden containers}}",
+      "title": "Gevonden",
+      "none": "Geen nieuwe containers.",
+      "intro": "Containers uit je Docker-integraties. Controleer een geraden adres voordat je het toevoegt.",
+      "refresh": "Vernieuwen",
+      "suggestion": "Deze container vraagt om een {name}-integratie. <link>Stel die in</link> (er zijn nog inloggegevens nodig) en koppel die daarna aan de service.",
+      "labelled": "gelabeld",
+      "noAddress": "Geen adres gevonden",
+      "guess": "geraden",
+      "review": "Controleren",
+      "reviewLabel": "{name} controleren",
+      "add": "Toevoegen",
+      "addLabel": "{name} toevoegen",
+      "edit": "Bewerken",
+      "editLabel": "{name} bewerken",
+      "ignore": "Negeren",
+      "ignoreLabel": "{name} negeren",
+      "name": "Naam",
+      "address": "Adres",
+      "group": "Groep",
+      "groupPlaceholder": "Geen",
+      "guessHint": "Het adres is geraden op basis van de gepubliceerde poort van de container. Pas het aan als de service op een andere manier bereikbaar is.",
+      "addService": "Service toevoegen",
+      "cancel": "Annuleren",
+      "ignored": "Genegeerd ({count})",
+      "unignore": "Niet meer negeren",
+      "unignoreLabel": "{name} niet meer negeren"
+    },
+    "board": {
+      "notFound": "Board niet gevonden",
+      "notFoundDescription": "Het bestaat niet, of het wordt niet meer met je gedeeld.",
+      "goToDashboard": "Naar je dashboard"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integraties",
+      "description": "Verbind Nimbus met je apps. Koppel een integratie aan een service op de <link>bewerkpagina</link> ervan om live cijfers op de tegel te tonen.",
+      "add": "Integratie toevoegen",
+      "emptyTitle": "Nog geen integraties",
+      "supportedApps": "Ondersteunde apps: {apps}.",
+      "noneAvailable": "Deze server heeft geen integraties beschikbaar.",
+      "test": "Testen",
+      "testing": "Testen...",
+      "testFailed": "Test mislukt",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "deleteTitle": "Integratie verwijderen",
+      "deleteMessage": "“{name}” verwijderen? Services die eraan gekoppeld zijn, verliezen hun live cijfers.",
+      "status": {
+        "needsCredentials": "Inloggegevens nodig: bewerk om ze in te vullen",
+        "notTested": "Niet getest",
+        "connected": "Verbonden",
+        "failed": "Mislukt",
+        "failedWith": "Mislukt: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Integratie toevoegen",
+      "editTitle": "{name} bewerken",
+      "close": "Sluiten",
+      "app": "App",
+      "name": "Naam",
+      "url": "URL",
+      "urlHelp": "Het adres waarop Nimbus de app bereikt, inclusief een eventueel subpad.",
+      "signInWith": "Inloggen met",
+      "auth": {
+        "none": "Geen",
+        "apiKey": "API-sleutel",
+        "token": "Token",
+        "basic": "Gebruikersnaam en wachtwoord"
+      },
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "savedPlaceholder": "Opgeslagen; laat leeg om te behouden",
+      "credentialsNote": "Inloggegevens worden versleuteld opgeslagen en nooit teruggestuurd naar de browser.",
+      "forExample": "Bijvoorbeeld {value}",
+      "refresh": "Verversinterval (seconden)",
+      "verifyTls": "TLS-certificaat controleren",
+      "verifyTlsHint": "Zet uit voor apps met een zelfondertekend certificaat",
+      "verifyTlsWarning": "Zonder deze controle kan Nimbus de app niet onderscheiden van een bedrieger, en wie er ook antwoordt, krijgt de inloggegevens. Zet het alleen uit voor een zelfondertekend certificaat op een netwerk dat je vertrouwt.",
+      "connectedIn": "Verbonden in {ms} ms",
+      "connectionFailed": "Verbinding mislukt: {error}",
+      "usernameMissing": "Vul ook de gebruikersnaam in",
+      "passwordMissing": "Vul ook het wachtwoord in, of laat beide leeg om de opgeslagen gegevens te behouden",
+      "testFailed": "Test mislukt",
+      "saveFailed": "Integratie opslaan mislukt",
+      "test": "Verbinding testen",
+      "testSaved": "Opgeslagen verbinding testen",
+      "testing": "Testen...",
+      "cancel": "Annuleren",
+      "save": "Wijzigingen opslaan",
+      "saving": "Opslaan...",
+      "add": "Integratie toevoegen"
+    },
+    "selector": {
+      "label": "Live cijfers",
+      "description": "Toon cijfers uit een app, zoals de wachtrij van Sonarr, op deze tegel.",
+      "none": "Geen",
+      "loading": "Integraties laden...",
+      "manage": "Integraties beheren"
+    }
+  },
+  "language": {
+    "label": "Taal",
+    "automatic": "Automatisch (browser)",
+    "hint": "Automatisch volgt de taal van je browser",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Statistieken",
+      "userManagement": "Gebruikersbeheer",
+      "admin": "Beheer",
+      "profileSettings": "Profielinstellingen",
+      "themeSettings": "Thema-instellingen",
+      "settings": "Instellingen"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Statistieken",
+      "users": "Gebruikers",
+      "settings": "Instellingen"
+    },
+    "hostedByNimbusCloud": "Gehost door Nimbus Cloud",
+    "header": {
+      "openMenu": "Navigatiemenu openen"
+    },
+    "sidebar": {
+      "addService": "Service toevoegen",
+      "signOut": "Uitloggen",
+      "expand": "Zijbalk uitklappen",
+      "collapse": "Zijbalk inklappen",
+      "close": "Zijbalk sluiten"
+    },
+    "userMenu": {
+      "loading": "Laden...",
+      "fallbackName": "Gebruiker",
+      "editLayout": "Indeling bewerken",
+      "doneEditing": "Klaar met bewerken",
+      "profileSettings": "Profielinstellingen",
+      "newBoard": "Nieuw board",
+      "installApp": "App installeren",
+      "signOut": "Uitloggen"
+    },
+    "search": {
+      "label": "Services zoeken",
+      "shortcutTitle": "Services zoeken (/ of Ctrl+K)",
+      "loading": "Services laden...",
+      "loadFailed": "Je services konden niet worden geladen: {error}",
+      "noResults": "Geen services gevonden"
+    },
+    "topBar": {
+      "heading": "Dashboard",
+      "weatherIn": "{condition} in {location}"
+    },
+    "themeToggle": {
+      "label": "Thema wisselen",
+      "labelAuto": "Thema wisselen (nu automatisch)",
+      "autoTitle": "Automatische modus - klik om zelf te kiezen"
+    },
+    "configFile": {
+      "title": "Beheerd via configuratiebestand.",
+      "readOnly": "Dit dashboard is alleen-lezen: de groepen, services, widgets en integraties staan in het bestand waar NIMBUS_CONFIG_FILE naar verwijst. Pas het bestand aan om het dashboard te wijzigen.",
+      "editable": "Dit dashboard volgt het bestand waar NIMBUS_CONFIG_FILE naar verwijst. Wat je hier wijzigt, kan worden overschreven als het bestand verandert of de server opnieuw start.",
+      "preferences": "Ook de instellingen voor thema, indeling en achtergrond komen uit het bestand: wijzigingen daarin worden niet opgeslagen.",
+      "readOnlyNote": "Dit dashboard wordt beheerd via een configuratiebestand en is alleen-lezen. Pas in plaats daarvan het bestand aan."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Meldingen",
+      "description": "Krijg meldingen via een webhook, Discord, Slack, ntfy, Gotify, Telegram of Pushover als de status van services verandert",
+      "add": "Webhook toevoegen",
+      "loadFailed": "Kan webhooks niet laden",
+      "saveFailed": "Kan webhook niet opslaan",
+      "confirmDelete": "Weet je zeker dat je deze webhook wilt verwijderen?",
+      "testSent": "Testmelding verstuurd!",
+      "testFailed": "Test mislukt: {error}",
+      "unknownError": "Onbekende fout",
+      "empty": "Nog geen webhooks ingesteld",
+      "createFirst": "Maak je eerste webhook"
+    },
+    "card": {
+      "active": "Actief",
+      "disabled": "Uitgeschakeld",
+      "triggers": "Triggers: {triggers}",
+      "offline": "Offline",
+      "online": "Online",
+      "none": "Geen",
+      "sent": "Verstuurd: {count}",
+      "failed": "Mislukt: {count}",
+      "lastTriggered": "Laatst getriggerd: {date}",
+      "never": "Nooit",
+      "enabledLabel": "{name} ingeschakeld",
+      "disable": "Webhook uitschakelen",
+      "enable": "Webhook inschakelen",
+      "test": "Testen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen"
+    },
+    "form": {
+      "addTitle": "Webhook toevoegen",
+      "editTitle": "Webhook bewerken",
+      "close": "Sluiten",
+      "name": "Naam",
+      "namePlaceholder": "Homelab-meldingen",
+      "type": "Type",
+      "optional": "{label} (optioneel)",
+      "savedSecret": "Opgeslagen. Laat leeg om te behouden",
+      "removeToken": "Opgeslagen toegangstoken verwijderen",
+      "priority": "Prioriteit",
+      "priorities": {
+        "min": "Minimaal",
+        "low": "Laag",
+        "default": "Standaard",
+        "high": "Hoog",
+        "urgent": "Urgent"
+      },
+      "verifyTls": "TLS-certificaat controleren",
+      "verifyTlsDescription": "Zet dit uit voor een server met een zelfondertekend certificaat",
+      "triggers": "Triggers",
+      "onOffline": "Als een service offline gaat",
+      "onOnline": "Als een service weer online komt",
+      "retries": "Nieuwe pogingen",
+      "retriesHint": "Voor offline-meldingen: eerst opnieuw controleren voordat er iets wordt verstuurd, om valse meldingen te voorkomen.",
+      "retryCount": "Pogingen (0-5)",
+      "retryDelay": "Wachttijd (10-300 s)",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "create": "Webhook aanmaken",
+      "saveFailed": "Kan webhook niet opslaan",
+      "errors": {
+        "required": "{field} is verplicht",
+        "nameTooLong": "Naam mag maximaal 100 tekens lang zijn",
+        "invalidUrl": "Vul een volledige URL in, die begint met http:// of https://",
+        "ntfyTopic": "De URL moet eindigen op het topic, zoals https://ntfy.sh/my-topic",
+        "invalidChatId": "Chat-ID moet een getal of een openbare @kanaalnaam zijn",
+        "noTrigger": "Kies minstens één trigger"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Algemeen",
+        "description": "Standaard JSON-payload",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "discord": {
+        "description": "Discord-compatibel embed-formaat",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "slack": {
+        "description": "Slack Block Kit-formaat",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "ntfy": {
+        "description": "Push naar een ntfy-topic, op ntfy.sh of je eigen server",
+        "url": {
+          "label": "Topic-URL",
+          "help": "Het serveradres gevolgd door de naam van het topic."
+        },
+        "token": {
+          "label": "Toegangstoken",
+          "help": "Alleen nodig voor beveiligde topics."
+        }
+      },
+      "gotify": {
+        "description": "Push naar een Gotify-server",
+        "url": {
+          "label": "Server-URL"
+        },
+        "token": {
+          "label": "App-token",
+          "help": "Maak een applicatie aan in Gotify en kopieer het token ervan."
+        }
+      },
+      "telegram": {
+        "description": "Bericht van je Telegram-bot",
+        "token": {
+          "label": "Bot-token",
+          "help": "Van @BotFather."
+        },
+        "chatId": {
+          "label": "Chat-ID",
+          "help": "Een gebruikers-, groeps- of kanaal-ID, of een openbare @kanaalnaam."
+        }
+      },
+      "pushover": {
+        "description": "Push via Pushover",
+        "token": {
+          "label": "App-token",
+          "help": "Het API-token van je Pushover-applicatie."
+        },
+        "userKey": {
+          "label": "Gebruikerssleutel",
+          "help": "Je gebruikerssleutel of een groepssleutel."
+        }
+      }
+    }
+  },
+  "preferences": {
+    "saveThemeFailed": "Het thema kon niet worden opgeslagen",
+    "uploadWallpaperFailed": "De achtergrond kon niet worden geüpload"
+  },
+  "services": {
+    "tile": {
+      "move": "{name} verplaatsen",
+      "edit": "{name} bewerken",
+      "notMonitored": "Niet gemonitord"
+    },
+    "status": {
+      "online": "online",
+      "offline": "offline",
+      "unknown": "onbekend",
+      "notMonitored": "niet gemonitord"
+    },
+    "icon": {
+      "alt": "Pictogram van {name}"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget wordt} other {# widgets worden}} alleen in de rasterweergave getoond."
+    },
+    "hoverDetail": {
+      "loading": "Laden…",
+      "loadFailed": "Details konden niet worden geladen",
+      "uptime": "Uptime (24 u)",
+      "noChecks": "Geen controles",
+      "responseTime": "Responstijd",
+      "lastCheck": "Laatste controle",
+      "never": "Nooit",
+      "lastError": "Laatste fout"
+    },
+    "modal": {
+      "title": "Service bewerken",
+      "close": "Sluiten"
+    },
+    "form": {
+      "name": "Naam van de service",
+      "namePlaceholder": "bijv. Plex Media Server",
+      "url": "URL van de service",
+      "urlHint": "De URL waarop je service bereikbaar is",
+      "description": "Beschrijving",
+      "descriptionPlaceholder": "Korte beschrijving van wat deze service doet",
+      "monitoring": "Monitoring inschakelen",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "creating": "Aanmaken...",
+      "create": "Service aanmaken",
+      "errors": {
+        "loadGroups": "Groepen laden mislukt: {message}",
+        "loadGroupsRetry": "Groepen laden mislukt. Probeer het opnieuw.",
+        "nameRequired": "Naam van de service is verplicht",
+        "urlRequired": "URL van de service is verplicht",
+        "invalidUrl": "Voer een geldige URL in (bijv. https://example.com)",
+        "uploadFailed": "Afbeelding uploaden mislukt: {message}",
+        "saveFailed": "Service opslaan mislukt. Probeer het opnieuw.",
+        "updateFailed": "Service bijwerken mislukt. Probeer het opnieuw.",
+        "createFailed": "Service aanmaken mislukt. Probeer het opnieuw."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Type pictogram",
+      "emoji": "Emoji",
+      "uploadImage": "Afbeelding uploaden",
+      "imageUrl": "Afbeeldings-URL",
+      "autoFetch": "Pictogram automatisch ophalen",
+      "autoFetching": "Pictogram zoeken...",
+      "autoFetchHint": "Zoekt een pictogram op basis van de naam van de service, anders het favicon van de site",
+      "autoFetchNeedsInput": "Vul eerst een naam of URL van de service in",
+      "notFound": "Geen pictogram gevonden — probeer er zelf een te uploaden",
+      "fetchFailed": "Pictogram ophalen mislukt",
+      "emojiLabel": "Pictogram (emoji)",
+      "pickEmoji": "Emoji kiezen",
+      "emojiHint": "Klik op \"Emoji kiezen\" of plak een emoji (letters en cijfers zijn niet toegestaan)",
+      "preview": "Voorbeeld:",
+      "previewAlt": "Voorbeeld van pictogram",
+      "uploadLabel": "Pictogram uploaden",
+      "uploadHint": "Max. grootte: 512 KB. Formaten: JPG, PNG, GIF, WEBP",
+      "remove": "Verwijderen",
+      "urlHint": "Vul de URL in van een afbeelding die je als pictogram voor je service wilt gebruiken",
+      "notAnImage": "Kies een afbeeldingsbestand",
+      "tooLarge": "De afbeelding moet kleiner zijn dan 512 KB"
+    },
+    "emojiPicker": {
+      "title": "Kies een emoji",
+      "close": "Sluiten",
+      "categories": {
+        "smileys": "Smileys & mensen",
+        "animals": "Dieren & natuur",
+        "food": "Eten & drinken",
+        "activities": "Activiteiten & sport",
+        "travel": "Reizen & plaatsen",
+        "objects": "Voorwerpen",
+        "symbols": "Symbolen",
+        "tech": "Techniek & wetenschap"
+      }
+    }
+  },
+  "settings": {
+    "home": {
+      "title": "Instellingen",
+      "subtitle": "Stel de voorkeuren van je dashboard in",
+      "sections": {
+        "theme": {
+          "title": "Thema",
+          "description": "Pas kleuren, donkere modus en achtergrond aan"
+        },
+        "profile": {
+          "title": "Profiel",
+          "description": "Beheer je account en persoonlijke gegevens"
+        },
+        "notifications": {
+          "title": "Meldingen",
+          "description": "Stel webhooks in voor meldingen over de status van services"
+        },
+        "integrations": {
+          "title": "Integraties",
+          "description": "Koppel apps zoals Sonarr en Radarr om live cijfers te tonen"
+        },
+        "apiTokens": {
+          "title": "API-tokens",
+          "description": "Maak tokens aan voor toegang tot de API vanuit scripts en apps"
+        },
+        "backup": {
+          "title": "Exporteren & importeren",
+          "description": "Maak een back-up van je dashboard of zet het over naar een andere Nimbus"
+        },
+        "admin": {
+          "title": "Beheerinstellingen",
+          "description": "Stel systeembrede instellingen voor Nimbus in"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profiel",
+      "loading": "Laden...",
+      "picture": "Profielfoto",
+      "defaultName": "Gebruiker",
+      "uploading": "Uploaden...",
+      "upload": "Foto uploaden",
+      "pictureHint": "JPG, PNG of GIF (max. 5 MB)",
+      "notImage": "Kies een afbeeldingsbestand",
+      "tooLarge": "De afbeelding moet kleiner zijn dan 5 MB",
+      "syncedFrom": "Profielfoto gesynchroniseerd vanuit {provider}",
+      "updateIn": "Wijzig je foto in je {provider}-account",
+      "signInMethod": "Inlogmethode",
+      "emailPassword": "E-mailadres en wachtwoord",
+      "name": "Naam",
+      "email": "E-mailadres",
+      "role": "Rol",
+      "roles": {
+        "admin": "beheerder",
+        "user": "gebruiker"
+      }
+    },
+    "password": {
+      "title": "Wachtwoord wijzigen",
+      "current": "Huidig wachtwoord",
+      "new": "Nieuw wachtwoord",
+      "confirm": "Nieuw wachtwoord bevestigen",
+      "tooShort": "Het nieuwe wachtwoord moet minstens 8 tekens lang zijn",
+      "mismatch": "De nieuwe wachtwoorden komen niet overeen",
+      "sameAsCurrent": "Het nieuwe wachtwoord moet anders zijn dan je huidige wachtwoord",
+      "changed": "Wachtwoord gewijzigd",
+      "unexpected": "Er ging iets mis. Probeer het opnieuw.",
+      "changing": "Wijzigen...",
+      "submit": "Wachtwoord wijzigen"
+    },
+    "dangerZone": {
+      "title": "Gevarenzone",
+      "lastAdmin": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je dit account kunt verwijderen.",
+      "description": "Verwijder je account en alle bijbehorende gegevens definitief. Dit kan niet ongedaan worden gemaakt.",
+      "statsError": "Je beheerdersstatus kon niet worden gecontroleerd. De server blokkeert het verwijderen als je de enige beheerder bent.",
+      "deleteMine": "Mijn account verwijderen",
+      "deleteAccount": "Account verwijderen",
+      "dialogBody": "Hiermee worden je account, services, groepen, voorkeuren en alle andere bijbehorende gegevens definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "typeToConfirm": "Typ <mono>{email}</mono> om te bevestigen.",
+      "cancel": "Annuleren",
+      "deleting": "Verwijderen...",
+      "unexpected": "Er ging iets mis. Probeer het opnieuw."
+    },
+    "theme": {
+      "page": {
+        "title": "Thema-instellingen",
+        "subtitle": "Pas het uiterlijk van je dashboard aan",
+        "autosave": "Wijzigingen worden automatisch opgeslagen"
+      },
+      "mode": {
+        "title": "Themamodus",
+        "description": "Kies tussen een licht en een donker thema",
+        "auto": "Automatisch (volgt systeem)",
+        "autoDescription": "Wissel automatisch tussen licht en donker op basis van je systeemvoorkeuren",
+        "autoDescriptionCurrent": "Wissel automatisch tussen licht en donker op basis van je systeemvoorkeuren (nu: {mode})",
+        "current": {
+          "light": "licht",
+          "dark": "donker"
+        },
+        "light": "Licht",
+        "dark": "Donker"
+      },
+      "accent": {
+        "title": "Accentkleur",
+        "description": "Kies je favoriete accentkleur",
+        "colors": {
+          "skyBlue": "Hemelsblauw (standaard)",
+          "purple": "Paars",
+          "pink": "Roze",
+          "red": "Rood",
+          "orange": "Oranje",
+          "yellow": "Geel",
+          "green": "Groen",
+          "teal": "Blauwgroen"
+        },
+        "custom": "Eigen kleur:",
+        "reset": "Herstellen"
+      },
+      "links": {
+        "title": "Linkgedrag",
+        "description": "Kies hoe links naar services openen",
+        "newTab": "Services openen in nieuw tabblad",
+        "newTabDescription": "Als dit aan staat, opent een service in een nieuw tabblad als je erop klikt"
+      },
+      "resizing": {
+        "title": "Formaat van kaarten",
+        "description": "Bepaal of servicekaarten verschillende formaten kunnen hebben",
+        "toggle": "Formaat van kaarten aanpassen",
+        "toggleDescription": "Als dit aan staat, pas je in de bewerkmodus het formaat van een kaart aan door erop te klikken. Als dit uit staat, hebben alle kaarten het standaardformaat (2x1)"
+      },
+      "grouping": {
+        "title": "Services groeperen",
+        "description": "Deel je services in groepen in, getoond als tabbladen of als secties",
+        "toggle": "Services groeperen",
+        "toggleDescription": "Als dit aan staat, kun je services in groepen indelen. Maak, hernoem en orden groepen in de bewerkmodus. Als dit uit staat, staan alle services in één weergave",
+        "showAs": "Groepen tonen als",
+        "display": {
+          "tabs": "tabbladen",
+          "sections": "secties"
+        },
+        "tabsHint": "Eén groep tegelijk, gekozen met een tabblad",
+        "sectionsHint": "Alle groepen op één pagina, elk onder een eigen kop die je kunt inklappen"
+      },
+      "cardDisplay": {
+        "title": "Kaartweergave",
+        "description": "Bepaal hoe servicekaarten worden getoond",
+        "list": "Lijstweergave",
+        "listDescription": "Toon services in een compacte lijst in plaats van een raster",
+        "size": "Kaartgrootte",
+        "scales": {
+          "small": "klein",
+          "medium": "gemiddeld",
+          "large": "groot"
+        },
+        "listHint": "Kaartgrootte geldt alleen voor de rasterweergave",
+        "gridHint": "Pas de dichtheid van het raster aan - kleinere kaarten tonen meer services per rij"
+      },
+      "gallery": {
+        "title": "Thema",
+        "description": "Een thema bepaalt elke kleur, licht of donker, en heeft een eigen accent. Je kunt er nog steeds een andere accentkleur bovenop kiezen. Kies je een modus die het thema niet heeft, dan valt het terug op Standaard.",
+        "muted": "Gedempt",
+        "default": "Standaard",
+        "dark": "Donker",
+        "light": "Licht",
+        "lightOrDark": "Licht of donker"
+      },
+      "transfer": {
+        "title": "Exporteren & importeren",
+        "description": "Sla je thema op als bestand of laad er een: thema, modus, accent, lettertype, pictogrambron, glasinstellingen en eigen CSS. De achtergrondafbeelding hoort er niet bij.",
+        "export": "Thema exporteren",
+        "import": "Thema importeren",
+        "fileLabel": "Themabestand",
+        "tooLarge": "Dit bestand is te groot voor een thema",
+        "willSet": "Dit bestand wijzigt",
+        "fields": {
+          "themePreset": "thema",
+          "themeMode": "themamodus",
+          "themeAccentColor": "accentkleur",
+          "themeFont": "lettertype",
+          "kpiMono": "monospace KPI-labels",
+          "iconSource": "pictogrambron",
+          "wallpaperBlur": "achtergrond vervagen",
+          "wallpaperDim": "achtergrond dimmen",
+          "cardOpacity": "dekking kaarten",
+          "cardBlur": "kaarten vervagen"
+        },
+        "none": "geen",
+        "cssReview": "Eigen CSS (lees het voordat je het toepast)",
+        "cssClears": "Eigen CSS (geen: wist de jouwe)",
+        "cssLabel": "Eigen CSS in het bestand",
+        "applying": "Toepassen...",
+        "apply": "Thema toepassen",
+        "cancel": "Annuleren",
+        "errors": {
+          "notJson": "Dit is geen JSON-bestand",
+          "notTheme": "Dit is geen Nimbus-themabestand",
+          "newerVersion": "Dit themabestand is gemaakt met een nieuwere versie van Nimbus",
+          "invalidField": "Het themabestand heeft een ongeldige {field}"
+        }
+      },
+      "wallpaper": {
+        "title": "Achtergrond",
+        "description": "Upload een afbeelding (tot 8 MB) of gebruik een afbeeldings-URL. Vervagen, dimmen en doorzichtige kaarten geven een glaseffect.",
+        "urlLabel": "Achtergrond-URL",
+        "uploadedPlaceholder": "Geüploade afbeelding",
+        "fileLabel": "Achtergrondbestand",
+        "uploading": "Uploaden...",
+        "upload": "Uploaden",
+        "clear": "Wissen",
+        "tooLarge": "De afbeelding is groter dan 8 MB",
+        "previewCard": "Kaart",
+        "previewText": "Zo zien tegels eruit",
+        "sliders": {
+          "wallpaperBlur": "Achtergrond vervagen",
+          "wallpaperDim": "Achtergrond dimmen",
+          "cardOpacity": "Dekking kaarten",
+          "cardBlur": "Kaarten vervagen"
+        },
+        "dimNote": "Bij kaarten onder 60% dekking blijft de achtergrond minstens {min}% gedimd, zodat tekst leesbaar blijft."
+      },
+      "font": {
+        "title": "Lettertype",
+        "description": "De lettertypen zitten in Nimbus zelf: er wordt niets van een andere site geladen",
+        "names": {
+          "default": "Standaard",
+          "system": "Systeem"
+        },
+        "kpiMono": "Monospace KPI-labels",
+        "kpiMonoDescription": "Toon de kleine labels boven de cijfers op tegels, widgets en de statusbalk in JetBrains Mono"
+      },
+      "iconSource": {
+        "title": "Pictogrambron",
+        "description": "Waar \"Pictogram automatisch ophalen\" bij een service een pictogram zoekt op basis van de naam van de service",
+        "label": "Pictogrammenset",
+        "hint": "Geldt voor pictogrammen die je vanaf nu ophaalt; pictogrammen die je al hebt blijven zoals ze zijn"
+      },
+      "layout": {
+        "title": "Dashboardindeling",
+        "description": "Canvas verandert alleen het dashboard; andere pagina's houden de zijbalk.",
+        "modes": {
+          "classic": {
+            "label": "Klassiek",
+            "description": "Zijbalk, statistieken en je tegels"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Het dashboard vult de pagina, met een balk bovenaan"
+          }
+        },
+        "darkHint": "Canvas ziet er het best uit in donkere modus, met een achtergrond.",
+        "useDark": "Donkere modus gebruiken"
+      },
+      "customCss": {
+        "title": "Eigen CSS",
+        "description": "Je eigen CSS bovenop het thema. Het geldt alleen voor jou, op de pagina's achter de login.",
+        "safeMode": "Veilige modus: je eigen CSS staat uit tot je herlaadt zonder <code>?safe=1</code>.",
+        "saving": "Opslaan...",
+        "save": "CSS opslaan",
+        "help": "Alleen CSS. <code>@import</code>, <code>image-set()</code> en elke <code>url()</code> die geen inline <code>data:</code>-afbeelding is, worden geweigerd, zodat een thema nooit iets van een andere site kan laden. Verbergt je CSS de pagina, voeg dan <code>?safe=1</code> toe aan het adres (bijvoorbeeld <code>/settings/theme?safe=1</code>) om de pagina zonder je CSS te openen."
+      },
+      "statusStrip": {
+        "title": "Statusbalk",
+        "description": "Een rij met belangrijke cijfers bovenaan het dashboard, en of alle services online zijn.",
+        "show": "Statusbalk tonen",
+        "loading": "Je integraties en widgets laden...",
+        "number": "Cijfer {number}",
+        "remove": "Cijfer {number} verwijderen",
+        "unavailable": "Niet meer beschikbaar",
+        "add": "Cijfer toevoegen",
+        "loadError": "Kon je integraties of widgets niet laden: {error}",
+        "empty": "Voeg een integratie of een Eigen API-widget toe om cijfers uit te kiezen.",
+        "hint": "Integraties tonen cijfers zodra een service of widget ze gebruikt.",
+        "customApi": "Eigen API"
+      }
+    }
+  },
+  "time": {
+    "justNow": "zojuist",
+    "minutesAgo": "{count} min geleden",
+    "hoursAgo": "{count} u geleden",
+    "daysAgo": "{count} d geleden"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Annuleren"
+    }
+  },
+  "weather": {
+    "clear": "Helder",
+    "partlyCloudy": "Half bewolkt",
+    "overcast": "Bewolkt",
+    "fog": "Mist",
+    "drizzle": "Motregen",
+    "rain": "Regen",
+    "snow": "Sneeuw",
+    "thunderstorm": "Onweer",
+    "unknown": "Onbekend"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "TLS-certificaat controleren",
+      "integrationsError": "Kon je integraties niet laden: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Klok",
+        "description": "Tijd en datum, in elke tijdzone"
+      },
+      "markdown": {
+        "name": "Notitie",
+        "description": "Tekst met Markdown-opmaak"
+      },
+      "bookmarks": {
+        "name": "Bladwijzers",
+        "description": "Een compacte lijst met links"
+      },
+      "weather": {
+        "name": "Weer",
+        "description": "Het huidige weer en een korte verwachting"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "De nieuwste berichten uit maximaal drie feeds"
+      },
+      "custom_api": {
+        "name": "Eigen API",
+        "description": "Maximaal vier waarden uit elke JSON-API"
+      },
+      "system_stats": {
+        "name": "Systeemstatistieken",
+        "description": "CPU, geheugen, schijf en uptime van de Nimbus-server"
+      },
+      "docker_containers": {
+        "name": "Docker-containers",
+        "description": "De containers van een Docker-integratie en hun status"
+      },
+      "calendar": {
+        "name": "Kalender",
+        "description": "Komende afleveringen, films en iCal-afspraken"
+      },
+      "iframe": {
+        "name": "Webpagina",
+        "description": "Toon een webpagina in een tegel"
+      }
+    },
+    "card": {
+      "refresh": "Widget verversen",
+      "edit": "Widget bewerken",
+      "delete": "Widget verwijderen",
+      "updateFailed": "Laatste update mislukt: {error}",
+      "outOfDate": "Deze gegevens zijn mogelijk verouderd",
+      "loadFailed": "Laden mislukt: {error}",
+      "loading": "Laden",
+      "unsupported": "Dit widgettype ({type}) wordt niet ondersteund door deze versie van Nimbus."
+    },
+    "modal": {
+      "addWidget": "Widget toevoegen",
+      "addTitle": "{name} toevoegen",
+      "editTitle": "{name} bewerken",
+      "back": "Terug naar widgettypes",
+      "close": "Sluiten",
+      "cannotEdit": "Dit widgettype ({type}) kan in deze versie van Nimbus niet worden bewerkt.",
+      "titleLabel": "Titel <muted>(optioneel)</muted>",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "saveFailed": "Widget opslaan mislukt",
+      "chooseIntegration": "Kies een integratie",
+      "integration": {
+        "label": "Integratie",
+        "description": "De {names}-integratie die deze widget leest.",
+        "empty": "Kies een {names}-integratie"
+      }
+    },
+    "bookmarks": {
+      "empty": "Nog geen bladwijzers",
+      "form": {
+        "label": "Bladwijzers",
+        "icon": "Pictogram van bladwijzer {n}",
+        "name": "Naam van bladwijzer {n}",
+        "url": "URL van bladwijzer {n}",
+        "namePlaceholder": "Naam",
+        "remove": "Bladwijzer {n} verwijderen",
+        "add": "Bladwijzer toevoegen",
+        "hint": "Het pictogram kan een emoji of een afbeeldings-URL zijn."
+      }
+    },
+    "calendar": {
+      "today": "Vandaag",
+      "tomorrow": "Morgen",
+      "hasEvents": "{day}, heeft afspraken",
+      "nothingOnDay": "Niets op deze dag",
+      "nothingComing": "Niets gepland",
+      "failed": "{count, plural, one {# bron kon niet worden geladen} other {# bronnen konden niet worden geladen}}",
+      "form": {
+        "sources": "Sonarr en Radarr",
+        "loadingIntegrations": "Integraties laden...",
+        "noIntegrations": "Nog geen Sonarr of Radarr. <link>Voeg er een toe</link> om te zien wat eraan komt.",
+        "feeds": "Kalenderfeeds (iCal)",
+        "feedUrl": "URL van kalender {n}",
+        "removeFeed": "Kalender {n} verwijderen",
+        "addFeed": "Kalender toevoegen",
+        "feedsHint": "Het geheime iCal-adres van een Google-, Outlook- of Nextcloud-kalender werkt; na het opslaan wordt het als ******** getoond en blijft het bewaard zolang je het laat staan. Terugkerende afspraken verschijnen alleen op hun eerste datum.",
+        "days": "Aantal dagen vooruit in de agenda",
+        "verifyTlsHint": "Zet dit uit voor kalenders in je lokale netwerk met een zelfondertekend certificaat"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Onbekende tijdzone: {timezone}",
+      "form": {
+        "timezone": "Tijdzone",
+        "timezonePlaceholder": "De tijdzone van je browser",
+        "timezoneHint": "Bijvoorbeeld Europe/Amsterdam",
+        "date": "Datum",
+        "dateShort": "Kort",
+        "dateLong": "Lang",
+        "dateHidden": "Verborgen",
+        "hour12": "12-uursklok",
+        "seconds": "Seconden tonen"
+      }
+    },
+    "customApi": {
+      "notFound": "Niets gevonden op {path}",
+      "form": {
+        "urlHint": "De Nimbus-server haalt deze URL op; die moet JSON teruggeven.",
+        "verifyTlsHint": "Zet dit uit voor apps met een zelfondertekend certificaat",
+        "values": "Waarden",
+        "valueLabel": "Label van waarde {n}",
+        "valuePath": "Pad van waarde {n}",
+        "valueUnit": "Eenheid van waarde {n}",
+        "labelPlaceholder": "Label",
+        "unitPlaceholder": "Eenheid",
+        "removeValue": "Waarde {n} verwijderen",
+        "addValue": "Waarde toevoegen",
+        "pathsHint": "Paden gebruiken punten en indexen: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> voor het laatste item, <code>items.length</code> om te tellen.",
+        "headers": "Headers (optioneel)",
+        "headerName": "Naam van header {n}",
+        "headerValue": "Waarde van header {n}",
+        "valuePlaceholder": "Waarde",
+        "removeHeader": "Header {n} verwijderen",
+        "addHeader": "Header toevoegen",
+        "headersHint": "Opgeslagen waarden worden als ******** getoond en blijven bewaard zolang je ze laat staan. Ze worden onversleuteld bij de widget opgeslagen; gebruik voor apps die Nimbus ondersteunt liever een integratie."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} van {total} actief",
+      "empty": "Geen containers",
+      "form": {
+        "hideStopped": "Gestopte containers verbergen",
+        "hideStoppedHint": "Ze tellen wel mee in het aantal"
+      }
+    },
+    "embed": {
+      "empty": "Geen URL ingesteld",
+      "frameTitle": "Ingesloten pagina",
+      "form": {
+        "hint": "Sommige sites weigeren ingesloten te worden. Je browser laadt de pagina, niet de Nimbus-server. De pagina vult de tegel; wijzig de tegelgrootte in de bewerkmodus."
+      }
+    },
+    "note": {
+      "empty": "Lege notitie",
+      "form": {
+        "label": "Notitie",
+        "placeholder": "# Titel\n- een lijstitem\n[een link](https://example.com)",
+        "hint": "Markdown wordt ondersteund, HTML niet."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# feed kon niet worden geladen} other {# feeds konden niet worden geladen}}",
+      "empty": "Nog geen berichten",
+      "untitled": "Zonder titel",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "URL van feed {n}",
+        "removeFeed": "Feed {n} verwijderen",
+        "addFeed": "Feed toevoegen",
+        "feedsHint": "RSS, Atom en JSON Feed werken. Berichten uit alle feeds worden samengevoegd, de nieuwste eerst.",
+        "limit": "Aantal berichten",
+        "verifyTlsHint": "Zet dit uit voor feeds in je lokale netwerk met een zelfondertekend certificaat"
+      }
+    },
+    "systemStats": {
+      "disk": "Schijf",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Uptime {uptime}",
+      "uptime": {
+        "days": "{days}d {hours}u",
+        "hours": "{hours}u {minutes}m",
+        "minutes": "{minutes}m"
+      },
+      "form": {
+        "diskHint": "Een pad op de Nimbus-server; de tegel toont het gebruik van de schijf waar het op staat. Koppel in Docker een schijf van de host in de container om die te zien."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · gevoelstemperatuur {temperature}",
+      "wind": "wind {speed} {unit}",
+      "form": {
+        "chosenPlace": "Gekozen plaats",
+        "search": "Plaats zoeken",
+        "searchPlaceholder": "Plaatsnaam",
+        "searchButton": "Plaatsen zoeken",
+        "searchFailed": "Locatie zoeken mislukt",
+        "noResults": "Geen plaatsen gevonden",
+        "searchHint": "De zoekopdracht gaat vanuit je browser naar Open-Meteo. Je kunt hieronder ook coördinaten invullen.",
+        "latitude": "Breedtegraad",
+        "longitude": "Lengtegraad",
+        "location": "Naam op de tegel",
+        "units": "Eenheden"
+      }
+    }
+  }
+}

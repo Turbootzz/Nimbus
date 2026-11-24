@@ -1,0 +1,3 @@
+ALTER TABLE webhooks DROP COLUMN IF EXISTS verify_tls;
+ALTER TABLE webhooks DROP COLUMN IF EXISTS credentials_enc;
+ALTER TABLE webhooks DROP COLUMN IF EXISTS options;

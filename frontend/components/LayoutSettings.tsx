@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useTheme } from '@/contexts/ThemeContext'
 import { useLayoutMode } from '@/lib/layout-store'
 import { defaultGlass } from '@/lib/wallpaper'
@@ -36,12 +37,10 @@ function Preview({ mode }: { mode: LayoutMode }) {
   )
 }
 
-const options: { mode: LayoutMode; label: string; description: string }[] = [
-  { mode: 'classic', label: 'Classic', description: 'Sidebar, stats and your tiles' },
-  { mode: 'canvas', label: 'Canvas', description: 'The dashboard fills the page, with a top bar' },
-]
+const modes: LayoutMode[] = ['classic', 'canvas']
 
 export default function LayoutSettings() {
+  const t = useTranslations('settings.theme.layout')
   const { effectiveTheme, setTheme, glass, setGlass, setLayoutMode } = useTheme()
   const layoutMode = useLayoutMode()
 
@@ -55,38 +54,36 @@ export default function LayoutSettings() {
 
   return (
     <div className="glass-card border-card-border rounded-lg border p-6">
-      <h2 className="text-text-primary mb-2 text-xl font-semibold">Dashboard Layout</h2>
-      <p className="text-text-secondary mb-4 text-sm">
-        Canvas only changes the dashboard; other pages keep the sidebar.
-      </p>
+      <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('title')}</h2>
+      <p className="text-text-secondary mb-4 text-sm">{t('description')}</p>
       <div className="grid grid-cols-2 gap-3">
-        {options.map((option) => (
+        {modes.map((mode) => (
           <button
-            key={option.mode}
+            key={mode}
             type="button"
-            aria-pressed={layoutMode === option.mode}
-            onClick={() => choose(option.mode)}
+            aria-pressed={layoutMode === mode}
+            onClick={() => choose(mode)}
             className={`rounded-lg border-2 p-2 text-left transition-colors ${
-              layoutMode === option.mode
-                ? 'border-primary'
-                : 'border-card-border hover:border-text-muted'
+              layoutMode === mode ? 'border-primary' : 'border-card-border hover:border-text-muted'
             }`}
           >
-            <Preview mode={option.mode} />
-            <span className="text-text-primary mt-2 block text-sm font-medium">{option.label}</span>
-            <span className="text-text-muted block text-xs">{option.description}</span>
+            <Preview mode={mode} />
+            <span className="text-text-primary mt-2 block text-sm font-medium">
+              {t(`modes.${mode}.label`)}
+            </span>
+            <span className="text-text-muted block text-xs">{t(`modes.${mode}.description`)}</span>
           </button>
         ))}
       </div>
       {layoutMode === 'canvas' && effectiveTheme === 'light' && (
         <p className="text-text-secondary mt-3 text-sm">
-          Canvas looks best in dark mode, with a wallpaper.{' '}
+          {t('darkHint')}{' '}
           <button
             type="button"
             onClick={() => setTheme('dark')}
             className="text-primary font-medium underline"
           >
-            Use dark mode
+            {t('useDark')}
           </button>
         </p>
       )}

@@ -24,7 +24,7 @@ var (
 
 const widgetColumns = `
 	id, user_id, type, title, group_id, integration_id, config, card_size,
-	position, refresh_seconds, enabled, created_at, updated_at
+	position, refresh_seconds, enabled, created_at, updated_at, board_id
 `
 
 // tileReorderQueries maps a tile kind to its position update
@@ -58,6 +58,7 @@ func scanWidget(row rowScanner) (*models.Widget, error) {
 		&widget.Enabled,
 		&widget.CreatedAt,
 		&widget.UpdatedAt,
+		&widget.BoardID,
 	)
 	if err != nil {
 		return nil, err
@@ -76,8 +77,9 @@ func lockUser(ctx context.Context, tx *sql.Tx, userID string) error {
 }
 
 // nextTilePosition returns the position after the user's last service or
-// widget. Services and widgets share one position space. Call it after
-// lockUser, in the same transaction.
+// widget. Services and widgets share one position space per user, across
+// their boards: a board sorts its own tiles by it. Call it after lockUser,
+// in the same transaction.
 func nextTilePosition(ctx context.Context, tx *sql.Tx, userID string) (int, error) {
 	maxPos, err := maxTilePosition(ctx, tx, userID)
 	if err != nil {
@@ -192,11 +194,14 @@ func (r *WidgetRepository) Create(ctx context.Context, widget *models.Widget, ma
 	if widget.Position, err = nextTilePosition(ctx, tx, widget.UserID); err != nil {
 		return err
 	}
+	if widget.BoardID, err = boardOr(ctx, tx, widget.UserID, widget.BoardID); err != nil {
+		return err
+	}
 
 	insert := `
 		INSERT INTO widgets (id, user_id, type, title, group_id, integration_id,
-			config, card_size, position, refresh_seconds, enabled)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+			config, card_size, position, refresh_seconds, enabled, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 		RETURNING created_at, updated_at
 	`
 	err = tx.QueryRowContext(ctx, insert,
@@ -211,6 +216,7 @@ func (r *WidgetRepository) Create(ctx context.Context, widget *models.Widget, ma
 		widget.Position,
 		widget.RefreshSeconds,
 		widget.Enabled,
+		widget.BoardID,
 	).Scan(&widget.CreatedAt, &widget.UpdatedAt)
 	if err != nil {
 		return fmt.Errorf("failed to create widget: %w", err)
@@ -236,11 +242,9 @@ func (r *WidgetRepository) GetByID(ctx context.Context, id, userID string) (*mod
 	return widget, nil
 }
 
-// ListByUserID returns all widgets for a user in grid order
-func (r *WidgetRepository) ListByUserID(ctx context.Context, userID string) ([]models.Widget, error) {
-	query := `SELECT ` + widgetColumns + ` FROM widgets WHERE user_id = $1 ORDER BY position, created_at`
-
-	rows, err := r.db.QueryContext(ctx, query, userID)
+// queryWidgets runs a query selecting widgetColumns and scans every row
+func (r *WidgetRepository) queryWidgets(ctx context.Context, query string, args ...any) ([]models.Widget, error) {
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list widgets: %w", err)
 	}
@@ -260,28 +264,19 @@ func (r *WidgetRepository) ListByUserID(ctx context.Context, userID string) ([]m
 	return widgets, nil
 }
 
+// ListByUserID returns all widgets for a user, on all their boards, in grid order
+func (r *WidgetRepository) ListByUserID(ctx context.Context, userID string) ([]models.Widget, error) {
+	return r.queryWidgets(ctx, `SELECT `+widgetColumns+` FROM widgets WHERE user_id = $1 ORDER BY position, created_at`, userID)
+}
+
+// ListByBoardID returns the widgets on one board in grid order
+func (r *WidgetRepository) ListByBoardID(ctx context.Context, boardID string) ([]models.Widget, error) {
+	return r.queryWidgets(ctx, `SELECT `+widgetColumns+` FROM widgets WHERE board_id = $1 ORDER BY position, created_at`, boardID)
+}
+
 // ListEnabled returns the enabled widgets of all users, for the poller
 func (r *WidgetRepository) ListEnabled(ctx context.Context) ([]models.Widget, error) {
-	query := `SELECT ` + widgetColumns + ` FROM widgets WHERE enabled = TRUE`
-
-	rows, err := r.db.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list enabled widgets: %w", err)
-	}
-	defer rows.Close()
-
-	widgets := []models.Widget{}
-	for rows.Next() {
-		widget, err := scanWidget(rows)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan widget: %w", err)
-		}
-		widgets = append(widgets, *widget)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate widgets: %w", err)
-	}
-	return widgets, nil
+	return r.queryWidgets(ctx, `SELECT `+widgetColumns+` FROM widgets WHERE enabled = TRUE`)
 }
 
 // Update saves all editable fields. Type and position are never changed here.

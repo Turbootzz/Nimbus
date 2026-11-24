@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -24,7 +25,8 @@ func setupServiceIntegrationDB(t *testing.T) *sql.DB {
 	_, err := db.Exec(`
 		CREATE TABLE groups (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL,
 			color TEXT, position INTEGER DEFAULT 0, is_default INTEGER DEFAULT 0,
-			monitoring_enabled INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP);
+			monitoring_enabled INTEGER DEFAULT 1, tile_style TEXT NOT NULL DEFAULT 'cards',
+			created_at TIMESTAMP, updated_at TIMESTAMP);
 		CREATE TABLE widgets (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, position INTEGER NOT NULL DEFAULT 0);
 		CREATE TABLE services (
 			id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -50,6 +52,7 @@ func setupServiceIntegrationDB(t *testing.T) *sql.DB {
 			('abababab-abab-abab-abab-ababababab02', 'dddddddd-dddd-dddd-dddd-ddddddddddd2', 'sonarr', 'Sonarr', 'http://sonarr.lan');
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

@@ -45,6 +45,9 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Response time tracking
 - Smart self-signed cert handling
 - Status history & uptime graphs
+- Public status page: share the uptime of one group at `/status`, no account needed ([docs](docs/CONFIGURATION.md#public-status-page))
+- Offline alerts: webhook, Discord, Slack, ntfy, Gotify, Telegram, Pushover ([docs](docs/NOTIFICATIONS.md))
+- Hover a tile (or long-press it) for 24h uptime, last check and last error
 
 </td>
 <td width="50%">
@@ -52,15 +55,23 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 **🎨 Personalization**
 - Custom wallpapers per user (upload or URL) with blur, dim and glass cards
 - Canvas layout: the dashboard fills the page under a top bar, no sidebar. The default for new users; switch in Theme settings
+- Groups as tabs or as stacked sections that collapse (sections are the default on the canvas)
+- Compact chips per group for a quick-launch row of links
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
+- Boards: more than one dashboard per user, a board an admin shares read-only with everyone, and a chrome-less kiosk view for wall screens (`?kiosk=1`) ([docs](docs/BOARDS.md))
 - Search: press `/` or Ctrl+K to find and open a service
+- Installable app (PWA): add Nimbus to your home screen or desktop; your services list stays readable offline. See [docs/PWA.md](docs/PWA.md)
 - Light/dark mode toggle
+- In English, Dutch, German, French or Spanish: your browser's language, or the one you pick in your profile (machine-translated for now, corrections welcome: [docs](docs/TRANSLATING.md))
 - Accent color themes
+- Theme presets (Catppuccin, Nord, Dracula, Gruvbox, Tokyo Night), self-hosted fonts, custom CSS and theme export/import ([docs](docs/THEMING.md))
 - Drag & drop service tiles
 
 **📈 Metrics & Integration**
 - Configurable check intervals
 - Prometheus metrics export
+- Dashboard export and import (JSON), for backups and moving between instances
+- Scoped API tokens and an MCP endpoint for AI assistants
 - Mobile responsive design
 
 </td>
@@ -78,7 +89,23 @@ Integrations show live numbers from your apps on a service tile. Add one under *
 | AdGuard Home, Docker, Home Assistant, Jellyfin, Pi-hole v6, Proxmox VE, qBittorrent, Radarr, Sonarr, Uptime Kuma | native |
 | Portainer, Prowlarr, SABnzbd, Immich, Tautulli, Jellyseerr / Overseerr, TrueNAS SCALE, Nextcloud, Speedtest Tracker, Beszel, Nginx Proxy Manager, Kavita, Mealie, Gotify, Gluetun, Traefik, Paperless-ngx, Navidrome, Grafana | planned, [up for grabs](https://github.com/Turbootzz/Nimbus/issues/196) |
 
+With a Docker integration, admins get a **Discovered** tray on the Services page that turns containers into services in one click, using `nimbus.*` (or Homepage's `homepage.*`) labels where present. See [Docker discovery](docs/INTEGRATIONS.md#docker-discovery).
+
 What each app shows and how it signs in is in [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md). Adding one is a single Go file plus a test; the same page explains how.
+
+---
+
+## 🔀 Switch from Homepage/Homarr in one minute
+
+Already have a dashboard? Bring it along:
+
+1. Open **Settings → Export & Import → Import from another dashboard**.
+2. Paste your config or choose the file: Homepage `services.yaml`, a Homarr 0.x board JSON (Homarr 1.x is not supported yet), Homer `config.yml`, Dashy `conf.yml`, or a `docker-compose.yml`.
+3. Check the preview, choose which groups it goes into, and press **Import**.
+
+Groups, links, descriptions and icons come along, and apps Nimbus has an integration for (Sonarr, Radarr, Pi-hole, ...) get one. API keys and passwords are never copied: enter them under **Settings → Integrations** afterwards. Anything that can't be taken over is listed before you import, and nothing you already have is changed. Details per dashboard are in [docs/CONFIGURATION.md](docs/CONFIGURATION.md#import-from-another-dashboard).
+
+Rather keep the dashboard in Git? Set `NIMBUS_CONFIG_FILE` and Nimbus follows a YAML or JSON file, with secrets from the environment: see [Config File](docs/CONFIGURATION.md#config-file).
 
 ---
 
@@ -175,12 +202,27 @@ Nimbus uses **convention over configuration** — sensible defaults are applied 
 |----------|---------|-------------|
 | `DB_PASSWORD` | `nimbus-default-password` | PostgreSQL password |
 | `JWT_SECRET` | *auto-generated* | Auth secret (persisted in volume) |
-| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials (persisted in volume, back it up) |
+| `ENCRYPTION_KEY` | *auto-generated* | Encrypts integration credentials and notification tokens (persisted in volume, back it up) |
 | `DOCKER_SOCKET` | *(none)* | Docker socket the Docker integration may use, e.g. `/var/run/docker.sock` |
+| `NIMBUS_CONFIG_FILE` | *(none)* | Keep an admin's dashboard in sync with a YAML or JSON file ([Config File](docs/CONFIGURATION.md#config-file)); with `NIMBUS_CONFIG_MODE` and `NIMBUS_CONFIG_READONLY` |
 | `DB_HOST` | `db` | Database hostname |
 | `DB_PORT` | `5432` | Database port |
 | `DB_USER` | `nimbus` | Database username |
 | `DB_NAME` | `nimbus` | Database name |
+
+### 🤖 AI assistants (MCP)
+
+Nimbus has a [Model Context Protocol](https://modelcontextprotocol.io) endpoint at `/mcp`, so Claude, Open WebUI or another MCP client can answer "what is down?" or "how was Jellyfin's uptime this week?" from your dashboard. It is read-only unless you allow more, and Nimbus itself holds no AI keys.
+
+1. Create a token with the **MCP** scope under **Settings → API Tokens**.
+2. Point your client at it, for example Claude Code:
+
+```bash
+claude mcp add --transport http nimbus http://localhost:3000/mcp \
+  --header "Authorization: Bearer nimbus_your_token"
+```
+
+Setup for Claude Desktop, Open WebUI and Home Assistant, the tools and the security notes are in [docs/MCP.md](docs/MCP.md). The same tokens give scripts scoped access to the REST API, see [API Tokens](docs/CONFIGURATION.md#api-tokens).
 
 **For production**, set custom secrets in a `.env` file:
 ```bash
@@ -246,11 +288,17 @@ Run `make help` for all available commands.
 
 | Document | Description |
 |----------|-------------|
-| [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, Prometheus |
+| [Configuration Guide](docs/CONFIGURATION.md) | All environment variables, OAuth setup, API tokens, Prometheus |
 | [README.md](README.md) | Information about Nimbus |
 | [DEVELOPMENT.md](docs/DEVELOPMENT.md) | 5-minute development setup |
 | [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
+| [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
+| [BOARDS.md](docs/BOARDS.md) | Several boards, the shared board and kiosk mode for wall screens |
+| [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
+| [PWA.md](docs/PWA.md) | Install Nimbus as an app, offline behaviour |
+| [THEMING.md](docs/THEMING.md) | Theme presets, fonts, icon source, custom CSS and theme files |
+| [TRANSLATING.md](docs/TRANSLATING.md) | Languages, improving a translation, adding a language |
 | [ROADMAP.md](ROADMAP.md) | What is planned |
 | [CHANGELOG.md](CHANGELOG.md) | What changed in each release |
 | [charts/nimbus](charts/nimbus) | Helm chart for Kubernetes |
@@ -269,9 +317,12 @@ Ideas, questions and dashboards to show off are welcome in [Discussions](https:/
 
 ## 🎨 Icon attributions
 
-When you click "Auto-fetch icon", Nimbus may download an SVG from the following open-source icon collection via the jsDelivr CDN. The icon is cached in your `uploads/service-icons/` volume; the origin is never re-fetched for rendering.
+When you click "Auto-fetch icon", Nimbus may download an icon from one of the following open-source icon collections via the jsDelivr CDN. The icon is cached in your `uploads/service-icons/` volume; the origin is never re-fetched for rendering.
 
 - [Dashboard Icons](https://github.com/homarr-labs/dashboard-icons) — Apache License 2.0
+- [selfh.st icons](https://github.com/selfhst/icons) — CC BY 4.0, when you pick it as the icon source in Theme settings
+
+The fonts you can pick in Theme settings ship with Nimbus: [Inter](https://github.com/rsms/inter) and [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono), both under the SIL Open Font License 1.1 (licences in `frontend/styles/fonts/`).
 
 You can point the curated lookup at a self-hosted mirror or disable it entirely with the `DASHBOARD_ICONS_BASE_URL` env var (see [.env.example](.env.example)).
 

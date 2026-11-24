@@ -33,7 +33,7 @@ func (fakeKind) Kind() string { return "svc-fake" }
 func (fakeKind) Meta() integrations.Meta {
 	return integrations.Meta{Name: "Fake", AuthTypes: []string{
 		models.IntegrationAuthAPIKey, models.IntegrationAuthBasic, models.IntegrationAuthNone,
-	}}
+	}, Options: []integrations.Option{{Key: "node", Label: "Node"}}}
 }
 func (fakeKind) Test(ctx context.Context, conn *integrations.Conn) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, conn.BaseURL+"/ping?apikey="+url.QueryEscape(conn.Creds.APIKey), nil)
@@ -62,7 +62,20 @@ func (panicKind) Fetch(context.Context, *integrations.Conn) (*integrations.Paylo
 	panic("boom")
 }
 
+// optionsKind declares options, to exercise their validation
+type optionsKind struct{ fakeKind }
+
+func (optionsKind) Kind() string { return "svc-options" }
+func (optionsKind) Meta() integrations.Meta {
+	return integrations.Meta{Name: "Options", AuthTypes: []string{models.IntegrationAuthNone}, Options: []integrations.Option{
+		{Key: "site", Label: "Site", Required: true, MaxLength: 5},
+		{Key: "entity", Label: "Entity", Placeholder: "sensor.temp", Pattern: `[a-z]+\.[a-z]+`},
+		{Key: "limit", Label: "Limit", Type: integrations.OptionNumber},
+	}}
+}
+
 func init() {
+	integrations.Register(optionsKind{})
 	integrations.Register(fakeKind{})
 	integrations.Register(panicKind{})
 }
@@ -231,6 +244,19 @@ func TestIntegrationService_AuthNoneStoresNoBlob(t *testing.T) {
 	assert.Nil(t, repo.blobs[integration.ID])
 }
 
+// Postgres refuses a lone surrogate escape in JSONB; Go reads it leniently
+func TestIntegrationService_OptionsAreStoredAsParsed(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+
+	integration, err := svc.Create(context.Background(), "user-1", false, &models.IntegrationRequest{
+		Kind: "svc-fake", Name: "Open", BaseURL: "http://10.0.0.5", AuthType: models.IntegrationAuthNone,
+		Options: json.RawMessage(`{"node": "pve\ud800"}`),
+	})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"node":"pve\ufffd"}`, string(integration.Options))
+	assert.NotContains(t, string(integration.Options), `\ud800`)
+}
+
 func TestIntegrationService_DefaultAuthTypeIsFirstOfKind(t *testing.T) {
 	svc, _ := newTestIntegrationService(t)
 	req := apiKeyRequest("http://10.0.0.5")
@@ -286,6 +312,77 @@ func TestIntegrationService_Validation(t *testing.T) {
 			assert.Contains(t, vErr.Message, tc.want)
 		})
 	}
+}
+
+func TestIntegrationService_Options(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	ctx := context.Background()
+	request := func(options string) *models.IntegrationRequest {
+		return &models.IntegrationRequest{Kind: "svc-options", Name: "Options", BaseURL: "http://10.0.0.5", Options: json.RawMessage(options)}
+	}
+
+	for options, want := range map[string]string{
+		``:                   "Site is required",
+		`{"site":"  "}`:      "Site is required",
+		`{"site":"toolong"}`: "Site must be 5 characters or less",
+		`{"site":5}`:         "Site must be text",
+		`{"site":"a\nb"}`:    "Site is not valid",
+		`{"site":["a"]}`:     "Site must be text",
+		`["site"]`:           "Options must be a JSON object",
+		`{"site":"` + strings.Repeat("a", 17000) + `"}`: "Options are too large",
+		`{"site":"a","entity":"Sensor"}`:                "Entity is not valid; it looks like sensor.temp",
+		`{"site":"a","zzz":"1","b":"1"}`:                `Options has no option "b"`,
+		`{"site":"a","limit":"ten"}`:                    "Limit is not valid",
+		`{"site":"a","limit":10}`:                       "Limit must be text",
+	} {
+		_, err := svc.Create(ctx, "user-1", false, request(options))
+		var vErr *ValidationError
+		require.True(t, errors.As(err, &vErr), "%s: expected ValidationError, got %v", options, err)
+		assert.Equal(t, want, vErr.Message, options)
+	}
+
+	// An option the kind does not declare is refused
+	req := apiKeyRequest("http://nas.lan")
+	req.Options = json.RawMessage(`{"site":"home"}`)
+	_, err := svc.Create(ctx, "user-1", false, req)
+	assert.ErrorContains(t, err, `Fake has no option "site"`)
+
+	// Stored trimmed, without the empty ones
+	created, err := svc.Create(ctx, "user-1", false, request(`{"site":" home ","entity":""}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(created.Options))
+
+	// Postgres hands JSONB back in its own form: a space after : and , keys
+	// by length, characters unescaped, numbers as written. That is no change.
+	for _, c := range []struct {
+		stored, sent string
+		changed      bool
+	}{
+		{`{"site": "home", "entity": "a.b"}`, `{"entity":"a.b","site":"home"}`, false},
+		{`{"site": "a&b <é>"}`, `{"site":"a\u0026b \u003c\u00e9\u003e"}`, false},
+		{`{}`, `{}`, false},
+		{`{"days": 1000, "ratio": 1.0}`, `{"days":1e3,"ratio":1}`, false}, // rows from before options were text
+		{`{"site": "home", "entity": "a.b"}`, `{"site":"work"}`, true},
+		{`{"site": "home"}`, `{"site":"Home"}`, true},
+		{`{"site": "home"}`, `{}`, true},
+		{`{"days": 1}`, `{"days":"1"}`, true},
+	} {
+		before := models.Integration{Options: json.RawMessage(c.stored)}
+		after := models.Integration{Options: json.RawMessage(c.sent)}
+		assert.Equal(t, c.changed, connectionChanged(&before, &after), "%s to %s", c.stored, c.sent)
+	}
+
+	// Omitted options are kept
+	updated, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Renamed"})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"home"}`, string(updated.Options))
+	updated, err = svc.Update(ctx, created.ID, "user-1", false, request(`{"site":"work","entity":"sensor.temp"}`))
+	require.NoError(t, err)
+	assert.JSONEq(t, `{"site":"work","entity":"sensor.temp"}`, string(updated.Options))
+
+	// Clearing a required option on update is refused
+	_, err = svc.Update(ctx, created.ID, "user-1", false, request(`{}`))
+	assert.ErrorContains(t, err, "Site is required")
 }
 
 func TestIntegrationService_NullOptionsAreIgnored(t *testing.T) {
@@ -350,6 +447,19 @@ func TestIntegrationService_UpdateClearsStaleTestResult(t *testing.T) {
 	assert.Nil(t, moved.LastTestOK, "a new URL invalidates the test result")
 	assert.Nil(t, moved.LastTestAt)
 	assert.Nil(t, repo.items[created.ID].LastTestOK)
+
+	// Without credentials (auth type none) the same holds
+	open, err := svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: server.URL, AuthType: models.IntegrationAuthNone})
+	require.NoError(t, err)
+	assert.Nil(t, open.LastTestOK, "another auth type invalidates the test result")
+	_, err = svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+	renamed, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{Name: "Open"})
+	require.NoError(t, err)
+	assert.NotNil(t, renamed.LastTestOK, "a rename keeps the test result")
+	moved, err = svc.Update(ctx, created.ID, "user-1", false, &models.IntegrationRequest{BaseURL: "http://10.0.0.98"})
+	require.NoError(t, err)
+	assert.Nil(t, moved.LastTestOK)
 }
 
 func TestIntegrationService_CredentialsAreBoundToTheirIntegration(t *testing.T) {
@@ -539,6 +649,98 @@ func TestIntegrationService_DockerSocket(t *testing.T) {
 	assert.ErrorContains(t, err, "allows no socket")
 }
 
+// A key is never sent over the socket: not on create, and not when only
+// the URL of an API key integration changes
+func TestIntegrationService_DockerSocketTakesNoKey(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	svc.dockerSocket = "/var/run/docker.sock"
+	ctx := context.Background()
+	withKey := dockerRequest("https://portainer.lan:9443/api/endpoints/1/docker")
+	withKey.AuthType = models.IntegrationAuthAPIKey
+	withKey.Credentials = &models.IntegrationCredentials{APIKey: testSecret}
+
+	created, err := svc.Create(ctx, "user-1", true, withKey)
+	require.NoError(t, err)
+	_, err = svc.Update(ctx, created.ID, "user-1", true, &models.IntegrationRequest{BaseURL: "unix:///var/run/docker.sock"})
+	assert.ErrorContains(t, err, "takes no credentials")
+
+	withKey.BaseURL = "unix:///var/run/docker.sock"
+	_, err = svc.Create(ctx, "user-1", true, withKey)
+	assert.ErrorContains(t, err, "takes no credentials")
+
+	// Switching to none in the same update is fine and drops the key
+	updated, err := svc.Update(ctx, created.ID, "user-1", true, &models.IntegrationRequest{BaseURL: "unix:///var/run/docker.sock", AuthType: models.IntegrationAuthNone})
+	require.NoError(t, err)
+	assert.False(t, updated.HasCredentials)
+}
+
+// Portainer proxies the Docker API under a sub path, wants an access token
+// and often has a self-signed certificate
+func TestIntegrationService_DockerThroughPortainer(t *testing.T) {
+	svc, repo := newTestIntegrationService(t)
+	ctx := context.Background()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method != http.MethodGet:
+			t.Errorf("unexpected method %s", r.Method)
+		case r.Header.Get("X-API-Key") != testSecret:
+			w.WriteHeader(http.StatusUnauthorized)
+		case r.URL.Path == "/api/endpoints/1/docker/version":
+			fmt.Fprint(w, `{"ApiVersion":"1.47"}`)
+		case r.URL.Path == "/api/endpoints/1/docker/containers/json":
+			fmt.Fprint(w, `[{"Id":"1","Names":["/web"],"State":"running"}]`)
+		default:
+			t.Errorf("unexpected request %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	verifyTLS := false
+	request := func(apiKey string) *models.IntegrationRequest {
+		return &models.IntegrationRequest{
+			Kind:        "docker",
+			Name:        "Portainer",
+			BaseURL:     server.URL + "/api/endpoints/1/docker/", // trailing slash is dropped
+			AuthType:    models.IntegrationAuthAPIKey,
+			Credentials: &models.IntegrationCredentials{APIKey: apiKey},
+			VerifyTLS:   &verifyTLS,
+		}
+	}
+
+	_, err := svc.Create(ctx, "user-1", false, request(testSecret))
+	assert.ErrorContains(t, err, "Only admins")
+	noKey := request(testSecret)
+	noKey.Credentials = nil
+	_, err = svc.Create(ctx, "user-1", true, noKey)
+	assert.ErrorContains(t, err, "Credentials are required")
+
+	created, err := svc.Create(ctx, "user-1", true, request(testSecret))
+	require.NoError(t, err)
+	assert.Equal(t, server.URL+"/api/endpoints/1/docker", created.BaseURL)
+	assert.Equal(t, testSecret, decryptStored(t, svc, repo, created.ID).APIKey)
+
+	result, err := svc.TestSaved(ctx, created.ID, "user-1")
+	require.NoError(t, err)
+	assert.True(t, result.OK, "expected success, got %q", result.Error)
+	payload, err := svc.Fetch(ctx, created)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{"running": 1, "stopped": 0, "total": 1}, payload.KPIs)
+
+	result, err = svc.TestUnsaved(ctx, true, request("wrong"))
+	require.NoError(t, err)
+	assert.False(t, result.OK)
+	assert.Contains(t, result.Error, "credentials were rejected")
+
+	// The self-signed certificate is only accepted with verify_tls off
+	verify := request(testSecret)
+	verify.VerifyTLS = nil
+	result, err = svc.TestUnsaved(ctx, true, verify)
+	require.NoError(t, err)
+	assert.False(t, result.OK)
+	assert.Contains(t, result.Error, "certificate")
+	assert.NotContains(t, result.Error, testSecret)
+}
+
 // sessionKind keeps a session and reports when it is closed
 type sessionKind struct{ fakeKind }
 
@@ -594,4 +796,35 @@ func TestIntegrationService_SessionIsClosed(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, svc.Delete(ctx, busy.ID, "user-1"))
 	assert.Equal(t, "s-1 at http://new.lan", closed())
+}
+
+func TestIntegrationService_DockerOverHTTPIsReadOnly(t *testing.T) {
+	svc, _ := newTestIntegrationService(t)
+	var methods []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		methods = append(methods, r.Method)
+	}))
+	defer server.Close()
+
+	conn, err := svc.newConn(&models.Integration{Kind: "docker", BaseURL: server.URL}, models.IntegrationCredentials{APIKey: "ptr_token"}, &integrations.State{})
+	require.NoError(t, err)
+	defer conn.Client.CloseIdleConnections()
+
+	resp, err := conn.Client.Get(conn.BaseURL + "/version")
+	require.NoError(t, err)
+	resp.Body.Close()
+	for _, method := range []string{http.MethodPost, http.MethodDelete, http.MethodPut} {
+		req, err := http.NewRequest(method, conn.BaseURL+"/containers/x/stop", strings.NewReader("{}"))
+		require.NoError(t, err)
+		_, err = conn.Client.Do(req)
+		assert.ErrorContains(t, err, method+" requests are not allowed")
+	}
+	assert.Equal(t, []string{http.MethodGet}, methods, "nothing but the GET left the process")
+
+	// Other kinds keep a full client (logins are POSTs)
+	conn, err = svc.newConn(&models.Integration{Kind: "svc-fake", BaseURL: server.URL}, models.IntegrationCredentials{}, &integrations.State{})
+	require.NoError(t, err)
+	resp, err = conn.Client.Post(conn.BaseURL+"/login", "text/plain", strings.NewReader(""))
+	require.NoError(t, err)
+	resp.Body.Close()
 }

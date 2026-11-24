@@ -1,21 +1,15 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import type { CalendarPayload, CalendarWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 import { dayKey, eventDay, monthWeeks, sourceColors } from '@/lib/calendar'
 
-const weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-
-function dayLabel(day: string, today: string, tomorrow: string): string {
-  if (day === today) return 'Today'
-  if (day === tomorrow) return 'Tomorrow'
-  const [y, m, d] = day.split('-').map(Number)
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-  })
+// One-letter weekday names, Monday first (1 January 2024 was a Monday)
+function weekdayInitials(locale: string): string[] {
+  const format = new Intl.DateTimeFormat(locale, { weekday: 'narrow', timeZone: 'UTC' })
+  return Array.from({ length: 7 }, (_, i) => format.format(new Date(Date.UTC(2024, 0, 1 + i))))
 }
 
 export default function CalendarWidget({
@@ -23,6 +17,8 @@ export default function CalendarWidget({
   cardSize,
   snapshot,
 }: WidgetRendererProps<CalendarWidgetConfig>) {
+  const t = useTranslations('widgets.calendar')
+  const locale = useLocale()
   const calendar = snapshot?.payload as CalendarPayload | null | undefined
   const [selected, setSelected] = useState<string | null>(null)
 
@@ -43,6 +39,17 @@ export default function CalendarWidget({
   }, [calendar])
 
   if (!calendar) return null // WidgetCard shows loading and errors
+
+  const dayLabel = (day: string) => {
+    if (day === today) return t('today')
+    if (day === tomorrow) return t('tomorrow')
+    const [y, m, d] = day.split('-').map(Number)
+    return new Date(y, m - 1, d).toLocaleDateString(locale, {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    })
+  }
 
   // The month grid needs room; smaller tiles only get the agenda (and drop
   // a day picked while the tile was bigger)
@@ -66,7 +73,7 @@ export default function CalendarWidget({
     <div className="flex h-full flex-col gap-2">
       {failed.length > 0 && (
         <p className="text-warning text-xs" title={failed.join('\n')}>
-          {failed.length === 1 ? '1 source' : `${failed.length} sources`} could not be loaded
+          {t('failed', { count: failed.length })}
         </p>
       )}
 
@@ -74,7 +81,7 @@ export default function CalendarWidget({
         <table className="w-full table-fixed text-center text-xs">
           <thead>
             <tr className="text-text-muted">
-              {weekdays.map((day, i) => (
+              {weekdayInitials(locale).map((day, i) => (
                 <th key={i} className="font-medium">
                   {day}
                 </th>
@@ -91,7 +98,9 @@ export default function CalendarWidget({
                         type="button"
                         onClick={() => setSelected(selected === day ? null : day)}
                         aria-pressed={selected === day}
-                        aria-label={`${dayLabel(day, today, tomorrow)}${byDay.has(day) ? ', has events' : ''}`}
+                        aria-label={
+                          byDay.has(day) ? t('hasEvents', { day: dayLabel(day) }) : dayLabel(day)
+                        }
                         className={`flex w-full flex-col items-center rounded py-0.5 tabular-nums transition-colors ${
                           selected === day
                             ? 'bg-primary text-white'
@@ -120,16 +129,14 @@ export default function CalendarWidget({
       )}
 
       {agenda.length === 0 ? (
-        <p className="text-text-muted text-sm">
-          {picked ? 'Nothing on this day' : 'Nothing coming up'}
-        </p>
+        <p className="text-text-muted text-sm">{picked ? t('nothingOnDay') : t('nothingComing')}</p>
       ) : (
         <ul className="space-y-1">
           {agenda.map((event, i) => {
             const day = eventDay(event)
             const time = event.all_day
               ? null
-              : new Date(event.start).toLocaleTimeString(undefined, {
+              : new Date(event.start).toLocaleTimeString(locale, {
                   hour: '2-digit',
                   minute: '2-digit',
                 })
@@ -146,7 +153,7 @@ export default function CalendarWidget({
                 <span className="min-w-0 flex-1">
                   <span className="text-text-primary block truncate">{event.title}</span>
                   <span className="text-text-muted block text-xs">
-                    {dayLabel(day, today, tomorrow)}
+                    {dayLabel(day)}
                     {time && ` · ${time}`}
                   </span>
                 </span>

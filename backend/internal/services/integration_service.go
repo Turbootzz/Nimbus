@@ -8,12 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"maps"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -92,6 +95,41 @@ func (s *IntegrationService) Delete(ctx context.Context, id, userID string) erro
 	}
 	kick(s.poller)
 	return nil
+}
+
+// errMissingCredentials is what polling an imported integration reports
+// until the user enters its credentials
+var errMissingCredentials = errors.New("credentials are missing; enter them in Settings > Integrations")
+
+// missingCredentials reports an integration that needs credentials and has
+// none, as a dashboard import leaves it. Connecting anyway would fail at the
+// app, and repeated failed logins can get Nimbus banned there.
+func missingCredentials(integration *models.Integration, blob []byte) bool {
+	return integration.AuthType != models.IntegrationAuthNone && blob == nil
+}
+
+// forgetUser prepares what Delete does around the delete, for all of the
+// user's integrations: a dashboard replace deletes them itself. Call the
+// returned func once they are gone.
+func (s *IntegrationService) forgetUser(ctx context.Context, userID string) (func(), error) {
+	list, err := s.repo.ListByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	closers := make([]func(), 0, len(list))
+	for i := range list {
+		if closeSession := s.sessionCloser(ctx, &list[i]); closeSession != nil {
+			closers = append(closers, closeSession)
+		}
+	}
+	return func() {
+		for _, integration := range list {
+			s.states.Delete(integration.ID)
+		}
+		for _, closeSession := range closers {
+			closeSession()
+		}
+	}, nil
 }
 
 // sessionCloser prepares ending the session the integration's kind keeps on
@@ -176,7 +214,9 @@ func (s *IntegrationService) Update(ctx context.Context, id, userID string, isAd
 	}
 
 	integration := in.integration
-	reconnect := in.creds != nil || connectionChanged(current, &integration)
+	// Auth type none always resolves to (empty) credentials, which is no change
+	newCreds := in.creds != nil && integration.AuthType != models.IntegrationAuthNone
+	reconnect := newCreds || connectionChanged(current, &integration)
 	var closeSession func()
 	if reconnect {
 		integration.LastTestAt, integration.LastTestOK, integration.LastError = nil, nil, nil
@@ -203,6 +243,9 @@ func (s *IntegrationService) Conn(ctx context.Context, integration *models.Integ
 	blob, err := s.repo.GetCredentials(ctx, integration.ID, integration.UserID)
 	if err != nil {
 		return nil, err
+	}
+	if missingCredentials(integration, blob) {
+		return nil, errMissingCredentials
 	}
 	creds, err := s.decryptCredentials(blob, integration.ID)
 	if err != nil {
@@ -259,6 +302,8 @@ func (s *IntegrationService) TestSaved(ctx context.Context, id, userID string) (
 	switch {
 	case !ok:
 		result.Error = fmt.Sprintf("Integration kind %q is not available", current.Kind)
+	case missingCredentials(current, blob):
+		result.Error = "Credentials are missing. Enter them to connect."
 	case decryptErr != nil:
 		log.Printf("integration %s: %v", id, decryptErr)
 		result.Error = "Stored credentials cannot be decrypted (was ENCRYPTION_KEY changed?). Enter them again to fix this."
@@ -286,6 +331,27 @@ type integrationInput struct {
 // buildInput validates req. current is the stored integration on update and
 // nil otherwise; on update, empty request fields keep the stored value.
 func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current *models.Integration, isAdmin bool) (*integrationInput, error) {
+	impl, in, err := s.buildIntegration(req, current, isAdmin)
+	if err != nil {
+		return nil, err
+	}
+	creds, err := resolveCredentials(in.AuthType, req.Credentials, current)
+	if err != nil {
+		return nil, err
+	}
+	return &integrationInput{impl: impl, integration: *in, creds: creds}, nil
+}
+
+// buildImported validates an integration of a dashboard document the way
+// Create does, except for credentials: a document never carries them. The
+// user enters them afterwards; until then Conn refuses to connect.
+func (s *IntegrationService) buildImported(req *models.IntegrationRequest, isAdmin bool) (*models.Integration, error) {
+	_, in, err := s.buildIntegration(req, nil, isAdmin)
+	return in, err
+}
+
+// buildIntegration validates everything in req but the credentials
+func (s *IntegrationService) buildIntegration(req *models.IntegrationRequest, current *models.Integration, isAdmin bool) (integrations.Integration, *models.Integration, error) {
 	in := models.Integration{VerifyTLS: true, RefreshSeconds: defaultRefreshSeconds}
 	if current != nil {
 		in = *current
@@ -293,38 +359,38 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 
 	if kind := strings.TrimSpace(req.Kind); kind != "" {
 		if current != nil && kind != current.Kind {
-			return nil, invalid("Kind cannot be changed")
+			return nil, nil, invalid("Kind cannot be changed")
 		}
 		in.Kind = kind
 	}
 	impl, ok := integrations.Get(in.Kind)
 	if !ok {
-		return nil, invalid("Unknown integration kind")
+		return nil, nil, invalid("Unknown integration kind")
 	}
 	meta := impl.Meta()
 	if meta.AdminOnly && !isAdmin {
-		return nil, invalid("Only admins can set up %s integrations", meta.Name)
+		return nil, nil, invalid("Only admins can set up %s integrations", meta.Name)
 	}
 
 	if name := strings.TrimSpace(req.Name); name != "" {
 		in.Name = name
 	}
 	if in.Name == "" {
-		return nil, invalid("Name is required")
+		return nil, nil, invalid("Name is required")
 	}
 	if utf8.RuneCountInString(in.Name) > 100 {
-		return nil, invalid("Name must be 100 characters or less")
+		return nil, nil, invalid("Name must be 100 characters or less")
 	}
 
 	if rawURL := strings.TrimSpace(req.BaseURL); rawURL != "" {
 		baseURL, err := normalizeBaseURL(rawURL, meta, s.dockerSocket)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		in.BaseURL = baseURL
 	}
 	if in.BaseURL == "" {
-		return nil, invalid("Base URL is required")
+		return nil, nil, invalid("Base URL is required")
 	}
 
 	if authType := strings.TrimSpace(req.AuthType); authType != "" {
@@ -334,7 +400,11 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		in.AuthType = meta.AuthTypes[0]
 	}
 	if !slices.Contains(meta.AuthTypes, in.AuthType) {
-		return nil, invalid("Auth type %q is not supported by %s", in.AuthType, meta.Name)
+		return nil, nil, invalid("Auth type %q is not supported by %s", in.AuthType, meta.Name)
+	}
+	// Checked on the merged values, so changing only the URL is caught too
+	if strings.HasPrefix(in.BaseURL, unixScheme) && in.AuthType != models.IntegrationAuthNone {
+		return nil, nil, invalid("A unix socket takes no credentials; sign in with none")
 	}
 
 	if req.VerifyTLS != nil {
@@ -344,28 +414,65 @@ func (s *IntegrationService) buildInput(req *models.IntegrationRequest, current 
 		in.RefreshSeconds = *req.RefreshSeconds
 	}
 	if in.RefreshSeconds < minRefreshSeconds || in.RefreshSeconds > maxRefreshSeconds {
-		return nil, invalid("Refresh interval must be between %d and %d seconds", minRefreshSeconds, maxRefreshSeconds)
+		return nil, nil, invalid("Refresh interval must be between %d and %d seconds", minRefreshSeconds, maxRefreshSeconds)
 	}
 
-	if len(req.Options) > 0 && string(req.Options) != "null" {
-		if len(req.Options) > maxIntegrationOptionsBytes {
+	// On update, omitted options keep the stored ones
+	if given := optionsGiven(req.Options); given || current == nil {
+		options, err := validateOptions(meta, req.Options)
+		if err != nil {
+			return nil, nil, err
+		}
+		in.Options = options
+	}
+
+	return impl, &in, nil
+}
+
+func optionsGiven(raw json.RawMessage) bool {
+	return len(raw) > 0 && string(raw) != "null"
+}
+
+// validateOptions checks submitted options against the ones the kind
+// declares and returns them trimmed, without the empty ones
+func validateOptions(meta integrations.Meta, raw json.RawMessage) (json.RawMessage, error) {
+	given := map[string]any{}
+	if optionsGiven(raw) {
+		if len(raw) > maxIntegrationOptionsBytes {
 			return nil, invalid("Options are too large")
 		}
-		var obj map[string]any
-		if err := json.Unmarshal(req.Options, &obj); err != nil || obj == nil {
+		if err := json.Unmarshal(raw, &given); err != nil || given == nil {
 			return nil, invalid("Options must be a JSON object")
 		}
-		in.Options = req.Options
-	}
-	if len(in.Options) == 0 {
-		in.Options = json.RawMessage(`{}`)
 	}
 
-	creds, err := resolveCredentials(in.AuthType, req.Credentials, current)
-	if err != nil {
-		return nil, err
+	clean := map[string]string{}
+	for _, option := range meta.Options {
+		value, isText := given[option.Key].(string)
+		if given[option.Key] != nil && !isText {
+			return nil, invalid("%s must be text", option.Label)
+		}
+		delete(given, option.Key)
+		value = strings.TrimSpace(value)
+		switch {
+		case value == "" && option.Required:
+			return nil, invalid("%s is required", option.Label)
+		case value == "":
+			continue
+		case utf8.RuneCountInString(value) > option.MaxLen():
+			return nil, invalid("%s must be %d characters or less", option.Label, option.MaxLen())
+		case strings.ContainsFunc(value, unicode.IsControl) || !option.Matches(value):
+			if option.Placeholder != "" {
+				return nil, invalid("%s is not valid; it looks like %s", option.Label, option.Placeholder)
+			}
+			return nil, invalid("%s is not valid", option.Label)
+		}
+		clean[option.Key] = value
 	}
-	return &integrationInput{impl: impl, integration: in, creds: creds}, nil
+	if len(given) > 0 {
+		return nil, invalid("%s has no option %q", meta.Name, slices.Min(slices.Collect(maps.Keys(given))))
+	}
+	return json.Marshal(clean)
 }
 
 // connectionChanged reports whether an update touches how Nimbus connects
@@ -373,7 +480,17 @@ func connectionChanged(before, after *models.Integration) bool {
 	return before.BaseURL != after.BaseURL ||
 		before.AuthType != after.AuthType ||
 		before.VerifyTLS != after.VerifyTLS ||
-		!bytes.Equal(before.Options, after.Options)
+		!sameJSON(before.Options, after.Options)
+}
+
+// sameJSON compares decoded values: the database returns JSON with its
+// own spacing and key order
+func sameJSON(a, b json.RawMessage) bool {
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return bytes.Equal(a, b)
+	}
+	return reflect.DeepEqual(x, y)
 }
 
 // normalizeBaseURL validates a base URL and strips the trailing slash.
@@ -505,6 +622,10 @@ func (s *IntegrationService) newConn(integration *models.Integration, creds mode
 		baseURL, client = socketBaseURL, utils.NewUnixSocketClient(path, s.timeout)
 	} else {
 		client = utils.NewSafeClient(integration.VerifyTLS, s.timeout)
+		// The socket client is read-only already; this covers a proxy or Portainer
+		if impl, ok := integrations.Get(integration.Kind); ok && impl.Meta().ReadOnly {
+			client = utils.ReadOnlyClient(client)
+		}
 	}
 	return &integrations.Conn{
 		BaseURL:   baseURL,

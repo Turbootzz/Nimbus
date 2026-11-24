@@ -51,10 +51,17 @@ func setupPreferencesApp(t *testing.T) (*fiber.App, *sql.DB) {
 		view_mode TEXT NOT NULL DEFAULT 'grid',
 		wallpaper_blur INTEGER NOT NULL DEFAULT 0,
 		wallpaper_dim INTEGER NOT NULL DEFAULT 0,
-		card_opacity INTEGER NOT NULL DEFAULT 100,
-		card_blur INTEGER NOT NULL DEFAULT 0,
+		card_opacity INTEGER NOT NULL DEFAULT 75,
+		card_blur INTEGER NOT NULL DEFAULT 12,
 		layout_mode TEXT NOT NULL DEFAULT 'canvas',
+		group_display TEXT,
 		status_strip TEXT NOT NULL DEFAULT '{"enabled": false, "chips": []}',
+		theme_preset TEXT NOT NULL DEFAULT 'default',
+		theme_font TEXT NOT NULL DEFAULT 'default',
+		kpi_mono BOOLEAN NOT NULL DEFAULT 0,
+		icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
+		custom_css TEXT NOT NULL DEFAULT '',
+		language TEXT,
 		created_at TIMESTAMP NOT NULL,
 		updated_at TIMESTAMP NOT NULL
 	)`)
@@ -130,13 +137,34 @@ func TestPreferences_DefaultsMatchTheDatabase(t *testing.T) {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&prefs))
 	assert.Equal(t, "auto", prefs.ThemeMode)
 	assert.Equal(t, "medium", prefs.CardScale)
-	assert.Equal(t, 100, prefs.CardOpacity)
 	assert.Equal(t, "canvas", prefs.LayoutMode, "new users start on the canvas")
+	assert.Equal(t, []int{75, 12}, []int{prefs.CardOpacity, prefs.CardBlur}, "with glass cards")
+	assert.Nil(t, prefs.GroupDisplay, "and groups follow the layout")
 
-	// Saving something else creates the row, which keeps the canvas
+	// Saving something else creates the row, which keeps all of that
 	status, prefs, body := putJSON(t, app, "/preferences", `{"theme_mode":"dark"}`)
 	require.Equal(t, fiber.StatusOK, status, body)
 	assert.Equal(t, "canvas", prefs.LayoutMode)
+	assert.Equal(t, []int{75, 12}, []int{prefs.CardOpacity, prefs.CardBlur})
+	assert.Nil(t, prefs.GroupDisplay)
+}
+
+func TestPreferences_GroupDisplay(t *testing.T) {
+	app, _ := setupPreferencesApp(t)
+	status, prefs, body := putJSON(t, app, "/preferences", `{"group_display":"sections"}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	require.NotNil(t, prefs.GroupDisplay)
+	assert.Equal(t, "sections", *prefs.GroupDisplay)
+
+	// Another save leaves the choice alone
+	status, prefs, body = putJSON(t, app, "/preferences", `{"layout_mode":"classic"}`)
+	require.Equal(t, fiber.StatusOK, status, body)
+	require.NotNil(t, prefs.GroupDisplay)
+	assert.Equal(t, "sections", *prefs.GroupDisplay)
+
+	status, _, body = putJSON(t, app, "/preferences", `{"group_display":"grid"}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Contains(t, body, "tabs sections")
 }
 
 func TestPreferences_LayoutMode(t *testing.T) {

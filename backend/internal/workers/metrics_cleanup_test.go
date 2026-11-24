@@ -3,6 +3,7 @@ package workers
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ func setupCleanupTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table (matching production schema with UUID PRIMARY KEY)
 	_, err = db.Exec(`

@@ -2,6 +2,7 @@ package integrations
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -28,6 +29,26 @@ func Register(i Integration) {
 	for _, authType := range meta.AuthTypes {
 		if !models.IsValidIntegrationAuthType(authType) {
 			panic(fmt.Sprintf("integrations: kind %q has unknown auth type %q", kind, authType))
+		}
+	}
+	seen := map[string]bool{}
+	for _, option := range meta.Options {
+		if option.Type != "" && option.Type != OptionNumber {
+			panic(fmt.Sprintf("integrations: kind %q option %q has unknown type %q", kind, option.Key, option.Type))
+		}
+		if option.Key == "" || option.Label == "" || seen[option.Key] {
+			panic(fmt.Sprintf("integrations: kind %q has an option without a unique key and a label", kind))
+		}
+		seen[option.Key] = true
+		if _, err := regexp.Compile(option.Pattern); err != nil {
+			panic(fmt.Sprintf("integrations: kind %q option %q has a bad pattern: %v", kind, option.Key, err))
+		}
+	}
+	for _, kpi := range meta.KPIs {
+		for _, option := range []string{kpi.Option, kpi.Without} {
+			if option != "" && !seen[option] {
+				panic(fmt.Sprintf("integrations: kind %q KPI %q names unknown option %q", kind, kpi.Key, option))
+			}
 		}
 	}
 	registry[kind] = i

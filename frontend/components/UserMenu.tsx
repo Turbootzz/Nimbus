@@ -1,30 +1,44 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useId } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   UserCircleIcon,
   ArrowRightOnRectangleIcon,
   UserIcon,
   ChevronDownIcon,
+  CheckIcon,
+  PencilSquareIcon,
+  Squares2X2Icon,
 } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import UserAvatar from '@/components/UserAvatar'
 import { mainNavigation } from '@/lib/navigation'
+import { toggleEditMode, useBoardReadOnly, useEditMode } from '@/lib/dashboard-store'
+import { openBoardManager } from '@/components/boards/BoardManager'
+import InstallAppMenuItem from '@/components/InstallAppMenuItem'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import type { User } from '@/types'
 
 interface UserMenuProps {
   // The canvas layout has no sidebar, so its menu links to the main pages
+  // and toggles the dashboard's edit mode
   withNavigation?: boolean
 }
 
 export default function UserMenu({ withNavigation = false }: UserMenuProps) {
+  const t = useTranslations('layout')
   const [user, setUser] = useState<User | null>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const menuId = useId()
+  const isEditMode = useEditMode()
+  // A board someone else shares has no layout to edit
+  const boardReadOnly = useBoardReadOnly()
   const router = useRouter()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
 
@@ -55,6 +69,26 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
     router.push('/login')
   }, [router])
 
+  // Escape closes the menu and hands the focus back to its button
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape' && isOpen) {
+      event.stopPropagation()
+      setIsOpen(false)
+      triggerRef.current?.focus()
+    }
+  }
+
+  const handleEditLayout = () => {
+    setIsOpen(false)
+    triggerRef.current?.focus()
+    toggleEditMode()
+  }
+
+  const handleNewBoard = () => {
+    setIsOpen(false)
+    openBoardManager()
+  }
+
   const handleProfile = useCallback(() => {
     setIsOpen(false)
     router.push('/settings/profile')
@@ -66,7 +100,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
         <UserCircleIcon className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
         <div className="hidden sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-            Loading...
+            {t('userMenu.loading')}
           </div>
         </div>
       </div>
@@ -74,9 +108,14 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
   }
 
   return (
-    <div className="relative" ref={menuRef}>
+    <div className="relative" ref={menuRef} onKeyDown={handleKeyDown}>
       {/* User button */}
       <button
+        ref={triggerRef}
+        type="button"
+        aria-haspopup="true"
+        aria-expanded={isOpen}
+        aria-controls={isOpen ? menuId : undefined}
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-3 rounded-md p-2 transition-colors"
         style={{
@@ -95,13 +134,13 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       >
         <UserAvatar
           avatarUrl={user?.avatar_url}
-          name={user?.name || 'User'}
+          name={user?.name || t('userMenu.fallbackName')}
           size={32}
           className="h-8 w-8"
         />
         <div className="hidden text-left sm:block">
           <div className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-            {user?.name || 'User'}
+            {user?.name || t('userMenu.fallbackName')}
           </div>
         </div>
         <ChevronDownIcon
@@ -117,6 +156,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
       {/* Dropdown menu */}
       {isOpen && (
         <div
+          id={menuId}
           className="absolute right-0 mt-2 w-56 rounded-md border shadow-lg"
           style={{
             backgroundColor: 'var(--color-card)',
@@ -139,9 +179,32 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                       className="mr-3 h-5 w-5"
                       style={{ color: 'var(--color-text-muted)' }}
                     />
-                    {item.name}
+                    {t(`nav.${item.id}`)}
                   </Link>
                 ))}
+                {/* A dashboard locked by a config file can't be edited */}
+                {!user?.config_file?.read_only && !boardReadOnly && (
+                  <button
+                    type="button"
+                    onClick={handleEditLayout}
+                    className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                    style={{ color: 'var(--color-text-primary)' }}
+                    {...menuItemHover}
+                  >
+                    {isEditMode ? (
+                      <CheckIcon
+                        className="mr-3 h-5 w-5"
+                        style={{ color: 'var(--color-success)' }}
+                      />
+                    ) : (
+                      <PencilSquareIcon
+                        className="mr-3 h-5 w-5"
+                        style={{ color: 'var(--color-text-muted)' }}
+                      />
+                    )}
+                    {isEditMode ? t('userMenu.doneEditing') : t('userMenu.editLayout')}
+                  </button>
+                )}
                 {process.env.NEXT_PUBLIC_NIMBUS_CLOUD === 'true' && (
                   <a
                     href="https://nimbusapp.dev"
@@ -149,7 +212,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                     rel="noopener noreferrer"
                     className="text-text-muted block px-4 py-1 text-xs hover:opacity-80"
                   >
-                    Hosted by Nimbus Cloud
+                    {t('hostedByNimbusCloud')}
                   </a>
                 )}
                 <div
@@ -167,8 +230,27 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
               {...menuItemHover}
             >
               <UserIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
-              Profile Settings
+              {t('userMenu.profileSettings')}
             </button>
+
+            {/* Boards are managed from the switcher once there are more */}
+            {!user?.config_file?.read_only && (
+              <button
+                type="button"
+                onClick={handleNewBoard}
+                className="flex w-full items-center px-4 py-2 text-sm transition-colors"
+                style={{ color: 'var(--color-text-primary)' }}
+                {...menuItemHover}
+              >
+                <Squares2X2Icon
+                  className="mr-3 h-5 w-5"
+                  style={{ color: 'var(--color-text-muted)' }}
+                />
+                {t('userMenu.newBoard')}
+              </button>
+            )}
+
+            <InstallAppMenuItem onSelect={() => setIsOpen(false)} />
 
             {/* Divider */}
             <div className="my-1 h-px" style={{ backgroundColor: 'var(--color-card-border)' }} />
@@ -184,7 +266,7 @@ export default function UserMenu({ withNavigation = false }: UserMenuProps) {
                 className="mr-3 h-5 w-5"
                 style={{ color: 'var(--color-error)' }}
               />
-              Sign Out
+              {t('userMenu.signOut')}
             </button>
           </div>
         </div>

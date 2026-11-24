@@ -6,6 +6,8 @@ import type { LayoutMode } from '@/types'
 
 const STORAGE_KEY = 'nimbus-layout'
 const listeners = new Set<() => void>()
+// The preferences could not be loaded, so there is nothing left to wait for
+let settled = false
 
 export function subscribeLayout(onStoreChange: () => void) {
   listeners.add(onStoreChange)
@@ -36,4 +38,21 @@ export function setLayoutMode(value: LayoutMode) {
 // useLayoutMode is the layout the user picked; classic on the server
 export function useLayoutMode(): LayoutMode {
   return useSyncExternalStore(subscribeLayout, getLayoutSnapshot, getLayoutServerSnapshot)
+}
+
+// Pending: this browser has not stored a layout yet (a new user, or a new
+// browser) and the preferences are still loading. The dashboard stays hidden
+// until then, so it never shows one layout first and then the other.
+export function getLayoutPendingSnapshot(): boolean {
+  return !settled && localStorage.getItem(STORAGE_KEY) === null
+}
+
+// Ends the wait when the preferences are in, or could not be loaded
+export function settleLayout() {
+  settled = true
+  listeners.forEach((l) => l())
+}
+
+export function useLayoutPending(): boolean {
+  return useSyncExternalStore(subscribeLayout, getLayoutPendingSnapshot, () => false)
 }

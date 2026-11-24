@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { WebhookForm, type WebhookFormData } from '@/components/WebhookForm'
 import { WebhookCard } from '@/components/WebhookCard'
 import type { Webhook } from '@/types'
 
 export default function NotificationsPage() {
+  const t = useTranslations('notifications.page')
   const [webhooks, setWebhooks] = useState<Webhook[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -23,37 +25,36 @@ export default function NotificationsPage() {
         setError(response.error.message)
       }
     } catch {
-      setError('Failed to load webhooks')
+      setError(t('loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchWebhooks()
   }, [fetchWebhooks])
 
+  // Returns the API error so the form can show it, or null once saved
   const handleSubmit = async (data: WebhookFormData) => {
+    const response = editingWebhook
+      ? await api.updateWebhook(editingWebhook.id, data)
+      : await api.createWebhook(data)
+    const saved = response.data
+    if (!saved) return response.error ?? { message: t('saveFailed') }
+
     if (editingWebhook) {
-      const response = await api.updateWebhook(editingWebhook.id, data)
-      if (response.data) {
-        setWebhooks(webhooks.map((w) => (w.id === editingWebhook.id ? response.data! : w)))
-        setEditingWebhook(null)
-        return true
-      }
+      setWebhooks(webhooks.map((w) => (w.id === saved.id ? saved : w)))
+      setEditingWebhook(null)
     } else {
-      const response = await api.createWebhook(data)
-      if (response.data) {
-        setWebhooks([...webhooks, response.data])
-        setShowForm(false)
-        return true
-      }
+      setWebhooks([...webhooks, saved])
+      setShowForm(false)
     }
-    return false
+    return null
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this webhook?')) return
+    if (!confirm(t('confirmDelete'))) return
     const response = await api.deleteWebhook(id)
     if (!response.error) {
       setWebhooks(webhooks.filter((w) => w.id !== id))
@@ -71,12 +72,12 @@ export default function NotificationsPage() {
     const response = await api.testWebhook(id)
     if (response.data) {
       if (response.data.success) {
-        alert('Test notification sent successfully!')
+        alert(t('testSent'))
       } else {
-        alert(`Test failed: ${response.data.error || 'Unknown error'}`)
+        alert(t('testFailed', { error: response.data.error || t('unknownError') }))
       }
     } else if (response.error) {
-      alert(`Test failed: ${response.error.message}`)
+      alert(t('testFailed', { error: response.error.message }))
     }
   }
 
@@ -91,17 +92,15 @@ export default function NotificationsPage() {
   return (
     <div className="max-w-4xl p-4 sm:p-6">
       <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Notifications</h1>
-          <p className="text-text-secondary text-sm sm:text-base">
-            Configure webhooks to receive alerts when services change status
-          </p>
+        <div className="wallpaper-panel">
+          <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">{t('title')}</h1>
+          <p className="text-text-secondary text-sm sm:text-base">{t('description')}</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
         >
-          Add Webhook
+          {t('add')}
         </button>
       </div>
 
@@ -127,9 +126,9 @@ export default function NotificationsPage() {
                 d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
               />
             </svg>
-            <p className="text-text-secondary mb-4">No webhooks configured yet</p>
+            <p className="text-text-secondary mb-4">{t('empty')}</p>
             <button onClick={() => setShowForm(true)} className="text-primary hover:underline">
-              Create your first webhook
+              {t('createFirst')}
             </button>
           </div>
         ) : (

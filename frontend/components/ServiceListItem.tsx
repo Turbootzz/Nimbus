@@ -1,15 +1,20 @@
 'use client'
 
-import { ClockIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
+import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { Service } from '@/types'
 import { getStatusBgColor, getResponseTimeColor } from '@/lib/status-utils'
 import ServiceIcon from '@/components/ServiceIcon'
+import { overlayActionClass } from '@/components/EditOverlay'
+import { useServiceDetail } from '@/components/ServiceHoverDetail'
 
 interface ServiceListItemProps {
   service: Service
   openInNewTab: boolean
   isEditMode?: boolean
+  // Shows a pencil in edit mode
+  onEdit?: (service: Service) => void
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   // Effective monitoring state (accounts for the group's monitoring flag too).
@@ -21,11 +26,15 @@ export default function ServiceListItem({
   service,
   openInNewTab,
   isEditMode = false,
+  onEdit,
   dragHandleProps,
   isDragging = false,
   isMonitored,
 }: ServiceListItemProps) {
+  const t = useTranslations('services')
   const monitored = isMonitored ?? service.monitoring_enabled
+  // Uptime and last error, on hover, focus or a long press
+  const detail = useServiceDetail(service, monitored, !isEditMode)
   const linkProps = {
     href: service.url,
     target: openInNewTab ? '_blank' : '_self',
@@ -45,6 +54,7 @@ export default function ServiceListItem({
       {isEditMode && (
         <div
           {...dragHandleProps}
+          aria-label={t('tile.move', { name: service.name })}
           className="bg-card/90 cursor-grab touch-none rounded p-1 active:cursor-grabbing"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -72,7 +82,7 @@ export default function ServiceListItem({
           <>
             <div className={`h-2 w-2 rounded-full ${getStatusBgColor(service.status)}`} />
             <span className="text-text-secondary hidden text-xs capitalize sm:inline">
-              {service.status}
+              {t(`status.${service.status}`)}
             </span>
           </>
         ) : (
@@ -80,7 +90,9 @@ export default function ServiceListItem({
             {/* Muted dot on mobile mirrors the monitored layout so the row */}
             {/* doesn't collapse into having no status indicator at all. */}
             <div className="h-2 w-2 rounded-full bg-gray-400" />
-            <span className="text-text-muted hidden text-xs sm:inline">Not monitored</span>
+            <span className="text-text-muted hidden text-xs sm:inline">
+              {t('tile.notMonitored')}
+            </span>
           </>
         )}
       </div>
@@ -98,6 +110,17 @@ export default function ServiceListItem({
             <span className="sm:hidden">{service.response_time}</span>
           </div>
         )}
+
+      {isEditMode && onEdit && (
+        <button
+          type="button"
+          onClick={() => onEdit(service)}
+          className={`${overlayActionClass} shrink-0`}
+          aria-label={t('tile.edit', { name: service.name })}
+        >
+          <PencilIcon className="h-4 w-4" />
+        </button>
+      )}
     </>
   )
 
@@ -106,8 +129,11 @@ export default function ServiceListItem({
   }
 
   return (
-    <a {...linkProps} className={`${baseClasses} ${hoverClasses}`}>
-      {content}
-    </a>
+    <>
+      <a {...linkProps} {...detail.triggerProps} className={`${baseClasses} ${hoverClasses}`}>
+        {content}
+      </a>
+      {detail.popover}
+    </>
   )
 }

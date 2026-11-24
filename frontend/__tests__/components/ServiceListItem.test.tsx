@@ -49,7 +49,35 @@ describe('ServiceListItem', () => {
     ...overrides,
   })
 
+  describe('Edit button', () => {
+    it('opens the editor in edit mode only', () => {
+      const service = createMockService({ name: 'Plex' })
+      const onEdit = vi.fn()
+      const { rerender } = render(
+        <ServiceListItem service={service} openInNewTab={false} onEdit={onEdit} />
+      )
+      expect(screen.queryByLabelText('Edit Plex')).not.toBeInTheDocument()
+
+      rerender(
+        <ServiceListItem service={service} openInNewTab={false} isEditMode onEdit={onEdit} />
+      )
+      screen.getByLabelText('Edit Plex').click()
+      expect(onEdit).toHaveBeenCalledWith(service)
+    })
+  })
+
   describe('Basic rendering', () => {
+    // The API refuses such addresses now; one stored before that must not run.
+    // React replaces a javascript: href instead of rendering it.
+    it('should not render a stored javascript: address as a working link', () => {
+      vi.spyOn(console, 'error').mockImplementation(() => {})
+      const service = createMockService({ url: 'javascript:alert(document.cookie)' })
+      const { container } = render(<ServiceListItem service={service} openInNewTab={false} />)
+
+      expect(container.querySelector('a')?.getAttribute('href')).not.toContain('alert')
+      vi.restoreAllMocks()
+    })
+
     it('should render service name', () => {
       const service = createMockService({ name: 'My Service' })
       render(<ServiceListItem service={service} openInNewTab={false} />)
@@ -146,6 +174,7 @@ describe('ServiceListItem', () => {
       // Drag handle has cursor-grab class
       const dragHandle = document.querySelector('.cursor-grab')
       expect(dragHandle).toBeInTheDocument()
+      expect(dragHandle).toHaveAttribute('aria-label', 'Move Test Service')
     })
 
     it('should not show drag handle when not in edit mode', () => {

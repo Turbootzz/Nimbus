@@ -348,7 +348,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-      <div className="mb-6">
+      <div className="wallpaper-panel mb-6">
         <h1 className="text-text-primary text-2xl font-bold sm:text-3xl">User Management</h1>
         <p className="text-text-secondary mt-1 text-sm sm:text-base">
           Manage user accounts and roles
@@ -482,7 +482,7 @@ export default function AdminUsersPage() {
       {/* Pagination Controls */}
       {totalPages > 1 && (
         <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
-          <div className="text-text-secondary text-sm">
+          <div className="text-text-secondary wallpaper-panel text-sm">
             Page {currentPage} of {totalPages}
           </div>
 

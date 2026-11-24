@@ -22,7 +22,8 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 	preferences := &models.UserPreferences{}
 	query := `
 		SELECT id, user_id, theme_mode, theme_background, theme_accent_color, open_in_new_tab, enable_card_resizing, enable_service_grouping, card_scale, view_mode,
-			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, status_strip, created_at, updated_at
+			wallpaper_blur, wallpaper_dim, card_opacity, card_blur, layout_mode, group_display, status_strip,
+			theme_preset, theme_font, kpi_mono, icon_source, custom_css, language, created_at, updated_at
 		FROM user_preferences
 		WHERE user_id = $1
 	`
@@ -43,7 +44,14 @@ func (r *PreferencesRepository) GetByUserID(ctx context.Context, userID string) 
 		&preferences.CardOpacity,
 		&preferences.CardBlur,
 		&preferences.LayoutMode,
+		&preferences.GroupDisplay,
 		&preferences.StatusStrip,
+		&preferences.ThemePreset,
+		&preferences.ThemeFont,
+		&preferences.KpiMono,
+		&preferences.IconSource,
+		&preferences.CustomCSS,
+		&preferences.Language,
 		&preferences.CreatedAt,
 		&preferences.UpdatedAt,
 	)
@@ -86,6 +94,16 @@ func (r *PreferencesRepository) Create(ctx context.Context, preferences *models.
 // written: a new row gets the column defaults for the rest, an existing row
 // keeps them. One INSERT ... ON CONFLICT, so concurrent first saves can't race.
 func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *models.PreferencesUpdateRequest) error {
+	return upsertPreferences(ctx, r.db, userID, p)
+}
+
+// execer is satisfied by *sql.DB and *sql.Tx
+type execer interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// upsertPreferences is Upsert on a connection or inside a transaction
+func upsertPreferences(ctx context.Context, db execer, userID string, p *models.PreferencesUpdateRequest) error {
 	columns := []string{"user_id"}
 	args := []any{userID}
 	// add writes a column when the request has it; pointers become NULL or
@@ -110,9 +128,17 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *mo
 	add("card_opacity", p.CardOpacity, p.CardOpacity != nil)
 	add("card_blur", p.CardBlur, p.CardBlur != nil)
 	add("layout_mode", p.LayoutMode, p.LayoutMode != nil)
+	// An import can also go back to following the layout (NULL)
+	add("group_display", p.GroupDisplay, p.GroupDisplay != nil || p.FollowLayout)
 	if p.StatusStrip != nil {
 		add("status_strip", *p.StatusStrip, true)
 	}
+	add("theme_preset", p.ThemePreset, p.ThemePreset != nil)
+	add("theme_font", p.ThemeFont, p.ThemeFont != nil)
+	add("kpi_mono", p.KpiMono, p.KpiMono != nil)
+	add("icon_source", p.IconSource, p.IconSource != nil)
+	add("custom_css", p.CustomCSS, p.CustomCSS != nil)
+	add("language", p.Language.GetValue(), p.Language.IsSet())
 
 	placeholders := make([]string, len(columns))
 	updates := []string{"updated_at = CURRENT_TIMESTAMP"}
@@ -127,7 +153,7 @@ func (r *PreferencesRepository) Upsert(ctx context.Context, userID string, p *mo
 		ON CONFLICT (user_id) DO UPDATE SET %s`,
 		strings.Join(columns, ", "), strings.Join(placeholders, ", "), strings.Join(updates, ", "))
 
-	_, err := r.db.ExecContext(ctx, query, args...)
+	_, err := db.ExecContext(ctx, query, args...)
 	return err
 }
 

@@ -48,6 +48,17 @@ type SecretConfig interface {
 	Unredact(config, stored json.RawMessage) json.RawMessage
 }
 
+// MaskedConfig is implemented by SecretConfig types so that a dashboard
+// import can store their config: an export never carries secrets, only the
+// masks of Redact. ValidateMasked is Validate, except that it accepts those
+// masks. Fetch must refuse to run with a mask; the user enters the secret
+// again by editing the widget.
+type MaskedConfig interface {
+	ValidateMasked(config json.RawMessage) (json.RawMessage, error)
+	// HasMasks reports whether a config still holds a mask
+	HasMasks(config json.RawMessage) bool
+}
+
 // ConfigIntegrations is implemented by types whose config lists several
 // integrations (of Meta.ConfigIntegrationKinds), like a calendar of Sonarr
 // and Radarr. The service checks they are the user's; Fetch gets them in

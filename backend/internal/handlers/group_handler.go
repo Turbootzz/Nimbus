@@ -9,10 +9,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 type GroupHandler struct {
 	groupRepo *repository.GroupRepository
+	boards    *services.BoardService // nil: one dashboard per user
+}
+
+// SetBoards makes the handler board-aware: the list takes ?board=, and a
+// group can be created on another board of the user
+func (h *GroupHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func NewGroupHandler(groupRepo *repository.GroupRepository) *GroupHandler {
@@ -35,45 +43,16 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate name
-	if req.Name == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Name is required",
-		})
+	group, err := services.NewGroupFromRequest(&req)
+	if err != nil {
+		return serviceError(c, err, "create group", nil)
 	}
-	if len(req.Name) > models.MaxGroupNameLen {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": fmt.Sprintf("Name must be %d characters or less", models.MaxGroupNameLen),
-		})
+	board, err := h.boards.ResolveOwned(c.Context(), userID, req.BoardID)
+	if err != nil {
+		return serviceError(c, err, "create group", boardNotFound)
 	}
-
-	// Validate color
-	color := req.Color
-	if color == "" {
-		color = models.DefaultGroupColor
-	}
-	if !models.IsValidHexColor(color) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid color format. Must be hex format #RRGGBB",
-		})
-	}
-
-	// Default monitoring to enabled
-	monitoringEnabled := true
-	if req.MonitoringEnabled != nil {
-		monitoringEnabled = *req.MonitoringEnabled
-	}
-
-	now := time.Now()
-	group := &models.Group{
-		UserID:            userID,
-		Name:              req.Name,
-		Color:             color,
-		IsDefault:         false,
-		MonitoringEnabled: monitoringEnabled,
-		CreatedAt:         now,
-		UpdatedAt:         now,
-	}
+	group.UserID = userID
+	group.BoardID = board.ID()
 
 	if err := h.groupRepo.Create(c.Context(), group); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -84,22 +63,33 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(group.ToResponse())
 }
 
-// GetGroups retrieves all groups for the authenticated user
+// GetGroups retrieves the groups of one board: ?board=<id>, or the user's
+// default board
 func (h *GroupHandler) GetGroups(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
 	}
-
-	// Ensure default group exists
-	_, err = h.groupRepo.EnsureDefaultGroup(c.Context(), userID)
+	board, err := requestBoard(c, h.boards, userID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to ensure default group",
-		})
+		return serviceError(c, err, "retrieve groups", boardNotFound)
 	}
 
-	groups, err := h.groupRepo.GetAllByUserID(c.Context(), userID)
+	// Ensure default group exists; a viewer of someone's board creates nothing
+	if board.CanEdit {
+		if _, err = h.groupRepo.EnsureDefaultGroupOn(c.Context(), userID, board.ID()); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"error": "Failed to ensure default group",
+			})
+		}
+	}
+
+	var groups []*models.Group
+	if board.Board == nil {
+		groups, err = h.groupRepo.GetAllByUserID(c.Context(), userID)
+	} else {
+		groups, err = h.groupRepo.GetAllByBoardID(c.Context(), board.Board.ID)
+	}
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to retrieve groups",
@@ -147,7 +137,7 @@ func (h *GroupHandler) GetGroup(c *fiber.Ctx) error {
 	return c.JSON(group.ToResponse())
 }
 
-// UpdateGroup handles group updates (name and color only)
+// UpdateGroup handles group updates (name, color, monitoring and tile style)
 func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
@@ -203,6 +193,16 @@ func (h *GroupHandler) UpdateGroup(c *fiber.Ctx) error {
 			})
 		}
 		existingGroup.Color = req.Color
+	}
+
+	// Validate and apply tile style if provided
+	if req.TileStyle != "" {
+		if !models.IsValidTileStyle(req.TileStyle) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid tile style. Must be cards or chips",
+			})
+		}
+		existingGroup.TileStyle = req.TileStyle
 	}
 
 	// Update monitoring_enabled if provided

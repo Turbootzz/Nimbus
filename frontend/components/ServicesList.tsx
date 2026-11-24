@@ -10,6 +10,7 @@ interface ServicesListProps {
   openInNewTab: boolean
   isEditMode?: boolean
   groupMonitoringMap?: GroupMonitoringMap
+  onEditService?: (service: Service) => void
 }
 
 export default function ServicesList({
@@ -17,6 +18,7 @@ export default function ServicesList({
   openInNewTab,
   isEditMode = false,
   groupMonitoringMap,
+  onEditService,
 }: ServicesListProps) {
   return (
     <div className="grid grid-cols-1 gap-x-3 gap-y-1 lg:grid-cols-2 2xl:grid-cols-3">
@@ -28,6 +30,7 @@ export default function ServicesList({
             service={service}
             openInNewTab={openInNewTab}
             isMonitored={monitored}
+            onEdit={onEditService}
           />
         ) : (
           <ServiceListItem

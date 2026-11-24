@@ -1,18 +1,20 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 import type { Service } from '@/types'
 import { getApiUrl } from '@/lib/utils/api-url'
 
 interface ServiceIconProps {
   service: Service
-  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl'
   className?: string
 }
 
 // Container dimensions for all icon types
 const sizeClasses = {
+  xs: 'w-5 h-5', // chips
   sm: 'w-12 h-12',
   md: 'w-16 h-16',
   lg: 'w-20 h-20',
@@ -23,6 +25,7 @@ const sizeClasses = {
 
 // Emoji text sizes - slightly larger to fill container height
 const emojiSizeClasses = {
+  xs: 'text-base leading-none',
   sm: 'text-4xl',
   md: 'text-6xl',
   lg: 'text-7xl',
@@ -32,6 +35,7 @@ const emojiSizeClasses = {
 }
 
 const sizeDimensions = {
+  xs: 20,
   sm: 48,
   md: 64,
   lg: 80,
@@ -41,6 +45,7 @@ const sizeDimensions = {
 }
 
 export default function ServiceIcon({ service, size = 'md', className = '' }: ServiceIconProps) {
+  const t = useTranslations('services.icon')
   const [imageError, setImageError] = useState(false)
   const sizeClass = sizeClasses[size]
   const dimension = sizeDimensions[size]
@@ -64,7 +69,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={imageUrl}
-          alt={`${service.name} icon`}
+          alt={t('alt', { name: service.name })}
           width={dimension}
           height={dimension}
           className="h-full w-full object-contain"
@@ -81,7 +86,7 @@ export default function ServiceIcon({ service, size = 'md', className = '' }: Se
       <div className={`${sizeClass} relative overflow-hidden ${className}`}>
         <Image
           src={service.icon_image_path}
-          alt={`${service.name} icon`}
+          alt={t('alt', { name: service.name })}
           width={dimension}
           height={dimension}
           className="h-full w-full object-contain"

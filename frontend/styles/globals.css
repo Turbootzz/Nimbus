@@ -9,6 +9,7 @@
   --color-primary-light: #e0f2fe; /* sky-100 */
   --color-card: #ffffff; /* white cards on gray background */
   --color-card-border: #e5e7eb; /* gray-200 */
+  --color-card-hover: #f3f4f6; /* gray-100 - hovered rows and buttons */
   --color-sidebar: #f9fafb; /* gray-50 */
   --color-sidebar-border: #e5e7eb; /* gray-200 */
   --color-text-primary: #0a0a0a;
@@ -27,6 +28,7 @@
   --dark-primary-light: #075985; /* sky-900 - darker bg */
   --dark-card: #18181b; /* zinc-900 */
   --dark-card-border: #27272a; /* zinc-800 */
+  --dark-card-hover: #27272a; /* zinc-800 */
   --dark-sidebar: #111113;
   --dark-sidebar-border: #27272a; /* zinc-800 */
   --dark-text-primary: #fafafa;
@@ -43,6 +45,7 @@ html.dark {
   --color-primary-light: var(--dark-primary-light);
   --color-card: var(--dark-card);
   --color-card-border: var(--dark-card-border);
+  --color-card-hover: var(--dark-card-hover);
   --color-sidebar: var(--dark-sidebar);
   --color-sidebar-border: var(--dark-sidebar-border);
   --color-text-primary: var(--dark-text-primary);
@@ -65,6 +68,7 @@ html.light {
     --color-primary-light: var(--dark-primary-light);
     --color-card: var(--dark-card);
     --color-card-border: var(--dark-card-border);
+    --color-card-hover: var(--dark-card-hover);
     --color-sidebar: var(--dark-sidebar);
     --color-sidebar-border: var(--dark-sidebar-border);
     --color-text-primary: var(--dark-text-primary);
@@ -82,6 +86,7 @@ html.light {
   --color-foreground: var(--color-foreground);
   --color-card: var(--color-card);
   --color-card-border: var(--color-card-border);
+  --color-card-hover: var(--color-card-hover);
   --color-sidebar: var(--color-sidebar);
   --color-sidebar-border: var(--color-sidebar-border);
   --color-text-primary: var(--color-text-primary);
@@ -131,6 +136,36 @@ body::before {
   backdrop-filter: var(--card-backdrop, none);
 }
 
+/* Text and controls that sit straight on the page instead of on a card. A
+   wallpaper can be any brightness, so with one (html[data-wallpaper], set by
+   ThemeContext) they get the card surface; without one nothing changes.
+   The surface never goes below 80% opacity: unlike a card it only exists to
+   keep text readable, whatever card opacity the user picked.
+   Controls with their own shape use wallpaper-surface, bare text blocks
+   wallpaper-panel, which also pads and hugs the text. Leaf elements only: a
+   backdrop filter re-anchors fixed children such as modals. */
+@custom-variant wallpaper (html[data-wallpaper] &);
+
+@utility wallpaper-surface {
+  html[data-wallpaper] & {
+    background-color: color-mix(
+      in srgb,
+      var(--color-card) max(var(--card-opacity, 100%), 80%),
+      transparent
+    );
+    backdrop-filter: var(--card-backdrop, none);
+  }
+}
+
+@utility wallpaper-panel {
+  @apply wallpaper-surface;
+  html[data-wallpaper] & {
+    width: fit-content;
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+  }
+}
+
 /* Pre-hydration sidebar collapsed state (set by ThemeScript) */
 /* Must match Tailwind's lg breakpoint (1024px) */
 @media (min-width: 1024px) {
@@ -154,4 +189,42 @@ html[data-layout='canvas'] header[data-classic-chrome] {
 }
 html[data-layout='canvas'] [data-main-content] {
   padding-left: 0;
+}
+
+/* Kiosk mode (?kiosk=1 on a board, set by ThemeScript, kept by the layout):
+   nothing around the tiles, also before React renders */
+html[data-kiosk] [data-sidebar='desktop'],
+html[data-kiosk] header[data-classic-chrome],
+html[data-kiosk] header[data-canvas-chrome] {
+  display: none;
+}
+html[data-kiosk] [data-main-content] {
+  padding-left: 0;
+}
+
+/* Layout not known yet: a new user or browser has nothing stored, and the
+   default differs per user. The dashboard stays hidden until the preferences
+   are in, so it never shows one layout and then switches to the other. */
+html[data-layout='pending'] [data-sidebar='desktop'],
+html[data-layout='pending'] [data-main-content] {
+  visibility: hidden;
+  /* Whatever happens (a request that hangs, a script that fails), the page
+     shows after a few seconds */
+  animation: layout-pending-reveal 0s 5s forwards;
+}
+@keyframes layout-pending-reveal {
+  to {
+    visibility: visible;
+  }
+}
+
+/* Canvas on a phone: one column. Tiles two columns wide would add a second
+   one, so they lose their column span. Below Tailwind's sm breakpoint. */
+@media (width < 40rem) {
+  html[data-layout='canvas'] [data-tile-grid] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  html[data-layout='canvas'] [data-tile-grid] > * {
+    grid-column: auto;
+  }
 }

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/24/solid'
 import { api } from '@/lib/api'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 
 export default function SetupPage() {
+  const t = useTranslations('auth.setup')
   const router = useRouter()
   const [step, setStep] = useState<'loading' | 'welcome' | 'create' | 'complete' | 'error'>(
     'loading'
@@ -50,12 +52,12 @@ export default function SetupPage() {
 
     // Validation
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError(t('errors.passwordMismatch'))
       return
     }
 
     if (password.length < 8) {
-      setError('Password must be at least 8 characters')
+      setError(t('errors.passwordTooShort'))
       return
     }
 
@@ -65,7 +67,7 @@ export default function SetupPage() {
       const response = await api.createInitialAdmin({ name, email, password })
 
       if (response.error) {
-        setError(response.error.message || 'Failed to create admin account')
+        setError(response.error.message || t('errors.failed'))
         return
       }
 
@@ -75,7 +77,7 @@ export default function SetupPage() {
         window.location.href = '/dashboard'
       }, 1500)
     } catch (err) {
-      setError('Failed to create admin account. Please try again.')
+      setError(t('errors.failedRetry'))
       console.error('Setup error:', err)
     } finally {
       setIsLoading(false)
@@ -96,7 +98,7 @@ export default function SetupPage() {
           style={{ color: 'var(--color-primary)' }}
         />
         <p className="mt-4" style={{ color: 'var(--color-text-secondary)' }}>
-          Checking setup status...
+          {t('checking')}
         </p>
       </div>
     )
@@ -116,13 +118,13 @@ export default function SetupPage() {
           style={{ color: 'var(--color-warning)' }}
         />
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Connection Error
+          {t('connectionError.title')}
         </h2>
         <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-          Unable to connect to the Nimbus backend.
+          {t('connectionError.message')}
         </p>
         <p className="mt-1 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          Please ensure the backend server is running and try again.
+          {t('connectionError.hint')}
         </p>
         <button
           onClick={() => {
@@ -132,10 +134,11 @@ export default function SetupPage() {
           className="mt-6 rounded-lg px-6 py-2.5 font-medium text-white transition focus:ring-4"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >
-          Retry
+          {t('connectionError.retry')}
         </button>
       </div>
     )
@@ -153,15 +156,15 @@ export default function SetupPage() {
         <div className="mb-6 text-center">
           <div className="mb-4 text-5xl">☁️</div>
           <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-            Welcome to Nimbus
+            {t('welcome.title')}
           </h2>
           <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Let&apos;s set up your homelab dashboard
+            {t('welcome.subtitle')}
           </p>
         </div>
 
         <div className="mb-6 text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          <p className="text-sm">To get started, create an administrator account.</p>
+          <p className="text-sm">{t('welcome.intro')}</p>
         </div>
 
         <button
@@ -169,10 +172,11 @@ export default function SetupPage() {
           className="w-full rounded-lg py-2.5 font-medium text-white transition focus:ring-4"
           style={{
             backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
           }}
           {...buttonHover}
         >
-          Get Started
+          {t('welcome.getStarted')}
         </button>
       </div>
     )
@@ -192,10 +196,10 @@ export default function SetupPage() {
           style={{ color: 'var(--color-success)' }}
         />
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Setup Complete!
+          {t('complete.title')}
         </h2>
         <p className="mt-2" style={{ color: 'var(--color-text-secondary)' }}>
-          Redirecting to your dashboard...
+          {t('complete.redirecting')}
         </p>
       </div>
     )
@@ -212,10 +216,10 @@ export default function SetupPage() {
     >
       <div className="mb-6 text-center">
         <h2 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Create Admin Account
+          {t('create.title')}
         </h2>
         <p className="mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          This will be the first administrator
+          {t('create.subtitle')}
         </p>
       </div>
 
@@ -240,14 +244,14 @@ export default function SetupPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Full Name
+            {t('create.fullName')}
           </label>
           <ThemedInput
             id="name"
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Admin"
+            placeholder={t('create.namePlaceholder')}
             required
             disabled={isLoading}
           />
@@ -259,7 +263,7 @@ export default function SetupPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Email
+            {t('create.email')}
           </label>
           <ThemedInput
             id="email"
@@ -278,7 +282,7 @@ export default function SetupPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Password
+            {t('create.password')}
           </label>
           <ThemedInput
             id="password"
@@ -291,7 +295,7 @@ export default function SetupPage() {
             minLength={8}
           />
           <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Must be at least 8 characters
+            {t('create.passwordHint')}
           </p>
         </div>
 
@@ -301,7 +305,7 @@ export default function SetupPage() {
             className="mb-1 block text-sm font-medium"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Confirm Password
+            {t('create.confirmPassword')}
           </label>
           <ThemedInput
             id="confirmPassword"
@@ -325,7 +329,7 @@ export default function SetupPage() {
               color: 'var(--color-text-secondary)',
             }}
           >
-            Back
+            {t('create.back')}
           </button>
           <button
             type="submit"
@@ -333,10 +337,11 @@ export default function SetupPage() {
             className="flex-1 rounded-lg py-2.5 font-medium text-white transition focus:ring-4 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               backgroundColor: 'var(--color-primary)',
+              color: 'var(--color-on-primary, white)',
             }}
             {...buttonHover}
           >
-            {isLoading ? 'Creating...' : 'Create Admin'}
+            {isLoading ? t('create.submitting') : t('create.submit')}
           </button>
         </div>
       </form>

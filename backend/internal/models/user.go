@@ -30,6 +30,17 @@ type UserResponse struct {
 	LastActivityAt *time.Time `json:"last_activity_at,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
+	// ConfigFile is set when the user's dashboard comes from a config file
+	// (NIMBUS_CONFIG_FILE); only GET /auth/me fills it
+	ConfigFile *ConfigFileStatus `json:"config_file,omitempty"`
+}
+
+// ConfigFileStatus tells the UI what the config file locks for its owner
+type ConfigFileStatus struct {
+	// ReadOnly: groups, services, widgets and integrations can't be edited
+	ReadOnly bool `json:"read_only"`
+	// Preferences: the look and layout settings can't be edited either
+	Preferences bool `json:"preferences"`
 }
 
 // ToResponse converts User to UserResponse (without password)

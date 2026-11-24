@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -198,6 +199,33 @@ func TestHealthCheckService_CheckService_InvalidURL(t *testing.T) {
 		t.Log("Response time was nil (URL failed to parse)")
 	} else {
 		t.Logf("Response time was %dms (URL parsed but request failed)", *mockRepo.lastResponseTime)
+	}
+}
+
+// A failed check stores its cause, never the URL with its credentials
+func TestHealthCheckService_ErrorHidesURLSecrets(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	host := server.Listener.Addr().String()
+	server.Close() // nothing listens there now
+
+	healthService := NewHealthCheckService(&MockServiceRepository{}, nil, nil, 5*time.Second)
+	for rawURL, cause := range map[string]string{
+		"http://USER:PASS@" + host + "/status?apikey=SECRET": "connection refused",
+		"http://USER:PASS@nas.lan:bad/status?apikey=SECRET":  "invalid port", // fails before the request
+	} {
+		result := healthService.performCheck(context.Background(), &models.Service{URL: rawURL})
+		if result.errorMessage == nil {
+			t.Fatalf("%s: expected an error", rawURL)
+		}
+		msg := *result.errorMessage
+		for _, secret := range []string{"SECRET", "apikey", "USER", "PASS"} {
+			if strings.Contains(msg, secret) {
+				t.Errorf("error %q contains %q", msg, secret)
+			}
+		}
+		if !strings.Contains(msg, cause) {
+			t.Errorf("error %q lost its cause %q", msg, cause)
+		}
 	}
 }
 
@@ -787,5 +815,20 @@ func TestHealthCheckService_CheckService_PublishesResult(t *testing.T) {
 	}
 	if len(recorder.events) != 1 {
 		t.Errorf("Expected no event for an unmonitored service, got %d", len(recorder.events))
+	}
+}
+
+// The health checker requests whatever URL a service has, so its dialer
+// refuses cloud metadata addresses (before anything is sent)
+func TestHealthCheckService_RefusesMetadataAddress(t *testing.T) {
+	healthService := NewHealthCheckService(&MockServiceRepository{}, nil, nil, 2*time.Second)
+
+	result := healthService.performCheck(context.Background(), &models.Service{URL: "http://169.254.169.254/latest/meta-data/"})
+
+	if result.status != models.StatusOffline {
+		t.Errorf("status = %q, want offline", result.status)
+	}
+	if result.errorMessage == nil || !strings.Contains(*result.errorMessage, "blocked host") {
+		t.Errorf("error = %v, want a blocked host error", result.errorMessage)
 	}
 }

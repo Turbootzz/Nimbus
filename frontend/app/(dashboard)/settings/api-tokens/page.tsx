@@ -1,17 +1,28 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
-import { Toggle } from '@/components/ui/Toggle'
 import { ThemedInput } from '@/components/ui/ThemedInput'
-import type { ApiToken } from '@/types'
+import {
+  DEFAULT_SCOPES,
+  EXPIRY_DAYS,
+  SCOPES,
+  expiryFromDays,
+  isExpired,
+  toggleScope,
+} from '@/lib/api-tokens'
+import type { ApiToken, ApiTokenScope } from '@/types'
 
 export default function ApiTokensPage() {
+  const t = useTranslations('apiTokens')
+  const locale = useLocale()
   const [tokens, setTokens] = useState<ApiToken[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [name, setName] = useState('')
-  const [readOnly, setReadOnly] = useState(true)
+  const [scopes, setScopes] = useState<ApiTokenScope[]>(DEFAULT_SCOPES)
+  const [expiryDays, setExpiryDays] = useState(0)
   const [creating, setCreating] = useState(false)
   const [createdToken, setCreatedToken] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -27,11 +38,11 @@ export default function ApiTokensPage() {
         setError(response.error.message)
       }
     } catch {
-      setError('Failed to load API tokens')
+      setError(t('page.loadFailed'))
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchTokens()
@@ -39,23 +50,28 @@ export default function ApiTokensPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!name.trim() || creating) return
+    if (!name.trim() || scopes.length === 0 || creating) return
 
     setCreating(true)
     setError(null)
     try {
-      const response = await api.createApiToken({ name: name.trim(), read_only: readOnly })
+      const response = await api.createApiToken({
+        name: name.trim(),
+        scopes,
+        expires_at: expiryFromDays(expiryDays),
+      })
       if (response.data) {
         setCreatedToken(response.data.token)
         setCopied(false)
         setTokens([response.data.api_token, ...tokens])
         setName('')
-        setReadOnly(true)
+        setScopes(DEFAULT_SCOPES)
+        setExpiryDays(0)
       } else if (response.error) {
         setError(response.error.message)
       }
     } catch {
-      setError('Failed to create token')
+      setError(t('page.createFailed'))
     } finally {
       setCreating(false)
     }
@@ -73,12 +89,12 @@ export default function ApiTokensPage() {
 
   const handleRevoke = async (token: ApiToken) => {
     if (revokingId) return
-    if (!confirm(`Revoke "${token.name}"? Clients using it will stop working immediately.`)) return
+    if (!confirm(t('page.confirmRevoke', { name: token.name }))) return
     setRevokingId(token.id)
     try {
       const response = await api.deleteApiToken(token.id)
       if (!response.error) {
-        setTokens(tokens.filter((t) => t.id !== token.id))
+        setTokens(tokens.filter((other) => other.id !== token.id))
       } else {
         setError(response.error.message)
       }
@@ -88,8 +104,14 @@ export default function ApiTokensPage() {
   }
 
   const formatDate = (date: string | null) => {
-    if (!date) return 'Never'
-    return new Date(date).toLocaleDateString()
+    if (!date) return t('page.never')
+    return new Date(date).toLocaleDateString(locale)
+  }
+
+  const expiryLabel = (days: number) => {
+    if (days === 0) return t('page.never')
+    if (days % 365 === 0) return t('expiry.years', { count: days / 365 })
+    return t('expiry.days', { count: days })
   }
 
   if (loading) {
@@ -102,10 +124,10 @@ export default function ApiTokensPage() {
 
   return (
     <div className="max-w-4xl p-4 sm:p-6">
-      <div className="mb-8">
-        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">API Tokens</h1>
+      <div className="wallpaper-panel mb-8">
+        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">{t('page.title')}</h1>
         <p className="text-text-secondary text-sm sm:text-base">
-          Create personal access tokens for programmatic access. Send them as{' '}
+          {t('page.description')}{' '}
           <code className="bg-card border-card-border rounded border px-1 py-0.5 text-xs">
             Authorization: Bearer &lt;token&gt;
           </code>
@@ -113,16 +135,20 @@ export default function ApiTokensPage() {
       </div>
 
       {error && (
-        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500">
+        <div
+          role="alert"
+          className="mb-6 rounded-lg border border-red-500/20 bg-red-500/10 p-4 text-red-500"
+        >
           {error}
         </div>
       )}
 
       {createdToken && (
-        <div className="border-primary/40 bg-primary/5 mb-6 rounded-lg border p-4">
-          <p className="text-text-primary mb-2 text-sm font-semibold">
-            Token created. You won&apos;t be able to see this token again — copy it now.
-          </p>
+        <div
+          role="status"
+          className="border-primary/40 bg-primary/5 wallpaper-surface mb-6 rounded-lg border p-4"
+        >
+          <p className="text-text-primary mb-2 text-sm font-semibold">{t('page.created')}</p>
           <div className="flex items-center gap-2">
             <code className="bg-card border-card-border text-text-primary flex-1 overflow-x-auto rounded border px-3 py-2 font-mono text-sm break-all">
               {createdToken}
@@ -131,7 +157,7 @@ export default function ApiTokensPage() {
               onClick={handleCopy}
               className="bg-primary hover:bg-primary/90 shrink-0 rounded-lg px-3 py-2 text-sm font-medium text-white transition-colors"
             >
-              {copied ? 'Copied!' : 'Copy'}
+              {copied ? t('page.copied') : t('page.copy')}
             </button>
           </div>
         </div>
@@ -141,29 +167,83 @@ export default function ApiTokensPage() {
         onSubmit={handleCreate}
         className="glass-card border-card-border mb-8 rounded-lg border p-6"
       >
-        <h2 className="text-text-primary mb-4 text-lg font-semibold">Create new token</h2>
+        <h2 className="text-text-primary mb-4 text-lg font-semibold">{t('page.createTitle')}</h2>
         <div className="space-y-4">
           <ThemedInput
             type="text"
-            placeholder="Token name (e.g. Hearth dashboard)"
+            placeholder={t('page.namePlaceholder')}
+            aria-label={t('page.name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
             required
           />
-          <Toggle
-            id="token-read-only"
-            enabled={readOnly}
-            onChange={setReadOnly}
-            label="Read-only"
-            description="Token can only read data, never modify anything"
-          />
+          <fieldset>
+            <legend className="text-text-primary mb-2 text-sm font-medium">
+              {t('page.scopes')}
+            </legend>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {SCOPES.map((scope) => (
+                <label
+                  key={scope}
+                  className="border-card-border flex cursor-pointer items-start gap-3 rounded-lg border p-3"
+                >
+                  <input
+                    type="checkbox"
+                    checked={scopes.includes(scope)}
+                    onChange={(e) => setScopes(toggleScope(scopes, scope, e.target.checked))}
+                    aria-describedby={`scope-${scope}-description`}
+                    className="accent-primary mt-0.5 h-4 w-4 shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="text-text-primary block text-sm font-medium">
+                      {t(`scopes.${scope}.label`)}{' '}
+                      <code className="text-text-muted text-xs font-normal">{scope}</code>
+                    </span>
+                    <span
+                      id={`scope-${scope}-description`}
+                      className="text-text-muted block text-xs"
+                    >
+                      {t(`scopes.${scope}.description`)}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {scopes.length === 0 && (
+              <p className="mt-2 text-xs text-red-500">{t('page.noScope')}</p>
+            )}
+          </fieldset>
+          <div>
+            <label
+              htmlFor="token-expiry"
+              className="text-text-primary mb-2 block text-sm font-medium"
+            >
+              {t('page.expires')}
+            </label>
+            <select
+              id="token-expiry"
+              value={expiryDays}
+              onChange={(e) => setExpiryDays(Number(e.target.value))}
+              className="border-card-border focus:border-primary w-full rounded-lg border px-4 py-2 transition focus:ring-2 focus:outline-none sm:w-48"
+              style={{
+                backgroundColor: 'var(--color-background)',
+                color: 'var(--color-text-primary)',
+              }}
+            >
+              {EXPIRY_DAYS.map((days) => (
+                <option key={days} value={days}>
+                  {expiryLabel(days)}
+                </option>
+              ))}
+            </select>
+          </div>
           <button
             type="submit"
-            disabled={creating || !name.trim()}
+            disabled={creating || !name.trim() || scopes.length === 0}
             className="bg-primary hover:bg-primary/90 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {creating ? 'Creating…' : 'Create Token'}
+            {creating ? t('page.creating') : t('page.create')}
           </button>
         </div>
       </form>
@@ -171,7 +251,7 @@ export default function ApiTokensPage() {
       <div className="space-y-4">
         {tokens.length === 0 ? (
           <div className="glass-card border-card-border rounded-lg border p-8 text-center">
-            <p className="text-text-secondary">No API tokens yet. Create one above.</p>
+            <p className="text-text-secondary">{t('page.empty')}</p>
           </div>
         ) : (
           tokens.map((token) => (
@@ -180,26 +260,38 @@ export default function ApiTokensPage() {
               className="glass-card border-card-border flex items-center justify-between gap-4 rounded-lg border p-4"
             >
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-text-primary font-medium">{token.name}</span>
-                  {token.read_only && (
-                    <span className="bg-primary/10 text-primary rounded-full px-2 py-0.5 text-xs font-medium">
-                      read-only
+                  {isExpired(token) && (
+                    <span className="rounded-full bg-red-500/10 px-2 py-0.5 text-xs font-medium text-red-500">
+                      {t('page.expired')}
                     </span>
                   )}
+                  {token.scopes.map((scope) => (
+                    <span
+                      key={scope}
+                      className="bg-primary/10 text-primary rounded-full px-2 py-0.5 font-mono text-xs"
+                    >
+                      {scope}
+                    </span>
+                  ))}
                 </div>
                 <p className="text-text-muted mt-1 font-mono text-xs">{token.token_prefix}…</p>
                 <p className="text-text-secondary mt-1 text-xs">
-                  Created {formatDate(token.created_at)} · Last used{' '}
-                  {formatDate(token.last_used_at)}
+                  {t('page.dates', {
+                    created: formatDate(token.created_at),
+                    lastUsed: formatDate(token.last_used_at),
+                    expires: formatDate(token.expires_at),
+                  })}
                 </p>
               </div>
               <button
                 onClick={() => handleRevoke(token)}
                 disabled={revokingId !== null}
+                aria-label={t('page.revokeLabel', { name: token.name })}
                 className="shrink-0 rounded-lg border border-red-500/30 px-3 py-1.5 text-sm font-medium text-red-500 transition-colors hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {revokingId === token.id ? 'Revoking…' : 'Revoke'}
+                {revokingId === token.id ? t('page.revoking') : t('page.revoke')}
               </button>
             </div>
           ))

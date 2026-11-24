@@ -1,5 +1,8 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+import { useModalLayer } from '@/hooks/useModalLayer'
+
 interface ConfirmDialogProps {
   title: string
   message: string
@@ -16,14 +19,19 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useTranslations('ui.confirmDialog')
+  const dialogRef = useModalLayer(onCancel)
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onCancel} aria-hidden="true" />
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
-        className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg"
+        className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg focus:outline-none"
       >
         <h3 id="confirm-dialog-title" className="text-text-primary mb-2 text-lg font-semibold">
           {title}
@@ -34,7 +42,7 @@ export default function ConfirmDialog({
             onClick={onCancel}
             className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             onClick={onConfirm}

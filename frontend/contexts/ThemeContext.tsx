@@ -10,16 +10,32 @@ import {
   useRef,
   ReactNode,
 } from 'react'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
+import { isStatusPagePath } from '@/lib/status-page'
+import type { Language } from '@/i18n/locale'
 import type {
   PreferencesUpdateRequest,
   CardScale,
+  GroupDisplay,
+  IconSource,
   LayoutMode,
   StatusChip,
   StatusStrip,
+  ThemeFont,
+  ThemePreset,
+  UserPreferences,
   ViewMode,
 } from '@/types'
-import { setLayoutMode as storeLayoutMode } from '@/lib/layout-store'
+import {
+  applyThemeAttributes,
+  parseFont,
+  parseIconSource,
+  parsePreset,
+  presetChange,
+  presetForMode,
+} from '@/lib/theme-presets'
+import { setLayoutMode as storeLayoutMode, settleLayout } from '@/lib/layout-store'
 import {
   type Glass,
   defaultGlass,
@@ -43,6 +59,17 @@ interface ThemeContextType {
   viewMode: ViewMode
   glass: Glass
   statusStrip: StatusStrip
+  // The user's choice; null follows the layout (resolveGroupDisplay)
+  groupDisplay: GroupDisplay | null
+  preset: ThemePreset
+  font: ThemeFont
+  kpiMono: boolean
+  iconSource: IconSource
+  // Only ever from the API, so it can't reach another user of this browser
+  customCss: string
+  // Saved language; null follows the browser, undefined until the API answered
+  language: Language | null | undefined
+  // Picking a mode the preset doesn't have goes back to the default preset
   setTheme: (theme: 'light' | 'dark' | 'auto') => void
   setAccentColor: (color: string | undefined) => void
   setBackground: (background: string | undefined) => void
@@ -54,8 +81,18 @@ interface ThemeContextType {
   // Merges the change; may raise the dim to keep glass cards readable
   setGlass: (change: Partial<Glass>) => void
   setStatusStrip: (statusStrip: StatusStrip) => void
+  setGroupDisplay: (groupDisplay: GroupDisplay) => void
   // Read the layout with useLayoutMode (lib/layout-store), which can't flash
   setLayoutMode: (layoutMode: LayoutMode) => void
+  // Sets the mode the preset belongs to and drops a custom accent
+  setPreset: (preset: ThemePreset) => void
+  setFont: (font: ThemeFont) => void
+  setKpiMono: (kpiMono: boolean) => void
+  setIconSource: (iconSource: IconSource) => void
+  setLanguage: (language: Language | null) => void
+  // Saves theme settings the server may refuse (custom CSS, an imported
+  // theme) and applies what it stored; resolves to an error message or null
+  saveTheme: (update: PreferencesUpdateRequest) => Promise<string | null>
   // Uploads and applies a wallpaper; resolves to an error message or null
   uploadWallpaper: (file: File) => Promise<string | null>
   loading: boolean
@@ -64,6 +101,15 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 const noStatusStrip: StatusStrip = { enabled: false, chips: [] }
+
+// How long the dashboard waits for the preferences before it shows with the
+// cached or default ones, like the CSS fallback in globals.css
+const PREFERENCES_WAIT_MS = 5000
+
+// parseGroupDisplay reads the cached choice; anything else is no choice
+function parseGroupDisplay(raw: string | null | undefined): GroupDisplay | null {
+  return raw === 'tabs' || raw === 'sections' ? raw : null
+}
 
 // parseStatusStrip reads the cached strip; off when missing or broken, and
 // without chips that aren't chips
@@ -86,6 +132,7 @@ function parseStatusStrip(raw: string | null): StatusStrip {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations('preferences')
   // Initialize with defaults (same for server and client to prevent hydration mismatch)
   const [theme, setThemeState] = useState<'light' | 'dark' | 'auto'>('auto')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
@@ -98,6 +145,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [viewMode, setViewModeState] = useState<ViewMode>('grid')
   const [glass, setGlassState] = useState<Glass>(defaultGlass)
   const [statusStrip, setStatusStripState] = useState<StatusStrip>(noStatusStrip)
+  const [groupDisplay, setGroupDisplayState] = useState<GroupDisplay | null>(null)
+  const [preset, setPresetState] = useState<ThemePreset>('default')
+  const [font, setFontState] = useState<ThemeFont>('default')
+  const [kpiMono, setKpiMonoState] = useState(false)
+  const [iconSource, setIconSourceState] = useState<IconSource>('dashboard-icons-svg')
+  const [customCss, setCustomCss] = useState('')
+  const [language, setLanguageState] = useState<Language | null | undefined>()
   // False until the cached preferences are read; before that the state holds
   // defaults, and applying them would undo what ThemeScript painted
   const [restored, setRestored] = useState(false)
@@ -110,7 +164,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const inFlightSaveRef = useRef<Promise<unknown>>(Promise.resolve())
   // Preferences the user changed while the first load was running; that
   // load must not undo them
-  const changedRef = useRef(new Set<'layout' | 'statusStrip'>())
+  const changedRef = useRef(new Set<'layout' | 'statusStrip' | 'groupDisplay' | 'language'>())
 
   // Compute effective theme (resolve 'auto' to actual theme)
   const effectiveTheme = theme === 'auto' ? systemTheme : theme
@@ -155,6 +209,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         setViewModeState(e.newValue as ViewMode)
       } else if (e.key === 'statusStrip' && e.newValue) {
         setStatusStripState(parseStatusStrip(e.newValue))
+      } else if (e.key === 'groupDisplay') {
+        // Newer than a first load that is still running
+        changedRef.current.add('groupDisplay')
+        setGroupDisplayState(parseGroupDisplay(e.newValue))
+      } else if (e.key === 'themePreset') {
+        setPresetState(parsePreset(e.newValue))
+      } else if (e.key === 'themeFont') {
+        setFontState(parseFont(e.newValue))
+      } else if (e.key === 'kpiMono') {
+        setKpiMonoState(e.newValue === 'true')
       } else if (e.key === 'glass' && e.newValue) {
         const parsed = parseGlass(e.newValue)
         if (parsed) setGlassState(parsed)
@@ -165,8 +229,37 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [])
 
+  // Preset, font, icon source and custom CSS as the server has them. The
+  // first three are cached for ThemeScript; the CSS never is.
+  const applyThemePreferences = useCallback((data: UserPreferences) => {
+    // A preset only exists in its own mode; another client or an imported
+    // file may have stored one with a mode it doesn't have
+    const apiPreset = presetForMode(parsePreset(data.theme_preset), data.theme_mode || 'auto')
+    const apiFont = parseFont(data.theme_font)
+    setPresetState(apiPreset)
+    setFontState(apiFont)
+    setKpiMonoState(data.kpi_mono === true)
+    setIconSourceState(parseIconSource(data.icon_source))
+    setCustomCss(data.custom_css ?? '')
+    localStorage.setItem('themePreset', apiPreset)
+    localStorage.setItem('themeFont', apiFont)
+    localStorage.setItem('kpiMono', String(data.kpi_mono === true))
+  }, [])
+
   // Load preferences on mount (from localStorage first, then API)
   useEffect(() => {
+    // Visitors of the public status page have no preferences: nothing is
+    // read, requested or applied there
+    if (isStatusPagePath(window.location.pathname)) return
+
+    // Known now, or not coming (in time): stop holding the dashboard back.
+    // A late answer still applies.
+    const settle = () => {
+      settleLayout()
+      setLoading(false)
+    }
+    const giveUp = setTimeout(settle, PREFERENCES_WAIT_MS)
+
     const loadPreferences = async () => {
       // Step 1: Load from localStorage immediately (fast, prevents flash)
       const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'auto' | null
@@ -191,6 +284,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       if (savedViewMode) setViewModeState(savedViewMode)
       if (savedGlass) setGlassState(savedGlass)
       setStatusStripState(parseStatusStrip(localStorage.getItem('statusStrip')))
+      setGroupDisplayState(parseGroupDisplay(localStorage.getItem('groupDisplay')))
+      setPresetState(parsePreset(localStorage.getItem('themePreset')))
+      setFontState(parseFont(localStorage.getItem('themeFont')))
+      setKpiMonoState(localStorage.getItem('kpiMono') === 'true')
       setRestored(true)
 
       // Step 2: Try to load from API and sync
@@ -218,10 +315,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           setCardScaleState(apiCardScale)
           setViewModeState(apiViewMode)
           setGlassState(apiGlass)
+          applyThemePreferences(response.data)
           if (!changedRef.current.has('statusStrip')) {
             const apiStatusStrip = response.data.status_strip ?? noStatusStrip
             setStatusStripState(apiStatusStrip)
             localStorage.setItem('statusStrip', JSON.stringify(apiStatusStrip))
+          }
+          if (!changedRef.current.has('groupDisplay')) {
+            const apiGroupDisplay = parseGroupDisplay(response.data.group_display)
+            setGroupDisplayState(apiGroupDisplay)
+            if (apiGroupDisplay) {
+              localStorage.setItem('groupDisplay', apiGroupDisplay)
+            } else {
+              localStorage.removeItem('groupDisplay')
+            }
+          }
+          if (!changedRef.current.has('language')) {
+            setLanguageState(response.data.language ?? null)
           }
           // Unless the user already picked one while this was loading
           if (!changedRef.current.has('layout')) {
@@ -258,12 +368,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           if (process.env.NODE_ENV === 'development') throw error
         }
       } finally {
-        setLoading(false)
+        clearTimeout(giveUp)
+        settle()
       }
     }
 
     loadPreferences()
-  }, [])
+    return () => clearTimeout(giveUp)
+  }, [applyThemePreferences])
 
   // Apply theme to document
   useEffect(() => {
@@ -291,22 +403,30 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       root.style.setProperty('--color-primary-hover', accentColor)
       root.style.setProperty('--dark-primary', accentColor)
       root.style.setProperty('--dark-primary-hover', accentColor)
+      // White text on a custom accent, also on a preset (styles/themes.css)
+      root.style.setProperty('--color-on-primary', '#fff')
     } else {
       root.style.removeProperty('--color-primary')
       root.style.removeProperty('--color-primary-hover')
       root.style.removeProperty('--dark-primary')
       root.style.removeProperty('--dark-primary-hover')
+      root.style.removeProperty('--color-on-primary')
     }
+
+    applyThemeAttributes(root, { preset, font, kpiMono })
 
     // Wallpaper and glass cards go through CSS variables (globals.css).
     // wallpaperUrl only lets http(s) through, so a stored value can't inject
     // another kind of URL. ThemeScript applies the cached copy before React.
-    const variables = glassVariables(glass, wallpaperUrl(background))
+    const imageUrl = wallpaperUrl(background)
+    const variables = glassVariables(glass, imageUrl)
+    // Lets CSS give text on the wallpaper a surface (globals.css)
+    root.toggleAttribute('data-wallpaper', !!imageUrl)
     for (const [name, value] of Object.entries(variables)) {
       root.style.setProperty(name, value)
     }
     localStorage.setItem('glassVars', JSON.stringify(variables))
-  }, [restored, theme, accentColor, background, glass])
+  }, [restored, theme, accentColor, background, glass, preset, font, kpiMono])
 
   // Helper to update localStorage for a set of preference updates
   const updateLocalStorage = (updates: PreferencesUpdateRequest) => {
@@ -322,6 +442,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
     if (updates.card_scale) localStorage.setItem('cardScale', updates.card_scale)
     if (updates.view_mode) localStorage.setItem('viewMode', updates.view_mode)
+    if (updates.group_display) localStorage.setItem('groupDisplay', updates.group_display)
+    if (updates.theme_preset) localStorage.setItem('themePreset', updates.theme_preset)
+    if (updates.theme_font) localStorage.setItem('themeFont', updates.theme_font)
+    if (updates.kpi_mono !== undefined) localStorage.setItem('kpiMono', String(updates.kpi_mono))
     if (updates.status_strip) {
       localStorage.setItem('statusStrip', JSON.stringify(updates.status_strip))
     }
@@ -386,9 +510,71 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const setTheme = useCallback(
     (v: 'light' | 'dark' | 'auto') => {
       setThemeState(v)
-      savePreferences({ theme_mode: v })
+      // Always saved with the mode, so the server never keeps a preset in
+      // a mode it doesn't have
+      const kept = presetForMode(preset, v)
+      setPresetState(kept)
+      savePreferences({ theme_mode: v, theme_preset: kept })
+    },
+    [savePreferences, preset]
+  )
+
+  const setPreset = useCallback(
+    (v: ThemePreset) => {
+      const change = presetChange(v)
+      setPresetState(v)
+      if (change.theme_mode) setThemeState(change.theme_mode)
+      if (change.theme_accent_color === null) setAccentColorState(undefined)
+      savePreferences(change)
     },
     [savePreferences]
+  )
+
+  const setFont = useCallback(
+    (v: ThemeFont) => {
+      setFontState(v)
+      savePreferences({ theme_font: v })
+    },
+    [savePreferences]
+  )
+
+  const setKpiMono = useCallback(
+    (v: boolean) => {
+      setKpiMonoState(v)
+      savePreferences({ kpi_mono: v })
+    },
+    [savePreferences]
+  )
+
+  const setIconSource = useCallback(
+    (v: IconSource) => {
+      setIconSourceState(v)
+      savePreferences({ icon_source: v })
+    },
+    [savePreferences]
+  )
+
+  const saveTheme = useCallback(
+    async (update: PreferencesUpdateRequest) => {
+      const response = await api.updatePreferences(update)
+      if (response.error || !response.data) {
+        const fields = Object.values(response.error?.fields ?? {})
+        return fields.join('. ') || response.error?.message || t('saveThemeFailed')
+      }
+      const data = response.data
+      const glass = glassFromPreferences(data)
+      setThemeState(data.theme_mode || 'auto')
+      setAccentColorState(data.theme_accent_color)
+      setGlassState(glass)
+      applyThemePreferences(data)
+      updateLocalStorage({
+        theme_mode: data.theme_mode,
+        theme_accent_color: data.theme_accent_color ?? null,
+      })
+      localStorage.setItem('glass', JSON.stringify(glass))
+      return null
+    },
+    [applyThemePreferences, t]
   )
 
   const setAccentColor = useCallback(
@@ -470,25 +656,46 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [glass]
   )
 
-  const uploadWallpaper = useCallback(async (file: File) => {
-    // A queued background change would overwrite the upload when it flushes,
-    // and one on its way could reach the server after it
-    if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
-    await inFlightSaveRef.current
-    const response = await api.uploadWallpaper(file)
-    if (response.error || !response.data?.theme_background) {
-      return response.error?.message ?? 'Failed to upload wallpaper'
-    }
-    setBackgroundState(response.data.theme_background)
-    localStorage.setItem('background', response.data.theme_background)
-    return null
-  }, [])
+  const uploadWallpaper = useCallback(
+    async (file: File) => {
+      // A queued background change would overwrite the upload when it flushes,
+      // and one on its way could reach the server after it
+      if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
+      await inFlightSaveRef.current
+      const response = await api.uploadWallpaper(file)
+      if (response.error || !response.data?.theme_background) {
+        return response.error?.message ?? t('uploadWallpaperFailed')
+      }
+      setBackgroundState(response.data.theme_background)
+      localStorage.setItem('background', response.data.theme_background)
+      return null
+    },
+    [t]
+  )
 
   const setStatusStrip = useCallback(
     (v: StatusStrip) => {
       changedRef.current.add('statusStrip')
       setStatusStripState(v)
       savePreferences({ status_strip: v })
+    },
+    [savePreferences]
+  )
+
+  const setGroupDisplay = useCallback(
+    (v: GroupDisplay) => {
+      changedRef.current.add('groupDisplay')
+      setGroupDisplayState(v)
+      savePreferences({ group_display: v })
+    },
+    [savePreferences]
+  )
+
+  const setLanguage = useCallback(
+    (v: Language | null) => {
+      changedRef.current.add('language')
+      setLanguageState(v)
+      savePreferences({ language: v })
     },
     [savePreferences]
   )
@@ -515,6 +722,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       viewMode,
       glass,
       statusStrip,
+      groupDisplay,
+      preset,
+      font,
+      kpiMono,
+      iconSource,
+      customCss,
+      language,
       setTheme,
       setAccentColor,
       setBackground,
@@ -525,7 +739,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setViewMode,
       setGlass,
       setStatusStrip,
+      setGroupDisplay,
       setLayoutMode,
+      setPreset,
+      setFont,
+      setKpiMono,
+      setIconSource,
+      setLanguage,
+      saveTheme,
       uploadWallpaper,
       loading,
     }),
@@ -541,6 +762,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       viewMode,
       glass,
       statusStrip,
+      groupDisplay,
+      preset,
+      font,
+      kpiMono,
+      iconSource,
+      customCss,
+      language,
       setTheme,
       setAccentColor,
       setBackground,
@@ -551,7 +779,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       setViewMode,
       setGlass,
       setStatusStrip,
+      setGroupDisplay,
       setLayoutMode,
+      setPreset,
+      setFont,
+      setKpiMono,
+      setIconSource,
+      setLanguage,
+      saveTheme,
       uploadWallpaper,
       loading,
     ]

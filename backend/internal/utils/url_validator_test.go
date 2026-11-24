@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"net"
 	"testing"
 )
@@ -490,4 +491,30 @@ func stringContains(s, substr string) bool {
 func parseIP(s string) net.IP {
 	// Use net.ParseIP for proper IP parsing
 	return net.ParseIP(s)
+}
+
+func TestValidateServiceURL(t *testing.T) {
+	for _, valid := range []string{
+		"http://192.168.1.10:8080", "https://sonarr.example.lan/path?x=1", "http://localhost:3000", "http://[fd00::5]:8080",
+	} {
+		if err := ValidateServiceURL(valid); err != nil {
+			t.Errorf("ValidateServiceURL(%q) = %v, want nil", valid, err)
+		}
+	}
+	for _, invalid := range []string{
+		"", "not-a-valid-url", "http://", "javascript:alert(1)", "javascript://web.lan/%0aalert(1)",
+		"data:text/html,<script>alert(1)</script>", "file:///etc/passwd", "ftp://nas.lan",
+	} {
+		if err := ValidateServiceURL(invalid); !errors.Is(err, ErrServiceURLFormat) {
+			t.Errorf("ValidateServiceURL(%q) = %v, want ErrServiceURLFormat", invalid, err)
+		}
+	}
+	for _, metadata := range []string{
+		"http://169.254.169.254/latest/meta-data/", "http://[::ffff:169.254.169.254]/", "http://metadata.google.internal/",
+		"http://METADATA.google.internal/", "http://100.100.100.200/",
+	} {
+		if err := ValidateServiceURL(metadata); !errors.Is(err, ErrServiceURLMetadata) {
+			t.Errorf("ValidateServiceURL(%q) = %v, want ErrServiceURLMetadata", metadata, err)
+		}
+	}
 }

@@ -32,7 +32,8 @@ type Event struct {
 
 // Subscriber receives the events of one user until it is unsubscribed
 type Subscriber struct {
-	userID string
+	userID string // who listens; their open streams are limited
+	owner  string // whose events arrive
 	events chan Event
 }
 
@@ -45,29 +46,39 @@ func (s *Subscriber) Events() <-chan Event {
 // Publish never blocks, so a slow browser can't hold up the poller.
 type SSEHub struct {
 	mu     sync.Mutex
-	subs   map[string]map[*Subscriber]struct{}
+	subs   map[string]map[*Subscriber]struct{} // by the user whose events they get
+	open   map[string]int                      // open streams per listening user
 	closed bool
 }
 
 func NewSSEHub() *SSEHub {
-	return &SSEHub{subs: map[string]map[*Subscriber]struct{}{}}
+	return &SSEHub{subs: map[string]map[*Subscriber]struct{}{}, open: map[string]int{}}
 }
 
-// Subscribe opens a stream for a user
+// Subscribe opens a stream for a user, with their own events
 func (h *SSEHub) Subscribe(userID string) (*Subscriber, error) {
+	return h.SubscribeTo(userID, userID)
+}
+
+// SubscribeTo opens a stream for a user with the events of ownerID: the
+// owner of a shared board the user views. The stream counts against the
+// user's own limit, and the caller must filter the events down to what the
+// user may see.
+func (h *SSEHub) SubscribeTo(userID, ownerID string) (*Subscriber, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.closed {
 		return nil, ErrHubClosed
 	}
-	if len(h.subs[userID]) >= maxStreamsPerUser {
+	if h.open[userID] >= maxStreamsPerUser {
 		return nil, ErrTooManyStreams
 	}
-	sub := &Subscriber{userID: userID, events: make(chan Event, sseBufferSize)}
-	if h.subs[userID] == nil {
-		h.subs[userID] = map[*Subscriber]struct{}{}
+	sub := &Subscriber{userID: userID, owner: ownerID, events: make(chan Event, sseBufferSize)}
+	if h.subs[ownerID] == nil {
+		h.subs[ownerID] = map[*Subscriber]struct{}{}
 	}
-	h.subs[userID][sub] = struct{}{}
+	h.subs[ownerID][sub] = struct{}{}
+	h.open[userID]++
 	return sub, nil
 }
 
@@ -75,12 +86,15 @@ func (h *SSEHub) Subscribe(userID string) (*Subscriber, error) {
 func (h *SSEHub) Unsubscribe(sub *Subscriber) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if _, ok := h.subs[sub.userID][sub]; !ok {
+	if _, ok := h.subs[sub.owner][sub]; !ok {
 		return
 	}
-	delete(h.subs[sub.userID], sub)
-	if len(h.subs[sub.userID]) == 0 {
-		delete(h.subs, sub.userID)
+	delete(h.subs[sub.owner], sub)
+	if len(h.subs[sub.owner]) == 0 {
+		delete(h.subs, sub.owner)
+	}
+	if h.open[sub.userID]--; h.open[sub.userID] <= 0 {
+		delete(h.open, sub.userID)
 	}
 	close(sub.events)
 }
@@ -109,4 +123,5 @@ func (h *SSEHub) Close() {
 		}
 	}
 	h.subs = map[string]map[*Subscriber]struct{}{}
+	h.open = map[string]int{}
 }
