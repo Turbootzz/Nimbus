@@ -35,6 +35,7 @@ vi.mock('@/lib/api', () => ({
     getIntegrationKinds: vi.fn(),
     updateService: vi.fn(),
     updateWidget: vi.fn(),
+    reorderTiles: vi.fn(),
     getCurrentUser: vi.fn(),
     createBoard: vi.fn(),
     updateBoard: vi.fn(),
@@ -56,6 +57,18 @@ vi.mock('@/hooks/useDashboardStream', () => ({
   },
   snapshotKey: (kind: string, id: string) => `${kind}:${id}`,
 }))
+// Lets a test drop a tile without a pointer
+let dnd: { onDragEnd?: (event: never) => void } = {}
+vi.mock('@dnd-kit/core', async (importOriginal) => {
+  const original = await importOriginal<typeof import('@dnd-kit/core')>()
+  return {
+    ...original,
+    DndContext: (props: Parameters<typeof original.DndContext>[0]) => {
+      dnd = props
+      return <original.DndContext {...props} />
+    },
+  }
+})
 vi.mock('@/components/DiscoveredTray', () => ({ default: () => <div data-testid="tray" /> }))
 vi.mock('@/components/ServicesGrid', () => ({
   default: ({
@@ -389,6 +402,22 @@ describe('DashboardView', () => {
     await act(async () => answer({ data: [{ ...service, id: 's2' }] }))
     expect(screen.getByText('s2')).toBeInTheDocument()
     expect(screen.queryByText('s1')).not.toBeInTheDocument()
+  })
+
+  it("shows the server's order after a move it could not save", async () => {
+    vi.mocked(api.getServices).mockResolvedValue({
+      data: [service, { ...service, id: 's2', position: 1 }],
+    })
+    vi.mocked(api.reorderTiles).mockResolvedValue({ error: { message: 'Server error' } })
+    render(<DashboardView />)
+    fireEvent.click(await screen.findByRole('button', { name: /^Edit$/ }))
+    expect(api.getServices).toHaveBeenCalledTimes(1)
+    await act(async () =>
+      dnd.onDragEnd?.({ active: { id: 'service:s1' }, over: { id: 'service:s2' } } as never)
+    )
+    await waitFor(() => expect(api.getServices).toHaveBeenCalledTimes(2))
+    expect(api.reorderTiles).toHaveBeenCalledTimes(1)
+    expect(screen.queryByText('Loading dashboard...')).not.toBeInTheDocument()
   })
 
   it('leaves a board that is no longer shared', async () => {
