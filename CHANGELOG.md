@@ -68,7 +68,7 @@ Boards, sections, discovery, importers, a public status page, theming, translati
 - Notification tokens are stored encrypted with `ENCRYPTION_KEY` and never sent back to the browser. (#233)
 - API tokens are deny-by-default: a token only reaches what its scopes allow, and never acts as an admin. (#227)
 - The MCP endpoint gives an assistant service and widget URLs without their query or `user:password@`, and search only matches what is left. (#228)
-- Viewers of a shared board never see a `user:password@` in its links, the address or credentials of an integration, or the raw error of a widget. (#230)
+- Viewers of a shared board never see the `user:password@` or query of its links, the address or credentials of an integration, or the raw error of a widget. (#230)
 - Links imported from another dashboard leave out the login and query of their URL, which can hold a password or key, and say so in a warning. (#292)
 
 ### Upgrading from 2.0
