@@ -145,6 +145,53 @@ describe('ThemeContext presets, font and custom CSS', () => {
     expect(localStorage.getItem('themePreset')).toBe('default')
   })
 
+  it('a slow first load keeps the theme settings picked meanwhile', async () => {
+    let answer: (response: never) => void = () => {}
+    vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTheme(), { wrapper: ThemeProvider })
+    await waitFor(() => expect(api.getPreferences).toHaveBeenCalled())
+
+    act(() => result.current.setIconSource('dashboard-icons-png'))
+    act(() => result.current.setPreset('gruvbox-light'))
+    await act(async () => answer({ data: stored } as never))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current).toMatchObject({
+      iconSource: 'dashboard-icons-png',
+      // A preset keeps the mode and accent it brought
+      preset: 'gruvbox-light',
+      theme: 'light',
+      accentColor: undefined,
+      // What the user did not touch comes from the server
+      font: 'inter',
+      kpiMono: true,
+      customCss: 'body { color: red }',
+    })
+    expect(root.getAttribute('data-preset')).toBe('gruvbox-light')
+    expect(root.style.getPropertyValue('--color-primary')).toBe('')
+    expect(localStorage.getItem('theme')).toBe('light')
+    expect(localStorage.getItem('themePreset')).toBe('gruvbox-light')
+    expect(localStorage.getItem('accentColor')).toBeNull()
+  })
+
+  it('a slow first load does not undo a theme saved meanwhile', async () => {
+    let answer: (response: never) => void = () => {}
+    vi.mocked(api.getPreferences).mockReturnValue(new Promise((resolve) => (answer = resolve)))
+    const { result } = renderHook(() => useTheme(), { wrapper: ThemeProvider })
+    await waitFor(() => expect(api.getPreferences).toHaveBeenCalled())
+
+    vi.mocked(api.updatePreferences).mockResolvedValue({
+      data: { ...stored, custom_css: '.new { color: blue }' },
+    } as never)
+    await act(async () => {
+      await result.current.saveTheme({ custom_css: '.new { color: blue }' })
+    })
+    await act(async () => answer({ data: stored } as never))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+
+    expect(result.current.customCss).toBe('.new { color: blue }')
+  })
+
   it('saveTheme reports what the server refused and applies nothing', async () => {
     const theme = await renderTheme()
     vi.mocked(api.updatePreferences).mockResolvedValue({
