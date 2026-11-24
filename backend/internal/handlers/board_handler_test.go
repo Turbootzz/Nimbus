@@ -405,9 +405,10 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	_, body = f.do(t, boardUserID, http.MethodGet, "/dashboard/data", "")
 	assert.JSONEq(t, `[]`, body)
 
+	// With the KPIs of the kind: /integrations/kinds lacks admin-only kinds
 	status, body = f.do(t, boardUserID, http.MethodGet, "/boards/"+sharedBoardID+"/integrations", "")
 	require.Equal(t, 200, status)
-	assert.JSONEq(t, `[{"id":"`+sharedIntegrationID+`","kind":"handler-fake","options":{"library":true}}]`, body)
+	assert.JSONEq(t, `[{"id":"`+sharedIntegrationID+`","kind":"handler-fake","options":{"library":true},"kpis":[{"key":"queued","label":"Queued"}]}]`, body)
 
 	// By ID, the admin's tiles stay the admin's
 	for _, path := range []string{"/services/" + sharedServiceID, "/groups/" + sharedGroupID, "/widgets/" + sharedWidgetID} {

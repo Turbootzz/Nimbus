@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/google/uuid"
+	"github.com/nimbus/backend/internal/integrations"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
 )
@@ -132,9 +133,27 @@ func (s *BoardService) ViewerKeys(ctx context.Context, boardID string) (map[stri
 	return s.repo.ViewerKeys(ctx, boardID)
 }
 
+// BoardIntegration adds the KPIs of its kind: a viewer may not be allowed to
+// set up that kind (admin only), so /integrations/kinds lacks its labels
+type BoardIntegration struct {
+	models.BoardIntegration
+	KPIs []integrations.KPI `json:"kpis,omitempty"`
+}
+
 // Integrations describes the integrations the board's services show
-func (s *BoardService) Integrations(ctx context.Context, boardID string) ([]models.BoardIntegration, error) {
-	return s.repo.Integrations(ctx, boardID)
+func (s *BoardService) Integrations(ctx context.Context, boardID string) ([]BoardIntegration, error) {
+	list, err := s.repo.Integrations(ctx, boardID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]BoardIntegration, len(list))
+	for i, item := range list {
+		out[i].BoardIntegration = item
+		if kind, ok := integrations.Get(item.Kind); ok {
+			out[i].KPIs = kind.Meta().KPIs
+		}
+	}
+	return out, nil
 }
 
 // Create adds a board for the user. Only an admin can share one.
