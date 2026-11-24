@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import type { Kpi, Snapshot, IntegrationPayload } from '@/types'
 import { liveKpi, tileKpis } from '@/lib/kpis'
 
@@ -17,14 +18,17 @@ export interface ServiceKpis {
   snapshot?: Snapshot
 }
 
-export function formatKpiValue(value: unknown, unit?: string): string {
+// locale: the UI's (useLocale()); the browser's when undefined
+export function formatKpiValue(value: unknown, unit?: string, locale?: string): string {
   if (value === undefined || value === null) return '-'
-  const text = typeof value === 'number' ? value.toLocaleString() : String(value)
+  const text = typeof value === 'number' ? value.toLocaleString(locale) : String(value)
   return unit ? `${text} ${unit}` : text
 }
 
 // Up to four numbers from a linked integration, shown on a service tile
 export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
+  const t = useTranslations('dashboard.kpis')
+  const locale = useLocale()
   const payload = snapshot?.payload as IntegrationPayload | null | undefined
   // The same KPIs before and after the first snapshot; only labels change
   const shown = tileKpis(kpis).map((kpi) => liveKpi(kpi, payload))
@@ -33,9 +37,9 @@ export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
   const values = payload?.kpis
   const loading = !snapshot
   const problem = snapshot?.error
-    ? `Last update failed: ${snapshot.error}`
+    ? t('lastUpdateFailed', { error: snapshot.error })
     : snapshot?.stale
-      ? 'This data may be out of date'
+      ? t('stale')
       : undefined
 
   return (
@@ -50,10 +54,10 @@ export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
           >
             {loading ? (
               <span className="bg-background inline-block h-4 w-8 animate-pulse rounded align-middle">
-                <span className="sr-only">Loading</span>
+                <span className="sr-only">{t('loading')}</span>
               </span>
             ) : (
-              formatKpiValue(values?.[kpi.key], kpi.unit)
+              formatKpiValue(values?.[kpi.key], kpi.unit, locale)
             )}
           </dd>
         </div>

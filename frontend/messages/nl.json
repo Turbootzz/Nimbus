@@ -169,6 +169,169 @@
       "shared": "gedeeld"
     }
   },
+  "dashboard": {
+    "view": {
+      "loading": "Dashboard laden...",
+      "readOnlyShared": "Alleen-lezen: gedeeld board",
+      "widgetsFailed": "Widgets konden niet worden geladen. Laad de pagina opnieuw om ze te zien; tot die tijd kan de volgorde niet worden gewijzigd.",
+      "emptyGroup": {
+        "title": "Nog niets in deze groep",
+        "description": "Voeg een service of widget toe aan deze groep om die hier te zien.",
+        "addService": "Service toevoegen"
+      },
+      "deleteWidget": {
+        "title": "Widget verwijderen",
+        "message": "Weet je zeker dat je deze widget wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Verwijderen"
+      },
+      "deleteGroup": {
+        "title": "Groep verwijderen",
+        "confirm": "Weet je zeker dat je “{name}” wilt verwijderen?",
+        "moveNote": "Services en widgets in deze groep worden naar de standaardgroep verplaatst.",
+        "deleteContents": "Alle services en widgets in deze groep definitief verwijderen",
+        "warning": "Let op: hiermee worden alle services en widgets in deze groep definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+        "cancel": "Annuleren",
+        "delete": "Verwijderen"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Alleen-lezen: beheerd via configuratiebestand",
+      "done": "Klaar",
+      "edit": "Bewerken",
+      "addWidget": "Widget toevoegen",
+      "addService": "Service toevoegen"
+    },
+    "stats": {
+      "totalServices": "Aantal services",
+      "online": "Online",
+      "offline": "Offline",
+      "avgResponse": "Gem. responstijd"
+    },
+    "kpis": {
+      "loading": "Laden",
+      "lastUpdateFailed": "Laatste update mislukt: {error}",
+      "stale": "Deze gegevens zijn mogelijk verouderd"
+    },
+    "statusStrip": {
+      "label": "Status",
+      "down": "{count} offline",
+      "operational": "Alles werkt",
+      "customApi": "Eigen API"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitoring uitgeschakeld voor deze groep",
+      "tabs": {
+        "edit": "Groep bewerken",
+        "delete": "Groep verwijderen",
+        "addNew": "Nieuwe groep toevoegen",
+        "add": "Toevoegen"
+      },
+      "sections": {
+        "addGroup": "Groep toevoegen",
+        "moveUp": "{name} omhoog verplaatsen",
+        "moveDown": "{name} omlaag verplaatsen",
+        "edit": "{name} bewerken",
+        "delete": "{name} verwijderen",
+        "dropHere": "Zet hier een tegel neer.",
+        "empty": "Nog niets in deze groep."
+      },
+      "form": {
+        "editTitle": "Groep bewerken",
+        "createTitle": "Groep aanmaken",
+        "close": "Sluiten",
+        "name": "Naam",
+        "namePlaceholder": "Voer een groepsnaam in",
+        "charCount": "{count}/35 tekens",
+        "color": "Kleur",
+        "colors": {
+          "indigo": "Indigo",
+          "red": "Rood",
+          "orange": "Oranje",
+          "yellow": "Geel",
+          "green": "Groen",
+          "teal": "Blauwgroen",
+          "blue": "Blauw",
+          "violet": "Violet",
+          "pink": "Roze",
+          "slate": "Leisteengrijs"
+        },
+        "customColor": "Eigen kleur",
+        "colorCode": "Kleurcode",
+        "preview": "Voorbeeld",
+        "previewName": "Groepsnaam",
+        "tileStyle": "Tegelstijl",
+        "tileStyles": {
+          "cards": {
+            "label": "Kaarten",
+            "description": "Volledige tegels met status en details"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "Eén regel per stuk, voor veel snelle links"
+          }
+        },
+        "monitoring": "Monitoring inschakelen",
+        "monitoringDescription": "Als dit uit staat, krijgen services in deze groep geen statuscontrole en verschijnen ze niet in de statistieken",
+        "nameRequired": "Groepsnaam is verplicht",
+        "nameTooLong": "Groepsnaam mag maximaal 35 tekens lang zijn",
+        "invalidColor": "Ongeldige kleur. Gebruik hex-notatie (bijv. #6366f1)",
+        "saveFailed": "Groep opslaan mislukt",
+        "cancel": "Annuleren",
+        "saving": "Opslaan...",
+        "save": "Wijzigingen opslaan",
+        "create": "Groep aanmaken"
+      },
+      "selector": {
+        "label": "Groep",
+        "loading": "Groepen laden...",
+        "noGroups": "Geen groepen beschikbaar",
+        "none": "Geen groep",
+        "defaultOption": "{name} (standaard)",
+        "hint": "Wijs deze service toe aan een groep om alles overzichtelijk te houden"
+      },
+      "monitoringLock": {
+        "default": "Als dit uit staat, krijgt deze service geen statuscontrole, verschijnt ze niet in de statistieken en activeert ze geen webhooks",
+        "groupDisabled": "Monitoring staat uit voor de groep “{name}”, dus services daarin krijgen nooit een statuscontrole"
+      }
+    },
+    "discovered": {
+      "loadFailed": "Gevonden containers laden mislukt",
+      "actionFailed": "Er is iets misgegaan",
+      "unavailable": "Gevonden containers konden niet worden geladen: {error}",
+      "link": "{count, plural, one {# gevonden container} other {# gevonden containers}}",
+      "title": "Gevonden",
+      "none": "Geen nieuwe containers.",
+      "intro": "Containers uit je Docker-integraties. Controleer een geraden adres voordat je het toevoegt.",
+      "refresh": "Vernieuwen",
+      "suggestion": "Deze container vraagt om een {name}-integratie. <link>Stel die in</link> (er zijn nog inloggegevens nodig) en koppel die daarna aan de service.",
+      "labelled": "gelabeld",
+      "noAddress": "Geen adres gevonden",
+      "guess": "geraden",
+      "review": "Controleren",
+      "reviewLabel": "{name} controleren",
+      "add": "Toevoegen",
+      "addLabel": "{name} toevoegen",
+      "edit": "Bewerken",
+      "editLabel": "{name} bewerken",
+      "ignore": "Negeren",
+      "ignoreLabel": "{name} negeren",
+      "name": "Naam",
+      "address": "Adres",
+      "group": "Groep",
+      "groupPlaceholder": "Geen",
+      "guessHint": "Het adres is geraden op basis van de gepubliceerde poort van de container. Pas het aan als de service op een andere manier bereikbaar is.",
+      "addService": "Service toevoegen",
+      "cancel": "Annuleren",
+      "ignored": "Genegeerd ({count})",
+      "unignore": "Niet meer negeren",
+      "unignoreLabel": "{name} niet meer negeren"
+    },
+    "board": {
+      "notFound": "Board niet gevonden",
+      "notFoundDescription": "Het bestaat niet, of het wordt niet meer met je gedeeld.",
+      "goToDashboard": "Naar je dashboard"
+    }
+  },
   "language": {
     "label": "Taal",
     "automatic": "Automatisch (browser)",

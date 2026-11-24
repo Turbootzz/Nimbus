@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { inputClass, labelClass } from '@/components/widgets/forms/fieldStyles'
 import { INTEGRATION_PREFILL_KEY } from '@/types'
@@ -58,6 +59,7 @@ function ContainerIcon({ url }: { url: string }) {
  * integration. All label text is rendered as plain text.
  */
 export default function DiscoveredTray({ variant = 'tray', onAdded }: DiscoveredTrayProps) {
+  const t = useTranslations('dashboard.discovered')
   const [isAdmin, setIsAdmin] = useState(false)
   const [result, setResult] = useState<DiscoveryResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -72,21 +74,24 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
   const generation = useRef(0)
 
   // refresh asks Docker again; otherwise the server may reuse a recent answer
-  const load = useCallback(async (refresh = false) => {
-    const current = ++generation.current
-    setIsLoading(true)
-    try {
-      const response = await api.getDockerDiscovery(refresh)
-      if (current !== generation.current) return
-      setError(response.error ? response.error.message : null)
-      if (response.data) setResult(response.data)
-    } catch (err) {
-      if (current !== generation.current) return
-      setError(err instanceof Error ? err.message : 'Failed to load discovered containers')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const load = useCallback(
+    async (refresh = false) => {
+      const current = ++generation.current
+      setIsLoading(true)
+      try {
+        const response = await api.getDockerDiscovery(refresh)
+        if (current !== generation.current) return
+        setError(response.error ? response.error.message : null)
+        if (response.data) setResult(response.data)
+      } catch (err) {
+        if (current !== generation.current) return
+        setError(err instanceof Error ? err.message : t('loadFailed'))
+      } finally {
+        setIsLoading(false)
+      }
+    },
+    [t]
+  )
 
   // Only admins may ask; everyone else never calls the endpoint
   useEffect(() => {
@@ -122,7 +127,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
       setResult((prev) => prev && { ...prev, containers: update(prev.containers) })
       return true
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setError(err instanceof Error ? err.message : t('actionFailed'))
       return false
     } finally {
       setBusyKey(null)
@@ -174,7 +179,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
         role="alert"
         className="glass-card border-card-border text-error mb-6 rounded-lg border p-4 text-sm"
       >
-        Discovered containers could not be loaded: {error}
+        {t('unavailable', { error })}
       </p>
     ) : null
   }
@@ -190,7 +195,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
         href="/services#discovered"
         className="glass-card border-card-border text-text-secondary hover:text-text-primary hover:border-primary focus-visible:ring-primary mb-4 inline-flex items-center rounded-full border px-3 py-1 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
       >
-        {offered.length} discovered {offered.length === 1 ? 'container' : 'containers'}
+        {t('link', { count: offered.length })}
       </Link>
     )
   }
@@ -204,13 +209,9 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
       <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <h2 id="discovered-title" className="text-text-primary text-lg font-semibold">
-            Discovered
+            {t('title')}
           </h2>
-          <p className="text-text-muted text-sm">
-            {offered.length === 0
-              ? 'No new containers.'
-              : 'Containers from your Docker integrations. Check a guessed address before adding.'}
-          </p>
+          <p className="text-text-muted text-sm">{offered.length === 0 ? t('none') : t('intro')}</p>
         </div>
         <button
           onClick={() => load(true)}
@@ -221,7 +222,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
             className={`mr-1.5 h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
             aria-hidden
           />
-          Refresh
+          {t('refresh')}
         </button>
       </div>
 
@@ -238,17 +239,20 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
 
       {suggestion && (
         <p className="text-text-secondary mt-3 text-sm">
-          This container asks for a {suggestion.name} integration.{' '}
-          <Link
-            href="/settings/integrations"
-            onClick={() =>
-              sessionStorage.setItem(INTEGRATION_PREFILL_KEY, JSON.stringify(suggestion))
-            }
-            className="text-primary hover:text-primary-hover font-medium"
-          >
-            Set it up
-          </Link>{' '}
-          (it still needs its credentials), then link it to the service.
+          {t.rich('suggestion', {
+            name: suggestion.name,
+            link: (chunks) => (
+              <Link
+                href="/settings/integrations"
+                onClick={() =>
+                  sessionStorage.setItem(INTEGRATION_PREFILL_KEY, JSON.stringify(suggestion))
+                }
+                className="text-primary hover:text-primary-hover font-medium"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       )}
 
@@ -274,7 +278,9 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                     <p className="text-text-primary flex flex-wrap items-center gap-2 font-medium">
                       <span className="break-all">{container.name}</span>
                       {container.enabled && (
-                        <span className={`${badgeClass} bg-primary/10 text-primary`}>labelled</span>
+                        <span className={`${badgeClass} bg-primary/10 text-primary`}>
+                          {t('labelled')}
+                        </span>
                       )}
                       {container.group && (
                         <span
@@ -290,10 +296,10 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                       )}
                     </p>
                     <p className="text-text-secondary text-sm break-all">
-                      {container.url || 'No address found'}
+                      {container.url || t('noAddress')}
                       {container.url_guessed && (
                         <span className={`${badgeClass} bg-warning/10 text-warning ml-2`}>
-                          guess
+                          {t('guess')}
                         </span>
                       )}
                     </p>
@@ -313,9 +319,9 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                           onClick={edit}
                           disabled={busy}
                           className={primaryButton}
-                          aria-label={`Review ${container.name}`}
+                          aria-label={t('reviewLabel', { name: container.name })}
                         >
-                          Review
+                          {t('review')}
                         </button>
                       ) : (
                         <>
@@ -323,17 +329,17 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                             onClick={() => add(container, container)}
                             disabled={busy}
                             className={primaryButton}
-                            aria-label={`Add ${container.name}`}
+                            aria-label={t('addLabel', { name: container.name })}
                           >
-                            Add
+                            {t('add')}
                           </button>
                           <button
                             onClick={edit}
                             disabled={busy}
                             className={quietButton}
-                            aria-label={`Edit ${container.name}`}
+                            aria-label={t('editLabel', { name: container.name })}
                           >
-                            Edit
+                            {t('edit')}
                           </button>
                         </>
                       )}
@@ -347,9 +353,9 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                         }
                         disabled={busy}
                         className={quietButton}
-                        aria-label={`Ignore ${container.name}`}
+                        aria-label={t('ignoreLabel', { name: container.name })}
                       >
-                        Ignore
+                        {t('ignore')}
                       </button>
                     </div>
                   )}
@@ -366,7 +372,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                   >
                     <div>
                       <label htmlFor="discovered-name" className={labelClass}>
-                        Name
+                        {t('name')}
                       </label>
                       <input
                         id="discovered-name"
@@ -380,7 +386,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                     </div>
                     <div>
                       <label htmlFor="discovered-url" className={labelClass}>
-                        Address
+                        {t('address')}
                       </label>
                       <input
                         id="discovered-url"
@@ -395,7 +401,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                     </div>
                     <div>
                       <label htmlFor="discovered-group" className={labelClass}>
-                        Group
+                        {t('group')}
                       </label>
                       <input
                         id="discovered-group"
@@ -403,21 +409,20 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                         onChange={(event) => setDraft({ ...draft, group: event.target.value })}
                         className={inputClass}
                         maxLength={35}
-                        placeholder="None"
+                        placeholder={t('groupPlaceholder')}
                       />
                     </div>
                     {container.url_guessed && (
                       <p id="discovered-url-hint" className="text-text-muted text-xs sm:col-span-3">
-                        The address is a guess from the container&apos;s published port. Change it
-                        if the service is reached another way.
+                        {t('guessHint')}
                       </p>
                     )}
                     <div className="flex gap-1 sm:col-span-3">
                       <button type="submit" disabled={busy} className={primaryButton}>
-                        Add service
+                        {t('addService')}
                       </button>
                       <button type="button" onClick={() => setDraft(null)} className={quietButton}>
-                        Cancel
+                        {t('cancel')}
                       </button>
                     </div>
                   </form>
@@ -436,7 +441,7 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
             aria-controls="discovered-ignored"
             className={`${quietButton} -ml-3`}
           >
-            Ignored ({ignored.length})
+            {t('ignored', { count: ignored.length })}
           </button>
           {showIgnored && (
             <ul id="discovered-ignored" className="mt-1 space-y-1">
@@ -456,9 +461,9 @@ export default function DiscoveredTray({ variant = 'tray', onAdded }: Discovered
                     }
                     disabled={busyKey === container.key}
                     className={`${quietButton} shrink-0`}
-                    aria-label={`Stop ignoring ${container.name}`}
+                    aria-label={t('unignoreLabel', { name: container.name })}
                   >
-                    Un-ignore
+                    {t('unignore')}
                   </button>
                 </li>
               ))}

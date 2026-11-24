@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { ServerIcon, PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import {
   DndContext,
   DragEndEvent,
@@ -88,11 +89,12 @@ function toStringId(id: string | number): string {
 
 // The spinner of a board that is loading
 export function DashboardLoading() {
+  const t = useTranslations('dashboard.view')
   return (
     <div className="flex min-h-96 items-center justify-center">
       <div className="wallpaper-panel text-center">
         <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-t-2 border-b-2"></div>
-        <p className="text-text-secondary">Loading dashboard...</p>
+        <p className="text-text-secondary">{t('loading')}</p>
       </div>
     </div>
   )
@@ -110,6 +112,7 @@ interface DashboardViewProps {
 // One board: its tiles, groups and live data, editable when it is the
 // user's own. /dashboard and /board/<slug> both show it.
 export default function DashboardView({ board }: DashboardViewProps) {
+  const t = useTranslations('dashboard.view')
   const {
     openInNewTab,
     enableCardResizing,
@@ -852,9 +855,8 @@ export default function DashboardView({ board }: DashboardViewProps) {
   const header = (
     <DashboardHeader
       readOnly={readOnly}
-      readOnlyNote={
-        kiosk ? null : viewer ? 'Read-only: shared board' : 'Read-only: managed by config file'
-      }
+      // undefined: the header's own config file note
+      readOnlyNote={kiosk ? null : viewer ? t('readOnlyShared') : undefined}
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}
@@ -945,10 +947,7 @@ export default function DashboardView({ board }: DashboardViewProps) {
       {layoutMode === 'classic' && <DashboardStats stats={stats} />}
 
       {!widgetsLoaded && (
-        <p className="text-error wallpaper-panel mb-4 text-sm">
-          Widgets could not be loaded. Reload the page to see them; until then the order cannot be
-          changed.
-        </p>
+        <p className="text-error wallpaper-panel mb-4 text-sm">{t('widgetsFailed')}</p>
       )}
 
       {/* Header with group tabs and action buttons, then the tiles */}
@@ -1026,17 +1025,15 @@ export default function DashboardView({ board }: DashboardViewProps) {
       {tabbed && filteredTiles.length === 0 && !isLoading && (
         <div className="glass-card border-card-border rounded-lg border p-12 text-center">
           <ServerIcon className="text-text-muted mx-auto mb-4 h-12 w-12" />
-          <h3 className="text-text-primary mb-2 text-lg font-medium">Nothing in this group yet</h3>
-          <p className="text-text-secondary mb-4">
-            Add a service or a widget to this group to see it here.
-          </p>
+          <h3 className="text-text-primary mb-2 text-lg font-medium">{t('emptyGroup.title')}</h3>
+          <p className="text-text-secondary mb-4">{t('emptyGroup.description')}</p>
           {!readOnly && (
             <Link
               href={addServiceHref}
               className="bg-primary hover:bg-primary-hover inline-flex items-center rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
             >
               <PlusIcon className="mr-2 h-4 w-4" />
-              Add Service
+              {t('emptyGroup.addService')}
             </Link>
           )}
         </div>
@@ -1083,9 +1080,9 @@ export default function DashboardView({ board }: DashboardViewProps) {
       {/* Widget delete confirmation */}
       {deletingWidget && (
         <ConfirmDialog
-          title="Delete Widget"
-          message="Are you sure you want to delete this widget? This cannot be undone."
-          confirmLabel="Delete"
+          title={t('deleteWidget.title')}
+          message={t('deleteWidget.message')}
+          confirmLabel={t('deleteWidget.confirm')}
           onConfirm={handleConfirmDeleteWidget}
           onCancel={() => setDeletingWidget(null)}
         />
@@ -1103,11 +1100,12 @@ export default function DashboardView({ board }: DashboardViewProps) {
             aria-hidden="true"
           />
           <div className="bg-card border-card-border relative z-10 w-full max-w-md rounded-lg border p-6 shadow-lg">
-            <h3 className="text-text-primary mb-2 text-lg font-semibold">Delete Group</h3>
+            <h3 className="text-text-primary mb-2 text-lg font-semibold">
+              {t('deleteGroup.title')}
+            </h3>
             <p className="text-text-secondary mb-4">
-              Are you sure you want to delete &ldquo;{deletingGroup.name}&rdquo;?
-              {!deleteGroupServices &&
-                ' Services and widgets in this group will be moved to the default group.'}
+              {t('deleteGroup.confirm', { name: deletingGroup.name })}
+              {!deleteGroupServices && ` ${t('deleteGroup.moveNote')}`}
             </p>
 
             {/* Checkbox to delete services */}
@@ -1118,16 +1116,11 @@ export default function DashboardView({ board }: DashboardViewProps) {
                 onChange={(e) => setDeleteGroupServices(e.target.checked)}
                 className="text-error focus:ring-error mt-0.5 h-4 w-4 rounded border-gray-300"
               />
-              <span className="text-text-secondary text-sm">
-                Permanently delete all services and widgets in this group
-              </span>
+              <span className="text-text-secondary text-sm">{t('deleteGroup.deleteContents')}</span>
             </label>
 
             {deleteGroupServices && (
-              <p className="text-error mb-4 text-sm">
-                Warning: This will permanently delete all services and widgets in this group. This
-                action cannot be undone.
-              </p>
+              <p className="text-error mb-4 text-sm">{t('deleteGroup.warning')}</p>
             )}
 
             <div className="flex justify-end gap-2">
@@ -1138,13 +1131,13 @@ export default function DashboardView({ board }: DashboardViewProps) {
                 }}
                 className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
               >
-                Cancel
+                {t('deleteGroup.cancel')}
               </button>
               <button
                 onClick={handleConfirmDeleteGroup}
                 className="bg-error hover:bg-error/80 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors"
               >
-                Delete
+                {t('deleteGroup.delete')}
               </button>
             </div>
           </div>

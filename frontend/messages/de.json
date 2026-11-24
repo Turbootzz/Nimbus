@@ -169,6 +169,169 @@
       "shared": "geteilt"
     }
   },
+  "dashboard": {
+    "view": {
+      "loading": "Dashboard wird geladen...",
+      "readOnlyShared": "Schreibgeschützt: geteiltes Board",
+      "widgetsFailed": "Widgets konnten nicht geladen werden. Lade die Seite neu, um sie zu sehen; bis dahin kann die Reihenfolge nicht geändert werden.",
+      "emptyGroup": {
+        "title": "Noch nichts in dieser Gruppe",
+        "description": "Füge dieser Gruppe einen Dienst oder ein Widget hinzu, um es hier zu sehen.",
+        "addService": "Dienst hinzufügen"
+      },
+      "deleteWidget": {
+        "title": "Widget löschen",
+        "message": "Möchtest du dieses Widget wirklich löschen? Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Löschen"
+      },
+      "deleteGroup": {
+        "title": "Gruppe löschen",
+        "confirm": "Möchtest du „{name}“ wirklich löschen?",
+        "moveNote": "Dienste und Widgets in dieser Gruppe werden in die Standardgruppe verschoben.",
+        "deleteContents": "Alle Dienste und Widgets in dieser Gruppe endgültig löschen",
+        "warning": "Achtung: Damit werden alle Dienste und Widgets in dieser Gruppe endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen",
+        "delete": "Löschen"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Schreibgeschützt: über Konfigurationsdatei verwaltet",
+      "done": "Fertig",
+      "edit": "Bearbeiten",
+      "addWidget": "Widget hinzufügen",
+      "addService": "Dienst hinzufügen"
+    },
+    "stats": {
+      "totalServices": "Dienste gesamt",
+      "online": "Online",
+      "offline": "Offline",
+      "avgResponse": "Ø Antwortzeit"
+    },
+    "kpis": {
+      "loading": "Wird geladen",
+      "lastUpdateFailed": "Letzte Aktualisierung fehlgeschlagen: {error}",
+      "stale": "Diese Daten sind möglicherweise veraltet"
+    },
+    "statusStrip": {
+      "label": "Status",
+      "down": "{count} ausgefallen",
+      "operational": "Alles in Betrieb",
+      "customApi": "Eigene API"
+    },
+    "groups": {
+      "monitoringDisabled": "Überwachung für diese Gruppe deaktiviert",
+      "tabs": {
+        "edit": "Gruppe bearbeiten",
+        "delete": "Gruppe löschen",
+        "addNew": "Neue Gruppe hinzufügen",
+        "add": "Hinzufügen"
+      },
+      "sections": {
+        "addGroup": "Gruppe hinzufügen",
+        "moveUp": "{name} nach oben verschieben",
+        "moveDown": "{name} nach unten verschieben",
+        "edit": "{name} bearbeiten",
+        "delete": "{name} löschen",
+        "dropHere": "Kachel hier ablegen.",
+        "empty": "Noch nichts in dieser Gruppe."
+      },
+      "form": {
+        "editTitle": "Gruppe bearbeiten",
+        "createTitle": "Gruppe erstellen",
+        "close": "Schließen",
+        "name": "Name",
+        "namePlaceholder": "Gruppennamen eingeben",
+        "charCount": "{count}/35 Zeichen",
+        "color": "Farbe",
+        "colors": {
+          "indigo": "Indigo",
+          "red": "Rot",
+          "orange": "Orange",
+          "yellow": "Gelb",
+          "green": "Grün",
+          "teal": "Petrol",
+          "blue": "Blau",
+          "violet": "Violett",
+          "pink": "Pink",
+          "slate": "Schiefergrau"
+        },
+        "customColor": "Eigene Farbe",
+        "colorCode": "Farbcode",
+        "preview": "Vorschau",
+        "previewName": "Gruppenname",
+        "tileStyle": "Kachelstil",
+        "tileStyles": {
+          "cards": {
+            "label": "Karten",
+            "description": "Volle Kacheln mit Status und Details"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "Je eine Zeile, für viele Schnelllinks"
+          }
+        },
+        "monitoring": "Überwachung aktivieren",
+        "monitoringDescription": "Wenn deaktiviert, werden Dienste in dieser Gruppe nicht geprüft und erscheinen nicht in den Statistiken",
+        "nameRequired": "Gruppenname ist erforderlich",
+        "nameTooLong": "Der Gruppenname darf höchstens 35 Zeichen lang sein",
+        "invalidColor": "Ungültiges Farbformat. Verwende das Hex-Format (z. B. #6366f1)",
+        "saveFailed": "Gruppe konnte nicht gespeichert werden",
+        "cancel": "Abbrechen",
+        "saving": "Wird gespeichert...",
+        "save": "Änderungen speichern",
+        "create": "Gruppe erstellen"
+      },
+      "selector": {
+        "label": "Gruppe",
+        "loading": "Gruppen werden geladen...",
+        "noGroups": "Keine Gruppen verfügbar",
+        "none": "Keine Gruppe",
+        "defaultOption": "{name} (Standard)",
+        "hint": "Weise diesen Dienst einer Gruppe zu, um Ordnung zu halten"
+      },
+      "monitoringLock": {
+        "default": "Wenn deaktiviert, wird dieser Dienst nicht geprüft, erscheint nicht in den Statistiken und löst keine Webhooks aus",
+        "groupDisabled": "Die Überwachung ist für die Gruppe „{name}“ deaktiviert, daher werden Dienste darin nie geprüft"
+      }
+    },
+    "discovered": {
+      "loadFailed": "Gefundene Container konnten nicht geladen werden",
+      "actionFailed": "Etwas ist schiefgelaufen",
+      "unavailable": "Gefundene Container konnten nicht geladen werden: {error}",
+      "link": "{count, plural, one {# gefundener Container} other {# gefundene Container}}",
+      "title": "Gefunden",
+      "none": "Keine neuen Container.",
+      "intro": "Container aus deinen Docker-Integrationen. Prüfe eine geschätzte Adresse, bevor du sie hinzufügst.",
+      "refresh": "Aktualisieren",
+      "suggestion": "Dieser Container verlangt eine {name}-Integration. <link>Richte sie ein</link> (sie braucht noch ihre Zugangsdaten) und verknüpfe sie dann mit dem Dienst.",
+      "labelled": "gelabelt",
+      "noAddress": "Keine Adresse gefunden",
+      "guess": "geschätzt",
+      "review": "Prüfen",
+      "reviewLabel": "{name} prüfen",
+      "add": "Hinzufügen",
+      "addLabel": "{name} hinzufügen",
+      "edit": "Bearbeiten",
+      "editLabel": "{name} bearbeiten",
+      "ignore": "Ignorieren",
+      "ignoreLabel": "{name} ignorieren",
+      "name": "Name",
+      "address": "Adresse",
+      "group": "Gruppe",
+      "groupPlaceholder": "Keine",
+      "guessHint": "Die Adresse ist anhand des veröffentlichten Ports des Containers geschätzt. Ändere sie, wenn der Dienst anders erreichbar ist.",
+      "addService": "Dienst hinzufügen",
+      "cancel": "Abbrechen",
+      "ignored": "Ignoriert ({count})",
+      "unignore": "Nicht mehr ignorieren",
+      "unignoreLabel": "{name} nicht mehr ignorieren"
+    },
+    "board": {
+      "notFound": "Board nicht gefunden",
+      "notFoundDescription": "Es existiert nicht oder wird nicht mehr mit dir geteilt.",
+      "goToDashboard": "Zu deinem Dashboard"
+    }
+  },
   "language": {
     "label": "Sprache",
     "automatic": "Automatisch (Browser)",

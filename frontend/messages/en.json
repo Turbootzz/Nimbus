@@ -169,6 +169,169 @@
       "shared": "shared"
     }
   },
+  "dashboard": {
+    "view": {
+      "loading": "Loading dashboard...",
+      "readOnlyShared": "Read-only: shared board",
+      "widgetsFailed": "Widgets could not be loaded. Reload the page to see them; until then the order cannot be changed.",
+      "emptyGroup": {
+        "title": "Nothing in this group yet",
+        "description": "Add a service or a widget to this group to see it here.",
+        "addService": "Add Service"
+      },
+      "deleteWidget": {
+        "title": "Delete Widget",
+        "message": "Are you sure you want to delete this widget? This cannot be undone.",
+        "confirm": "Delete"
+      },
+      "deleteGroup": {
+        "title": "Delete Group",
+        "confirm": "Are you sure you want to delete “{name}”?",
+        "moveNote": "Services and widgets in this group will be moved to the default group.",
+        "deleteContents": "Permanently delete all services and widgets in this group",
+        "warning": "Warning: This will permanently delete all services and widgets in this group. This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Read-only: managed by config file",
+      "done": "Done",
+      "edit": "Edit",
+      "addWidget": "Add Widget",
+      "addService": "Add Service"
+    },
+    "stats": {
+      "totalServices": "Total Services",
+      "online": "Online",
+      "offline": "Offline",
+      "avgResponse": "Avg Response"
+    },
+    "kpis": {
+      "loading": "Loading",
+      "lastUpdateFailed": "Last update failed: {error}",
+      "stale": "This data may be out of date"
+    },
+    "statusStrip": {
+      "label": "Status",
+      "down": "{count} down",
+      "operational": "Operational",
+      "customApi": "Custom API"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitoring disabled for this group",
+      "tabs": {
+        "edit": "Edit group",
+        "delete": "Delete group",
+        "addNew": "Add new group",
+        "add": "Add"
+      },
+      "sections": {
+        "addGroup": "Add group",
+        "moveUp": "Move {name} up",
+        "moveDown": "Move {name} down",
+        "edit": "Edit {name}",
+        "delete": "Delete {name}",
+        "dropHere": "Drop a tile here.",
+        "empty": "Nothing in this group yet."
+      },
+      "form": {
+        "editTitle": "Edit Group",
+        "createTitle": "Create Group",
+        "close": "Close",
+        "name": "Name",
+        "namePlaceholder": "Enter group name",
+        "charCount": "{count}/35 characters",
+        "color": "Color",
+        "colors": {
+          "indigo": "Indigo",
+          "red": "Red",
+          "orange": "Orange",
+          "yellow": "Yellow",
+          "green": "Green",
+          "teal": "Teal",
+          "blue": "Blue",
+          "violet": "Violet",
+          "pink": "Pink",
+          "slate": "Slate"
+        },
+        "customColor": "Custom color",
+        "colorCode": "Color code",
+        "preview": "Preview",
+        "previewName": "Group Name",
+        "tileStyle": "Tile style",
+        "tileStyles": {
+          "cards": {
+            "label": "Cards",
+            "description": "Full tiles with status and details"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "One line each, for many quick links"
+          }
+        },
+        "monitoring": "Enable Monitoring",
+        "monitoringDescription": "When disabled, services in this group won't be health-checked and won't appear in metrics",
+        "nameRequired": "Group name is required",
+        "nameTooLong": "Group name must be 35 characters or less",
+        "invalidColor": "Invalid color format. Use hex format (e.g., #6366f1)",
+        "saveFailed": "Failed to save group",
+        "cancel": "Cancel",
+        "saving": "Saving...",
+        "save": "Save Changes",
+        "create": "Create Group"
+      },
+      "selector": {
+        "label": "Group",
+        "loading": "Loading groups...",
+        "noGroups": "No groups available",
+        "none": "No group",
+        "defaultOption": "{name} (Default)",
+        "hint": "Assign this service to a group for organization"
+      },
+      "monitoringLock": {
+        "default": "When disabled, this service won't be health-checked and won't appear in metrics or trigger webhooks",
+        "groupDisabled": "Monitoring is disabled for the \"{name}\" group, so services in it are never health-checked"
+      }
+    },
+    "discovered": {
+      "loadFailed": "Failed to load discovered containers",
+      "actionFailed": "Something went wrong",
+      "unavailable": "Discovered containers could not be loaded: {error}",
+      "link": "{count, plural, one {# discovered container} other {# discovered containers}}",
+      "title": "Discovered",
+      "none": "No new containers.",
+      "intro": "Containers from your Docker integrations. Check a guessed address before adding.",
+      "refresh": "Refresh",
+      "suggestion": "This container asks for a {name} integration. <link>Set it up</link> (it still needs its credentials), then link it to the service.",
+      "labelled": "labelled",
+      "noAddress": "No address found",
+      "guess": "guess",
+      "review": "Review",
+      "reviewLabel": "Review {name}",
+      "add": "Add",
+      "addLabel": "Add {name}",
+      "edit": "Edit",
+      "editLabel": "Edit {name}",
+      "ignore": "Ignore",
+      "ignoreLabel": "Ignore {name}",
+      "name": "Name",
+      "address": "Address",
+      "group": "Group",
+      "groupPlaceholder": "None",
+      "guessHint": "The address is a guess from the container's published port. Change it if the service is reached another way.",
+      "addService": "Add service",
+      "cancel": "Cancel",
+      "ignored": "Ignored ({count})",
+      "unignore": "Un-ignore",
+      "unignoreLabel": "Stop ignoring {name}"
+    },
+    "board": {
+      "notFound": "Board not found",
+      "notFoundDescription": "It does not exist, or it is no longer shared with you.",
+      "goToDashboard": "Go to your dashboard"
+    }
+  },
   "language": {
     "label": "Language",
     "automatic": "Automatic (browser)",

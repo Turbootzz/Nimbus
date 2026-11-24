@@ -4,6 +4,7 @@ import { useRef, useEffect } from 'react'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { useTranslations } from 'next-intl'
 import { PlusIcon, PencilIcon, TrashIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import type { Group } from '@/types'
 import ScrollArea from '@/components/ui/ScrollArea'
@@ -42,6 +43,7 @@ function SortableDroppableTab({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const t = useTranslations('dashboard.groups')
   // Sortable hook for tab reordering (only in edit mode)
   const {
     attributes,
@@ -116,7 +118,7 @@ function SortableDroppableTab({
       {!group.monitoring_enabled && (
         <EyeSlashIcon
           className="text-text-muted h-3.5 w-3.5 shrink-0"
-          title="Monitoring disabled for this group"
+          title={t('monitoringDisabled')}
         />
       )}
 
@@ -130,7 +132,7 @@ function SortableDroppableTab({
               onEdit()
             }}
             className="text-text-muted hover:text-primary p-1 transition-colors"
-            title="Edit group"
+            title={t('tabs.edit')}
           >
             <PencilIcon className="h-3.5 w-3.5" />
           </button>
@@ -142,7 +144,7 @@ function SortableDroppableTab({
                 onDelete()
               }}
               className="text-text-muted hover:text-error p-1 transition-colors"
-              title="Delete group"
+              title={t('tabs.delete')}
             >
               <TrashIcon className="h-3.5 w-3.5" />
             </button>
@@ -164,6 +166,7 @@ export default function GroupTabs({
   isDraggingService,
   isDraggingTab,
 }: GroupTabsProps) {
+  const t = useTranslations('dashboard.groups')
   const scrollRef = useRef<HTMLDivElement>(null)
 
   // Scroll selected tab into view
@@ -212,10 +215,10 @@ export default function GroupTabs({
           type="button"
           onClick={onCreateGroup}
           className="text-text-muted hover:text-primary hover:bg-card-hover wallpaper-surface wallpaper:hover:bg-card-hover flex shrink-0 items-center gap-1 rounded-t-lg px-3 py-2 transition-colors"
-          title="Add new group"
+          title={t('tabs.addNew')}
         >
           <PlusIcon className="h-4 w-4" />
-          <span className="text-sm">Add</span>
+          <span className="text-sm">{t('tabs.add')}</span>
         </button>
       )}
     </div>

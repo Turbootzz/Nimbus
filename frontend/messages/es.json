@@ -169,6 +169,169 @@
       "shared": "compartido"
     }
   },
+  "dashboard": {
+    "view": {
+      "loading": "Cargando panel...",
+      "readOnlyShared": "Solo lectura: tablero compartido",
+      "widgetsFailed": "No se pudieron cargar los widgets. Recarga la página para verlos; hasta entonces no se puede cambiar el orden.",
+      "emptyGroup": {
+        "title": "Todavía no hay nada en este grupo",
+        "description": "Añade un servicio o un widget a este grupo para verlo aquí.",
+        "addService": "Añadir servicio"
+      },
+      "deleteWidget": {
+        "title": "Eliminar widget",
+        "message": "¿Seguro que quieres eliminar este widget? No se puede deshacer.",
+        "confirm": "Eliminar"
+      },
+      "deleteGroup": {
+        "title": "Eliminar grupo",
+        "confirm": "¿Seguro que quieres eliminar «{name}»?",
+        "moveNote": "Los servicios y widgets de este grupo se moverán al grupo predeterminado.",
+        "deleteContents": "Eliminar definitivamente todos los servicios y widgets de este grupo",
+        "warning": "Atención: esto eliminará definitivamente todos los servicios y widgets de este grupo. Esta acción no se puede deshacer.",
+        "cancel": "Cancelar",
+        "delete": "Eliminar"
+      }
+    },
+    "header": {
+      "readOnlyConfig": "Solo lectura: gestionado por un archivo de configuración",
+      "done": "Listo",
+      "edit": "Editar",
+      "addWidget": "Añadir widget",
+      "addService": "Añadir servicio"
+    },
+    "stats": {
+      "totalServices": "Servicios totales",
+      "online": "En línea",
+      "offline": "Sin conexión",
+      "avgResponse": "Respuesta media"
+    },
+    "kpis": {
+      "loading": "Cargando",
+      "lastUpdateFailed": "Falló la última actualización: {error}",
+      "stale": "Es posible que estos datos estén desactualizados"
+    },
+    "statusStrip": {
+      "label": "Estado",
+      "down": "{count, plural, one {# caído} other {# caídos}}",
+      "operational": "Todo operativo",
+      "customApi": "API personalizada"
+    },
+    "groups": {
+      "monitoringDisabled": "Monitorización desactivada para este grupo",
+      "tabs": {
+        "edit": "Editar grupo",
+        "delete": "Eliminar grupo",
+        "addNew": "Añadir grupo nuevo",
+        "add": "Añadir"
+      },
+      "sections": {
+        "addGroup": "Añadir grupo",
+        "moveUp": "Subir {name}",
+        "moveDown": "Bajar {name}",
+        "edit": "Editar {name}",
+        "delete": "Eliminar {name}",
+        "dropHere": "Suelta un mosaico aquí.",
+        "empty": "Todavía no hay nada en este grupo."
+      },
+      "form": {
+        "editTitle": "Editar grupo",
+        "createTitle": "Crear grupo",
+        "close": "Cerrar",
+        "name": "Nombre",
+        "namePlaceholder": "Escribe el nombre del grupo",
+        "charCount": "{count}/35 caracteres",
+        "color": "Color",
+        "colors": {
+          "indigo": "Índigo",
+          "red": "Rojo",
+          "orange": "Naranja",
+          "yellow": "Amarillo",
+          "green": "Verde",
+          "teal": "Verde azulado",
+          "blue": "Azul",
+          "violet": "Violeta",
+          "pink": "Rosa",
+          "slate": "Pizarra"
+        },
+        "customColor": "Color personalizado",
+        "colorCode": "Código de color",
+        "preview": "Vista previa",
+        "previewName": "Nombre del grupo",
+        "tileStyle": "Estilo de mosaico",
+        "tileStyles": {
+          "cards": {
+            "label": "Tarjetas",
+            "description": "Mosaicos completos con estado y detalles"
+          },
+          "chips": {
+            "label": "Chips",
+            "description": "Una línea cada uno, para muchos enlaces rápidos"
+          }
+        },
+        "monitoring": "Activar monitorización",
+        "monitoringDescription": "Si está desactivada, los servicios de este grupo no se comprueban ni aparecen en las métricas",
+        "nameRequired": "El nombre del grupo es obligatorio",
+        "nameTooLong": "El nombre del grupo debe tener 35 caracteres o menos",
+        "invalidColor": "Formato de color no válido. Usa el formato hexadecimal (p. ej., #6366f1)",
+        "saveFailed": "No se pudo guardar el grupo",
+        "cancel": "Cancelar",
+        "saving": "Guardando...",
+        "save": "Guardar cambios",
+        "create": "Crear grupo"
+      },
+      "selector": {
+        "label": "Grupo",
+        "loading": "Cargando grupos...",
+        "noGroups": "No hay grupos disponibles",
+        "none": "Sin grupo",
+        "defaultOption": "{name} (predeterminado)",
+        "hint": "Asigna este servicio a un grupo para organizarlo"
+      },
+      "monitoringLock": {
+        "default": "Si está desactivada, este servicio no se comprueba, no aparece en las métricas y no activa webhooks",
+        "groupDisabled": "La monitorización está desactivada para el grupo «{name}», así que sus servicios nunca se comprueban"
+      }
+    },
+    "discovered": {
+      "loadFailed": "No se pudieron cargar los contenedores descubiertos",
+      "actionFailed": "Algo salió mal",
+      "unavailable": "No se pudieron cargar los contenedores descubiertos: {error}",
+      "link": "{count, plural, one {# contenedor descubierto} other {# contenedores descubiertos}}",
+      "title": "Descubiertos",
+      "none": "No hay contenedores nuevos.",
+      "intro": "Contenedores de tus integraciones de Docker. Revisa una dirección supuesta antes de añadirla.",
+      "refresh": "Actualizar",
+      "suggestion": "Este contenedor pide una integración de {name}. <link>Configúrala</link> (todavía necesita sus credenciales) y luego vincúlala al servicio.",
+      "labelled": "etiquetado",
+      "noAddress": "No se encontró ninguna dirección",
+      "guess": "supuesta",
+      "review": "Revisar",
+      "reviewLabel": "Revisar {name}",
+      "add": "Añadir",
+      "addLabel": "Añadir {name}",
+      "edit": "Editar",
+      "editLabel": "Editar {name}",
+      "ignore": "Ignorar",
+      "ignoreLabel": "Ignorar {name}",
+      "name": "Nombre",
+      "address": "Dirección",
+      "group": "Grupo",
+      "groupPlaceholder": "Ninguno",
+      "guessHint": "La dirección se ha deducido del puerto publicado del contenedor. Cámbiala si se accede al servicio de otra forma.",
+      "addService": "Añadir servicio",
+      "cancel": "Cancelar",
+      "ignored": "Ignorados ({count})",
+      "unignore": "Dejar de ignorar",
+      "unignoreLabel": "Dejar de ignorar {name}"
+    },
+    "board": {
+      "notFound": "Tablero no encontrado",
+      "notFoundDescription": "No existe o ya no se comparte contigo.",
+      "goToDashboard": "Ir a tu panel"
+    }
+  },
   "language": {
     "label": "Idioma",
     "automatic": "Automático (navegador)",
