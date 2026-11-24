@@ -164,11 +164,20 @@ func TestBoardsMigrationOnPostgres(t *testing.T) {
 	require.NoError(t, services.Create(ctx, jellyfin))
 	clock := &models.Widget{UserID: admin, BoardID: shared.ID, Type: "clock", Config: []byte(`{}`), CardSize: "2x1", RefreshSeconds: 300, Enabled: true}
 	require.NoError(t, widgets.Create(ctx, clock, 10))
-	position, err := boards.MoveTile(ctx, admin, models.TileKindService, "30000000-0000-0000-0000-000000000003", shared.ID)
+	nas, err := services.GetByID(ctx, "30000000-0000-0000-0000-000000000003")
 	require.NoError(t, err)
-	assert.Greater(t, position, clock.Position)
-	_, err = boards.MoveTile(ctx, full, models.TileKindService, jellyfin.ID, home.ID)
-	assert.ErrorIs(t, err, ErrTileNotFound, "someone else's tile does not move")
+	read := *nas
+	nas.Name, nas.GroupID = "NAS", nil
+	require.NoError(t, services.Move(ctx, nas, shared.ID))
+	assert.Equal(t, shared.ID, nas.BoardID)
+	assert.Greater(t, nas.Position, clock.Position)
+	assert.Equal(t, 1, count(`SELECT COUNT(*) FROM services WHERE id = $1 AND board_id = $2 AND group_id IS NULL AND position = $3`, nas.ID, shared.ID, nas.Position))
+	read.Name = "Stale"
+	assert.ErrorIs(t, services.Update(ctx, &read), sql.ErrNoRows, "a save of what was read before the move is not applied")
+	stranger := *jellyfin
+	stranger.UserID = full
+	assert.ErrorIs(t, services.Move(ctx, &stranger, home.ID), sql.ErrNoRows, "someone else's tile does not move")
+	assert.Zero(t, count(`SELECT COUNT(*) FROM services WHERE name = 'Stale' OR board_id = $1 AND id = $2`, home.ID, jellyfin.ID))
 	// Nor is it reordered: not found (404), as on the other by-id routes
 	assert.ErrorIs(t, groups.UpdatePositions(ctx, full, map[string]int{media.ID: 0}), sql.ErrNoRows)
 	assert.ErrorIs(t, services.UpdatePositions(ctx, full, map[string]int{jellyfin.ID: 0}), sql.ErrNoRows)

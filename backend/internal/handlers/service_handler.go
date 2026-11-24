@@ -479,22 +479,19 @@ func (h *ServiceHandler) UpdateService(c *fiber.Ctx) error {
 	}
 	existingService.UpdatedAt = time.Now()
 
+	// Saved on the board its group was checked against: gone from it
+	// meanwhile (deleted, or moved by another request) is not found
 	if moved {
-		notFound := map[error]string{repository.ErrBoardNotFound: "Board not found", repository.ErrTileNotFound: "Service not found"}
-		position, err := h.boards.MoveTile(c.Context(), userID, models.TileKindService, serviceID, boardID)
-		if err != nil {
-			return serviceError(c, err, "move service", notFound)
-		}
-		existingService.BoardID, existingService.Position = boardID, position
 		if req.GroupID == nil {
 			existingService.GroupID = nil
 		}
+		err = h.serviceRepo.Move(c.Context(), existingService, boardID)
+	} else {
+		err = h.serviceRepo.Update(c.Context(), existingService)
 	}
-
-	if err := h.serviceRepo.Update(c.Context(), existingService); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": "Failed to update service",
-		})
+	if err != nil {
+		notFound := map[error]string{sql.ErrNoRows: "Service not found", repository.ErrTileNotFound: "Service not found"}
+		return serviceError(c, err, "update service", notFound)
 	}
 	if integrationChanged {
 		h.kickPoller()

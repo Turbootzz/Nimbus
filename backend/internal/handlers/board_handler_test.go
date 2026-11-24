@@ -636,6 +636,34 @@ func TestBoards_UpdateAppliesToTheStoredBoard(t *testing.T) {
 	assert.Zero(t, f.count(t, `SELECT COUNT(*) FROM boards WHERE name = 'Gone'`))
 }
 
+// A move to another board and the edit that comes with it are one write:
+// when the edit fails, the tile stays where it was
+func TestBoards_MoveAndEditAreOneWrite(t *testing.T) {
+	f := newBoardFixture(t, time.Minute)
+	_, err := f.db.Exec(`
+		CREATE TRIGGER refuse_widget BEFORE UPDATE ON widgets WHEN NEW.title = 'boom' BEGIN SELECT RAISE(ABORT, 'refused'); END;
+		CREATE TRIGGER refuse_service BEFORE UPDATE ON services WHEN NEW.name = 'boom' BEGIN SELECT RAISE(ABORT, 'refused'); END;`)
+	require.NoError(t, err)
+
+	status, body := f.do(t, boardAdminID, http.MethodPut, "/widgets/"+privateWidgetID, `{"board_id":"`+sharedBoardID+`","title":"boom"}`)
+	assert.Equal(t, 500, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM widgets WHERE id = ? AND board_id = ?`, privateWidgetID, privateBoardID),
+		"the widget, with its private config, stays off the shared board")
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/services/"+privateServiceID, `{"board_id":"`+sharedBoardID+`","name":"boom"}`)
+	assert.Equal(t, 500, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE id = ? AND board_id = ?`, privateServiceID, privateBoardID))
+
+	// The new config and a group of the new board come along
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/widgets/"+privateWidgetID,
+		`{"board_id":"`+sharedBoardID+`","group_id":"`+sharedGroupID+`","config":{"content":"for everyone"}}`)
+	require.Equal(t, 200, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM widgets WHERE id = ? AND board_id = ? AND group_id = ? AND config LIKE '%for everyone%'`,
+		privateWidgetID, sharedBoardID, sharedGroupID))
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/services/"+privateServiceID, `{"board_id":"`+sharedBoardID+`","group_id":"`+sharedGroupID+`"}`)
+	require.Equal(t, 200, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE id = ? AND board_id = ? AND group_id = ?`, privateServiceID, sharedBoardID, sharedGroupID))
+}
+
 func TestBoards_Limit(t *testing.T) {
 	f := newBoardFixture(t, time.Minute)
 	for i := 1; i < models.MaxBoardsPerUser; i++ { // the default board is the first

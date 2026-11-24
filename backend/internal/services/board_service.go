@@ -264,17 +264,3 @@ func (s *BoardService) Delete(ctx context.Context, userID, boardID, moveTo strin
 	}
 	return err
 }
-
-// MoveTile puts the user's service or widget (models.TileKind*) on another
-// of their boards, ungrouped and after the last tile. It returns the tile's
-// new position.
-func (s *BoardService) MoveTile(ctx context.Context, userID, kind, id, boardID string) (int, error) {
-	access, err := s.ResolveOwned(ctx, userID, boardID)
-	if err != nil {
-		return 0, err
-	}
-	if access.Board == nil {
-		return 0, repository.ErrBoardNotFound
-	}
-	return s.repo.MoveTile(ctx, userID, kind, id, access.Board.ID)
-}

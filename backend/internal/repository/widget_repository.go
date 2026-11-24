@@ -279,8 +279,28 @@ func (r *WidgetRepository) ListEnabled(ctx context.Context) ([]models.Widget, er
 	return r.queryWidgets(ctx, `SELECT `+widgetColumns+` FROM widgets WHERE enabled = TRUE`)
 }
 
-// Update saves all editable fields. Type and position are never changed here.
+// Update saves all editable fields. Type, board and position are never
+// changed here.
 func (r *WidgetRepository) Update(ctx context.Context, widget *models.Widget) error {
+	return updateWidget(ctx, r.db, widget)
+}
+
+// Move saves the widget like Update and puts it on boardID, after the user's
+// last tile, in one transaction: a viewer of a shared board never sees it
+// there with its old config. The caller checks that the board is the
+// user's and sets the widget's group for it.
+func (r *WidgetRepository) Move(ctx context.Context, widget *models.Widget, boardID string) error {
+	position, err := moveTile(ctx, r.db, "widgets", widget.UserID, widget.ID, boardID, func(tx *sql.Tx) error {
+		return updateWidget(ctx, tx, widget)
+	})
+	if err != nil {
+		return err
+	}
+	widget.BoardID, widget.Position = boardID, position
+	return nil
+}
+
+func updateWidget(ctx context.Context, q rowQuerier, widget *models.Widget) error {
 	query := `
 		UPDATE widgets
 		SET title = $1, group_id = $2, integration_id = $3, config = $4,
@@ -289,7 +309,7 @@ func (r *WidgetRepository) Update(ctx context.Context, widget *models.Widget) er
 		WHERE id = $8 AND user_id = $9
 		RETURNING updated_at
 	`
-	err := r.db.QueryRowContext(ctx, query,
+	err := q.QueryRowContext(ctx, query,
 		widget.Title,
 		widget.GroupID,
 		widget.IntegrationID,
