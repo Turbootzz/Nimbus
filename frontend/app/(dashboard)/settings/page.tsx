@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import type { User } from '@/types'
 
 export default function SettingsPage() {
+  const t = useTranslations('settings.home')
   const [currentUser, setCurrentUser] = useState<User | null>(null)
 
   useEffect(() => {
@@ -20,8 +22,8 @@ export default function SettingsPage() {
 
   const settingsSections = [
     {
-      title: 'Theme',
-      description: 'Customize colors, dark mode, and background',
+      title: t('sections.theme.title'),
+      description: t('sections.theme.description'),
       href: '/settings/theme',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -35,8 +37,8 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: 'Profile',
-      description: 'Manage your account and personal information',
+      title: t('sections.profile.title'),
+      description: t('sections.profile.description'),
       href: '/settings/profile',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,8 +52,8 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: 'Notifications',
-      description: 'Configure webhooks for service status alerts',
+      title: t('sections.notifications.title'),
+      description: t('sections.notifications.description'),
       href: '/settings/notifications',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,8 +67,8 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: 'Integrations',
-      description: 'Connect apps like Sonarr and Radarr to show live numbers',
+      title: t('sections.integrations.title'),
+      description: t('sections.integrations.description'),
       href: '/settings/integrations',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,8 +82,8 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: 'API Tokens',
-      description: 'Create tokens for programmatic API access',
+      title: t('sections.apiTokens.title'),
+      description: t('sections.apiTokens.description'),
       href: '/settings/api-tokens',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,8 +97,8 @@ export default function SettingsPage() {
       ),
     },
     {
-      title: 'Export & Import',
-      description: 'Back up your dashboard or move it to another Nimbus',
+      title: t('sections.backup.title'),
+      description: t('sections.backup.description'),
       href: '/settings/backup',
       icon: (
         <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -112,8 +114,8 @@ export default function SettingsPage() {
   ]
 
   const adminSection = {
-    title: 'Admin Settings',
-    description: 'Configure system-wide settings for Nimbus',
+    title: t('sections.admin.title'),
+    description: t('sections.admin.description'),
     href: '/settings/admin',
     icon: (
       <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -136,10 +138,8 @@ export default function SettingsPage() {
   return (
     <div className="max-w-4xl p-4 sm:p-6">
       <div className="wallpaper-panel mb-8">
-        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">Settings</h1>
-        <p className="text-base-content/70 text-sm sm:text-base">
-          Configure your dashboard preferences
-        </p>
+        <h1 className="mb-2 text-2xl font-bold sm:text-3xl">{t('title')}</h1>
+        <p className="text-base-content/70 text-sm sm:text-base">{t('subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

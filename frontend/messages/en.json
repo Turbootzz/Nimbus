@@ -507,6 +507,282 @@
       }
     }
   },
+  "settings": {
+    "home": {
+      "title": "Settings",
+      "subtitle": "Configure your dashboard preferences",
+      "sections": {
+        "theme": {
+          "title": "Theme",
+          "description": "Customize colors, dark mode, and background"
+        },
+        "profile": {
+          "title": "Profile",
+          "description": "Manage your account and personal information"
+        },
+        "notifications": {
+          "title": "Notifications",
+          "description": "Configure webhooks for service status alerts"
+        },
+        "integrations": {
+          "title": "Integrations",
+          "description": "Connect apps like Sonarr and Radarr to show live numbers"
+        },
+        "apiTokens": {
+          "title": "API Tokens",
+          "description": "Create tokens for programmatic API access"
+        },
+        "backup": {
+          "title": "Export & Import",
+          "description": "Back up your dashboard or move it to another Nimbus"
+        },
+        "admin": {
+          "title": "Admin Settings",
+          "description": "Configure system-wide settings for Nimbus"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profile",
+      "loading": "Loading...",
+      "picture": "Profile Picture",
+      "defaultName": "User",
+      "uploading": "Uploading...",
+      "upload": "Upload Picture",
+      "pictureHint": "JPG, PNG or GIF (max 5MB)",
+      "notImage": "Please select an image file",
+      "tooLarge": "Image size must be less than 5MB",
+      "syncedFrom": "Profile picture synced from {provider}",
+      "updateIn": "Update your picture in your {provider} account",
+      "signInMethod": "Sign-in Method",
+      "emailPassword": "Email & Password",
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "roles": {
+        "admin": "admin",
+        "user": "user"
+      }
+    },
+    "password": {
+      "title": "Change Password",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "tooShort": "New password must be at least 8 characters",
+      "mismatch": "New passwords do not match",
+      "sameAsCurrent": "New password must be different from current password",
+      "changed": "Password changed successfully",
+      "unexpected": "Something went wrong. Please try again.",
+      "changing": "Changing...",
+      "submit": "Change password"
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "lastAdmin": "You are the only admin. Promote another user to admin before you can delete this account.",
+      "description": "Permanently delete your account and all associated data. This action cannot be undone.",
+      "statsError": "Couldn’t verify admin status. The server will block the deletion if you are the only admin.",
+      "deleteMine": "Delete my account",
+      "deleteAccount": "Delete account",
+      "dialogBody": "This will permanently delete your account, services, groups, preferences, and all other associated data. This cannot be undone.",
+      "typeToConfirm": "Type <mono>{email}</mono> to confirm.",
+      "cancel": "Cancel",
+      "deleting": "Deleting...",
+      "unexpected": "Something went wrong. Please try again."
+    },
+    "theme": {
+      "page": {
+        "title": "Theme Settings",
+        "subtitle": "Customize the appearance of your dashboard",
+        "autosave": "Changes are saved automatically"
+      },
+      "mode": {
+        "title": "Theme Mode",
+        "description": "Choose between light and dark theme",
+        "auto": "Automatic (follow system)",
+        "autoDescription": "Automatically switch between light and dark based on your system preferences",
+        "autoDescriptionCurrent": "Automatically switch between light and dark based on your system preferences (currently: {mode})",
+        "current": {
+          "light": "light",
+          "dark": "dark"
+        },
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "accent": {
+        "title": "Accent Color",
+        "description": "Choose your preferred accent color",
+        "colors": {
+          "skyBlue": "Sky Blue (Default)",
+          "purple": "Purple",
+          "pink": "Pink",
+          "red": "Red",
+          "orange": "Orange",
+          "yellow": "Yellow",
+          "green": "Green",
+          "teal": "Teal"
+        },
+        "custom": "Custom color:",
+        "reset": "Reset"
+      },
+      "links": {
+        "title": "Link Behavior",
+        "description": "Choose how service links should open",
+        "newTab": "Open services in new tab",
+        "newTabDescription": "When enabled, clicking a service will open it in a new tab"
+      },
+      "resizing": {
+        "title": "Card Resizing",
+        "description": "Control whether service cards can have different sizes",
+        "toggle": "Enable card resizing",
+        "toggleDescription": "When enabled, you can resize cards in edit mode by clicking them. When disabled, all cards display as standard size (2x1)"
+      },
+      "grouping": {
+        "title": "Service Grouping",
+        "description": "Organize your services into groups, shown as tabs or as sections",
+        "toggle": "Enable service grouping",
+        "toggleDescription": "When enabled, you can organize services into groups. Create, rename, and reorder groups in edit mode. When disabled, all services are shown in a single view",
+        "showAs": "Show groups as",
+        "display": {
+          "tabs": "tabs",
+          "sections": "sections"
+        },
+        "tabsHint": "One group at a time, picked with a tab",
+        "sectionsHint": "All groups on one page, each under its own header that can be collapsed"
+      },
+      "cardDisplay": {
+        "title": "Card Display",
+        "description": "Customize how service cards are displayed",
+        "list": "List view",
+        "listDescription": "Display services in a compact list instead of a grid",
+        "size": "Card Size",
+        "scales": {
+          "small": "small",
+          "medium": "medium",
+          "large": "large"
+        },
+        "listHint": "Card size only applies to grid view",
+        "gridHint": "Adjust the grid density - smaller cards show more services per row"
+      },
+      "gallery": {
+        "title": "Theme",
+        "description": "A theme sets every colour, light or dark, and its own accent. You can still pick another accent colour on top. Choosing a mode the theme doesn't have goes back to Default.",
+        "muted": "Muted",
+        "default": "Default",
+        "dark": "Dark",
+        "light": "Light",
+        "lightOrDark": "Light or dark"
+      },
+      "transfer": {
+        "title": "Export & Import",
+        "description": "Save your theme as a file, or load one: theme, mode, accent, font, icon source, glass settings and custom CSS. The wallpaper image is not part of it.",
+        "export": "Export theme",
+        "import": "Import theme",
+        "fileLabel": "Theme file",
+        "tooLarge": "This file is too large to be a theme",
+        "willSet": "This file will set",
+        "fields": {
+          "themePreset": "theme preset",
+          "themeMode": "theme mode",
+          "themeAccentColor": "theme accent color",
+          "themeFont": "theme font",
+          "kpiMono": "kpi mono",
+          "iconSource": "icon source",
+          "wallpaperBlur": "wallpaper blur",
+          "wallpaperDim": "wallpaper dim",
+          "cardOpacity": "card opacity",
+          "cardBlur": "card blur"
+        },
+        "none": "none",
+        "cssReview": "Custom CSS (read it before you apply)",
+        "cssClears": "Custom CSS (none: clears yours)",
+        "cssLabel": "Custom CSS in the file",
+        "applying": "Applying...",
+        "apply": "Apply theme",
+        "cancel": "Cancel",
+        "errors": {
+          "notJson": "This is not a JSON file",
+          "notTheme": "This is not a Nimbus theme file",
+          "newerVersion": "This theme file was made by a newer version of Nimbus",
+          "invalidField": "The theme file has an invalid {field}"
+        }
+      },
+      "wallpaper": {
+        "title": "Wallpaper",
+        "description": "Upload an image (up to 8 MB) or use an image URL. Blur, dim and see-through cards make it look like glass.",
+        "urlLabel": "Wallpaper URL",
+        "uploadedPlaceholder": "Uploaded image",
+        "fileLabel": "Wallpaper file",
+        "uploading": "Uploading...",
+        "upload": "Upload",
+        "clear": "Clear",
+        "tooLarge": "The image is larger than 8 MB",
+        "previewCard": "Card",
+        "previewText": "How tiles will look",
+        "sliders": {
+          "wallpaperBlur": "Wallpaper blur",
+          "wallpaperDim": "Wallpaper dim",
+          "cardOpacity": "Card opacity",
+          "cardBlur": "Card blur"
+        },
+        "dimNote": "Cards under 60% opacity keep the wallpaper dimmed at least {min}%, so text stays readable."
+      },
+      "font": {
+        "title": "Font",
+        "description": "The fonts are part of Nimbus: nothing is loaded from another site",
+        "names": {
+          "default": "Default",
+          "system": "System"
+        },
+        "kpiMono": "Monospace KPI labels",
+        "kpiMonoDescription": "Show the small labels above the numbers on tiles, widgets and the status strip in JetBrains Mono"
+      },
+      "iconSource": {
+        "title": "Icon Source",
+        "description": "Where \"Auto-fetch icon\" on a service looks for an icon by the service's name",
+        "label": "Icon set",
+        "hint": "Used for icons you fetch from now on; icons you already have stay as they are"
+      },
+      "layout": {
+        "title": "Dashboard Layout",
+        "description": "Canvas only changes the dashboard; other pages keep the sidebar.",
+        "modes": {
+          "classic": {
+            "label": "Classic",
+            "description": "Sidebar, stats and your tiles"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "The dashboard fills the page, with a top bar"
+          }
+        },
+        "darkHint": "Canvas looks best in dark mode, with a wallpaper.",
+        "useDark": "Use dark mode"
+      },
+      "customCss": {
+        "title": "Custom CSS",
+        "description": "Your own CSS on top of the theme. It only applies to you, on the pages behind the login.",
+        "safeMode": "Safe mode: your custom CSS is off until you reload without <code>?safe=1</code>.",
+        "saving": "Saving...",
+        "save": "Save CSS",
+        "help": "CSS only. <code>@import</code>, <code>image-set()</code> and any <code>url()</code> that is not an inline <code>data:</code> image are refused, so a theme can never load something from another site. If your CSS hides the page, add <code>?safe=1</code> to the address (for example <code>/settings/theme?safe=1</code>) to open it without your CSS."
+      },
+      "statusStrip": {
+        "title": "Status Strip",
+        "description": "A row of key numbers at the top of the dashboard, with whether all services are up.",
+        "show": "Show the status strip",
+        "loading": "Loading your integrations and widgets...",
+        "number": "Number {number}",
+        "remove": "Remove number {number}",
+        "unavailable": "No longer available",
+        "add": "Add number",
+        "loadError": "Could not load your integrations or widgets: {error}",
+        "empty": "Add an integration or a custom API widget to pick numbers from.",
+        "hint": "Integrations show numbers once a service or widget uses them.",
+        "customApi": "Custom API"
+      }
+    }
+  },
   "time": {
     "justNow": "just now",
     "minutesAgo": "{count}m ago",

@@ -507,6 +507,282 @@
       }
     }
   },
+  "settings": {
+    "home": {
+      "title": "Instellingen",
+      "subtitle": "Stel de voorkeuren van je dashboard in",
+      "sections": {
+        "theme": {
+          "title": "Thema",
+          "description": "Pas kleuren, donkere modus en achtergrond aan"
+        },
+        "profile": {
+          "title": "Profiel",
+          "description": "Beheer je account en persoonlijke gegevens"
+        },
+        "notifications": {
+          "title": "Meldingen",
+          "description": "Stel webhooks in voor meldingen over de status van services"
+        },
+        "integrations": {
+          "title": "Integraties",
+          "description": "Koppel apps zoals Sonarr en Radarr om live cijfers te tonen"
+        },
+        "apiTokens": {
+          "title": "API-tokens",
+          "description": "Maak tokens aan voor programmatische toegang tot de API"
+        },
+        "backup": {
+          "title": "Exporteren & importeren",
+          "description": "Maak een back-up van je dashboard of zet het over naar een andere Nimbus"
+        },
+        "admin": {
+          "title": "Beheerinstellingen",
+          "description": "Stel systeembrede instellingen voor Nimbus in"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profiel",
+      "loading": "Laden...",
+      "picture": "Profielfoto",
+      "defaultName": "Gebruiker",
+      "uploading": "Uploaden...",
+      "upload": "Foto uploaden",
+      "pictureHint": "JPG, PNG of GIF (max. 5 MB)",
+      "notImage": "Kies een afbeeldingsbestand",
+      "tooLarge": "De afbeelding moet kleiner zijn dan 5 MB",
+      "syncedFrom": "Profielfoto gesynchroniseerd vanuit {provider}",
+      "updateIn": "Wijzig je foto in je {provider}-account",
+      "signInMethod": "Inlogmethode",
+      "emailPassword": "E-mailadres en wachtwoord",
+      "name": "Naam",
+      "email": "E-mailadres",
+      "role": "Rol",
+      "roles": {
+        "admin": "beheerder",
+        "user": "gebruiker"
+      }
+    },
+    "password": {
+      "title": "Wachtwoord wijzigen",
+      "current": "Huidig wachtwoord",
+      "new": "Nieuw wachtwoord",
+      "confirm": "Nieuw wachtwoord bevestigen",
+      "tooShort": "Het nieuwe wachtwoord moet minstens 8 tekens lang zijn",
+      "mismatch": "De nieuwe wachtwoorden komen niet overeen",
+      "sameAsCurrent": "Het nieuwe wachtwoord moet anders zijn dan je huidige wachtwoord",
+      "changed": "Wachtwoord gewijzigd",
+      "unexpected": "Er ging iets mis. Probeer het opnieuw.",
+      "changing": "Wijzigen...",
+      "submit": "Wachtwoord wijzigen"
+    },
+    "dangerZone": {
+      "title": "Gevarenzone",
+      "lastAdmin": "Je bent de enige beheerder. Maak eerst een andere gebruiker beheerder voordat je dit account kunt verwijderen.",
+      "description": "Verwijder je account en alle bijbehorende gegevens definitief. Dit kan niet ongedaan worden gemaakt.",
+      "statsError": "Je beheerdersstatus kon niet worden gecontroleerd. De server blokkeert het verwijderen als je de enige beheerder bent.",
+      "deleteMine": "Mijn account verwijderen",
+      "deleteAccount": "Account verwijderen",
+      "dialogBody": "Hiermee worden je account, services, groepen, voorkeuren en alle andere bijbehorende gegevens definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "typeToConfirm": "Typ <mono>{email}</mono> om te bevestigen.",
+      "cancel": "Annuleren",
+      "deleting": "Verwijderen...",
+      "unexpected": "Er ging iets mis. Probeer het opnieuw."
+    },
+    "theme": {
+      "page": {
+        "title": "Thema-instellingen",
+        "subtitle": "Pas het uiterlijk van je dashboard aan",
+        "autosave": "Wijzigingen worden automatisch opgeslagen"
+      },
+      "mode": {
+        "title": "Themamodus",
+        "description": "Kies tussen een licht en een donker thema",
+        "auto": "Automatisch (volgt systeem)",
+        "autoDescription": "Wissel automatisch tussen licht en donker op basis van je systeemvoorkeuren",
+        "autoDescriptionCurrent": "Wissel automatisch tussen licht en donker op basis van je systeemvoorkeuren (nu: {mode})",
+        "current": {
+          "light": "licht",
+          "dark": "donker"
+        },
+        "light": "Licht",
+        "dark": "Donker"
+      },
+      "accent": {
+        "title": "Accentkleur",
+        "description": "Kies je favoriete accentkleur",
+        "colors": {
+          "skyBlue": "Hemelsblauw (standaard)",
+          "purple": "Paars",
+          "pink": "Roze",
+          "red": "Rood",
+          "orange": "Oranje",
+          "yellow": "Geel",
+          "green": "Groen",
+          "teal": "Blauwgroen"
+        },
+        "custom": "Eigen kleur:",
+        "reset": "Herstellen"
+      },
+      "links": {
+        "title": "Linkgedrag",
+        "description": "Kies hoe links naar services openen",
+        "newTab": "Services openen in nieuw tabblad",
+        "newTabDescription": "Als dit aan staat, opent een klik op een service die in een nieuw tabblad"
+      },
+      "resizing": {
+        "title": "Formaat van kaarten",
+        "description": "Bepaal of servicekaarten verschillende formaten kunnen hebben",
+        "toggle": "Formaat van kaarten aanpassen",
+        "toggleDescription": "Als dit aan staat, pas je in de bewerkmodus het formaat van een kaart aan door erop te klikken. Als dit uit staat, hebben alle kaarten het standaardformaat (2x1)"
+      },
+      "grouping": {
+        "title": "Services groeperen",
+        "description": "Deel je services in groepen in, getoond als tabbladen of als secties",
+        "toggle": "Services groeperen",
+        "toggleDescription": "Als dit aan staat, kun je services in groepen indelen. Maak, hernoem en orden groepen in de bewerkmodus. Als dit uit staat, staan alle services in één weergave",
+        "showAs": "Groepen tonen als",
+        "display": {
+          "tabs": "tabbladen",
+          "sections": "secties"
+        },
+        "tabsHint": "Eén groep tegelijk, gekozen met een tabblad",
+        "sectionsHint": "Alle groepen op één pagina, elk onder een eigen kop die je kunt inklappen"
+      },
+      "cardDisplay": {
+        "title": "Kaartweergave",
+        "description": "Bepaal hoe servicekaarten worden getoond",
+        "list": "Lijstweergave",
+        "listDescription": "Toon services in een compacte lijst in plaats van een raster",
+        "size": "Kaartgrootte",
+        "scales": {
+          "small": "klein",
+          "medium": "gemiddeld",
+          "large": "groot"
+        },
+        "listHint": "Kaartgrootte geldt alleen voor de rasterweergave",
+        "gridHint": "Pas de dichtheid van het raster aan - kleinere kaarten tonen meer services per rij"
+      },
+      "gallery": {
+        "title": "Thema",
+        "description": "Een thema bepaalt elke kleur, licht of donker, en heeft een eigen accent. Je kunt er nog steeds een andere accentkleur bovenop kiezen. Kies je een modus die het thema niet heeft, dan ga je terug naar Standaard.",
+        "muted": "Gedempt",
+        "default": "Standaard",
+        "dark": "Donker",
+        "light": "Licht",
+        "lightOrDark": "Licht of donker"
+      },
+      "transfer": {
+        "title": "Exporteren & importeren",
+        "description": "Sla je thema op als bestand of laad er een: thema, modus, accent, lettertype, pictogrambron, glasinstellingen en eigen CSS. De achtergrondafbeelding hoort er niet bij.",
+        "export": "Thema exporteren",
+        "import": "Thema importeren",
+        "fileLabel": "Themabestand",
+        "tooLarge": "Dit bestand is te groot voor een thema",
+        "willSet": "Dit bestand stelt in",
+        "fields": {
+          "themePreset": "thema",
+          "themeMode": "themamodus",
+          "themeAccentColor": "accentkleur",
+          "themeFont": "lettertype",
+          "kpiMono": "monospace KPI-labels",
+          "iconSource": "pictogrambron",
+          "wallpaperBlur": "achtergrond vervagen",
+          "wallpaperDim": "achtergrond dimmen",
+          "cardOpacity": "dekking kaarten",
+          "cardBlur": "kaarten vervagen"
+        },
+        "none": "geen",
+        "cssReview": "Eigen CSS (lees het voordat je het toepast)",
+        "cssClears": "Eigen CSS (geen: wist de jouwe)",
+        "cssLabel": "Eigen CSS in het bestand",
+        "applying": "Toepassen...",
+        "apply": "Thema toepassen",
+        "cancel": "Annuleren",
+        "errors": {
+          "notJson": "Dit is geen JSON-bestand",
+          "notTheme": "Dit is geen Nimbus-themabestand",
+          "newerVersion": "Dit themabestand is gemaakt met een nieuwere versie van Nimbus",
+          "invalidField": "Het themabestand heeft een ongeldige {field}"
+        }
+      },
+      "wallpaper": {
+        "title": "Achtergrond",
+        "description": "Upload een afbeelding (tot 8 MB) of gebruik een afbeeldings-URL. Vervagen, dimmen en doorzichtige kaarten geven een glaseffect.",
+        "urlLabel": "Achtergrond-URL",
+        "uploadedPlaceholder": "Geüploade afbeelding",
+        "fileLabel": "Achtergrondbestand",
+        "uploading": "Uploaden...",
+        "upload": "Uploaden",
+        "clear": "Wissen",
+        "tooLarge": "De afbeelding is groter dan 8 MB",
+        "previewCard": "Kaart",
+        "previewText": "Zo zien tegels eruit",
+        "sliders": {
+          "wallpaperBlur": "Achtergrond vervagen",
+          "wallpaperDim": "Achtergrond dimmen",
+          "cardOpacity": "Dekking kaarten",
+          "cardBlur": "Kaarten vervagen"
+        },
+        "dimNote": "Bij kaarten onder 60% dekking blijft de achtergrond minstens {min}% gedimd, zodat tekst leesbaar blijft."
+      },
+      "font": {
+        "title": "Lettertype",
+        "description": "De lettertypen zitten in Nimbus zelf: er wordt niets van een andere site geladen",
+        "names": {
+          "default": "Standaard",
+          "system": "Systeem"
+        },
+        "kpiMono": "Monospace KPI-labels",
+        "kpiMonoDescription": "Toon de kleine labels boven de cijfers op tegels, widgets en de statusbalk in JetBrains Mono"
+      },
+      "iconSource": {
+        "title": "Pictogrambron",
+        "description": "Waar \"Pictogram automatisch ophalen\" bij een service een pictogram zoekt op basis van de naam van de service",
+        "label": "Pictogrammenset",
+        "hint": "Geldt voor pictogrammen die je vanaf nu ophaalt; pictogrammen die je al hebt blijven zoals ze zijn"
+      },
+      "layout": {
+        "title": "Dashboardindeling",
+        "description": "Canvas verandert alleen het dashboard; andere pagina's houden de zijbalk.",
+        "modes": {
+          "classic": {
+            "label": "Klassiek",
+            "description": "Zijbalk, statistieken en je tegels"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Het dashboard vult de pagina, met een balk bovenaan"
+          }
+        },
+        "darkHint": "Canvas ziet er het best uit in donkere modus, met een achtergrond.",
+        "useDark": "Donkere modus gebruiken"
+      },
+      "customCss": {
+        "title": "Eigen CSS",
+        "description": "Je eigen CSS bovenop het thema. Het geldt alleen voor jou, op de pagina's achter de login.",
+        "safeMode": "Veilige modus: je eigen CSS staat uit tot je herlaadt zonder <code>?safe=1</code>.",
+        "saving": "Opslaan...",
+        "save": "CSS opslaan",
+        "help": "Alleen CSS. <code>@import</code>, <code>image-set()</code> en elke <code>url()</code> die geen inline <code>data:</code>-afbeelding is, worden geweigerd, zodat een thema nooit iets van een andere site kan laden. Verbergt je CSS de pagina, voeg dan <code>?safe=1</code> toe aan het adres (bijvoorbeeld <code>/settings/theme?safe=1</code>) om de pagina zonder je CSS te openen."
+      },
+      "statusStrip": {
+        "title": "Statusbalk",
+        "description": "Een rij met belangrijke cijfers bovenaan het dashboard, met of alle services online zijn.",
+        "show": "Statusbalk tonen",
+        "loading": "Je integraties en widgets laden...",
+        "number": "Cijfer {number}",
+        "remove": "Cijfer {number} verwijderen",
+        "unavailable": "Niet meer beschikbaar",
+        "add": "Cijfer toevoegen",
+        "loadError": "Kon je integraties of widgets niet laden: {error}",
+        "empty": "Voeg een integratie of een Eigen API-widget toe om cijfers uit te kiezen.",
+        "hint": "Integraties tonen cijfers zodra een service of widget ze gebruikt.",
+        "customApi": "Eigen API"
+      }
+    }
+  },
   "time": {
     "justNow": "zojuist",
     "minutesAgo": "{count} min geleden",

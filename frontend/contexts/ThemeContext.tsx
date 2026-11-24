@@ -10,6 +10,7 @@ import {
   useRef,
   ReactNode,
 } from 'react'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { isStatusPagePath } from '@/lib/status-page'
 import type { Language } from '@/i18n/locale'
@@ -131,6 +132,7 @@ function parseStatusStrip(raw: string | null): StatusStrip {
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const t = useTranslations('preferences')
   // Initialize with defaults (same for server and client to prevent hydration mismatch)
   const [theme, setThemeState] = useState<'light' | 'dark' | 'auto'>('auto')
   const [systemTheme, setSystemTheme] = useState<'light' | 'dark'>('light')
@@ -557,7 +559,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const response = await api.updatePreferences(update)
       if (response.error || !response.data) {
         const fields = Object.values(response.error?.fields ?? {})
-        return fields.join('. ') || response.error?.message || 'Failed to save the theme'
+        return fields.join('. ') || response.error?.message || t('saveThemeFailed')
       }
       const data = response.data
       const glass = glassFromPreferences(data)
@@ -572,7 +574,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('glass', JSON.stringify(glass))
       return null
     },
-    [applyThemePreferences]
+    [applyThemePreferences, t]
   )
 
   const setAccentColor = useCallback(
@@ -654,19 +656,22 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [glass]
   )
 
-  const uploadWallpaper = useCallback(async (file: File) => {
-    // A queued background change would overwrite the upload when it flushes,
-    // and one on its way could reach the server after it
-    if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
-    await inFlightSaveRef.current
-    const response = await api.uploadWallpaper(file)
-    if (response.error || !response.data?.theme_background) {
-      return response.error?.message ?? 'Failed to upload wallpaper'
-    }
-    setBackgroundState(response.data.theme_background)
-    localStorage.setItem('background', response.data.theme_background)
-    return null
-  }, [])
+  const uploadWallpaper = useCallback(
+    async (file: File) => {
+      // A queued background change would overwrite the upload when it flushes,
+      // and one on its way could reach the server after it
+      if (pendingUpdatesRef.current) delete pendingUpdatesRef.current.theme_background
+      await inFlightSaveRef.current
+      const response = await api.uploadWallpaper(file)
+      if (response.error || !response.data?.theme_background) {
+        return response.error?.message ?? t('uploadWallpaperFailed')
+      }
+      setBackgroundState(response.data.theme_background)
+      localStorage.setItem('background', response.data.theme_background)
+      return null
+    },
+    [t]
+  )
 
   const setStatusStrip = useCallback(
     (v: StatusStrip) => {

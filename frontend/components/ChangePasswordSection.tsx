@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { ThemedInput } from '@/components/ui/ThemedInput'
 import { api } from '@/lib/api'
 
 export default function ChangePasswordSection() {
+  const t = useTranslations('settings.password')
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -18,17 +20,17 @@ export default function ChangePasswordSection() {
     setSuccess('')
 
     if (newPassword.length < 8) {
-      setError('New password must be at least 8 characters')
+      setError(t('tooShort'))
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setError('New passwords do not match')
+      setError(t('mismatch'))
       return
     }
 
     if (currentPassword === newPassword) {
-      setError('New password must be different from current password')
+      setError(t('sameAsCurrent'))
       return
     }
 
@@ -43,13 +45,13 @@ export default function ChangePasswordSection() {
       if (response.error) {
         setError(response.error.message)
       } else {
-        setSuccess('Password changed successfully')
+        setSuccess(t('changed'))
         setCurrentPassword('')
         setNewPassword('')
         setConfirmPassword('')
       }
     } catch {
-      setError('Something went wrong. Please try again.')
+      setError(t('unexpected'))
     } finally {
       setIsLoading(false)
     }
@@ -58,7 +60,7 @@ export default function ChangePasswordSection() {
   return (
     <div>
       <h3 className="mb-3 text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-        Change Password
+        {t('title')}
       </h3>
 
       {error && (
@@ -90,14 +92,14 @@ export default function ChangePasswordSection() {
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label htmlFor="current-password" className="sr-only">
-            Current password
+            {t('current')}
           </label>
           <ThemedInput
             id="current-password"
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder="Current password"
+            placeholder={t('current')}
             autoComplete="current-password"
             required
             disabled={isLoading}
@@ -105,14 +107,14 @@ export default function ChangePasswordSection() {
         </div>
         <div>
           <label htmlFor="new-password" className="sr-only">
-            New password
+            {t('new')}
           </label>
           <ThemedInput
             id="new-password"
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder="New password"
+            placeholder={t('new')}
             autoComplete="new-password"
             required
             disabled={isLoading}
@@ -120,14 +122,14 @@ export default function ChangePasswordSection() {
         </div>
         <div>
           <label htmlFor="confirm-new-password" className="sr-only">
-            Confirm new password
+            {t('confirm')}
           </label>
           <ThemedInput
             id="confirm-new-password"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            placeholder="Confirm new password"
+            placeholder={t('confirm')}
             autoComplete="new-password"
             required
             disabled={isLoading}
@@ -142,7 +144,7 @@ export default function ChangePasswordSection() {
             color: 'var(--color-on-primary, white)',
           }}
         >
-          {isLoading ? 'Changing...' : 'Change password'}
+          {isLoading ? t('changing') : t('submit')}
         </button>
       </form>
     </div>

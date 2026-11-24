@@ -507,6 +507,282 @@
       }
     }
   },
+  "settings": {
+    "home": {
+      "title": "Einstellungen",
+      "subtitle": "Lege die Einstellungen deines Dashboards fest",
+      "sections": {
+        "theme": {
+          "title": "Design",
+          "description": "Passe Farben, Dunkelmodus und Hintergrund an"
+        },
+        "profile": {
+          "title": "Profil",
+          "description": "Verwalte dein Konto und deine persönlichen Daten"
+        },
+        "notifications": {
+          "title": "Benachrichtigungen",
+          "description": "Richte Webhooks für Statusmeldungen deiner Dienste ein"
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "description": "Verbinde Apps wie Sonarr und Radarr, um Live-Zahlen anzuzeigen"
+        },
+        "apiTokens": {
+          "title": "API-Tokens",
+          "description": "Erstelle Tokens für den programmatischen API-Zugriff"
+        },
+        "backup": {
+          "title": "Export & Import",
+          "description": "Sichere dein Dashboard oder ziehe es auf ein anderes Nimbus um"
+        },
+        "admin": {
+          "title": "Admin-Einstellungen",
+          "description": "Lege systemweite Einstellungen für Nimbus fest"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profil",
+      "loading": "Wird geladen...",
+      "picture": "Profilbild",
+      "defaultName": "Benutzer",
+      "uploading": "Wird hochgeladen...",
+      "upload": "Bild hochladen",
+      "pictureHint": "JPG, PNG oder GIF (max. 5 MB)",
+      "notImage": "Bitte wähle eine Bilddatei aus",
+      "tooLarge": "Das Bild muss kleiner als 5 MB sein",
+      "syncedFrom": "Profilbild wird von {provider} übernommen",
+      "updateIn": "Ändere dein Bild in deinem {provider}-Konto",
+      "signInMethod": "Anmeldemethode",
+      "emailPassword": "E-Mail und Passwort",
+      "name": "Name",
+      "email": "E-Mail",
+      "role": "Rolle",
+      "roles": {
+        "admin": "Admin",
+        "user": "Benutzer"
+      }
+    },
+    "password": {
+      "title": "Passwort ändern",
+      "current": "Aktuelles Passwort",
+      "new": "Neues Passwort",
+      "confirm": "Neues Passwort bestätigen",
+      "tooShort": "Das neue Passwort muss mindestens 8 Zeichen lang sein",
+      "mismatch": "Die neuen Passwörter stimmen nicht überein",
+      "sameAsCurrent": "Das neue Passwort muss sich vom aktuellen unterscheiden",
+      "changed": "Passwort erfolgreich geändert",
+      "unexpected": "Etwas ist schiefgelaufen. Bitte versuche es erneut.",
+      "changing": "Wird geändert...",
+      "submit": "Passwort ändern"
+    },
+    "dangerZone": {
+      "title": "Gefahrenbereich",
+      "lastAdmin": "Du bist der einzige Admin. Mache einen anderen Benutzer zum Admin, bevor du dieses Konto löschen kannst.",
+      "description": "Lösche dein Konto und alle zugehörigen Daten dauerhaft. Das kann nicht rückgängig gemacht werden.",
+      "statsError": "Dein Admin-Status konnte nicht geprüft werden. Der Server verhindert das Löschen, wenn du der einzige Admin bist.",
+      "deleteMine": "Mein Konto löschen",
+      "deleteAccount": "Konto löschen",
+      "dialogBody": "Dadurch werden dein Konto, deine Dienste, Gruppen, Einstellungen und alle anderen zugehörigen Daten dauerhaft gelöscht. Das kann nicht rückgängig gemacht werden.",
+      "typeToConfirm": "Gib <mono>{email}</mono> ein, um zu bestätigen.",
+      "cancel": "Abbrechen",
+      "deleting": "Wird gelöscht...",
+      "unexpected": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+    },
+    "theme": {
+      "page": {
+        "title": "Design-Einstellungen",
+        "subtitle": "Passe das Aussehen deines Dashboards an",
+        "autosave": "Änderungen werden automatisch gespeichert"
+      },
+      "mode": {
+        "title": "Farbmodus",
+        "description": "Wähle zwischen hellem und dunklem Design",
+        "auto": "Automatisch (wie das System)",
+        "autoDescription": "Wechselt je nach deinen Systemeinstellungen automatisch zwischen hell und dunkel",
+        "autoDescriptionCurrent": "Wechselt je nach deinen Systemeinstellungen automatisch zwischen hell und dunkel (aktuell: {mode})",
+        "current": {
+          "light": "hell",
+          "dark": "dunkel"
+        },
+        "light": "Hell",
+        "dark": "Dunkel"
+      },
+      "accent": {
+        "title": "Akzentfarbe",
+        "description": "Wähle deine bevorzugte Akzentfarbe",
+        "colors": {
+          "skyBlue": "Himmelblau (Standard)",
+          "purple": "Lila",
+          "pink": "Pink",
+          "red": "Rot",
+          "orange": "Orange",
+          "yellow": "Gelb",
+          "green": "Grün",
+          "teal": "Türkis"
+        },
+        "custom": "Eigene Farbe:",
+        "reset": "Zurücksetzen"
+      },
+      "links": {
+        "title": "Link-Verhalten",
+        "description": "Wähle, wie Links zu Diensten geöffnet werden",
+        "newTab": "Dienste in neuem Tab öffnen",
+        "newTabDescription": "Wenn aktiviert, öffnet ein Klick auf einen Dienst diesen in einem neuen Tab"
+      },
+      "resizing": {
+        "title": "Kartengröße",
+        "description": "Lege fest, ob Dienstkarten unterschiedlich groß sein können",
+        "toggle": "Größe von Karten änderbar",
+        "toggleDescription": "Wenn aktiviert, kannst du im Bearbeitungsmodus die Größe einer Karte ändern, indem du sie anklickst. Wenn deaktiviert, haben alle Karten die Standardgröße (2x1)"
+      },
+      "grouping": {
+        "title": "Dienste gruppieren",
+        "description": "Ordne deine Dienste in Gruppen, angezeigt als Tabs oder als Abschnitte",
+        "toggle": "Dienste gruppieren",
+        "toggleDescription": "Wenn aktiviert, kannst du Dienste in Gruppen ordnen. Gruppen erstellst, benennst und sortierst du im Bearbeitungsmodus. Wenn deaktiviert, erscheinen alle Dienste in einer einzigen Ansicht",
+        "showAs": "Gruppen anzeigen als",
+        "display": {
+          "tabs": "Tabs",
+          "sections": "Abschnitte"
+        },
+        "tabsHint": "Eine Gruppe auf einmal, per Tab ausgewählt",
+        "sectionsHint": "Alle Gruppen auf einer Seite, jede unter einer eigenen einklappbaren Überschrift"
+      },
+      "cardDisplay": {
+        "title": "Kartenanzeige",
+        "description": "Lege fest, wie Dienstkarten angezeigt werden",
+        "list": "Listenansicht",
+        "listDescription": "Dienste in einer kompakten Liste statt in einem Raster anzeigen",
+        "size": "Kartengröße",
+        "scales": {
+          "small": "klein",
+          "medium": "mittel",
+          "large": "groß"
+        },
+        "listHint": "Die Kartengröße gilt nur für die Rasteransicht",
+        "gridHint": "Passe die Dichte des Rasters an - kleinere Karten zeigen mehr Dienste pro Zeile"
+      },
+      "gallery": {
+        "title": "Design",
+        "description": "Ein Design legt jede Farbe fest, hell oder dunkel, und hat einen eigenen Akzent. Du kannst trotzdem eine andere Akzentfarbe darüber wählen. Wählst du einen Modus, den das Design nicht hat, geht es zurück zu Standard.",
+        "muted": "Gedämpft",
+        "default": "Standard",
+        "dark": "Dunkel",
+        "light": "Hell",
+        "lightOrDark": "Hell oder dunkel"
+      },
+      "transfer": {
+        "title": "Export & Import",
+        "description": "Speichere dein Design als Datei oder lade eines: Design, Modus, Akzent, Schriftart, Symbolquelle, Glas-Einstellungen und eigenes CSS. Das Hintergrundbild gehört nicht dazu.",
+        "export": "Design exportieren",
+        "import": "Design importieren",
+        "fileLabel": "Design-Datei",
+        "tooLarge": "Diese Datei ist zu groß für ein Design",
+        "willSet": "Diese Datei setzt",
+        "fields": {
+          "themePreset": "Design",
+          "themeMode": "Farbmodus",
+          "themeAccentColor": "Akzentfarbe",
+          "themeFont": "Schriftart",
+          "kpiMono": "Monospace-KPI-Labels",
+          "iconSource": "Symbolquelle",
+          "wallpaperBlur": "Hintergrund-Unschärfe",
+          "wallpaperDim": "Hintergrund-Abdunklung",
+          "cardOpacity": "Karten-Deckkraft",
+          "cardBlur": "Karten-Unschärfe"
+        },
+        "none": "keine",
+        "cssReview": "Eigenes CSS (lies es, bevor du es anwendest)",
+        "cssClears": "Eigenes CSS (keines: löscht deines)",
+        "cssLabel": "Eigenes CSS in der Datei",
+        "applying": "Wird angewendet...",
+        "apply": "Design anwenden",
+        "cancel": "Abbrechen",
+        "errors": {
+          "notJson": "Das ist keine JSON-Datei",
+          "notTheme": "Das ist keine Nimbus-Design-Datei",
+          "newerVersion": "Diese Design-Datei wurde mit einer neueren Version von Nimbus erstellt",
+          "invalidField": "Die Design-Datei enthält einen ungültigen Wert für {field}"
+        }
+      },
+      "wallpaper": {
+        "title": "Hintergrundbild",
+        "description": "Lade ein Bild hoch (bis 8 MB) oder nutze eine Bild-URL. Unschärfe, Abdunklung und durchscheinende Karten lassen es wie Glas wirken.",
+        "urlLabel": "Hintergrundbild-URL",
+        "uploadedPlaceholder": "Hochgeladenes Bild",
+        "fileLabel": "Hintergrundbild-Datei",
+        "uploading": "Wird hochgeladen...",
+        "upload": "Hochladen",
+        "clear": "Entfernen",
+        "tooLarge": "Das Bild ist größer als 8 MB",
+        "previewCard": "Karte",
+        "previewText": "So sehen Kacheln aus",
+        "sliders": {
+          "wallpaperBlur": "Hintergrund-Unschärfe",
+          "wallpaperDim": "Hintergrund-Abdunklung",
+          "cardOpacity": "Karten-Deckkraft",
+          "cardBlur": "Karten-Unschärfe"
+        },
+        "dimNote": "Bei Karten unter 60 % Deckkraft bleibt das Hintergrundbild mindestens {min} % abgedunkelt, damit Text lesbar bleibt."
+      },
+      "font": {
+        "title": "Schriftart",
+        "description": "Die Schriftarten sind Teil von Nimbus: Nichts wird von einer anderen Website geladen",
+        "names": {
+          "default": "Standard",
+          "system": "System"
+        },
+        "kpiMono": "Monospace-KPI-Labels",
+        "kpiMonoDescription": "Zeigt die kleinen Labels über den Zahlen auf Kacheln, Widgets und in der Statusleiste in JetBrains Mono"
+      },
+      "iconSource": {
+        "title": "Symbolquelle",
+        "description": "Wo „Symbol automatisch abrufen“ bei einem Dienst anhand des Dienstnamens nach einem Symbol sucht",
+        "label": "Symbolsatz",
+        "hint": "Gilt für Symbole, die du ab jetzt abrufst; vorhandene Symbole bleiben, wie sie sind"
+      },
+      "layout": {
+        "title": "Dashboard-Layout",
+        "description": "Canvas ändert nur das Dashboard; andere Seiten behalten die Seitenleiste.",
+        "modes": {
+          "classic": {
+            "label": "Klassisch",
+            "description": "Seitenleiste, Statistiken und deine Kacheln"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Das Dashboard füllt die Seite, mit einer Leiste oben"
+          }
+        },
+        "darkHint": "Canvas sieht im Dunkelmodus mit einem Hintergrundbild am besten aus.",
+        "useDark": "Dunkelmodus verwenden"
+      },
+      "customCss": {
+        "title": "Eigenes CSS",
+        "description": "Dein eigenes CSS über dem Design. Es gilt nur für dich, auf den Seiten hinter der Anmeldung.",
+        "safeMode": "Abgesicherter Modus: Dein eigenes CSS ist aus, bis du ohne <code>?safe=1</code> neu lädst.",
+        "saving": "Wird gespeichert...",
+        "save": "CSS speichern",
+        "help": "Nur CSS. <code>@import</code>, <code>image-set()</code> und jedes <code>url()</code>, das kein eingebettetes <code>data:</code>-Bild ist, werden abgelehnt, damit ein Design nie etwas von einer anderen Website laden kann. Wenn dein CSS die Seite verbirgt, hänge <code>?safe=1</code> an die Adresse an (zum Beispiel <code>/settings/theme?safe=1</code>), um sie ohne dein CSS zu öffnen."
+      },
+      "statusStrip": {
+        "title": "Statusleiste",
+        "description": "Eine Reihe wichtiger Zahlen oben im Dashboard, dazu ob alle Dienste laufen.",
+        "show": "Statusleiste anzeigen",
+        "loading": "Deine Integrationen und Widgets werden geladen...",
+        "number": "Zahl {number}",
+        "remove": "Zahl {number} entfernen",
+        "unavailable": "Nicht mehr verfügbar",
+        "add": "Zahl hinzufügen",
+        "loadError": "Deine Integrationen oder Widgets konnten nicht geladen werden: {error}",
+        "empty": "Füge eine Integration oder ein Widget mit eigener API hinzu, um Zahlen auszuwählen.",
+        "hint": "Integrationen zeigen Zahlen, sobald ein Dienst oder Widget sie verwendet.",
+        "customApi": "Eigene API"
+      }
+    }
+  },
   "time": {
     "justNow": "gerade eben",
     "minutesAgo": "vor {count} Min.",

@@ -507,6 +507,282 @@
       }
     }
   },
+  "settings": {
+    "home": {
+      "title": "Ajustes",
+      "subtitle": "Configura las preferencias de tu panel",
+      "sections": {
+        "theme": {
+          "title": "Tema",
+          "description": "Personaliza los colores, el modo oscuro y el fondo"
+        },
+        "profile": {
+          "title": "Perfil",
+          "description": "Gestiona tu cuenta y tu información personal"
+        },
+        "notifications": {
+          "title": "Notificaciones",
+          "description": "Configura webhooks para recibir alertas del estado de los servicios"
+        },
+        "integrations": {
+          "title": "Integraciones",
+          "description": "Conecta apps como Sonarr y Radarr para mostrar cifras en directo"
+        },
+        "apiTokens": {
+          "title": "Tokens de API",
+          "description": "Crea tokens para acceder a la API mediante programación"
+        },
+        "backup": {
+          "title": "Exportar e importar",
+          "description": "Haz una copia de seguridad de tu panel o llévalo a otro Nimbus"
+        },
+        "admin": {
+          "title": "Ajustes de administración",
+          "description": "Configura los ajustes de Nimbus para todo el sistema"
+        }
+      }
+    },
+    "profile": {
+      "title": "Perfil",
+      "loading": "Cargando...",
+      "picture": "Foto de perfil",
+      "defaultName": "Usuario",
+      "uploading": "Subiendo...",
+      "upload": "Subir foto",
+      "pictureHint": "JPG, PNG o GIF (máx. 5 MB)",
+      "notImage": "Selecciona un archivo de imagen",
+      "tooLarge": "La imagen debe ocupar menos de 5 MB",
+      "syncedFrom": "Foto de perfil sincronizada desde {provider}",
+      "updateIn": "Cambia tu foto en tu cuenta de {provider}",
+      "signInMethod": "Método de inicio de sesión",
+      "emailPassword": "Correo electrónico y contraseña",
+      "name": "Nombre",
+      "email": "Correo electrónico",
+      "role": "Rol",
+      "roles": {
+        "admin": "administrador",
+        "user": "usuario"
+      }
+    },
+    "password": {
+      "title": "Cambiar contraseña",
+      "current": "Contraseña actual",
+      "new": "Nueva contraseña",
+      "confirm": "Confirma la nueva contraseña",
+      "tooShort": "La nueva contraseña debe tener al menos 8 caracteres",
+      "mismatch": "Las nuevas contraseñas no coinciden",
+      "sameAsCurrent": "La nueva contraseña debe ser distinta de la actual",
+      "changed": "Contraseña cambiada correctamente",
+      "unexpected": "Algo salió mal. Inténtalo de nuevo.",
+      "changing": "Cambiando...",
+      "submit": "Cambiar contraseña"
+    },
+    "dangerZone": {
+      "title": "Zona de peligro",
+      "lastAdmin": "Eres el único administrador. Haz administrador a otro usuario antes de poder eliminar esta cuenta.",
+      "description": "Elimina de forma permanente tu cuenta y todos los datos asociados. Esta acción no se puede deshacer.",
+      "statsError": "No se pudo comprobar tu estado de administrador. El servidor bloqueará la eliminación si eres el único administrador.",
+      "deleteMine": "Eliminar mi cuenta",
+      "deleteAccount": "Eliminar cuenta",
+      "dialogBody": "Esto eliminará de forma permanente tu cuenta, servicios, grupos, preferencias y todos los demás datos asociados. No se puede deshacer.",
+      "typeToConfirm": "Escribe <mono>{email}</mono> para confirmar.",
+      "cancel": "Cancelar",
+      "deleting": "Eliminando...",
+      "unexpected": "Algo salió mal. Inténtalo de nuevo."
+    },
+    "theme": {
+      "page": {
+        "title": "Ajustes del tema",
+        "subtitle": "Personaliza el aspecto de tu panel",
+        "autosave": "Los cambios se guardan automáticamente"
+      },
+      "mode": {
+        "title": "Modo del tema",
+        "description": "Elige entre el tema claro y el oscuro",
+        "auto": "Automático (según el sistema)",
+        "autoDescription": "Cambia automáticamente entre claro y oscuro según las preferencias de tu sistema",
+        "autoDescriptionCurrent": "Cambia automáticamente entre claro y oscuro según las preferencias de tu sistema (ahora: {mode})",
+        "current": {
+          "light": "claro",
+          "dark": "oscuro"
+        },
+        "light": "Claro",
+        "dark": "Oscuro"
+      },
+      "accent": {
+        "title": "Color de acento",
+        "description": "Elige tu color de acento preferido",
+        "colors": {
+          "skyBlue": "Azul cielo (predeterminado)",
+          "purple": "Morado",
+          "pink": "Rosa",
+          "red": "Rojo",
+          "orange": "Naranja",
+          "yellow": "Amarillo",
+          "green": "Verde",
+          "teal": "Verde azulado"
+        },
+        "custom": "Color personalizado:",
+        "reset": "Restablecer"
+      },
+      "links": {
+        "title": "Comportamiento de los enlaces",
+        "description": "Elige cómo se abren los enlaces de los servicios",
+        "newTab": "Abrir servicios en una pestaña nueva",
+        "newTabDescription": "Si está activado, al hacer clic en un servicio se abre en una pestaña nueva"
+      },
+      "resizing": {
+        "title": "Tamaño de las tarjetas",
+        "description": "Controla si las tarjetas de servicio pueden tener distintos tamaños",
+        "toggle": "Permitir cambiar el tamaño de las tarjetas",
+        "toggleDescription": "Si está activado, puedes cambiar el tamaño de las tarjetas en el modo de edición haciendo clic en ellas. Si está desactivado, todas las tarjetas tienen el tamaño estándar (2x1)"
+      },
+      "grouping": {
+        "title": "Agrupar servicios",
+        "description": "Organiza tus servicios en grupos, mostrados como pestañas o como secciones",
+        "toggle": "Activar la agrupación de servicios",
+        "toggleDescription": "Si está activado, puedes organizar los servicios en grupos. Crea, renombra y reordena grupos en el modo de edición. Si está desactivado, todos los servicios se muestran en una sola vista",
+        "showAs": "Mostrar grupos como",
+        "display": {
+          "tabs": "pestañas",
+          "sections": "secciones"
+        },
+        "tabsHint": "Un grupo cada vez, elegido con una pestaña",
+        "sectionsHint": "Todos los grupos en una página, cada uno bajo su propio encabezado plegable"
+      },
+      "cardDisplay": {
+        "title": "Visualización de tarjetas",
+        "description": "Personaliza cómo se muestran las tarjetas de servicio",
+        "list": "Vista de lista",
+        "listDescription": "Muestra los servicios en una lista compacta en lugar de una cuadrícula",
+        "size": "Tamaño de tarjeta",
+        "scales": {
+          "small": "pequeño",
+          "medium": "mediano",
+          "large": "grande"
+        },
+        "listHint": "El tamaño de tarjeta solo se aplica a la vista de cuadrícula",
+        "gridHint": "Ajusta la densidad de la cuadrícula - las tarjetas más pequeñas muestran más servicios por fila"
+      },
+      "gallery": {
+        "title": "Tema",
+        "description": "Un tema define cada color, claro u oscuro, y su propio acento. Aun así puedes elegir otro color de acento encima. Si eliges un modo que el tema no tiene, se vuelve a Predeterminado.",
+        "muted": "Atenuado",
+        "default": "Predeterminado",
+        "dark": "Oscuro",
+        "light": "Claro",
+        "lightOrDark": "Claro u oscuro"
+      },
+      "transfer": {
+        "title": "Exportar e importar",
+        "description": "Guarda tu tema como archivo o carga uno: tema, modo, acento, fuente, origen de iconos, ajustes de cristal y CSS personalizado. La imagen de fondo no se incluye.",
+        "export": "Exportar tema",
+        "import": "Importar tema",
+        "fileLabel": "Archivo de tema",
+        "tooLarge": "Este archivo es demasiado grande para ser un tema",
+        "willSet": "Este archivo establecerá",
+        "fields": {
+          "themePreset": "tema",
+          "themeMode": "modo del tema",
+          "themeAccentColor": "color de acento",
+          "themeFont": "fuente",
+          "kpiMono": "etiquetas KPI monoespaciadas",
+          "iconSource": "origen de iconos",
+          "wallpaperBlur": "desenfoque del fondo",
+          "wallpaperDim": "atenuación del fondo",
+          "cardOpacity": "opacidad de las tarjetas",
+          "cardBlur": "desenfoque de las tarjetas"
+        },
+        "none": "ninguno",
+        "cssReview": "CSS personalizado (léelo antes de aplicarlo)",
+        "cssClears": "CSS personalizado (ninguno: borra el tuyo)",
+        "cssLabel": "CSS personalizado del archivo",
+        "applying": "Aplicando...",
+        "apply": "Aplicar tema",
+        "cancel": "Cancelar",
+        "errors": {
+          "notJson": "No es un archivo JSON",
+          "notTheme": "No es un archivo de tema de Nimbus",
+          "newerVersion": "Este archivo de tema se creó con una versión más reciente de Nimbus",
+          "invalidField": "El archivo de tema tiene un valor de {field} no válido"
+        }
+      },
+      "wallpaper": {
+        "title": "Fondo de pantalla",
+        "description": "Sube una imagen (hasta 8 MB) o usa la URL de una imagen. El desenfoque, la atenuación y las tarjetas translúcidas le dan un aspecto de cristal.",
+        "urlLabel": "URL del fondo de pantalla",
+        "uploadedPlaceholder": "Imagen subida",
+        "fileLabel": "Archivo del fondo de pantalla",
+        "uploading": "Subiendo...",
+        "upload": "Subir",
+        "clear": "Quitar",
+        "tooLarge": "La imagen ocupa más de 8 MB",
+        "previewCard": "Tarjeta",
+        "previewText": "Así se verán los mosaicos",
+        "sliders": {
+          "wallpaperBlur": "Desenfoque del fondo",
+          "wallpaperDim": "Atenuación del fondo",
+          "cardOpacity": "Opacidad de las tarjetas",
+          "cardBlur": "Desenfoque de las tarjetas"
+        },
+        "dimNote": "Con una opacidad de tarjeta inferior al 60 %, el fondo se mantiene atenuado al menos un {min} % para que el texto se lea bien."
+      },
+      "font": {
+        "title": "Fuente",
+        "description": "Las fuentes vienen con Nimbus: no se carga nada de otro sitio",
+        "names": {
+          "default": "Predeterminada",
+          "system": "Sistema"
+        },
+        "kpiMono": "Etiquetas KPI monoespaciadas",
+        "kpiMonoDescription": "Muestra en JetBrains Mono las etiquetas pequeñas sobre las cifras en mosaicos, widgets y la barra de estado"
+      },
+      "iconSource": {
+        "title": "Origen de iconos",
+        "description": "Dónde busca «Obtener icono automáticamente» un icono para un servicio a partir de su nombre",
+        "label": "Conjunto de iconos",
+        "hint": "Se aplica a los iconos que obtengas a partir de ahora; los que ya tienes se quedan como están"
+      },
+      "layout": {
+        "title": "Diseño del panel",
+        "description": "Canvas solo cambia el panel; las demás páginas mantienen la barra lateral.",
+        "modes": {
+          "classic": {
+            "label": "Clásico",
+            "description": "Barra lateral, estadísticas y tus mosaicos"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "El panel ocupa toda la página, con una barra superior"
+          }
+        },
+        "darkHint": "Canvas se ve mejor en modo oscuro, con un fondo de pantalla.",
+        "useDark": "Usar modo oscuro"
+      },
+      "customCss": {
+        "title": "CSS personalizado",
+        "description": "Tu propio CSS sobre el tema. Solo se aplica a ti, en las páginas que requieren iniciar sesión.",
+        "safeMode": "Modo seguro: tu CSS personalizado está desactivado hasta que recargues sin <code>?safe=1</code>.",
+        "saving": "Guardando...",
+        "save": "Guardar CSS",
+        "help": "Solo CSS. <code>@import</code>, <code>image-set()</code> y cualquier <code>url()</code> que no sea una imagen <code>data:</code> en línea se rechazan, para que un tema nunca pueda cargar nada de otro sitio. Si tu CSS oculta la página, añade <code>?safe=1</code> a la dirección (por ejemplo, <code>/settings/theme?safe=1</code>) para abrirla sin tu CSS."
+      },
+      "statusStrip": {
+        "title": "Barra de estado",
+        "description": "Una fila de cifras clave en la parte superior del panel, que también indica si todos los servicios están activos.",
+        "show": "Mostrar la barra de estado",
+        "loading": "Cargando tus integraciones y widgets...",
+        "number": "Cifra {number}",
+        "remove": "Quitar cifra {number}",
+        "unavailable": "Ya no está disponible",
+        "add": "Añadir cifra",
+        "loadError": "No se pudieron cargar tus integraciones o widgets: {error}",
+        "empty": "Añade una integración o un widget de API personalizada para elegir cifras.",
+        "hint": "Las integraciones muestran cifras en cuanto un servicio o widget las usa.",
+        "customApi": "API personalizada"
+      }
+    }
+  },
   "time": {
     "justNow": "ahora mismo",
     "minutesAgo": "hace {count} min",

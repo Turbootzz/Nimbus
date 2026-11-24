@@ -507,6 +507,282 @@
       }
     }
   },
+  "settings": {
+    "home": {
+      "title": "Paramètres",
+      "subtitle": "Configurez les préférences de votre tableau de bord",
+      "sections": {
+        "theme": {
+          "title": "Thème",
+          "description": "Personnalisez les couleurs, le mode sombre et l’arrière-plan"
+        },
+        "profile": {
+          "title": "Profil",
+          "description": "Gérez votre compte et vos informations personnelles"
+        },
+        "notifications": {
+          "title": "Notifications",
+          "description": "Configurez des webhooks pour les alertes d’état des services"
+        },
+        "integrations": {
+          "title": "Intégrations",
+          "description": "Connectez des applications comme Sonarr et Radarr pour afficher des chiffres en direct"
+        },
+        "apiTokens": {
+          "title": "Jetons d’API",
+          "description": "Créez des jetons pour accéder à l’API par programmation"
+        },
+        "backup": {
+          "title": "Exporter et importer",
+          "description": "Sauvegardez votre tableau de bord ou transférez-le vers un autre Nimbus"
+        },
+        "admin": {
+          "title": "Paramètres d’administration",
+          "description": "Configurez les paramètres de Nimbus pour tout le système"
+        }
+      }
+    },
+    "profile": {
+      "title": "Profil",
+      "loading": "Chargement...",
+      "picture": "Photo de profil",
+      "defaultName": "Utilisateur",
+      "uploading": "Envoi...",
+      "upload": "Envoyer une photo",
+      "pictureHint": "JPG, PNG ou GIF (5 Mo max.)",
+      "notImage": "Veuillez choisir un fichier image",
+      "tooLarge": "L’image doit faire moins de 5 Mo",
+      "syncedFrom": "Photo de profil synchronisée depuis {provider}",
+      "updateIn": "Modifiez votre photo dans votre compte {provider}",
+      "signInMethod": "Méthode de connexion",
+      "emailPassword": "E-mail et mot de passe",
+      "name": "Nom",
+      "email": "E-mail",
+      "role": "Rôle",
+      "roles": {
+        "admin": "administrateur",
+        "user": "utilisateur"
+      }
+    },
+    "password": {
+      "title": "Changer le mot de passe",
+      "current": "Mot de passe actuel",
+      "new": "Nouveau mot de passe",
+      "confirm": "Confirmer le nouveau mot de passe",
+      "tooShort": "Le nouveau mot de passe doit contenir au moins 8 caractères",
+      "mismatch": "Les nouveaux mots de passe ne correspondent pas",
+      "sameAsCurrent": "Le nouveau mot de passe doit être différent de l’actuel",
+      "changed": "Mot de passe modifié",
+      "unexpected": "Une erreur s’est produite. Veuillez réessayer.",
+      "changing": "Modification...",
+      "submit": "Changer le mot de passe"
+    },
+    "dangerZone": {
+      "title": "Zone de danger",
+      "lastAdmin": "Vous êtes le seul administrateur. Nommez un autre utilisateur administrateur avant de pouvoir supprimer ce compte.",
+      "description": "Supprimez définitivement votre compte et toutes les données associées. Cette action est irréversible.",
+      "statsError": "Impossible de vérifier votre statut d’administrateur. Le serveur bloquera la suppression si vous êtes le seul administrateur.",
+      "deleteMine": "Supprimer mon compte",
+      "deleteAccount": "Supprimer le compte",
+      "dialogBody": "Cela supprimera définitivement votre compte, vos services, groupes, préférences et toutes les autres données associées. Cette action est irréversible.",
+      "typeToConfirm": "Saisissez <mono>{email}</mono> pour confirmer.",
+      "cancel": "Annuler",
+      "deleting": "Suppression...",
+      "unexpected": "Une erreur s’est produite. Veuillez réessayer."
+    },
+    "theme": {
+      "page": {
+        "title": "Paramètres du thème",
+        "subtitle": "Personnalisez l’apparence de votre tableau de bord",
+        "autosave": "Les modifications sont enregistrées automatiquement"
+      },
+      "mode": {
+        "title": "Mode du thème",
+        "description": "Choisissez entre le thème clair et le thème sombre",
+        "auto": "Automatique (suit le système)",
+        "autoDescription": "Basculer automatiquement entre clair et sombre selon les préférences de votre système",
+        "autoDescriptionCurrent": "Basculer automatiquement entre clair et sombre selon les préférences de votre système (actuellement : {mode})",
+        "current": {
+          "light": "clair",
+          "dark": "sombre"
+        },
+        "light": "Clair",
+        "dark": "Sombre"
+      },
+      "accent": {
+        "title": "Couleur d’accent",
+        "description": "Choisissez votre couleur d’accent préférée",
+        "colors": {
+          "skyBlue": "Bleu ciel (par défaut)",
+          "purple": "Violet",
+          "pink": "Rose",
+          "red": "Rouge",
+          "orange": "Orange",
+          "yellow": "Jaune",
+          "green": "Vert",
+          "teal": "Bleu sarcelle"
+        },
+        "custom": "Couleur personnalisée :",
+        "reset": "Réinitialiser"
+      },
+      "links": {
+        "title": "Comportement des liens",
+        "description": "Choisissez comment s’ouvrent les liens des services",
+        "newTab": "Ouvrir les services dans un nouvel onglet",
+        "newTabDescription": "Si activé, cliquer sur un service l’ouvre dans un nouvel onglet"
+      },
+      "resizing": {
+        "title": "Redimensionnement des cartes",
+        "description": "Choisissez si les cartes de service peuvent avoir des tailles différentes",
+        "toggle": "Activer le redimensionnement des cartes",
+        "toggleDescription": "Si activé, vous pouvez redimensionner les cartes en mode édition en cliquant dessus. Si désactivé, toutes les cartes ont la taille standard (2x1)"
+      },
+      "grouping": {
+        "title": "Regroupement des services",
+        "description": "Organisez vos services en groupes, affichés sous forme d’onglets ou de sections",
+        "toggle": "Activer le regroupement des services",
+        "toggleDescription": "Si activé, vous pouvez organiser les services en groupes. Créez, renommez et réorganisez les groupes en mode édition. Si désactivé, tous les services sont affichés dans une seule vue",
+        "showAs": "Afficher les groupes en",
+        "display": {
+          "tabs": "onglets",
+          "sections": "sections"
+        },
+        "tabsHint": "Un groupe à la fois, choisi avec un onglet",
+        "sectionsHint": "Tous les groupes sur une page, chacun sous son propre en-tête repliable"
+      },
+      "cardDisplay": {
+        "title": "Affichage des cartes",
+        "description": "Personnalisez l’affichage des cartes de service",
+        "list": "Vue en liste",
+        "listDescription": "Afficher les services dans une liste compacte plutôt qu’en grille",
+        "size": "Taille des cartes",
+        "scales": {
+          "small": "petite",
+          "medium": "moyenne",
+          "large": "grande"
+        },
+        "listHint": "La taille des cartes ne s’applique qu’à la vue en grille",
+        "gridHint": "Ajustez la densité de la grille - des cartes plus petites affichent plus de services par ligne"
+      },
+      "gallery": {
+        "title": "Thème",
+        "description": "Un thème définit chaque couleur, claire ou sombre, et son propre accent. Vous pouvez toujours choisir une autre couleur d’accent par-dessus. Choisir un mode que le thème n’a pas ramène à Par défaut.",
+        "muted": "Atténué",
+        "default": "Par défaut",
+        "dark": "Sombre",
+        "light": "Clair",
+        "lightOrDark": "Clair ou sombre"
+      },
+      "transfer": {
+        "title": "Exporter et importer",
+        "description": "Enregistrez votre thème dans un fichier, ou chargez-en un : thème, mode, accent, police, source d’icônes, réglages de verre et CSS personnalisé. L’image de fond d’écran n’en fait pas partie.",
+        "export": "Exporter le thème",
+        "import": "Importer un thème",
+        "fileLabel": "Fichier de thème",
+        "tooLarge": "Ce fichier est trop volumineux pour être un thème",
+        "willSet": "Ce fichier définira",
+        "fields": {
+          "themePreset": "thème",
+          "themeMode": "mode du thème",
+          "themeAccentColor": "couleur d’accent",
+          "themeFont": "police",
+          "kpiMono": "libellés KPI en monospace",
+          "iconSource": "source d’icônes",
+          "wallpaperBlur": "flou du fond d’écran",
+          "wallpaperDim": "assombrissement du fond d’écran",
+          "cardOpacity": "opacité des cartes",
+          "cardBlur": "flou des cartes"
+        },
+        "none": "aucun",
+        "cssReview": "CSS personnalisé (lisez-le avant de l’appliquer)",
+        "cssClears": "CSS personnalisé (aucun : efface le vôtre)",
+        "cssLabel": "CSS personnalisé du fichier",
+        "applying": "Application...",
+        "apply": "Appliquer le thème",
+        "cancel": "Annuler",
+        "errors": {
+          "notJson": "Ce n’est pas un fichier JSON",
+          "notTheme": "Ce n’est pas un fichier de thème Nimbus",
+          "newerVersion": "Ce fichier de thème a été créé par une version plus récente de Nimbus",
+          "invalidField": "Le fichier de thème contient une valeur {field} invalide"
+        }
+      },
+      "wallpaper": {
+        "title": "Fond d’écran",
+        "description": "Envoyez une image (8 Mo max.) ou utilisez l’URL d’une image. Le flou, l’assombrissement et les cartes translucides donnent un effet de verre.",
+        "urlLabel": "URL du fond d’écran",
+        "uploadedPlaceholder": "Image envoyée",
+        "fileLabel": "Fichier du fond d’écran",
+        "uploading": "Envoi...",
+        "upload": "Envoyer",
+        "clear": "Effacer",
+        "tooLarge": "L’image dépasse 8 Mo",
+        "previewCard": "Carte",
+        "previewText": "L’aspect des tuiles",
+        "sliders": {
+          "wallpaperBlur": "Flou du fond d’écran",
+          "wallpaperDim": "Assombrissement du fond d’écran",
+          "cardOpacity": "Opacité des cartes",
+          "cardBlur": "Flou des cartes"
+        },
+        "dimNote": "Sous 60 % d’opacité des cartes, le fond d’écran reste assombri d’au moins {min} % pour que le texte reste lisible."
+      },
+      "font": {
+        "title": "Police",
+        "description": "Les polices font partie de Nimbus : rien n’est chargé depuis un autre site",
+        "names": {
+          "default": "Par défaut",
+          "system": "Système"
+        },
+        "kpiMono": "Libellés KPI en monospace",
+        "kpiMonoDescription": "Afficher en JetBrains Mono les petits libellés au-dessus des chiffres sur les tuiles, les widgets et la barre d’état"
+      },
+      "iconSource": {
+        "title": "Source d’icônes",
+        "description": "Où « Récupérer l’icône » d’un service cherche une icône d’après le nom du service",
+        "label": "Jeu d’icônes",
+        "hint": "S’applique aux icônes récupérées à partir de maintenant ; les icônes existantes restent telles quelles"
+      },
+      "layout": {
+        "title": "Disposition du tableau de bord",
+        "description": "Canvas ne modifie que le tableau de bord ; les autres pages gardent la barre latérale.",
+        "modes": {
+          "classic": {
+            "label": "Classique",
+            "description": "Barre latérale, statistiques et vos tuiles"
+          },
+          "canvas": {
+            "label": "Canvas",
+            "description": "Le tableau de bord occupe toute la page, avec une barre en haut"
+          }
+        },
+        "darkHint": "Canvas rend mieux en mode sombre, avec un fond d’écran.",
+        "useDark": "Utiliser le mode sombre"
+      },
+      "customCss": {
+        "title": "CSS personnalisé",
+        "description": "Votre propre CSS par-dessus le thème. Il ne s’applique qu’à vous, sur les pages accessibles après connexion.",
+        "safeMode": "Mode sans échec : votre CSS personnalisé est désactivé jusqu’à ce que vous rechargiez sans <code>?safe=1</code>.",
+        "saving": "Enregistrement...",
+        "save": "Enregistrer le CSS",
+        "help": "CSS uniquement. <code>@import</code>, <code>image-set()</code> et toute <code>url()</code> qui n’est pas une image <code>data:</code> intégrée sont refusés, pour qu’un thème ne puisse jamais rien charger depuis un autre site. Si votre CSS masque la page, ajoutez <code>?safe=1</code> à l’adresse (par exemple <code>/settings/theme?safe=1</code>) pour l’ouvrir sans votre CSS."
+      },
+      "statusStrip": {
+        "title": "Barre d’état",
+        "description": "Une rangée de chiffres clés en haut du tableau de bord, qui indique aussi si tous les services sont en ligne.",
+        "show": "Afficher la barre d’état",
+        "loading": "Chargement de vos intégrations et widgets...",
+        "number": "Chiffre {number}",
+        "remove": "Supprimer le chiffre {number}",
+        "unavailable": "N’est plus disponible",
+        "add": "Ajouter un chiffre",
+        "loadError": "Impossible de charger vos intégrations ou widgets : {error}",
+        "empty": "Ajoutez une intégration ou un widget d’API personnalisée pour choisir des chiffres.",
+        "hint": "Les intégrations affichent des chiffres dès qu’un service ou un widget les utilise.",
+        "customApi": "API personnalisée"
+      }
+    }
+  },
   "time": {
     "justNow": "à l’instant",
     "minutesAgo": "il y a {count} min",
