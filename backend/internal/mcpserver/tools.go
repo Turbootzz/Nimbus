@@ -234,7 +234,7 @@ func serviceInfo(service *models.Service, groupNames map[string]string) ServiceI
 	info := ServiceInfo{
 		ID:                service.ID,
 		Name:              service.Name,
-		URL:               service.URL,
+		URL:               stripURLSecrets(service.URL).(string),
 		Description:       service.Description,
 		Status:            service.Status,
 		ResponseTimeMs:    service.ResponseTime,
@@ -348,7 +348,7 @@ func (t *tools) searchServices(ctx context.Context, req *mcp.CallToolRequest, in
 		if s.GroupID != nil {
 			group = groupNames[*s.GroupID]
 		}
-		for _, field := range []string{s.Name, s.Description, s.URL, group} {
+		for _, field := range []string{s.Name, s.Description, stripURLSecrets(s.URL).(string), group} {
 			if strings.Contains(strings.ToLower(field), q) {
 				return false
 			}

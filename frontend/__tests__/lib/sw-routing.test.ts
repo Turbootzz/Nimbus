@@ -1,7 +1,7 @@
 import { createRequire } from 'module'
 import { describe, expect, it, vi } from 'vitest'
 import { NextRequest } from 'next/server'
-import { API_CACHE, CACHED_AT_HEADER, CLEAR_API_CACHE } from '@/lib/pwa'
+import { API_CACHE, CACHED_AT_HEADER, clearApiCache } from '@/lib/pwa'
 import proxy from '@/proxy'
 
 // The worker's rules are a classic script (see public/sw-routing.js); require
@@ -35,18 +35,30 @@ function fakeCache(entries: Record<string, Response> = {}) {
   }
 }
 
+// Cache Storage: a deleted cache keeps working for whoever opened it before,
+// but is gone for everyone who opens the name afterwards
+function fakeStorage() {
+  const named = new Map<string, ReturnType<typeof fakeCache>>()
+  return {
+    open: async (name: string) => {
+      if (!named.has(name)) named.set(name, fakeCache())
+      return named.get(name)!
+    },
+    delete: async (name: string) => named.delete(name),
+  }
+}
+
 const servicesRequest = () => new Request(`${ORIGIN}/api/v1/services`)
 const json = (body: unknown, init?: ResponseInit) => new Response(JSON.stringify(body), init)
 
 function apiDeps(cache: ReturnType<typeof fakeCache>, fetch: () => Promise<Response>) {
-  return { fetch: vi.fn(fetch), openCache: async () => cache, generation: () => 0, purge: vi.fn() }
+  return { fetch: vi.fn(fetch), openCache: async () => cache, purge: vi.fn() }
 }
 
 describe('service worker routing', () => {
   it('shares its constants with the page', () => {
     expect(sw.API_CACHE).toBe(API_CACHE)
     expect(sw.CACHED_AT_HEADER).toBe(CACHED_AT_HEADER)
-    expect(sw.CLEAR_API_CACHE).toBe(CLEAR_API_CACHE)
   })
 
   it('handles the dashboard reads network-first', () => {
@@ -223,21 +235,56 @@ describe('network-first API strategy', () => {
     expect(deps.purge).toHaveBeenCalledOnce()
   })
 
-  it('drops a response that was in flight when the cache was purged', async () => {
-    const cache = fakeCache()
-    let generation = 0
-    const deps = {
-      ...apiDeps(cache, async () => {
-        generation++ // the user logged out while the request was running
-        return json([{ name: 'previous user' }])
-      }),
-      generation: () => generation,
+  it('still answers when the cache cannot be opened', async () => {
+    const broken = async () => {
+      throw new Error('broken')
     }
+    const online = { ...apiDeps(fakeCache(), async () => json([])), openCache: broken }
+    expect((await sw.networkFirst(servicesRequest(), online)).status).toBe(200)
 
-    const response = await sw.networkFirst(servicesRequest(), deps)
+    const offline = {
+      ...apiDeps(fakeCache(), async () => {
+        throw new TypeError('Failed to fetch')
+      }),
+      openCache: broken,
+    }
+    await expect(sw.networkFirst(servicesRequest(), offline)).rejects.toThrow('Failed to fetch')
+  })
+})
 
-    expect(response.status).toBe(200)
-    expect(cache.put).not.toHaveBeenCalled()
+describe('a purge while an API response is in flight', () => {
+  // The previous user's dashboard arrives after the purge, in a worker that
+  // never heard of it (an older instance, or no worker controls the page)
+  async function storedAfter(purge: (storage: ReturnType<typeof fakeStorage>) => Promise<unknown>) {
+    const storage = fakeStorage()
+    let respond!: (response: Response) => void
+    const fetch = vi.fn(() => new Promise<Response>((resolve) => (respond = resolve)))
+    const deps = { fetch, openCache: () => storage.open(API_CACHE), purge: vi.fn() }
+
+    const pending = sw.networkFirst(servicesRequest(), deps)
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    await purge(storage)
+    respond(json([{ name: 'previous user' }]))
+
+    expect((await pending).status).toBe(200)
+    return (await storage.open(API_CACHE)).store.size
+  }
+
+  it('stores the response when nothing purged', async () => {
+    expect(await storedAfter(async () => {})).toBe(1)
+  })
+
+  it('drops it when another worker instance purged the cache', async () => {
+    expect(await storedAfter((storage) => storage.delete(API_CACHE))).toBe(0)
+  })
+
+  it('drops it when the page purged without a controlling worker', async () => {
+    const stored = await storedAfter(async (storage) => {
+      vi.stubGlobal('caches', storage)
+      await clearApiCache()
+    })
+    vi.unstubAllGlobals()
+    expect(stored).toBe(0)
   })
 })
 
@@ -268,6 +315,25 @@ describe('cache-first static strategy', () => {
   it('still returns the file when the cache cannot be written', async () => {
     const cache = fakeCache()
     cache.put.mockRejectedValue(new DOMException('full', 'QuotaExceededError'))
+    const fetch = async () => new Response('js')
+    const response = await sw.cacheFirst(request(), { fetch, openCache: async () => cache })
+    expect(await response.text()).toBe('js')
+  })
+
+  it('fetches the file when the cache cannot be opened', async () => {
+    const openCache = async () => {
+      throw new Error('broken')
+    }
+    const response = await sw.cacheFirst(request(), {
+      fetch: async () => new Response('js'),
+      openCache,
+    })
+    expect(await response.text()).toBe('js')
+  })
+
+  it('fetches the file when the cache cannot be read', async () => {
+    const cache = fakeCache()
+    cache.match.mockRejectedValue(new Error('broken'))
     const fetch = async () => new Response('js')
     const response = await sw.cacheFirst(request(), { fetch, openCache: async () => cache })
     expect(await response.text()).toBe('js')
