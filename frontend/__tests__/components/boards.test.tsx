@@ -11,7 +11,7 @@ import NewServicePage from '@/app/(dashboard)/services/new/page'
 import { getBoardsSnapshot, refreshBoards, resetBoards } from '@/hooks/useBoards'
 import { setBoardOnScreen, useBoardReadOnly } from '@/lib/dashboard-store'
 import { api } from '@/lib/api'
-import type { Board, Service, Widget } from '@/types'
+import type { Board, Group, Service, Widget } from '@/types'
 
 const replace = vi.fn()
 const push = vi.fn()
@@ -444,6 +444,28 @@ describe('adding a service to a board', () => {
       'href',
       '/board/lab'
     )
+  })
+
+  it('shows the groups of the board it was given last', async () => {
+    theme.enableServiceGrouping = true
+    const group = (id: string, name: string, boardId: string) =>
+      ({ id, name, board_id: boardId, is_default: false }) as Group
+    let answerLab!: (response: { data: Group[] }) => void
+    vi.mocked(api.getGroups).mockImplementation((boardId) =>
+      boardId === 'b-lab'
+        ? new Promise((resolve) => (answerLab = resolve))
+        : Promise.resolve({ data: [group('g-home', 'Home apps', 'b-home')] })
+    )
+    try {
+      const { rerender } = render(<ServiceForm boardId="b-lab" onSaved={() => {}} />)
+      rerender(<ServiceForm boardId="b-home" onSaved={() => {}} />)
+      expect(await screen.findByRole('option', { name: /Home apps/ })).toBeInTheDocument()
+      await act(async () => answerLab({ data: [group('g-lab', 'Lab apps', 'b-lab')] }))
+      expect(screen.queryByRole('option', { name: /Lab apps/ })).not.toBeInTheDocument()
+      expect(screen.getByRole('option', { name: /Home apps/ })).toBeInTheDocument()
+    } finally {
+      theme.enableServiceGrouping = false
+    }
   })
 })
 
