@@ -1,5 +1,5 @@
 /* global importScripts, route, networkFirst, cacheFirst, navigate, precacheOffline,
-   staleCaches, staticCacheName, API_CACHE, CLEAR_API_CACHE */
+   staleCaches, staticCacheName, API_CACHE */
 // Nimbus service worker: event wiring only, the rules live in sw-routing.js
 importScripts('/sw-routing.js')
 
@@ -9,12 +9,7 @@ const openStatic = () => caches.open(staticCacheName(version))
 const openApi = () => caches.open(API_CACHE)
 const fetchFromNetwork = (request) => fetch(request)
 
-// Bumped on every purge; see networkFirst
-let generation = 0
-const purge = () => {
-  generation++
-  return caches.delete(API_CACHE)
-}
+const purge = () => caches.delete(API_CACHE)
 
 self.addEventListener('install', (event) => {
   // Reload so the offline page is not taken from the HTTP cache
@@ -34,21 +29,12 @@ self.addEventListener('activate', (event) => {
   )
 })
 
-self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === CLEAR_API_CACHE) event.waitUntil(purge())
-})
-
 self.addEventListener('fetch', (event) => {
   const { request } = event
   switch (route(request, self.location.origin)) {
     case 'api':
       event.respondWith(
-        networkFirst(request, {
-          fetch: fetchFromNetwork,
-          openCache: openApi,
-          generation: () => generation,
-          purge,
-        })
+        networkFirst(request, { fetch: fetchFromNetwork, openCache: openApi, purge })
       )
       break
     case 'static':

@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import InstallAppMenuItem from '@/components/InstallAppMenuItem'
-import { API_CACHE, CLEAR_API_CACHE, clearApiCache } from '@/lib/pwa'
+import { API_CACHE, clearApiCache } from '@/lib/pwa'
 
 // What Chromium fires when the app can be installed
 function fireInstallable() {
@@ -69,15 +69,12 @@ describe('InstallAppMenuItem', () => {
 })
 
 describe('clearApiCache', () => {
-  it('tells the worker and deletes the API cache', async () => {
-    const postMessage = vi.fn()
+  it('deletes the API cache', async () => {
     const deleteCache = vi.fn().mockResolvedValue(true)
-    vi.stubGlobal('navigator', { serviceWorker: { controller: { postMessage } } })
     vi.stubGlobal('caches', { delete: deleteCache })
 
     await clearApiCache()
 
-    expect(postMessage).toHaveBeenCalledWith({ type: CLEAR_API_CACHE })
     expect(deleteCache).toHaveBeenCalledWith(API_CACHE)
   })
 

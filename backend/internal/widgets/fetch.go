@@ -10,7 +10,8 @@ import (
 	"maps"
 	"net"
 	"net/http"
-	"net/url"
+
+	"github.com/nimbus/backend/internal/utils"
 )
 
 // Widgets fetch small documents; anything bigger is a mistake
@@ -60,11 +61,7 @@ func getBodyLimit(ctx context.Context, client *http.Client, rawURL string, heade
 			return nil, errors.New("took too long to answer")
 		}
 		// Go puts the full URL in the error, and a query may hold a key
-		var urlErr *url.Error
-		if errors.As(err, &urlErr) {
-			return nil, urlErr.Err
-		}
-		return nil, err
+		return nil, utils.WithoutURL(err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
