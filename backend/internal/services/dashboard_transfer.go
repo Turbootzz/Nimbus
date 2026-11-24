@@ -770,6 +770,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 	}
 
 	groups, groupIDs := importedGroups{}, map[string]string{}
+	hasDefault := map[string]bool{}
 	for i, in := range doc.Groups {
 		group, err := NewGroupFromRequest(&models.GroupCreateRequest{Name: in.Name, Color: in.Color, MonitoringEnabled: in.MonitoringEnabled, TileStyle: in.TileStyle})
 		if err != nil {
@@ -782,6 +783,11 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 		group.BoardID = boards.id(in.BoardRef)
 		groups[group.ID], groupIDs[in.Ref] = group, group.ID
 		if in.Default {
+			// Two refs can name one board: a listed board with the slug of the default board
+			if hasDefault[group.BoardID] {
+				issues.Add(dashdoc.Path("groups", i, "default"), "only one group can be the default")
+			}
+			hasDefault[group.BoardID] = true
 			p.defaultGroupBoards = append(p.defaultGroupBoards, group.BoardID)
 		}
 		p.rows.Groups = append(p.rows.Groups, group)

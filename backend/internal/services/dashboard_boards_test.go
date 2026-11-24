@@ -274,6 +274,10 @@ func TestDocumentBoardsAreValidated(t *testing.T) {
 			Boards: []dashdoc.Board{{Ref: "a", Name: "A"}},
 			Groups: []dashdoc.Group{{Name: "One", BoardRef: "a", Default: true}, {Name: "Two", BoardRef: "a", Default: true}},
 		}, "groups[1].default"},
+		"two default groups on the default board, by its slug": {dashdoc.Document{
+			Boards: []dashdoc.Board{{Ref: "h", Name: "Home", Slug: models.DefaultBoardSlug}},
+			Groups: []dashdoc.Group{{Name: "One", Default: true}, {Name: "Two", BoardRef: "h", Default: true}},
+		}, "groups[1].default"},
 	} {
 		c.doc.Version = 1
 		_, err := env.svc.Preview(ctx, transferAdmin, &c.doc, dashdoc.ModeMerge)
