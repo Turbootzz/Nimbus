@@ -61,6 +61,13 @@ spec:
             # The image refuses any other PGDATA
             - name: PGDATA
               value: /var/lib/postgresql/data
+          # Liveness only starts once this passes, so initdb or crash recovery is not restarted
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", "nimbus", "-d", "nimbus"]
+            periodSeconds: {{ .Values.postgresql.startupProbe.periodSeconds }}
+            timeoutSeconds: 5
+            failureThreshold: {{ .Values.postgresql.startupProbe.failureThreshold }}
           livenessProbe:
             exec:
               command: ["pg_isready", "-U", "nimbus", "-d", "nimbus"]

@@ -83,6 +83,10 @@ postgresql:
   persistence:
     storageClass: ""
     size: 5Gi
+  # Time allowed for the first start or crash recovery: periodSeconds x failureThreshold (5 minutes)
+  startupProbe:
+    periodSeconds: 10
+    failureThreshold: 30
   resources:
     requests:
       cpu: 100m
