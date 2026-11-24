@@ -31,8 +31,9 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- default (include "nimbus.fullname" .) .Values.secrets.existingSecret }}
 {{- end }}
 
+{{/* Shorten the base, not the suffix, so it never collides with the app Service */}}
 {{- define "nimbus.postgresql.fullname" -}}
-{{- printf "%s-postgresql" (include "nimbus.fullname" .) | trunc 63 | trimSuffix "-" }}
+{{- printf "%s-postgresql" (include "nimbus.fullname" . | trunc 52 | trimSuffix "-") }}
 {{- end }}
 
 {{/* The built-in database always uses nimbus/nimbus, like docker-compose.yml */}}
