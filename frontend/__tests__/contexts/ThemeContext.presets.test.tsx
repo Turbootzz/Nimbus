@@ -192,6 +192,34 @@ describe('ThemeContext presets, font and custom CSS', () => {
     expect(result.current.customCss).toBe('.new { color: blue }')
   })
 
+  it('saveTheme goes after the saves on their way and queued', async () => {
+    const theme = await renderTheme()
+    const answers: Array<(response: never) => void> = []
+    vi.mocked(api.updatePreferences).mockImplementation(
+      () => new Promise((resolve) => answers.push(resolve))
+    )
+
+    act(() => theme.current.setFont('system')) // on its way
+    act(() => theme.current.setKpiMono(false)) // queued behind it
+    let saved: Promise<string | null> = Promise.resolve('unset')
+    act(() => {
+      saved = theme.current.saveTheme({ theme_preset: 'dracula' })
+    })
+    expect(api.updatePreferences).toHaveBeenCalledTimes(1)
+
+    await act(async () => answers[0]({ data: stored } as never))
+    expect(api.updatePreferences).toHaveBeenCalledTimes(2)
+    expect(api.updatePreferences).toHaveBeenLastCalledWith({ kpi_mono: false })
+
+    await act(async () => answers[1]({ data: stored } as never))
+    expect(api.updatePreferences).toHaveBeenCalledTimes(3)
+    expect(api.updatePreferences).toHaveBeenLastCalledWith({ theme_preset: 'dracula' })
+
+    await act(async () => answers[2]({ data: { ...stored, theme_preset: 'dracula' } } as never))
+    expect(await saved).toBeNull()
+    expect(theme.current.preset).toBe('dracula')
+  })
+
   it('saveTheme reports what the server refused and applies nothing', async () => {
     const theme = await renderTheme()
     vi.mocked(api.updatePreferences).mockResolvedValue({

@@ -568,7 +568,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   const saveTheme = useCallback(
     async (update: PreferencesUpdateRequest) => {
-      const response = await api.updatePreferences(update)
+      // After the save on its way and the queue it flushes when done, or an
+      // older change could land after this one and undo it
+      let older: Promise<unknown> | undefined
+      while (older !== inFlightSaveRef.current) {
+        older = inFlightSaveRef.current
+        await older
+      }
+      const request = api.updatePreferences(update)
+      inFlightSaveRef.current = request.catch(() => undefined)
+      const response = await request
       if (response.error || !response.data) {
         const fields = Object.values(response.error?.fields ?? {})
         return fields.join('. ') || response.error?.message || 'Failed to save the theme'
