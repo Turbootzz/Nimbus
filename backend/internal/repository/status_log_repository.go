@@ -257,11 +257,12 @@ func (r *StatusLogRepository) GetAggregatedByInterval(ctx context.Context, servi
 	return results, rows.Err()
 }
 
-// GetHourlyUptimeByGroup counts the checks of every service in a group per
-// hour since the given time, in one query. Hour 0 starts at since. Bucketing
-// relative to since keeps it independent of the database time zone.
-func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupID string, since time.Time) ([]models.UptimeBucket, error) {
-	// since is $1 because SQLite numbers parameters in order of appearance
+// GetHourlyUptimeByGroup counts the checks of every service in a group since
+// from, per clock hour: hour 0 is the hour in which from falls. The recent
+// counts only include checks since recentFrom. Bucketing relative to that
+// hour keeps it independent of the database time zone.
+func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupID string, from, recentFrom time.Time) ([]models.UptimeBucket, error) {
+	// Parameters are numbered in order of appearance, as SQLite numbers them
 	hour := `CAST((julianday(l.checked_at) - julianday($1)) * 24 AS INTEGER)`
 	if r.isPostgreSQL {
 		hour = `FLOOR(EXTRACT(EPOCH FROM (l.checked_at - $1::timestamptz)) / 3600)::int`
@@ -269,14 +270,16 @@ func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupI
 	query := `
 		SELECT l.service_id, ` + hour + ` AS hour,
 			COUNT(*) AS total,
-			COUNT(CASE WHEN l.status = 'online' THEN 1 END) AS online
+			COUNT(CASE WHEN l.status = 'online' THEN 1 END) AS online,
+			COUNT(CASE WHEN l.checked_at >= $2 THEN 1 END) AS recent_total,
+			COUNT(CASE WHEN l.checked_at >= $2 AND l.status = 'online' THEN 1 END) AS recent_online
 		FROM service_status_logs l
 		JOIN services s ON s.id = l.service_id
-		WHERE l.checked_at >= $1 AND s.group_id = $2
+		WHERE l.checked_at >= $3 AND s.group_id = $4
 		GROUP BY l.service_id, hour
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, since, groupID)
+	rows, err := r.db.QueryContext(ctx, query, from.Truncate(time.Hour), recentFrom, from, groupID)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +288,7 @@ func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, groupI
 	var buckets []models.UptimeBucket
 	for rows.Next() {
 		var b models.UptimeBucket
-		if err := rows.Scan(&b.ServiceID, &b.Hour, &b.Total, &b.Online); err != nil {
+		if err := rows.Scan(&b.ServiceID, &b.Hour, &b.Total, &b.Online, &b.RecentTotal, &b.RecentOnline); err != nil {
 			return nil, err
 		}
 		buckets = append(buckets, b)
