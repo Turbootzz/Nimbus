@@ -436,6 +436,7 @@ func TestParseErrorsTellWhereWithoutQuotingTheFile(t *testing.T) {
 		"owner: a@b.c\nSECRET: 1\nSECRET: 2\n":     "invalid YAML: line 3: the parser's description is not shown, it quotes the file",
 		"{\"owner\": \"a@b.c\",\n\"key\": SECRET}": "invalid JSON: line 2: the parser's description is not shown, it quotes the file",
 		"{\"owner\": \"a@b.c\",\n\"key\": ":        "invalid JSON: line 2: unexpected end of JSON input",
+		"{\"owner\": \"a@b.c\"\n]":                 "invalid JSON: line 2: invalid character ']' after object key:value pair",
 	}
 	for content, want := range cases {
 		_, err := Parse([]byte(content), env(nil))

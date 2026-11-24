@@ -123,7 +123,7 @@ var yamlMessage = regexp.MustCompile(`^yaml: (?:unmarshal errors:\n  )?(?:line (
 
 // plainText quotes nothing of the file: words, and at most a single quoted
 // punctuation mark like ']'
-var plainText = regexp.MustCompile(`^(?:[A-Za-z0-9 ,<>-]|'[^\sA-Za-z0-9]')+$`)
+var plainText = regexp.MustCompile(`^(?:[A-Za-z0-9 ,:<>-]|'[^\sA-Za-z0-9]')+$`)
 
 // parseProblem is what the log may tell about a parse error
 func parseProblem(line int, description string) string {
