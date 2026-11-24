@@ -233,9 +233,11 @@ func customDialContext(ctx context.Context, network, addr string) (net.Conn, err
 	}
 
 	// Use standard dialer for connection
+	// Private addresses are fine (homelab), cloud metadata endpoints are not
 	dialer := &net.Dialer{
 		Timeout:   10 * time.Second,
 		KeepAlive: 30 * time.Second,
+		Control:   utils.BlockedIPControl,
 	}
 
 	return dialer.DialContext(ctx, network, addr)

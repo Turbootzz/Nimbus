@@ -46,10 +46,10 @@ const (
 	dashboardIconsEnvVar      = "DASHBOARD_ICONS_BASE_URL"
 )
 
-// dashboardIconsBase returns the configured base URL (no trailing slash) for
+// DashboardIconsBase returns the configured base URL (no trailing slash) for
 // the curated icon lookup. An empty value (env explicitly set to empty)
 // disables curated lookup.
-func dashboardIconsBase() string {
+func DashboardIconsBase() string {
 	if v, ok := os.LookupEnv(dashboardIconsEnvVar); ok {
 		return strings.TrimRight(strings.TrimSpace(v), "/")
 	}
@@ -188,7 +188,7 @@ func buildIconCandidates(ctx context.Context, name string, pageURL *url.URL) []*
 // would naturally type — needs to fall through to the bare "plex" lookup.
 // Returns nil when curated lookup is disabled or the name is empty.
 func dashboardIconsCandidates(name string) []*url.URL {
-	base := dashboardIconsBase()
+	base := DashboardIconsBase()
 	if base == "" {
 		return nil
 	}

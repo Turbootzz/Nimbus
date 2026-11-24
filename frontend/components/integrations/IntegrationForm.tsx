@@ -18,6 +18,8 @@ interface IntegrationFormProps {
   kinds: IntegrationKindMeta[]
   // Edits this integration when set, otherwise adds a new one
   integration?: Integration | null
+  // Fills in a new integration, e.g. one a container label asked for
+  prefill?: { kind: string; name: string; base_url: string } | null
   onClose: () => void
   onSaved: (integration: Integration) => void
 }
@@ -52,14 +54,15 @@ function credentialsFor(
 export default function IntegrationForm({
   kinds,
   integration,
+  prefill,
   onClose,
   onSaved,
 }: IntegrationFormProps) {
   const isEdit = !!integration
-  const [kind, setKind] = useState(integration?.kind ?? kinds[0]?.kind ?? '')
+  const [kind, setKind] = useState(integration?.kind ?? prefill?.kind ?? kinds[0]?.kind ?? '')
   const meta = kinds.find((k) => k.kind === kind)
-  const [name, setName] = useState(integration?.name ?? meta?.name ?? '')
-  const [baseUrl, setBaseUrl] = useState(integration?.base_url ?? '')
+  const [name, setName] = useState(integration?.name ?? prefill?.name ?? meta?.name ?? '')
+  const [baseUrl, setBaseUrl] = useState(integration?.base_url ?? prefill?.base_url ?? '')
   const [authType, setAuthType] = useState<IntegrationAuthType>(
     integration?.auth_type ?? meta?.auth_types[0] ?? 'none'
   )

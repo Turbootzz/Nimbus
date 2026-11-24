@@ -420,6 +420,27 @@ func TestServiceHandler_CreateService(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 			expectError:    true,
 		},
+		{
+			// The URL becomes a link on the tile: a script URL would be stored XSS
+			name:   "javascript URL",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			requestBody: models.ServiceCreateRequest{
+				Name: "Test Service",
+				URL:  "javascript://example.com/%0aalert(1)",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
+		{
+			name:   "Cloud metadata URL",
+			userID: "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			requestBody: models.ServiceCreateRequest{
+				Name: "Test Service",
+				URL:  "http://169.254.169.254/latest/meta-data/",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -639,6 +660,17 @@ func TestServiceHandler_UpdateService(t *testing.T) {
 			},
 			expectedStatus: http.StatusOK,
 			expectError:    false,
+		},
+		{
+			name:      "Update to a javascript URL",
+			userID:    "cccccccc-cccc-cccc-cccc-ccccccccccc1",
+			serviceID: "11111111-1111-1111-1111-111111111111",
+			requestBody: models.ServiceUpdateRequest{
+				Name: "Updated Service",
+				URL:  "javascript://example.com/%0aalert(1)",
+			},
+			expectedStatus: http.StatusBadRequest,
+			expectError:    true,
 		},
 		{
 			name:      "Attempt to update another user's service",

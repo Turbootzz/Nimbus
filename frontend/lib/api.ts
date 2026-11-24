@@ -52,6 +52,8 @@ import type {
   DashboardDocument,
   ImportMode,
   ImportSummary,
+  DiscoveryResponse,
+  DiscoveryAddRequest,
 } from '@/types'
 import { getApiUrl as getClientApiUrl } from '@/lib/utils/api-url'
 
@@ -389,6 +391,35 @@ class ApiClient {
 
   async deleteWidget(id: string): Promise<ApiResponse<void>> {
     return this.request<void>(`/widgets/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // ============================================
+  // Docker discovery (admins only)
+  // ============================================
+
+  // refresh asks Docker again instead of reusing the server's recent answer
+  async getDockerDiscovery(refresh = false): Promise<ApiResponse<DiscoveryResponse>> {
+    return this.request<DiscoveryResponse>(`/discovery/docker${refresh ? '?refresh=true' : ''}`)
+  }
+
+  async addDiscovered(data: DiscoveryAddRequest): Promise<ApiResponse<Service>> {
+    return this.request<Service>('/discovery/docker/services', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async ignoreDiscovered(key: string): Promise<ApiResponse<void>> {
+    return this.request<void>('/discovery/docker/ignored', {
+      method: 'POST',
+      body: JSON.stringify({ key }),
+    })
+  }
+
+  async unignoreDiscovered(key: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/discovery/docker/ignored?key=${encodeURIComponent(key)}`, {
       method: 'DELETE',
     })
   }

@@ -817,3 +817,18 @@ func TestHealthCheckService_CheckService_PublishesResult(t *testing.T) {
 		t.Errorf("Expected no event for an unmonitored service, got %d", len(recorder.events))
 	}
 }
+
+// The health checker requests whatever URL a service has, so its dialer
+// refuses cloud metadata addresses (before anything is sent)
+func TestHealthCheckService_RefusesMetadataAddress(t *testing.T) {
+	healthService := NewHealthCheckService(&MockServiceRepository{}, nil, nil, 2*time.Second)
+
+	result := healthService.performCheck(context.Background(), &models.Service{URL: "http://169.254.169.254/latest/meta-data/"})
+
+	if result.status != models.StatusOffline {
+		t.Errorf("status = %q, want offline", result.status)
+	}
+	if result.errorMessage == nil || !strings.Contains(*result.errorMessage, "blocked host") {
+		t.Errorf("error = %v, want a blocked host error", result.errorMessage)
+	}
+}
