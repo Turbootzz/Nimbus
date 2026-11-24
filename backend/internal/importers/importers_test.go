@@ -325,6 +325,14 @@ func TestComposeSkipsADroppedURLLabel(t *testing.T) {
 	}
 }
 
+// hl- names a dashboard-icons icon, as in the other importers
+func TestComposeIconLabelWithPrefix(t *testing.T) {
+	config := "services:\n  radarr:\n    image: nginx\n    ports: [\"7878:7878\"]\n    labels:\n      homepage.icon: hl-radarr\n"
+	result, err := Convert(FormatCompose, []byte(config), Options{Host: "nas.lan"})
+	require.NoError(t, err)
+	assert.Equal(t, dashboardIconsURL+"svg/radarr.svg", find(t, result.Document, "Radarr").IconURL)
+}
+
 func TestConvertChecksItsInput(t *testing.T) {
 	compose := fixture(t, "compose_media.yml")
 	for _, host := range []string{"http://nas.lan", "nas.lan:8080", "nas lan", "a/b", "-nas", "nas.lan?x=1", "user@nas", strings.Repeat("a", 300)} {

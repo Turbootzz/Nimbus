@@ -53,8 +53,8 @@ func Compose(data []byte, host string) (dashdoc.Document, []string, error) {
 			e.name = displayName(asString(name))
 		}
 		// A dashboard-icons name, from a label or else the image, is its SVG,
-		// as Docker discovery and Nimbus' own icon lookup use
-		slug := integrations.IconSlug(e.icon)
+		// as Docker discovery and Nimbus' own icon lookup use; hl- names one too
+		slug := strings.TrimPrefix(integrations.IconSlug(e.icon), "hl-")
 		if e.icon == "" {
 			slug = imageSlug(asString(settings["image"]))
 		}
