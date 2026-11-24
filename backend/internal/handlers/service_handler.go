@@ -24,6 +24,7 @@ type ServiceHandler struct {
 	healthCheckService *services.HealthCheckService
 	integrationRepo    repository.IntegrationRepositoryInterface
 	poller             services.Poller
+	preferencesRepo    *repository.PreferencesRepository // icon source; may be nil
 }
 
 func NewServiceHandler(serviceRepo *repository.ServiceRepository, groupRepo *repository.GroupRepository, healthCheckService *services.HealthCheckService, integrationRepo repository.IntegrationRepositoryInterface) *ServiceHandler {

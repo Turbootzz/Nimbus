@@ -38,7 +38,17 @@ function applyThemeBeforeHydration() {
       root.style.setProperty('--color-primary-hover', accentColor)
       root.style.setProperty('--dark-primary', accentColor)
       root.style.setProperty('--dark-primary-hover', accentColor)
+      // White text on a custom accent, also on a preset (styles/themes.css)
+      root.style.setProperty('--color-on-primary', '#fff')
     }
+
+    // Preset, font and monospace KPI labels: attributes that
+    // styles/themes.css reads. A value it doesn't know matches no rule.
+    const preset = localStorage.getItem('themePreset')
+    if (preset && preset !== 'default') root.setAttribute('data-preset', preset)
+    const font = localStorage.getItem('themeFont')
+    if (font && font !== 'default') root.setAttribute('data-font', font)
+    if (localStorage.getItem('kpiMono') === 'true') root.setAttribute('data-kpi-mono', '')
 
     // Apply the wallpaper and glass card variables ThemeContext cached; a
     // broken cache must not stop the rest of this script

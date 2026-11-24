@@ -153,6 +153,14 @@ type Preferences struct {
 	// carry it.
 	GroupDisplay *string      `json:"group_display,omitempty"`
 	StatusStrip  *StatusStrip `json:"status_strip,omitempty"`
+	// The theme settings of docs/THEMING.md
+	ThemePreset *string `json:"theme_preset,omitempty"`
+	ThemeFont   *string `json:"theme_font,omitempty"`
+	KpiMono     *bool   `json:"kpi_mono,omitempty"`
+	IconSource  *string `json:"icon_source,omitempty"`
+	// CustomCSS is the user's own CSS, checked on import like a normal
+	// save (utils.ValidateCustomCSS); "" clears it
+	CustomCSS *string `json:"custom_css,omitempty"`
 }
 
 // StatusStrip is the row of KPI chips at the top of the dashboard
@@ -195,4 +203,8 @@ type Summary struct {
 	NeedsCredentials int `json:"needs_credentials"`
 	// NeedsSecrets counts imported widgets whose secrets must be entered again
 	NeedsSecrets int `json:"needs_secrets"`
+	// CustomCSS is the custom CSS the import applies, as the server read
+	// it, so the user can read it before a file of someone else styles
+	// their pages
+	CustomCSS string `json:"custom_css,omitempty"`
 }

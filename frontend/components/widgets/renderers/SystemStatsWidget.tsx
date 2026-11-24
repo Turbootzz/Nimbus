@@ -73,7 +73,7 @@ export default function SystemStatsWidget({
           return (
             <div key={bar.label} className="min-w-0">
               <div className="flex items-baseline justify-between gap-2">
-                <span className="text-text-muted text-[10px] font-semibold tracking-wide uppercase">
+                <span className="kpi-label text-text-muted text-[10px] font-semibold tracking-wide uppercase">
                   {bar.label}
                 </span>
                 {!wide && detail}

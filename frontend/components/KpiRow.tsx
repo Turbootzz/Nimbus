@@ -42,7 +42,7 @@ export default function KpiRow({ kpis, snapshot }: ServiceKpis) {
     <dl className={`grid gap-2 ${kpiColumns[shown.length]}`} title={problem}>
       {shown.map((kpi) => (
         <div key={kpi.key} className="min-w-0">
-          <dt className="text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
+          <dt className="kpi-label text-text-muted truncate text-[10px] font-semibold tracking-wide uppercase">
             {kpi.label}
           </dt>
           <dd

@@ -465,6 +465,20 @@ export interface Theme {
   accent_color?: string
 }
 
+// The values are listed in lib/theme-presets.ts
+export type ThemePreset =
+  | 'default'
+  | 'catppuccin-mocha'
+  | 'catppuccin-latte'
+  | 'nord'
+  | 'dracula'
+  | 'gruvbox-dark'
+  | 'gruvbox-light'
+  | 'tokyo-night'
+export type ThemeFont = 'default' | 'system' | 'inter' | 'jetbrains-mono'
+export type IconSource =
+  'dashboard-icons-svg' | 'dashboard-icons-png' | 'dashboard-icons-webp' | 'selfhst'
+
 export interface UserPreferences {
   theme_mode: 'light' | 'dark' | 'auto'
   theme_background?: string
@@ -481,6 +495,11 @@ export interface UserPreferences {
   layout_mode: LayoutMode
   group_display: GroupDisplay | null // null follows the layout
   status_strip: StatusStrip
+  theme_preset?: ThemePreset
+  theme_font?: ThemeFont
+  kpi_mono?: boolean // monospace KPI labels
+  icon_source?: IconSource
+  custom_css?: string
   updated_at?: string
 }
 
@@ -527,6 +546,11 @@ export interface PreferencesUpdateRequest {
   layout_mode?: LayoutMode
   group_display?: GroupDisplay
   status_strip?: StatusStrip
+  theme_preset?: ThemePreset
+  theme_font?: ThemeFont
+  kpi_mono?: boolean
+  icon_source?: IconSource
+  custom_css?: string // "" clears it
 }
 
 // API response types
@@ -818,6 +842,7 @@ export interface ImportSummary {
   preferences: boolean
   needs_credentials: number
   needs_secrets: number
+  custom_css?: string // the custom CSS a replace applies
 }
 
 // One problem in an imported document, e.g. path "services[2].url"

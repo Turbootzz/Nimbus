@@ -1,0 +1,234 @@
+/* Theme presets, font choice and monospace KPI labels (docs/THEMING.md).
+   ThemeScript and ThemeContext set data-preset, data-font and data-kpi-mono
+   on <html>. Without them nothing here applies.
+
+   A preset is a full set of the colour tokens of globals.css, in the palette
+   of the project it is named after. :root[data-preset] wins over html.dark
+   and html.auto; an accent colour the user picks is set inline on <html> and
+   wins over the preset. The bare [data-preset] selector lets any element
+   show a preset, which the gallery in the theme settings uses.
+   The ids are listed in lib/theme-presets.ts and in the backend validation
+   (models/preferences.go). */
+
+/* Catppuccin Mocha: https://github.com/catppuccin/palette (palette.json) */
+:root[data-preset='catppuccin-mocha'],
+[data-preset='catppuccin-mocha'] {
+  --color-background: #1e1e2e; /* base */
+  --color-foreground: #cdd6f4; /* text */
+  --color-primary: #89b4fa; /* blue */
+  --color-primary-hover: #b4befe; /* lavender */
+  --color-primary-light: #45475a; /* surface1 */
+  --color-on-primary: #11111b; /* crust */
+  --color-card: #313244; /* surface0 */
+  --color-card-border: #45475a; /* surface1 */
+  --color-card-hover: #45475a; /* surface1 */
+  --color-sidebar: #181825; /* mantle */
+  --color-sidebar-border: #313244; /* surface0 */
+  --color-text-primary: #cdd6f4; /* text */
+  --color-text-secondary: #a6adc8; /* subtext0 */
+  --color-text-muted: #9399b2; /* overlay2 */
+  --color-success: #a6e3a1; /* green */
+  --color-warning: #f9e2af; /* yellow */
+  --color-error: #f38ba8; /* red */
+  --color-info: #74c7ec; /* sapphire */
+}
+
+/* Catppuccin Latte: https://github.com/catppuccin/palette (palette.json) */
+:root[data-preset='catppuccin-latte'],
+[data-preset='catppuccin-latte'] {
+  --color-background: #e6e9ef; /* mantle */
+  --color-foreground: #4c4f69; /* text */
+  --color-primary: #1e66f5; /* blue */
+  --color-primary-hover: #7287fd; /* lavender */
+  --color-primary-light: #dce0e8; /* crust */
+  --color-on-primary: #eff1f5; /* base */
+  --color-card: #eff1f5; /* base */
+  --color-card-border: #ccd0da; /* surface0 */
+  --color-card-hover: #dce0e8; /* crust */
+  --color-sidebar: #e6e9ef; /* mantle */
+  --color-sidebar-border: #ccd0da; /* surface0 */
+  --color-text-primary: #4c4f69; /* text */
+  --color-text-secondary: #6c6f85; /* subtext0 */
+  --color-text-muted: #7c7f93; /* overlay2 */
+  --color-success: #40a02b; /* green */
+  --color-warning: #df8e1d; /* yellow */
+  --color-error: #d20f39; /* red */
+  --color-info: #209fb5; /* sapphire */
+  /* The page colour reads on no status colour, and no Latte colour on
+     green, yellow or sapphire */
+  --color-on-success: #11111b; /* mocha crust */
+  --color-on-warning: #11111b; /* mocha crust */
+  --color-on-error: #eff1f5; /* base */
+  --color-on-info: #11111b; /* mocha crust */
+}
+
+/* Nord: https://www.nordtheme.com/docs/colors-and-palettes (nordtheme/nord src/nord.css).
+   Nord has no grey between nord3 and nord4, so muted text is a mix of nord4 and nord0. */
+:root[data-preset='nord'],
+[data-preset='nord'] {
+  --color-background: #2e3440; /* nord0 */
+  --color-foreground: #eceff4; /* nord6 */
+  --color-primary: #88c0d0; /* nord8 */
+  --color-primary-hover: #8fbcbb; /* nord7 */
+  --color-primary-light: #4c566a; /* nord3 */
+  --color-on-primary: #2e3440; /* nord0 */
+  --color-card: #3b4252; /* nord1 */
+  --color-card-border: #434c5e; /* nord2 */
+  --color-card-hover: #434c5e; /* nord2 */
+  --color-sidebar: #2e3440; /* nord0 */
+  --color-sidebar-border: #3b4252; /* nord1 */
+  --color-text-primary: #eceff4; /* nord6 */
+  --color-text-secondary: #d8dee9; /* nord4 */
+  --color-text-muted: color-mix(in srgb, #d8dee9 60%, #2e3440);
+  --color-success: #a3be8c; /* nord14 */
+  --color-warning: #ebcb8b; /* nord13 */
+  --color-error: #bf616a; /* nord11 */
+  --color-info: #81a1c1; /* nord9 */
+  --color-on-error: #000000; /* no Nord colour reads on nord11 */
+}
+
+/* Dracula: https://draculatheme.com/contribute#color-palette (dracula/dracula-theme README).
+   The palette has two surfaces and one text colour, so the card and the
+   lesser text levels are mixes of its own colours. */
+:root[data-preset='dracula'],
+[data-preset='dracula'] {
+  --color-background: #282a36; /* background */
+  --color-foreground: #f8f8f2; /* foreground */
+  --color-primary: #bd93f9; /* purple */
+  --color-primary-hover: #ff79c6; /* pink */
+  --color-primary-light: #44475a; /* current line */
+  --color-on-primary: #282a36; /* background */
+  --color-card: color-mix(in srgb, #44475a 45%, #282a36);
+  --color-card-border: #44475a; /* current line */
+  --color-card-hover: #44475a; /* current line */
+  --color-sidebar: #282a36; /* background */
+  --color-sidebar-border: #44475a; /* current line */
+  --color-text-primary: #f8f8f2; /* foreground */
+  --color-text-secondary: color-mix(in srgb, #f8f8f2 75%, #282a36);
+  --color-text-muted: color-mix(in srgb, #f8f8f2 55%, #282a36);
+  --color-success: #50fa7b; /* green */
+  --color-warning: #ffb86c; /* orange */
+  --color-error: #ff5555; /* red */
+  --color-info: #8be9fd; /* cyan */
+}
+
+/* Gruvbox dark: https://github.com/morhetz/gruvbox (colors/gruvbox.vim) */
+:root[data-preset='gruvbox-dark'],
+[data-preset='gruvbox-dark'] {
+  --color-background: #282828; /* dark0 */
+  --color-foreground: #ebdbb2; /* light1 */
+  --color-primary: #fe8019; /* bright_orange */
+  --color-primary-hover: #fabd2f; /* bright_yellow */
+  --color-primary-light: #504945; /* dark2 */
+  --color-on-primary: #282828; /* dark0 */
+  --color-card: #3c3836; /* dark1 */
+  --color-card-border: #504945; /* dark2 */
+  --color-card-hover: #504945; /* dark2 */
+  --color-sidebar: #1d2021; /* dark0_hard */
+  --color-sidebar-border: #3c3836; /* dark1 */
+  --color-text-primary: #ebdbb2; /* light1 */
+  --color-text-secondary: #bdae93; /* light3 */
+  --color-text-muted: #a89984; /* light4 */
+  --color-success: #b8bb26; /* bright_green */
+  --color-warning: #fabd2f; /* bright_yellow */
+  --color-error: #fb4934; /* bright_red */
+  --color-info: #83a598; /* bright_blue */
+  --color-on-error: #1d2021; /* dark0_hard */
+}
+
+/* Gruvbox light: https://github.com/morhetz/gruvbox (colors/gruvbox.vim) */
+:root[data-preset='gruvbox-light'],
+[data-preset='gruvbox-light'] {
+  --color-background: #fbf1c7; /* light0 */
+  --color-foreground: #3c3836; /* dark1 */
+  --color-primary: #af3a03; /* faded_orange */
+  --color-primary-hover: #d65d0e; /* neutral_orange */
+  --color-primary-light: #ebdbb2; /* light1 */
+  --color-on-primary: #f9f5d7; /* light0_hard */
+  --color-card: #f9f5d7; /* light0_hard */
+  --color-card-border: #d5c4a1; /* light2 */
+  --color-card-hover: #ebdbb2; /* light1 */
+  --color-sidebar: #f2e5bc; /* light0_soft */
+  --color-sidebar-border: #d5c4a1; /* light2 */
+  --color-text-primary: #3c3836; /* dark1 */
+  --color-text-secondary: #665c54; /* dark3 */
+  --color-text-muted: #7c6f64; /* dark4 */
+  --color-success: #79740e; /* faded_green */
+  --color-warning: #b57614; /* faded_yellow */
+  --color-error: #9d0006; /* faded_red */
+  --color-info: #076678; /* faded_blue */
+  /* No Gruvbox colour reads on faded_green and faded_yellow */
+  --color-on-success: #ffffff;
+  --color-on-warning: #000000;
+}
+
+/* Tokyo Night (night): https://github.com/folke/tokyonight.nvim
+   (lua/tokyonight/colors/night.lua and storm.lua) */
+:root[data-preset='tokyo-night'],
+[data-preset='tokyo-night'] {
+  --color-background: #1a1b26; /* bg */
+  --color-foreground: #c0caf5; /* fg */
+  --color-primary: #7aa2f7; /* blue */
+  --color-primary-hover: #7dcfff; /* cyan */
+  --color-primary-light: #394b70; /* blue7 */
+  --color-on-primary: #1a1b26; /* bg */
+  --color-card: #24283b; /* storm bg */
+  --color-card-border: #3b4261; /* fg_gutter */
+  --color-card-hover: #292e42; /* bg_highlight */
+  --color-sidebar: #16161e; /* bg_dark */
+  --color-sidebar-border: #292e42; /* bg_highlight */
+  --color-text-primary: #c0caf5; /* fg */
+  --color-text-secondary: #a9b1d6; /* fg_dark */
+  --color-text-muted: #737aa2; /* dark5 */
+  --color-success: #9ece6a; /* green */
+  --color-warning: #e0af68; /* yellow */
+  --color-error: #f7768e; /* red */
+  --color-info: #2ac3de; /* blue1 */
+}
+
+/* A preset's accent is often too light for the white text on primary
+   buttons, so each preset names the colour that reads on it. A custom accent
+   gets white again, as without a preset (ThemeContext). Not in a layer, so
+   it wins over the text-white utility. */
+[data-preset] .bg-primary.text-white {
+  color: var(--color-on-primary, #fff);
+}
+
+/* The same for white text on a status colour: the page colour of a preset,
+   or the --color-on-<status> it names where that doesn't read (4.5:1,
+   checked in theme-presets.test.ts) */
+[data-preset] .bg-success.text-white {
+  color: var(--color-on-success, var(--color-background));
+}
+[data-preset] .bg-warning.text-white {
+  color: var(--color-on-warning, var(--color-background));
+}
+[data-preset] .bg-error.text-white {
+  color: var(--color-on-error, var(--color-background));
+}
+[data-preset] .bg-info.text-white {
+  color: var(--color-on-info, var(--color-background));
+}
+
+/* Font choice. The variables come from next/font on <body> (app/layout.tsx):
+   self-hosted files, each with a fallback sized to match so the text doesn't
+   move when the font arrives. No attribute keeps the default of globals.css. */
+html[data-font='system'] body {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+html[data-font='inter'] body {
+  font-family: var(--font-inter), sans-serif;
+}
+html[data-font='jetbrains-mono'] body {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/* The small labels above KPI numbers, in monospace when the user wants */
+html[data-kpi-mono] .kpi-label {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}

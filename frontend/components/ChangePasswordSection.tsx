@@ -137,7 +137,10 @@ export default function ChangePasswordSection() {
           type="submit"
           disabled={isLoading}
           className="rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:cursor-not-allowed disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary)' }}
+          style={{
+            backgroundColor: 'var(--color-primary)',
+            color: 'var(--color-on-primary, white)',
+          }}
         >
           {isLoading ? 'Changing...' : 'Change password'}
         </button>
