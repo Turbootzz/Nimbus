@@ -6,6 +6,7 @@ import type { User } from '@/types'
 import UserAvatar from '@/components/UserAvatar'
 import ChangePasswordSection from '@/components/ChangePasswordSection'
 import DangerZoneSection from '@/components/DangerZoneSection'
+import LanguageSettings from '@/components/LanguageSettings'
 import GoogleIcon from '@/components/icons/GoogleIcon'
 import GitHubIcon from '@/components/icons/GitHubIcon'
 import DiscordIcon from '@/components/icons/DiscordIcon'
@@ -246,6 +247,9 @@ export default function ProfilePage() {
               {user?.role}
             </p>
           </div>
+
+          <div className="border-t" style={{ borderColor: 'var(--color-card-border)' }} />
+          <LanguageSettings />
 
           {/* Change Password (local auth only) */}
           {user?.provider === 'local' && (

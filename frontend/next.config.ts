@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import createNextIntlPlugin from 'next-intl/plugin'
 
 // The service worker must be revalidated on every load, or a deploy would not
 // reach installed apps
@@ -38,4 +39,5 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+// Reads the language of each request from i18n/request.ts
+export default createNextIntlPlugin()(nextConfig)

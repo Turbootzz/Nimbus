@@ -1,0 +1,56 @@
+{
+  "auth": {
+    "layout": {
+      "tagline": "Je persoonlijke homelab-dashboard"
+    },
+    "login": {
+      "title": "Welkom terug",
+      "subtitle": "Log in op je account",
+      "email": "E-mailadres",
+      "password": "Wachtwoord",
+      "rememberMe": "Ingelogd blijven",
+      "forgotPassword": "Wachtwoord vergeten?",
+      "submit": "Inloggen",
+      "submitting": "Bezig met inloggen...",
+      "orContinueWith": "Of ga verder met",
+      "noAccount": "Nog geen account?",
+      "signUp": "Registreren",
+      "loading": "Laden...",
+      "errors": {
+        "apiUnreachable": "Kan de API-server niet bereiken. Gebruik je Docker, zorg dan dat NEXT_PUBLIC_API_URL naar het IP-adres van je server wijst (bijv. http://192.168.1.100:8080), niet naar \"http://backend:8080\".",
+        "invalidResponse": "De API gaf een ongeldig antwoord. Controleer de serverconfiguratie.",
+        "invalidCredentials": "Onjuist e-mailadres of wachtwoord",
+        "failed": "Inloggen mislukt. Probeer het opnieuw."
+      }
+    }
+  },
+  "language": {
+    "label": "Taal",
+    "automatic": "Automatisch (browser)",
+    "hint": "Automatisch volgt de taal van je browser",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "time": {
+    "justNow": "zojuist",
+    "minutesAgo": "{count} min geleden",
+    "hoursAgo": "{count} u geleden",
+    "daysAgo": "{count} d geleden"
+  },
+  "weather": {
+    "clear": "Helder",
+    "partlyCloudy": "Half bewolkt",
+    "overcast": "Bewolkt",
+    "fog": "Mist",
+    "drizzle": "Motregen",
+    "rain": "Regen",
+    "snow": "Sneeuw",
+    "thunderstorm": "Onweer",
+    "unknown": "Onbekend"
+  }
+}

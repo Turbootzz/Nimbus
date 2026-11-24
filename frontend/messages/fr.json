@@ -1,0 +1,56 @@
+{
+  "auth": {
+    "layout": {
+      "tagline": "Votre tableau de bord homelab personnel"
+    },
+    "login": {
+      "title": "Bon retour",
+      "subtitle": "Connectez-vous à votre compte",
+      "email": "E-mail",
+      "password": "Mot de passe",
+      "rememberMe": "Se souvenir de moi",
+      "forgotPassword": "Mot de passe oublié ?",
+      "submit": "Se connecter",
+      "submitting": "Connexion...",
+      "orContinueWith": "Ou continuer avec",
+      "noAccount": "Pas encore de compte ?",
+      "signUp": "S’inscrire",
+      "loading": "Chargement...",
+      "errors": {
+        "apiUnreachable": "Impossible de joindre le serveur API. Avec Docker, vérifiez que NEXT_PUBLIC_API_URL pointe vers l’IP de votre serveur (par ex. http://192.168.1.100:8080) et non vers \"http://backend:8080\".",
+        "invalidResponse": "L’API a renvoyé une réponse invalide. Vérifiez la configuration du serveur.",
+        "invalidCredentials": "E-mail ou mot de passe incorrect",
+        "failed": "Échec de la connexion. Veuillez réessayer."
+      }
+    }
+  },
+  "language": {
+    "label": "Langue",
+    "automatic": "Automatique (navigateur)",
+    "hint": "Automatique suit la langue de votre navigateur",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "time": {
+    "justNow": "à l’instant",
+    "minutesAgo": "il y a {count} min",
+    "hoursAgo": "il y a {count} h",
+    "daysAgo": "il y a {count} j"
+  },
+  "weather": {
+    "clear": "Dégagé",
+    "partlyCloudy": "Partiellement nuageux",
+    "overcast": "Couvert",
+    "fog": "Brouillard",
+    "drizzle": "Bruine",
+    "rain": "Pluie",
+    "snow": "Neige",
+    "thunderstorm": "Orage",
+    "unknown": "Inconnu"
+  }
+}

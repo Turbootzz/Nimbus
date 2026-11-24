@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 import { fetchPublicStatus } from '@/lib/status-page'
+import { PUBLIC_PAGE_HEADER } from '@/i18n/locale'
 
 /**
  * Next.js Proxy for Server-Side Authentication
@@ -77,7 +78,10 @@ export default async function proxy(request: NextRequest) {
     if (status.state === 'disabled') {
       return NextResponse.rewrite(new URL('/-', request.url))
     }
-    return NextResponse.next()
+    // Not the visitor's page: i18n/request.ts gives it no user language
+    const headers = new Headers(request.headers)
+    headers.set(PUBLIC_PAGE_HEADER, '1')
+    return NextResponse.next({ request: { headers } })
   }
 
   // Get auth token from httpOnly cookie

@@ -1,10 +1,13 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import localFont from 'next/font/local'
+import { NextIntlClientProvider } from 'next-intl'
+import { getLocale } from 'next-intl/server'
 import '../styles/globals.css'
 import '../styles/themes.css'
 import { ThemeProvider } from '@/contexts/ThemeContext'
 import { ThemeScript } from '@/components/ThemeScript'
+import LocaleSync from '@/components/LocaleSync'
 import ServiceWorkerRegistration from '@/components/ServiceWorkerRegistration'
 
 const geistSans = Geist({
@@ -98,7 +101,7 @@ export const viewport: Viewport = {
   themeColor: '#0ea5e9',
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
@@ -120,9 +123,10 @@ export default function RootLayout({
         url: siteUrl,
       }
     : null
+  const locale = await getLocale()
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <ThemeScript />
         {jsonLd && (
@@ -135,7 +139,12 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${inter.variable} ${jetbrainsMono.variable} antialiased`}
       >
-        <ThemeProvider>{children}</ThemeProvider>
+        <NextIntlClientProvider>
+          <ThemeProvider>
+            {children}
+            <LocaleSync />
+          </ThemeProvider>
+        </NextIntlClientProvider>
         <ServiceWorkerRegistration />
       </body>
     </html>

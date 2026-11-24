@@ -1,0 +1,56 @@
+{
+  "auth": {
+    "layout": {
+      "tagline": "Tu panel personal para el homelab"
+    },
+    "login": {
+      "title": "Hola de nuevo",
+      "subtitle": "Inicia sesión en tu cuenta",
+      "email": "Correo electrónico",
+      "password": "Contraseña",
+      "rememberMe": "Recordarme",
+      "forgotPassword": "¿Olvidaste tu contraseña?",
+      "submit": "Iniciar sesión",
+      "submitting": "Iniciando sesión...",
+      "orContinueWith": "O continúa con",
+      "noAccount": "¿No tienes una cuenta?",
+      "signUp": "Regístrate",
+      "loading": "Cargando...",
+      "errors": {
+        "apiUnreachable": "No se puede acceder al servidor de la API. Si usas Docker, asegúrate de que NEXT_PUBLIC_API_URL apunte a la IP de tu servidor (p. ej., http://192.168.1.100:8080), no a \"http://backend:8080\".",
+        "invalidResponse": "La API devolvió una respuesta no válida. Revisa la configuración del servidor.",
+        "invalidCredentials": "Correo electrónico o contraseña incorrectos",
+        "failed": "No se pudo iniciar sesión. Inténtalo de nuevo."
+      }
+    }
+  },
+  "language": {
+    "label": "Idioma",
+    "automatic": "Automático (navegador)",
+    "hint": "Automático sigue el idioma de tu navegador",
+    "names": {
+      "en": "English",
+      "nl": "Nederlands",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español"
+    }
+  },
+  "time": {
+    "justNow": "ahora mismo",
+    "minutesAgo": "hace {count} min",
+    "hoursAgo": "hace {count} h",
+    "daysAgo": "hace {count} d"
+  },
+  "weather": {
+    "clear": "Despejado",
+    "partlyCloudy": "Parcialmente nublado",
+    "overcast": "Cubierto",
+    "fog": "Niebla",
+    "drizzle": "Llovizna",
+    "rain": "Lluvia",
+    "snow": "Nieve",
+    "thunderstorm": "Tormenta",
+    "unknown": "Desconocido"
+  }
+}
