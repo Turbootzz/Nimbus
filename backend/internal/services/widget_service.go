@@ -118,7 +118,8 @@ func (s *WidgetService) ListBoard(ctx context.Context, userID string, access *Bo
 // shared board. A type the server fetches for (feeds, APIs) renders from
 // its data, so the query strings and user info of the URLs in its config go:
 // keys live there. Types the browser renders (notes, bookmarks, embeds) need
-// their config as it is, which the owner chose to share.
+// the rest of their links, which the owner chose to share, so only the user
+// info (user:password@) goes.
 func redactForViewer(widget *models.Widget) {
 	widget.UserID = ""
 	widgetType, ok := widgets.Get(widget.Type)
@@ -126,15 +127,16 @@ func redactForViewer(widget *models.Widget) {
 		widget.Config = json.RawMessage(`{}`)
 		return
 	}
-	if _, fetches := widgetType.(widgets.Fetcher); !fetches {
-		return
+	strip := widgets.StripURLUserInfo
+	if _, fetches := widgetType.(widgets.Fetcher); fetches {
+		strip = widgets.StripURLSecrets
 	}
 	var config any
 	if json.Unmarshal(widget.Config, &config) != nil {
 		widget.Config = json.RawMessage(`{}`)
 		return
 	}
-	stripped, err := json.Marshal(widgets.StripURLSecrets(config))
+	stripped, err := json.Marshal(strip(config))
 	if err != nil {
 		stripped = json.RawMessage(`{}`)
 	}
