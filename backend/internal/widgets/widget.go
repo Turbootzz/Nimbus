@@ -70,6 +70,16 @@ type ConfigIntegrations interface {
 	SetIntegrationIDs(config json.RawMessage, ids []string) (json.RawMessage, error)
 }
 
+// ConfigIntegrationIDs returns the integrations the config of a widget of
+// type typ lists (ConfigIntegrations); none for other types
+func ConfigIntegrationIDs(typ string, config json.RawMessage) []string {
+	widgetType, _ := Get(typ)
+	if lister, ok := widgetType.(ConfigIntegrations); ok {
+		return lister.IntegrationIDs(config)
+	}
+	return nil
+}
+
 // recoverInto turns a panic into *err. Goroutines a Fetch starts need it:
 // the recover around Fetch can't see them, and a panic would stop the server.
 func recoverInto(err *error) {

@@ -376,6 +376,15 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.NotContains(t, body, boardAdminID)
 	_, body = f.do(t, boardAdminID, http.MethodGet, "/services?board="+sharedBoardID, "")
 	assert.Contains(t, body, "admin:pw@jellyfin.lan", "the owner gets the URL they saved")
+	_, err := f.db.Exec(`UPDATE services SET url = 'http://jellyfin.lan/web?api_key=s3cret', icon_type = 'image_url',
+		icon_image_path = 'https://icons.lan/j.png?token=s3cret' WHERE id = ?`, sharedServiceID)
+	require.NoError(t, err)
+	_, body = f.do(t, boardUserID, http.MethodGet, "/services?board="+sharedBoardID, "")
+	assert.Contains(t, body, `"url":"http://jellyfin.lan/web"`, "nor the keys in its query")
+	assert.Contains(t, body, `"icon_image_path":"https://icons.lan/j.png"`)
+	assert.NotContains(t, body, "s3cret")
+	_, body = f.do(t, boardAdminID, http.MethodGet, "/services?board="+sharedBoardID, "")
+	assert.Contains(t, body, "api_key=s3cret")
 
 	status, body = f.do(t, boardUserID, http.MethodGet, "/widgets?board="+sharedBoardID, "")
 	require.Equal(t, 200, status)
@@ -385,7 +394,7 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.NotContains(t, body, "Passwords")
 	assert.NotContains(t, body, boardAdminID)
 	// Links the browser renders keep all but a user name and password
-	_, err := f.db.Exec(`INSERT INTO widgets (id, user_id, board_id, type, title, config) VALUES
+	_, err = f.db.Exec(`INSERT INTO widgets (id, user_id, board_id, type, title, config) VALUES
 		('e0000000-0000-0000-0000-0000000000f1', ?, ?, 'bookmarks', 'Links', '{"items":[{"name":"NAS","url":"http://admin:pw@nas.lan/?tab=1"}]}'),
 		('e0000000-0000-0000-0000-0000000000f2', ?, ?, 'markdown', 'Note', '{"content":"[NAS](http://admin:pw@nas.lan)"}')`,
 		boardAdminID, sharedBoardID, boardAdminID, sharedBoardID)
@@ -595,6 +604,66 @@ func TestBoards_ManageOwnBoards(t *testing.T) {
 	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE user_id = ?`, boardUserID), "the default board's service stays")
 }
 
+// A rename that read the board before an unshare edits the board as stored,
+// so it can't share the board again
+func TestBoards_UpdateAppliesToTheStoredBoard(t *testing.T) {
+	f := newBoardFixture(t, time.Minute)
+	boards, ctx := repository.NewBoardRepository(f.db), context.Background()
+	read, err := boards.GetByID(ctx, sharedBoardID)
+	require.NoError(t, err)
+	require.True(t, read.IsShared)
+
+	_, err = boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		b.IsShared = false
+		return nil
+	})
+	require.NoError(t, err)
+	renamed, err := boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		assert.False(t, b.IsShared, "the stored flag, not the one read before")
+		b.Name = read.Name + " night"
+		return nil
+	})
+	require.NoError(t, err)
+	assert.False(t, renamed.IsShared)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM boards WHERE id = ? AND name = 'Family night' AND is_shared = 0`, sharedBoardID))
+
+	// A refused edit changes nothing
+	_, err = boards.Update(ctx, sharedBoardID, boardAdminID, func(b *models.Board) error {
+		b.Name = "Gone"
+		return assert.AnError
+	})
+	assert.ErrorIs(t, err, assert.AnError)
+	assert.Zero(t, f.count(t, `SELECT COUNT(*) FROM boards WHERE name = 'Gone'`))
+}
+
+// A move to another board and the edit that comes with it are one write:
+// when the edit fails, the tile stays where it was
+func TestBoards_MoveAndEditAreOneWrite(t *testing.T) {
+	f := newBoardFixture(t, time.Minute)
+	_, err := f.db.Exec(`
+		CREATE TRIGGER refuse_widget BEFORE UPDATE ON widgets WHEN NEW.title = 'boom' BEGIN SELECT RAISE(ABORT, 'refused'); END;
+		CREATE TRIGGER refuse_service BEFORE UPDATE ON services WHEN NEW.name = 'boom' BEGIN SELECT RAISE(ABORT, 'refused'); END;`)
+	require.NoError(t, err)
+
+	status, body := f.do(t, boardAdminID, http.MethodPut, "/widgets/"+privateWidgetID, `{"board_id":"`+sharedBoardID+`","title":"boom"}`)
+	assert.Equal(t, 500, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM widgets WHERE id = ? AND board_id = ?`, privateWidgetID, privateBoardID),
+		"the widget, with its private config, stays off the shared board")
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/services/"+privateServiceID, `{"board_id":"`+sharedBoardID+`","name":"boom"}`)
+	assert.Equal(t, 500, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE id = ? AND board_id = ?`, privateServiceID, privateBoardID))
+
+	// The new config and a group of the new board come along
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/widgets/"+privateWidgetID,
+		`{"board_id":"`+sharedBoardID+`","group_id":"`+sharedGroupID+`","config":{"content":"for everyone"}}`)
+	require.Equal(t, 200, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM widgets WHERE id = ? AND board_id = ? AND group_id = ? AND config LIKE '%for everyone%'`,
+		privateWidgetID, sharedBoardID, sharedGroupID))
+	status, body = f.do(t, boardAdminID, http.MethodPut, "/services/"+privateServiceID, `{"board_id":"`+sharedBoardID+`","group_id":"`+sharedGroupID+`"}`)
+	require.Equal(t, 200, status, body)
+	assert.Equal(t, 1, f.count(t, `SELECT COUNT(*) FROM services WHERE id = ? AND board_id = ? AND group_id = ?`, privateServiceID, sharedBoardID, sharedGroupID))
+}
+
 func TestBoards_Limit(t *testing.T) {
 	f := newBoardFixture(t, time.Minute)
 	for i := 1; i < models.MaxBoardsPerUser; i++ { // the default board is the first
@@ -763,4 +832,12 @@ func TestBoards_ReaderGivesAViewerTheViewerVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, mine.Board.IsDefault && mine.CanEdit)
 	assert.Empty(t, mine.Services)
+
+	// The user's own board by name goes before a shared board by slug
+	_, err = f.db.Exec(`INSERT INTO boards (id, user_id, name, slug, position) VALUES ('b0000000-0000-0000-0000-0000000000f1', ?, 'Family', 'ours', 3)`, boardUserID)
+	require.NoError(t, err)
+	ours, err := reader.Read(ctx, boardUserID, "family")
+	require.NoError(t, err)
+	assert.Equal(t, "ours", ours.Board.Slug)
+	assert.True(t, ours.CanEdit)
 }

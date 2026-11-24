@@ -85,6 +85,12 @@ func (s *WidgetService) List(ctx context.Context, userID string) ([]models.Widge
 	return list, nil
 }
 
+// widgetMover is the part of WidgetRepository that moves a widget to
+// another board, with its new config in the same transaction
+type widgetMover interface {
+	Move(ctx context.Context, widget *models.Widget, boardID string) error
+}
+
 // boardWidgetLister is the part of WidgetRepository that lists one board
 type boardWidgetLister interface {
 	ListByBoardID(ctx context.Context, boardID string) ([]models.Widget, error)
@@ -217,12 +223,15 @@ func (s *WidgetService) Update(ctx context.Context, id, userID string, isAdmin b
 		return nil, err
 	}
 	if widget.BoardID != current.BoardID {
-		// Update leaves board and position alone, so the move goes first
-		if widget.Position, err = s.boards.MoveTile(ctx, userID, models.TileKindWidget, id, widget.BoardID); err != nil {
-			return nil, err
+		mover, ok := s.repo.(widgetMover)
+		if !ok {
+			return nil, errors.New("widget repository can't move a widget")
 		}
+		err = mover.Move(ctx, widget, widget.BoardID)
+	} else {
+		err = s.repo.Update(ctx, widget)
 	}
-	if err := s.repo.Update(ctx, widget); err != nil {
+	if err != nil {
 		return nil, err
 	}
 	kick(s.poller)

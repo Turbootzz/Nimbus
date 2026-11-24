@@ -70,6 +70,16 @@ export function setLastBoard(param: string) {
   }
 }
 
+// Forgets the board the last user opened, when the session changes: the
+// next user on this browser never chose one, and gets the shared board
+export function forgetLastBoard() {
+  try {
+    localStorage.removeItem(LAST_BOARD_KEY)
+  } catch {
+    // localStorage might be blocked; then nothing was remembered either
+  }
+}
+
 // Remembers a board the user chose ('' is the default board, /dashboard)
 export function rememberBoard(board: Board) {
   setLastBoard(board.owned && board.is_default ? '' : board.id)

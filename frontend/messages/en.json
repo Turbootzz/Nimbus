@@ -306,7 +306,7 @@
       "unreadable": "The file could not be read",
       "replaceWarning": {
         "title": "Replace deletes your current dashboard.",
-        "body": "The groups, services and widgets on your default board and on the boards the file lists are deleted, with the status history of those services. So are your integrations and their saved credentials, except those that tiles on your other boards still use. Other boards stay as they are. Your preferences are overwritten. This cannot be undone. Export first if you want a way back."
+        "body": "The groups, services and widgets on your default board and on the boards the file lists are deleted, with the status history of those services. So are your integrations and their saved credentials, except those that tiles on your other boards still use. Other boards stay as they are. Your preferences are overwritten. This cannot be undone. Export first to keep a way back; the export leaves out credentials, widget secrets and status history."
       },
       "customCss": {
         "title": "This file brings custom CSS (read it before you import)",
@@ -593,7 +593,8 @@
     "board": {
       "notFound": "Board not found",
       "notFoundDescription": "It does not exist, or it is no longer shared with you.",
-      "goToDashboard": "Go to your dashboard"
+      "goToDashboard": "Go to your dashboard",
+      "loadFailed": "Boards could not be loaded. Reload the page to try again."
     }
   },
   "integrations": {

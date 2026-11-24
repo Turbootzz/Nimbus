@@ -15,7 +15,7 @@ import { findBoard, rememberBoard } from '@/lib/boards'
 export default function BoardPage() {
   const t = useTranslations('dashboard.board')
   const { slug } = useParams<{ slug: string }>()
-  const { boards, loaded } = useBoards()
+  const { boards, loaded, failed } = useBoards()
   const kiosk = useKiosk()
   const board = findBoard(boards, decodeURIComponent(slug))
 
@@ -24,6 +24,14 @@ export default function BoardPage() {
     if (board && !kiosk) rememberBoard(board)
   }, [board, kiosk])
 
+  // Not loaded is not "not found": the page tries again when it is opened again
+  if (!loaded && failed) {
+    return (
+      <div className="glass-card border-card-border mx-auto max-w-md rounded-lg border p-12 text-center">
+        <p className="text-text-secondary">{t('loadFailed')}</p>
+      </div>
+    )
+  }
   if (!loaded) return <DashboardLoading />
   if (!board) {
     return (

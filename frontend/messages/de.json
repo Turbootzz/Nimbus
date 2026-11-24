@@ -306,7 +306,7 @@
       "unreadable": "Die Datei konnte nicht gelesen werden",
       "replaceWarning": {
         "title": "Ersetzen löscht dein aktuelles Dashboard.",
-        "body": "Die Gruppen, Dienste und Widgets auf deinem Standard-Board und auf den Boards, die in der Datei stehen, werden gelöscht, samt dem Statusverlauf dieser Dienste. Auch deine Integrationen und ihre gespeicherten Zugangsdaten werden gelöscht, außer denen, die noch von Kacheln auf deinen anderen Boards genutzt werden. Andere Boards bleiben, wie sie sind. Deine Einstellungen werden überschrieben. Das kann nicht rückgängig gemacht werden. Exportiere zuerst, wenn du einen Weg zurück haben willst."
+        "body": "Die Gruppen, Dienste und Widgets auf deinem Standard-Board und auf den Boards, die in der Datei stehen, werden gelöscht, samt dem Statusverlauf dieser Dienste. Auch deine Integrationen und ihre gespeicherten Zugangsdaten werden gelöscht, außer denen, die noch von Kacheln auf deinen anderen Boards genutzt werden. Andere Boards bleiben, wie sie sind. Deine Einstellungen werden überschrieben. Das kann nicht rückgängig gemacht werden. Exportiere zuerst, damit du einen Weg zurück hast; der Export lässt Zugangsdaten, Widget-Geheimnisse und den Statusverlauf weg."
       },
       "customCss": {
         "title": "Diese Datei bringt eigenes CSS mit (lies es, bevor du importierst)",
@@ -593,7 +593,8 @@
     "board": {
       "notFound": "Board nicht gefunden",
       "notFoundDescription": "Es existiert nicht oder wird nicht mehr mit dir geteilt.",
-      "goToDashboard": "Zu deinem Dashboard"
+      "goToDashboard": "Zu deinem Dashboard",
+      "loadFailed": "Boards konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen."
     }
   },
   "integrations": {

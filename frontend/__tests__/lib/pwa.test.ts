@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API_CACHE, bindApiCacheTo, clearApiCache } from '@/lib/pwa'
 import { api } from '@/lib/api'
+import { getLastBoard, setLastBoard } from '@/lib/boards'
 
 describe('offline cache owner', () => {
   const deleteCache = vi.fn(async () => true)
@@ -23,6 +24,18 @@ describe('offline cache owner', () => {
     await bindApiCacheTo('user-b')
 
     expect(deleteCache).toHaveBeenCalledWith(API_CACHE)
+  })
+
+  it('forgets the board the last user opened', async () => {
+    await bindApiCacheTo('user-a')
+    setLastBoard('b-lab')
+    await clearApiCache() // user B signs in
+    expect(getLastBoard()).toBeNull()
+
+    await bindApiCacheTo('user-b')
+    setLastBoard('b-lab')
+    await bindApiCacheTo('user-c') // a session change no purge saw
+    expect(getLastBoard()).toBeNull()
   })
 
   it('keeps what a new user synced after signing in', async () => {

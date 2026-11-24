@@ -90,6 +90,8 @@ export default function ServiceForm({
 
   // Fetch groups when grouping is enabled
   useEffect(() => {
+    // Groups of a board asked for before the last one are not shown
+    let stale = false
     const fetchGroups = async () => {
       if (!enableServiceGrouping) {
         setGroupsLoading(false)
@@ -100,6 +102,7 @@ export default function ServiceForm({
       try {
         // A service is edited with the groups of the board it is on
         const response = await api.getGroups(service?.board_id ?? boardId)
+        if (stale) return
         if (response.error) {
           setError(t('errors.loadGroups', { message: response.error.message }))
           return
@@ -119,13 +122,16 @@ export default function ServiceForm({
         }
       } catch (error) {
         console.error('Failed to fetch groups:', error)
-        setError(t('errors.loadGroupsRetry'))
+        if (!stale) setError(t('errors.loadGroupsRetry'))
       } finally {
-        setGroupsLoading(false)
+        if (!stale) setGroupsLoading(false)
       }
     }
 
     fetchGroups()
+    return () => {
+      stale = true
+    }
   }, [enableServiceGrouping, initialGroupId, isEdit, boardId, service?.board_id, t])
 
   const setSaving = (next: boolean) => {
