@@ -74,18 +74,20 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	seedStatusPageService(t, db, "svc-b", "group-1", 1, true)
 	seedStatusPageService(t, db, "svc-other", "group-2", 0, true)
 
-	since := time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC)
-	// svc-a: two checks in hour 0, one in hour 5
-	seedStatusLog(t, db, "svc-a", models.StatusOnline, since.Add(1*time.Minute))
-	seedStatusLog(t, db, "svc-a", models.StatusOffline, since.Add(59*time.Minute))
-	seedStatusLog(t, db, "svc-a", models.StatusOnline, since.Add(5*time.Hour+30*time.Minute))
-	// Before the range, and another group: both left out
-	seedStatusLog(t, db, "svc-a", models.StatusOffline, since.Add(-time.Minute))
-	seedStatusLog(t, db, "svc-other", models.StatusOffline, since.Add(time.Minute))
+	hour0 := time.Date(2026, 11, 10, 8, 0, 0, 0, time.UTC)
+	from, recentFrom := hour0.Add(30*time.Minute), hour0.Add(5*time.Hour+15*time.Minute)
+	// svc-a: two checks in hour 0 after from, two in hour 5 of which one is recent
+	seedStatusLog(t, db, "svc-a", models.StatusOnline, hour0.Add(31*time.Minute))
+	seedStatusLog(t, db, "svc-a", models.StatusOffline, hour0.Add(59*time.Minute))
+	seedStatusLog(t, db, "svc-a", models.StatusOffline, hour0.Add(5*time.Hour+10*time.Minute))
+	seedStatusLog(t, db, "svc-a", models.StatusOnline, hour0.Add(5*time.Hour+30*time.Minute))
+	// Before from (same clock hour), and another group: both left out
+	seedStatusLog(t, db, "svc-a", models.StatusOffline, hour0.Add(29*time.Minute))
+	seedStatusLog(t, db, "svc-other", models.StatusOffline, hour0.Add(time.Hour))
 	// svc-b: a check stored in another time zone lands in the same hour
-	seedStatusLog(t, db, "svc-b", models.StatusOnline, since.Add(2*time.Hour+time.Minute).In(time.FixedZone("CET", 3600)))
+	seedStatusLog(t, db, "svc-b", models.StatusOnline, hour0.Add(2*time.Hour+time.Minute).In(time.FixedZone("CET", 3600)))
 
-	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), "group-1", since)
+	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), "group-1", from, recentFrom)
 	require.NoError(t, err)
 
 	got := map[string]models.UptimeBucket{}
@@ -94,7 +96,7 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	}
 	assert.Len(t, got, 3)
 	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-a", Hour: 0, Total: 2, Online: 1}, got["svc-a@0s"])
-	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-a", Hour: 5, Total: 1, Online: 1}, got["svc-a@5h0m0s"])
+	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-a", Hour: 5, Total: 2, Online: 1, RecentTotal: 1, RecentOnline: 1}, got["svc-a@5h0m0s"])
 	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-b", Hour: 2, Total: 1, Online: 1}, got["svc-b@2h0m0s"])
 }
 
@@ -102,7 +104,7 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup_Empty(t *testing.T) {
 	db := setupStatusPageTestDB(t)
 	repo := NewStatusLogRepository(db)
 
-	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), "group-1", time.Now().Add(-time.Hour))
+	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), "group-1", time.Now().Add(-time.Hour), time.Now())
 	require.NoError(t, err)
 	assert.Empty(t, buckets)
 }

@@ -24,11 +24,13 @@ export default function CustomCssSettings() {
   const tooLarge = bytes > MAX_CUSTOM_CSS_BYTES
 
   const save = async () => {
+    const saved = value
     setSaving(true)
-    const problem = await saveTheme({ custom_css: value })
+    const problem = await saveTheme({ custom_css: saved })
     setSaving(false)
     setError(problem)
-    if (!problem) setDraft(null)
+    // Not when the user typed on while it saved
+    if (!problem) setDraft((current) => (current === saved ? null : current))
   }
 
   return (
