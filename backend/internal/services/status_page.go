@@ -221,7 +221,7 @@ func (s *StatusPageService) build(ctx context.Context, now time.Time) (*models.P
 	if err != nil {
 		return nil, err
 	}
-	owner, err := s.userRepo.GetByID(group.UserID)
+	owner, err := s.userRepo.GetByIDContext(ctx, group.UserID)
 	if errors.Is(err, repository.ErrUserNotFound) {
 		return nil, nil
 	}
