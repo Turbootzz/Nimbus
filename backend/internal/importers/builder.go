@@ -176,15 +176,18 @@ func withoutSecrets(raw string) (string, bool) {
 	return parsed.String(), true
 }
 
-// quoteURL quotes a URL for a warning, without its login and query
+// quoteURL quotes a URL for a warning, without its login and query. What
+// still has an @ or ? after that (a login without a scheme like
+// "admin:pw@nas.lan", which parses as something else) is not shown at all.
 func quoteURL(raw string) string {
-	if !strings.ContainsAny(raw, "@?") {
-		return strconv.Quote(raw)
+	clean := raw
+	if strings.ContainsAny(raw, "@?") {
+		clean, _ = withoutSecrets(raw)
 	}
-	if clean, _ := withoutSecrets(raw); clean != "" {
-		return strconv.Quote(clean)
+	if clean == "" || strings.ContainsAny(clean, "@?") {
+		return "(not shown)"
 	}
-	return "(not shown)"
+	return strconv.Quote(clean)
 }
 
 // entry is a link as another dashboard describes it

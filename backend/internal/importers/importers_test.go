@@ -442,6 +442,12 @@ func TestOddURLsAreSkipped(t *testing.T) {
         href: ftp://admin:ftpsecret@files.lan/?token=ftptoken
     - Broken:
         href: http://admin:brokensecret@host.or.ip:port/?key=brokentoken
+    - No scheme:
+        href: admin:hunter1@nas.lan/x
+    - No scheme with port:
+        href: admin:hunter2@nas.lan:8080/x
+    - No slashes:
+        href: http:admin:hunter3@nas.lan
     - Pi-hole:
         href: https://proxy.lan/pihole/admin/
         widget:
@@ -462,12 +468,13 @@ func TestOddURLsAreSkipped(t *testing.T) {
 	// A warning quotes no login or query either, or nothing of a URL that doesn't parse
 	warned(t, result.Warnings, "Secret FTP", "skipped", `"ftp://files.lan/"`)
 	warned(t, result.Warnings, "Broken", "skipped", "(not shown)")
+	warned(t, result.Warnings, "No scheme:", "skipped", "(not shown)")
 	warned(t, result.Warnings, "Variable", `"{{HOMEPAGE_VAR_URL}}"`)
 	all := strings.Join(result.Warnings, "\n")
-	for _, secret := range []string{"user:pass", "=abc", "ftpsecret", "ftptoken", "brokensecret", "brokentoken"} {
+	for _, secret := range []string{"user:pass", "=abc", "ftpsecret", "ftptoken", "brokensecret", "brokentoken", "hunter"} {
 		assert.NotContains(t, all, secret)
 	}
-	assert.Len(t, result.Warnings, 9)
+	assert.Len(t, result.Warnings, 12)
 
 	// Behind a proxy prefix, Pi-hole's API is beside its /admin web UI
 	pihole := find(t, doc, "Pi-hole")
