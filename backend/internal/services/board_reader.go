@@ -5,6 +5,7 @@ import (
 
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/widgets"
 )
 
 // BoardContent is what one board shows to one user: for a viewer of a
@@ -28,14 +29,16 @@ type BoardReader struct {
 	Live     *LiveDataService
 }
 
-// ServicesForViewer strips the credentials (https://user:password@host) from
-// the links of services someone else's shared board shows, as the public
-// status page does
+// ServicesForViewer strips the links of services someone else's shared board
+// shows: http(s) only, as on the public status page, and without the
+// credentials and query (https://user:password@host/?api_key=...) that keys
+// live in, as for the widgets there
 func ServicesForViewer(list []*models.Service) {
+	strip := func(raw string) string { return widgets.StripURLSecrets(publicURL(raw)).(string) }
 	for _, service := range list {
-		service.URL = publicURL(service.URL)
+		service.URL = strip(service.URL)
 		if service.IconType == models.IconTypeImageURL {
-			service.IconImagePath = publicURL(service.IconImagePath)
+			service.IconImagePath = strip(service.IconImagePath)
 		}
 	}
 }

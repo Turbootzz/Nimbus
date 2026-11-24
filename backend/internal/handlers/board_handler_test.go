@@ -376,6 +376,15 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.NotContains(t, body, boardAdminID)
 	_, body = f.do(t, boardAdminID, http.MethodGet, "/services?board="+sharedBoardID, "")
 	assert.Contains(t, body, "admin:pw@jellyfin.lan", "the owner gets the URL they saved")
+	_, err := f.db.Exec(`UPDATE services SET url = 'http://jellyfin.lan/web?api_key=s3cret', icon_type = 'image_url',
+		icon_image_path = 'https://icons.lan/j.png?token=s3cret' WHERE id = ?`, sharedServiceID)
+	require.NoError(t, err)
+	_, body = f.do(t, boardUserID, http.MethodGet, "/services?board="+sharedBoardID, "")
+	assert.Contains(t, body, `"url":"http://jellyfin.lan/web"`, "nor the keys in its query")
+	assert.Contains(t, body, `"icon_image_path":"https://icons.lan/j.png"`)
+	assert.NotContains(t, body, "s3cret")
+	_, body = f.do(t, boardAdminID, http.MethodGet, "/services?board="+sharedBoardID, "")
+	assert.Contains(t, body, "api_key=s3cret")
 
 	status, body = f.do(t, boardUserID, http.MethodGet, "/widgets?board="+sharedBoardID, "")
 	require.Equal(t, 200, status)
@@ -385,7 +394,7 @@ func TestBoards_ViewerSeesOnlyWhatTheBoardShows(t *testing.T) {
 	assert.NotContains(t, body, "Passwords")
 	assert.NotContains(t, body, boardAdminID)
 	// Links the browser renders keep all but a user name and password
-	_, err := f.db.Exec(`INSERT INTO widgets (id, user_id, board_id, type, title, config) VALUES
+	_, err = f.db.Exec(`INSERT INTO widgets (id, user_id, board_id, type, title, config) VALUES
 		('e0000000-0000-0000-0000-0000000000f1', ?, ?, 'bookmarks', 'Links', '{"items":[{"name":"NAS","url":"http://admin:pw@nas.lan/?tab=1"}]}'),
 		('e0000000-0000-0000-0000-0000000000f2', ?, ?, 'markdown', 'Note', '{"content":"[NAS](http://admin:pw@nas.lan)"}')`,
 		boardAdminID, sharedBoardID, boardAdminID, sharedBoardID)
