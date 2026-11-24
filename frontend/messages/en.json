@@ -129,6 +129,46 @@
       "connecting": "Connecting..."
     }
   },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Close",
+      "yourBoards": "Your boards",
+      "nameOf": "Name of {name}",
+      "moveUp": "Move {name} up",
+      "moveDown": "Move {name} down",
+      "delete": "Delete {name}",
+      "defaultBoard": "Default board, at /dashboard",
+      "shared": "Shared with every user, read-only",
+      "newBoard": "New board",
+      "namePlaceholder": "e.g. Family",
+      "create": "Create",
+      "share": "Share with every user, read-only",
+      "shareHint": "Every user sees all tiles of a shared board, also admin-only widgets such as Docker containers, system stats and custom API data."
+    },
+    "deleteDialog": {
+      "title": "Delete “{name}”?",
+      "tilesLegend": "Its services, widgets and groups:",
+      "moveTo": "Move them to",
+      "moveToLabel": "Board to move them to",
+      "deleteTiles": "Delete them with the board",
+      "warning": "This deletes them for good. It cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete board"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (this board)",
+      "thisBoard": "This board",
+      "hint": "On another board it is added at the end, outside any group."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board:",
+      "manage": "Manage boards",
+      "shared": "shared"
+    }
+  },
   "language": {
     "label": "Language",
     "automatic": "Automatic (browser)",
@@ -139,6 +179,69 @@
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Metrics",
+      "userManagement": "User Management",
+      "admin": "Admin",
+      "profileSettings": "Profile Settings",
+      "themeSettings": "Theme Settings",
+      "settings": "Settings"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Metrics",
+      "users": "Users",
+      "settings": "Settings"
+    },
+    "hostedByNimbusCloud": "Hosted by Nimbus Cloud",
+    "header": {
+      "openMenu": "Open navigation menu"
+    },
+    "sidebar": {
+      "addService": "Add Service",
+      "signOut": "Sign out",
+      "expand": "Expand sidebar",
+      "collapse": "Collapse sidebar",
+      "close": "Close sidebar"
+    },
+    "userMenu": {
+      "loading": "Loading...",
+      "fallbackName": "User",
+      "editLayout": "Edit layout",
+      "doneEditing": "Done editing",
+      "profileSettings": "Profile Settings",
+      "newBoard": "New board",
+      "installApp": "Install app",
+      "signOut": "Sign Out"
+    },
+    "search": {
+      "label": "Search services",
+      "shortcutTitle": "Search services (/ or Ctrl+K)",
+      "loading": "Loading services...",
+      "loadFailed": "Could not load your services: {error}",
+      "noResults": "No services match"
+    },
+    "topBar": {
+      "heading": "Dashboard",
+      "weatherIn": "{condition} in {location}"
+    },
+    "themeToggle": {
+      "label": "Toggle theme",
+      "labelAuto": "Toggle theme (currently auto)",
+      "autoTitle": "Auto mode - click to switch to manual"
+    },
+    "configFile": {
+      "title": "Managed by config file.",
+      "readOnly": "This dashboard is read-only: its groups, services, widgets and integrations are set in the file NIMBUS_CONFIG_FILE points at. Change the file to change the dashboard.",
+      "editable": "This dashboard follows the file NIMBUS_CONFIG_FILE points at. What you change here can be overwritten when the file changes or the server restarts.",
+      "preferences": "Theme, layout and wallpaper settings come from the file too: changes to them are not saved.",
+      "readOnlyNote": "This dashboard is managed by a config file and is read-only. Change the file instead."
     }
   },
   "preferences": {

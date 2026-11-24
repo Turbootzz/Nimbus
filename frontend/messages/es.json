@@ -129,6 +129,46 @@
       "connecting": "Conectando..."
     }
   },
+  "boards": {
+    "manager": {
+      "title": "Tableros",
+      "close": "Cerrar",
+      "yourBoards": "Tus tableros",
+      "nameOf": "Nombre de {name}",
+      "moveUp": "Subir {name}",
+      "moveDown": "Bajar {name}",
+      "delete": "Eliminar {name}",
+      "defaultBoard": "Tablero predeterminado, en /dashboard",
+      "shared": "Compartido con todos los usuarios, solo lectura",
+      "newBoard": "Nuevo tablero",
+      "namePlaceholder": "p. ej., Familia",
+      "create": "Crear",
+      "share": "Compartir con todos los usuarios, solo lectura",
+      "shareHint": "Todos los usuarios ven todos los mosaicos de un tablero compartido, incluidos los widgets solo para administradores, como contenedores de Docker, estadísticas del sistema y datos de API personalizados."
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar “{name}”?",
+      "tilesLegend": "Sus servicios, widgets y grupos:",
+      "moveTo": "Moverlos a",
+      "moveToLabel": "Tablero al que moverlos",
+      "deleteTiles": "Eliminarlos con el tablero",
+      "warning": "Se eliminarán para siempre. No se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar tablero"
+    },
+    "select": {
+      "label": "Tablero",
+      "current": "{name} (este tablero)",
+      "thisBoard": "Este tablero",
+      "hint": "En otro tablero se añade al final, fuera de cualquier grupo."
+    },
+    "switcher": {
+      "title": "Tableros",
+      "current": "Tablero:",
+      "manage": "Gestionar tableros",
+      "shared": "compartido"
+    }
+  },
   "language": {
     "label": "Idioma",
     "automatic": "Automático (navegador)",
@@ -139,6 +179,69 @@
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Panel",
+      "services": "Servicios",
+      "metrics": "Métricas",
+      "userManagement": "Gestión de usuarios",
+      "admin": "Administración",
+      "profileSettings": "Ajustes del perfil",
+      "themeSettings": "Ajustes del tema",
+      "settings": "Ajustes"
+    },
+    "nav": {
+      "dashboard": "Panel",
+      "services": "Servicios",
+      "metrics": "Métricas",
+      "users": "Usuarios",
+      "settings": "Ajustes"
+    },
+    "hostedByNimbusCloud": "Alojado en Nimbus Cloud",
+    "header": {
+      "openMenu": "Abrir el menú de navegación"
+    },
+    "sidebar": {
+      "addService": "Añadir servicio",
+      "signOut": "Cerrar sesión",
+      "expand": "Expandir la barra lateral",
+      "collapse": "Contraer la barra lateral",
+      "close": "Cerrar la barra lateral"
+    },
+    "userMenu": {
+      "loading": "Cargando...",
+      "fallbackName": "Usuario",
+      "editLayout": "Editar diseño",
+      "doneEditing": "Terminar de editar",
+      "profileSettings": "Ajustes del perfil",
+      "newBoard": "Nuevo tablero",
+      "installApp": "Instalar la app",
+      "signOut": "Cerrar sesión"
+    },
+    "search": {
+      "label": "Buscar servicios",
+      "shortcutTitle": "Buscar servicios (/ o Ctrl+K)",
+      "loading": "Cargando servicios...",
+      "loadFailed": "No se pudieron cargar tus servicios: {error}",
+      "noResults": "Ningún servicio coincide"
+    },
+    "topBar": {
+      "heading": "Panel",
+      "weatherIn": "{condition} en {location}"
+    },
+    "themeToggle": {
+      "label": "Cambiar tema",
+      "labelAuto": "Cambiar tema (ahora automático)",
+      "autoTitle": "Modo automático: haz clic para elegirlo tú"
+    },
+    "configFile": {
+      "title": "Gestionado por un archivo de configuración.",
+      "readOnly": "Este panel es de solo lectura: sus grupos, servicios, widgets e integraciones se definen en el archivo al que apunta NIMBUS_CONFIG_FILE. Cambia el archivo para cambiar el panel.",
+      "editable": "Este panel sigue el archivo al que apunta NIMBUS_CONFIG_FILE. Lo que cambies aquí puede sobrescribirse cuando el archivo cambie o el servidor se reinicie.",
+      "preferences": "Los ajustes de tema, diseño y fondo de pantalla también vienen del archivo: los cambios en ellos no se guardan.",
+      "readOnlyNote": "Este panel lo gestiona un archivo de configuración y es de solo lectura. Cambia el archivo en su lugar."
     }
   },
   "preferences": {

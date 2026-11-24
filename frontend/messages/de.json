@@ -129,6 +129,46 @@
       "connecting": "Verbindung wird hergestellt..."
     }
   },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Schließen",
+      "yourBoards": "Deine Boards",
+      "nameOf": "Name von {name}",
+      "moveUp": "{name} nach oben verschieben",
+      "moveDown": "{name} nach unten verschieben",
+      "delete": "{name} löschen",
+      "defaultBoard": "Standard-Board, unter /dashboard",
+      "shared": "Mit allen Benutzern geteilt, schreibgeschützt",
+      "newBoard": "Neues Board",
+      "namePlaceholder": "z. B. Familie",
+      "create": "Erstellen",
+      "share": "Mit allen Benutzern teilen, schreibgeschützt",
+      "shareHint": "Jeder Benutzer sieht alle Kacheln eines geteilten Boards, auch Widgets nur für Admins wie Docker-Container, Systemstatistiken und eigene API-Daten."
+    },
+    "deleteDialog": {
+      "title": "„{name}“ löschen?",
+      "tilesLegend": "Seine Dienste, Widgets und Gruppen:",
+      "moveTo": "Verschieben nach",
+      "moveToLabel": "Board, auf das sie verschoben werden",
+      "deleteTiles": "Mit dem Board löschen",
+      "warning": "Damit werden sie endgültig gelöscht. Das kann nicht rückgängig gemacht werden.",
+      "cancel": "Abbrechen",
+      "confirm": "Board löschen"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (dieses Board)",
+      "thisBoard": "Dieses Board",
+      "hint": "Auf einem anderen Board wird es am Ende hinzugefügt, außerhalb jeder Gruppe."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board:",
+      "manage": "Boards verwalten",
+      "shared": "geteilt"
+    }
+  },
   "language": {
     "label": "Sprache",
     "automatic": "Automatisch (Browser)",
@@ -139,6 +179,69 @@
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Dashboard",
+      "services": "Dienste",
+      "metrics": "Metriken",
+      "userManagement": "Benutzerverwaltung",
+      "admin": "Verwaltung",
+      "profileSettings": "Profileinstellungen",
+      "themeSettings": "Design-Einstellungen",
+      "settings": "Einstellungen"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "services": "Dienste",
+      "metrics": "Metriken",
+      "users": "Benutzer",
+      "settings": "Einstellungen"
+    },
+    "hostedByNimbusCloud": "Gehostet von Nimbus Cloud",
+    "header": {
+      "openMenu": "Navigationsmenü öffnen"
+    },
+    "sidebar": {
+      "addService": "Dienst hinzufügen",
+      "signOut": "Abmelden",
+      "expand": "Seitenleiste ausklappen",
+      "collapse": "Seitenleiste einklappen",
+      "close": "Seitenleiste schließen"
+    },
+    "userMenu": {
+      "loading": "Laden...",
+      "fallbackName": "Benutzer",
+      "editLayout": "Layout bearbeiten",
+      "doneEditing": "Bearbeiten beenden",
+      "profileSettings": "Profileinstellungen",
+      "newBoard": "Neues Board",
+      "installApp": "App installieren",
+      "signOut": "Abmelden"
+    },
+    "search": {
+      "label": "Dienste suchen",
+      "shortcutTitle": "Dienste suchen (/ oder Strg+K)",
+      "loading": "Dienste werden geladen...",
+      "loadFailed": "Deine Dienste konnten nicht geladen werden: {error}",
+      "noResults": "Keine passenden Dienste"
+    },
+    "topBar": {
+      "heading": "Dashboard",
+      "weatherIn": "{condition} in {location}"
+    },
+    "themeToggle": {
+      "label": "Design wechseln",
+      "labelAuto": "Design wechseln (derzeit automatisch)",
+      "autoTitle": "Automatischer Modus - klicke, um selbst zu wählen"
+    },
+    "configFile": {
+      "title": "Von Konfigurationsdatei verwaltet.",
+      "readOnly": "Dieses Dashboard ist schreibgeschützt: Gruppen, Dienste, Widgets und Integrationen stehen in der Datei, auf die NIMBUS_CONFIG_FILE zeigt. Ändere die Datei, um das Dashboard zu ändern.",
+      "editable": "Dieses Dashboard folgt der Datei, auf die NIMBUS_CONFIG_FILE zeigt. Was du hier änderst, kann überschrieben werden, wenn sich die Datei ändert oder der Server neu startet.",
+      "preferences": "Auch die Einstellungen für Design, Layout und Hintergrundbild kommen aus der Datei: Änderungen daran werden nicht gespeichert.",
+      "readOnlyNote": "Dieses Dashboard wird von einer Konfigurationsdatei verwaltet und ist schreibgeschützt. Ändere stattdessen die Datei."
     }
   },
   "preferences": {

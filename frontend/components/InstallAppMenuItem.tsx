@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import { useHoverStyle, hoverStyles } from '@/hooks/useHoverStyle'
 import { promptInstall, useCanInstall } from '@/lib/pwa'
 
@@ -12,6 +13,7 @@ interface InstallAppMenuItemProps {
 // User menu entry that installs Nimbus as an app. Renders nothing when the
 // browser offers no install (Safari, Firefox) or the app is already installed.
 export default function InstallAppMenuItem({ onSelect }: InstallAppMenuItemProps) {
+  const t = useTranslations('layout.userMenu')
   const canInstall = useCanInstall()
   const menuItemHover = useHoverStyle(hoverStyles.menuItem)
 
@@ -29,7 +31,7 @@ export default function InstallAppMenuItem({ onSelect }: InstallAppMenuItemProps
       {...menuItemHover}
     >
       <ArrowDownTrayIcon className="mr-3 h-5 w-5" style={{ color: 'var(--color-text-muted)' }} />
-      Install app
+      {t('installApp')}
     </button>
   )
 }

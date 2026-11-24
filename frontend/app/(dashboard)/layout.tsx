@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useSyncExternalStore } from 'react'
 import { usePathname } from 'next/navigation'
+import { useTranslations, type Messages } from 'next-intl'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 import CanvasTopBar from '@/components/layout/CanvasTopBar'
@@ -26,18 +27,24 @@ import { useKiosk } from '@/hooks/useKiosk'
 import { isKioskSearch } from '@/lib/kiosk'
 
 // Route title configuration (ordered by specificity - more specific routes first)
-const routeTitles: { path: string; title: string; exact?: boolean }[] = [
-  { path: '/dashboard', title: 'Dashboard', exact: true },
-  { path: '/services', title: 'Services' },
-  { path: '/metrics', title: 'Metrics' },
-  { path: '/admin/users', title: 'User Management' },
-  { path: '/admin', title: 'Admin' },
-  { path: '/settings/profile', title: 'Profile Settings' },
-  { path: '/settings/theme', title: 'Theme Settings' },
-  { path: '/settings', title: 'Settings' },
+// title: its key in layout.routes
+const routeTitles: {
+  path: string
+  title: keyof Messages['layout']['routes']
+  exact?: boolean
+}[] = [
+  { path: '/dashboard', title: 'dashboard', exact: true },
+  { path: '/services', title: 'services' },
+  { path: '/metrics', title: 'metrics' },
+  { path: '/admin/users', title: 'userManagement' },
+  { path: '/admin', title: 'admin' },
+  { path: '/settings/profile', title: 'profileSettings' },
+  { path: '/settings/theme', title: 'themeSettings' },
+  { path: '/settings', title: 'settings' },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('layout.routes')
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const isDesktopCollapsed = useSyncExternalStore(
     subscribeSidebar,
@@ -79,8 +86,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const route = routeTitles.find((r) =>
       r.exact ? pathname === r.path : pathname === r.path || pathname.startsWith(r.path + '/')
     )
-    return route?.title ?? 'Dashboard'
-  }, [pathname])
+    return t(route?.title ?? 'dashboard')
+  }, [pathname, t])
 
   // One tree for both layouts: only the chrome around <main> changes, so the
   // page itself never remounts when the layout switches

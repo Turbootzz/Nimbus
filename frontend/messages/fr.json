@@ -129,6 +129,46 @@
       "connecting": "Connexion..."
     }
   },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Fermer",
+      "yourBoards": "Vos boards",
+      "nameOf": "Nom de {name}",
+      "moveUp": "Monter {name}",
+      "moveDown": "Descendre {name}",
+      "delete": "Supprimer {name}",
+      "defaultBoard": "Board par défaut, sur /dashboard",
+      "shared": "Partagé avec tous les utilisateurs, en lecture seule",
+      "newBoard": "Nouveau board",
+      "namePlaceholder": "ex. Famille",
+      "create": "Créer",
+      "share": "Partager avec tous les utilisateurs, en lecture seule",
+      "shareHint": "Chaque utilisateur voit toutes les tuiles d’un board partagé, y compris les widgets réservés aux administrateurs comme les conteneurs Docker, les statistiques système et les données d’API personnalisées."
+    },
+    "deleteDialog": {
+      "title": "Supprimer « {name} » ?",
+      "tilesLegend": "Ses services, widgets et groupes :",
+      "moveTo": "Les déplacer vers",
+      "moveToLabel": "Board de destination",
+      "deleteTiles": "Les supprimer avec le board",
+      "warning": "Ils seront supprimés définitivement. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer le board"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (ce board)",
+      "thisBoard": "Ce board",
+      "hint": "Sur un autre board, il est ajouté à la fin, hors de tout groupe."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board :",
+      "manage": "Gérer les boards",
+      "shared": "partagé"
+    }
+  },
   "language": {
     "label": "Langue",
     "automatic": "Automatique (navigateur)",
@@ -139,6 +179,69 @@
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Tableau de bord",
+      "services": "Services",
+      "metrics": "Métriques",
+      "userManagement": "Gestion des utilisateurs",
+      "admin": "Administration",
+      "profileSettings": "Paramètres du profil",
+      "themeSettings": "Paramètres du thème",
+      "settings": "Paramètres"
+    },
+    "nav": {
+      "dashboard": "Tableau de bord",
+      "services": "Services",
+      "metrics": "Métriques",
+      "users": "Utilisateurs",
+      "settings": "Paramètres"
+    },
+    "hostedByNimbusCloud": "Hébergé par Nimbus Cloud",
+    "header": {
+      "openMenu": "Ouvrir le menu de navigation"
+    },
+    "sidebar": {
+      "addService": "Ajouter un service",
+      "signOut": "Se déconnecter",
+      "expand": "Déplier la barre latérale",
+      "collapse": "Replier la barre latérale",
+      "close": "Fermer la barre latérale"
+    },
+    "userMenu": {
+      "loading": "Chargement...",
+      "fallbackName": "Utilisateur",
+      "editLayout": "Modifier la disposition",
+      "doneEditing": "Terminer la modification",
+      "profileSettings": "Paramètres du profil",
+      "newBoard": "Nouveau board",
+      "installApp": "Installer l’application",
+      "signOut": "Se déconnecter"
+    },
+    "search": {
+      "label": "Rechercher des services",
+      "shortcutTitle": "Rechercher des services (/ ou Ctrl+K)",
+      "loading": "Chargement des services...",
+      "loadFailed": "Impossible de charger vos services : {error}",
+      "noResults": "Aucun service ne correspond"
+    },
+    "topBar": {
+      "heading": "Tableau de bord",
+      "weatherIn": "{condition} à {location}"
+    },
+    "themeToggle": {
+      "label": "Changer de thème",
+      "labelAuto": "Changer de thème (actuellement automatique)",
+      "autoTitle": "Mode automatique - cliquez pour choisir vous-même"
+    },
+    "configFile": {
+      "title": "Géré par un fichier de configuration.",
+      "readOnly": "Ce tableau de bord est en lecture seule : ses groupes, services, widgets et intégrations sont définis dans le fichier indiqué par NIMBUS_CONFIG_FILE. Modifiez le fichier pour modifier le tableau de bord.",
+      "editable": "Ce tableau de bord suit le fichier indiqué par NIMBUS_CONFIG_FILE. Ce que vous modifiez ici peut être écrasé quand le fichier change ou que le serveur redémarre.",
+      "preferences": "Les paramètres de thème, de disposition et de fond d’écran viennent aussi du fichier : leurs modifications ne sont pas enregistrées.",
+      "readOnlyNote": "Ce tableau de bord est géré par un fichier de configuration et est en lecture seule. Modifiez plutôt le fichier."
     }
   },
   "preferences": {

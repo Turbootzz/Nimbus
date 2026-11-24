@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { ChevronDownIcon, Cog6ToothIcon } from '@heroicons/react/24/outline'
 import { useBoards } from '@/hooks/useBoards'
 import { useConfigFile } from '@/hooks/useConfigFile'
@@ -21,6 +22,7 @@ interface BoardSwitcherProps {
 // Switches between the boards the user sees. Nothing shows with one board:
 // the dashboard then looks as it did before boards existed.
 export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardSwitcherProps) {
+  const t = useTranslations('boards.switcher')
   const { boards } = useBoards()
   const onScreen = useBoardOnScreen()
   // A dashboard locked by a config file has no board to create or change
@@ -56,9 +58,11 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
 
   if (variant === 'list') {
     return (
-      <div role="group" aria-label="Boards" className="space-y-1 pt-3">
+      <div role="group" aria-label={t('title')} className="space-y-1 pt-3">
         {!collapsed && (
-          <p className="text-text-muted px-3 text-xs font-medium tracking-wide uppercase">Boards</p>
+          <p className="text-text-muted px-3 text-xs font-medium tracking-wide uppercase">
+            {t('title')}
+          </p>
         )}
         {boards.map((board) => {
           const current = board.id === activeId
@@ -94,7 +98,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
             onClick={manage}
             className="text-text-muted hover:text-text-primary hover:bg-card-border flex w-full items-center rounded-md px-3 py-1.5 text-sm transition-colors"
           >
-            Manage boards
+            {t('manage')}
           </button>
         )}
       </div>
@@ -122,8 +126,8 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
         onClick={() => setOpen(!open)}
         className="text-text-primary hover:bg-card-border focus-visible:ring-primary flex max-w-40 items-center gap-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none sm:max-w-56"
       >
-        <span className="sr-only">Board: </span>
-        <span className="truncate">{active?.name ?? 'Boards'}</span>
+        <span className="sr-only">{t('current')} </span>
+        <span className="truncate">{active?.name ?? t('title')}</span>
         <ChevronDownIcon className="text-text-muted h-4 w-4 shrink-0" aria-hidden="true" />
       </button>
       {open && (
@@ -142,7 +146,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
               }`}
             >
               {board.name}
-              {!board.owned && <span className="text-text-muted text-xs"> · shared</span>}
+              {!board.owned && <span className="text-text-muted text-xs"> · {t('shared')}</span>}
             </Link>
           ))}
           {!locked && (
@@ -154,7 +158,7 @@ export default function BoardSwitcher({ variant, collapsed, onNavigate }: BoardS
                 className="text-text-secondary hover:bg-card-hover hover:text-text-primary flex w-full items-center px-4 py-2 text-sm"
               >
                 <Cog6ToothIcon className="text-text-muted mr-3 h-5 w-5" aria-hidden="true" />
-                Manage boards
+                {t('manage')}
               </button>
             </>
           )}

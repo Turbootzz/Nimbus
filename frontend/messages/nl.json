@@ -129,6 +129,46 @@
       "connecting": "Verbinden..."
     }
   },
+  "boards": {
+    "manager": {
+      "title": "Boards",
+      "close": "Sluiten",
+      "yourBoards": "Je boards",
+      "nameOf": "Naam van {name}",
+      "moveUp": "{name} omhoog verplaatsen",
+      "moveDown": "{name} omlaag verplaatsen",
+      "delete": "{name} verwijderen",
+      "defaultBoard": "Standaardboard, op /dashboard",
+      "shared": "Gedeeld met alle gebruikers, alleen-lezen",
+      "newBoard": "Nieuw board",
+      "namePlaceholder": "bijv. Gezin",
+      "create": "Aanmaken",
+      "share": "Delen met alle gebruikers, alleen-lezen",
+      "shareHint": "Iedere gebruiker ziet alle tegels van een gedeeld board, ook widgets die alleen voor beheerders zijn, zoals Docker-containers, systeemstatistieken en eigen API-gegevens."
+    },
+    "deleteDialog": {
+      "title": "“{name}” verwijderen?",
+      "tilesLegend": "De services, widgets en groepen erop:",
+      "moveTo": "Verplaatsen naar",
+      "moveToLabel": "Board waar ze naartoe gaan",
+      "deleteTiles": "Samen met het board verwijderen",
+      "warning": "Ze worden definitief verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "cancel": "Annuleren",
+      "confirm": "Board verwijderen"
+    },
+    "select": {
+      "label": "Board",
+      "current": "{name} (dit board)",
+      "thisBoard": "Dit board",
+      "hint": "Op een ander board komt het achteraan, buiten elke groep."
+    },
+    "switcher": {
+      "title": "Boards",
+      "current": "Board:",
+      "manage": "Boards beheren",
+      "shared": "gedeeld"
+    }
+  },
   "language": {
     "label": "Taal",
     "automatic": "Automatisch (browser)",
@@ -139,6 +179,69 @@
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español"
+    }
+  },
+  "layout": {
+    "routes": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Statistieken",
+      "userManagement": "Gebruikersbeheer",
+      "admin": "Beheer",
+      "profileSettings": "Profielinstellingen",
+      "themeSettings": "Thema-instellingen",
+      "settings": "Instellingen"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "services": "Services",
+      "metrics": "Statistieken",
+      "users": "Gebruikers",
+      "settings": "Instellingen"
+    },
+    "hostedByNimbusCloud": "Gehost door Nimbus Cloud",
+    "header": {
+      "openMenu": "Navigatiemenu openen"
+    },
+    "sidebar": {
+      "addService": "Service toevoegen",
+      "signOut": "Uitloggen",
+      "expand": "Zijbalk uitklappen",
+      "collapse": "Zijbalk inklappen",
+      "close": "Zijbalk sluiten"
+    },
+    "userMenu": {
+      "loading": "Laden...",
+      "fallbackName": "Gebruiker",
+      "editLayout": "Indeling bewerken",
+      "doneEditing": "Klaar met bewerken",
+      "profileSettings": "Profielinstellingen",
+      "newBoard": "Nieuw board",
+      "installApp": "App installeren",
+      "signOut": "Uitloggen"
+    },
+    "search": {
+      "label": "Services zoeken",
+      "shortcutTitle": "Services zoeken (/ of Ctrl+K)",
+      "loading": "Services laden...",
+      "loadFailed": "Je services konden niet worden geladen: {error}",
+      "noResults": "Geen services gevonden"
+    },
+    "topBar": {
+      "heading": "Dashboard",
+      "weatherIn": "{condition} in {location}"
+    },
+    "themeToggle": {
+      "label": "Thema wisselen",
+      "labelAuto": "Thema wisselen (nu automatisch)",
+      "autoTitle": "Automatische modus - klik om zelf te kiezen"
+    },
+    "configFile": {
+      "title": "Beheerd via configuratiebestand.",
+      "readOnly": "Dit dashboard is alleen-lezen: de groepen, services, widgets en integraties staan in het bestand waar NIMBUS_CONFIG_FILE naar verwijst. Pas het bestand aan om het dashboard te wijzigen.",
+      "editable": "Dit dashboard volgt het bestand waar NIMBUS_CONFIG_FILE naar verwijst. Wat je hier wijzigt, kan worden overschreven als het bestand verandert of de server opnieuw start.",
+      "preferences": "Ook de instellingen voor thema, indeling en achtergrond komen uit het bestand: wijzigingen daarin worden niet opgeslagen.",
+      "readOnlyNote": "Dit dashboard wordt beheerd via een configuratiebestand en is alleen-lezen. Pas in plaats daarvan het bestand aan."
     }
   },
   "preferences": {
