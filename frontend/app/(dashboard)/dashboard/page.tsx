@@ -49,6 +49,7 @@ import WidgetModal from '@/components/widgets/WidgetModal'
 import ServiceModal from '@/components/ServiceModal'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { useConfigFile } from '@/hooks/useConfigFile'
+import { canEdit } from '@/lib/config-file'
 import { isServiceEffectivelyMonitored } from '@/lib/monitoring'
 import { createCollisionDetection } from '@/lib/tile-collision'
 import {
@@ -95,8 +96,10 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   // Shared with the canvas top bar, whose user menu also toggles it
   // A dashboard locked by a config file never enters edit mode, which is
-  // what shows every edit, delete, add-group and drag control
-  const readOnly = useConfigFile()?.read_only ?? false
+  // what shows every edit, delete, add-group and drag control; nor does one
+  // whose status has not loaded
+  const configFile = useConfigFile()
+  const readOnly = !canEdit(configFile)
   const editModeOn = useEditMode()
   const isEditMode = editModeOn && !readOnly
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -751,6 +754,7 @@ export default function DashboardPage() {
   const header = (
     <DashboardHeader
       readOnly={readOnly}
+      readOnlyNote={configFile === undefined ? null : undefined}
       groups={groups}
       selectedGroupId={selectedGroupId}
       onSelectGroup={handleSelectGroup}

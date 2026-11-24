@@ -25,8 +25,10 @@ interface DashboardHeaderProps {
   isDraggingTab: boolean
   addServiceHref: string
   onAddWidget: () => void
-  // The dashboard is locked by a config file: no edit or add buttons
+  // The dashboard is locked by a config file: no edit or add buttons, but
+  // readOnlyNote (none when null, the config file note when undefined)
   readOnly?: boolean
+  readOnlyNote?: string | null
 }
 
 export default function DashboardHeader({
@@ -44,7 +46,9 @@ export default function DashboardHeader({
   addServiceHref,
   onAddWidget,
   readOnly = false,
+  readOnlyNote,
 }: DashboardHeaderProps) {
+  const note = readOnlyNote === undefined ? 'Read-only: managed by config file' : readOnlyNote
   return (
     <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0 flex-1">
@@ -64,10 +68,12 @@ export default function DashboardHeader({
       </div>
 
       {readOnly ? (
-        <p className="text-text-muted wallpaper-panel inline-flex shrink-0 items-center gap-2 text-sm">
-          <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
-          Read-only: managed by config file
-        </p>
+        note && (
+          <p className="text-text-muted wallpaper-panel inline-flex shrink-0 items-center gap-2 text-sm">
+            <LockClosedIcon className="h-4 w-4" aria-hidden="true" />
+            {note}
+          </p>
+        )
       ) : (
         <div className="flex shrink-0 items-center gap-2">
           {isEditMode ? (
