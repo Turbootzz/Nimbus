@@ -248,11 +248,112 @@
     "saveThemeFailed": "No se pudo guardar el tema",
     "uploadWallpaperFailed": "No se pudo subir el fondo de pantalla"
   },
+  "services": {
+    "tile": {
+      "move": "Mover {name}",
+      "edit": "Editar {name}",
+      "notMonitored": "Sin monitorizar"
+    },
+    "status": {
+      "online": "conectado",
+      "offline": "desconectado",
+      "unknown": "desconocido",
+      "notMonitored": "sin monitorizar"
+    },
+    "icon": {
+      "alt": "Icono de {name}"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget solo se muestra} other {# widgets solo se muestran}} en la vista de cuadrícula."
+    },
+    "hoverDetail": {
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar los detalles",
+      "uptime": "Disponibilidad (24 h)",
+      "noChecks": "Sin comprobaciones",
+      "responseTime": "Tiempo de respuesta",
+      "lastCheck": "Última comprobación",
+      "never": "Nunca",
+      "lastError": "Último error"
+    },
+    "modal": {
+      "title": "Editar servicio",
+      "close": "Cerrar"
+    },
+    "form": {
+      "name": "Nombre del servicio",
+      "namePlaceholder": "p. ej., Plex Media Server",
+      "url": "URL del servicio",
+      "urlHint": "La URL en la que se puede acceder a tu servicio",
+      "description": "Descripción",
+      "descriptionPlaceholder": "Breve descripción de lo que hace este servicio",
+      "monitoring": "Activar monitorización",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "creating": "Creando...",
+      "create": "Crear servicio",
+      "errors": {
+        "loadGroups": "No se pudieron cargar los grupos: {message}",
+        "loadGroupsRetry": "No se pudieron cargar los grupos. Inténtalo de nuevo.",
+        "nameRequired": "El nombre del servicio es obligatorio",
+        "urlRequired": "La URL del servicio es obligatoria",
+        "invalidUrl": "Introduce una URL válida (p. ej., https://example.com)",
+        "uploadFailed": "No se pudo subir la imagen: {message}",
+        "saveFailed": "No se pudo guardar el servicio. Inténtalo de nuevo.",
+        "updateFailed": "No se pudo actualizar el servicio. Inténtalo de nuevo.",
+        "createFailed": "No se pudo crear el servicio. Inténtalo de nuevo."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Tipo de icono",
+      "emoji": "Emoji",
+      "uploadImage": "Subir imagen",
+      "imageUrl": "URL de imagen",
+      "autoFetch": "Obtener icono automáticamente",
+      "autoFetching": "Buscando icono...",
+      "autoFetchHint": "Busca un icono por el nombre del servicio y, si no, el favicon del sitio",
+      "autoFetchNeedsInput": "Introduce primero un nombre de servicio o una URL",
+      "notFound": "No se encontró ningún icono — prueba a subir uno manualmente",
+      "fetchFailed": "No se pudo obtener el icono",
+      "emojiLabel": "Icono (emoji)",
+      "pickEmoji": "Elegir emoji",
+      "emojiHint": "Haz clic en «Elegir emoji» o pega un emoji (no se permiten letras ni números)",
+      "preview": "Vista previa:",
+      "previewAlt": "Vista previa del icono",
+      "uploadLabel": "Subir imagen de icono",
+      "uploadHint": "Tamaño máx.: 512 KB. Formatos: JPG, PNG, GIF, WEBP",
+      "remove": "Quitar",
+      "urlHint": "Introduce la URL de una imagen para usarla como icono del servicio",
+      "notAnImage": "Selecciona un archivo de imagen",
+      "tooLarge": "La imagen debe pesar menos de 512 KB"
+    },
+    "emojiPicker": {
+      "title": "Elegir un emoji",
+      "close": "Cerrar",
+      "categories": {
+        "smileys": "Caras y personas",
+        "animals": "Animales y naturaleza",
+        "food": "Comida y bebida",
+        "activities": "Actividades y deportes",
+        "travel": "Viajes y lugares",
+        "objects": "Objetos",
+        "symbols": "Símbolos",
+        "tech": "Tecnología y ciencia"
+      }
+    }
+  },
   "time": {
     "justNow": "ahora mismo",
     "minutesAgo": "hace {count} min",
     "hoursAgo": "hace {count} h",
     "daysAgo": "hace {count} d"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Cancelar"
+    }
   },
   "weather": {
     "clear": "Despejado",

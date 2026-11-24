@@ -248,11 +248,112 @@
     "saveThemeFailed": "Impossible d’enregistrer le thème",
     "uploadWallpaperFailed": "Impossible de téléverser le fond d’écran"
   },
+  "services": {
+    "tile": {
+      "move": "Déplacer {name}",
+      "edit": "Modifier {name}",
+      "notMonitored": "Non surveillé"
+    },
+    "status": {
+      "online": "disponible",
+      "offline": "indisponible",
+      "unknown": "inconnu",
+      "notMonitored": "non surveillé"
+    },
+    "icon": {
+      "alt": "Icône de {name}"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget n’est affiché} other {# widgets ne sont affichés}} qu’en vue grille."
+    },
+    "hoverDetail": {
+      "loading": "Chargement…",
+      "loadFailed": "Impossible de charger les détails",
+      "uptime": "Disponibilité (24 h)",
+      "noChecks": "Aucune vérification",
+      "responseTime": "Temps de réponse",
+      "lastCheck": "Dernière vérification",
+      "never": "Jamais",
+      "lastError": "Dernière erreur"
+    },
+    "modal": {
+      "title": "Modifier le service",
+      "close": "Fermer"
+    },
+    "form": {
+      "name": "Nom du service",
+      "namePlaceholder": "p. ex. Plex Media Server",
+      "url": "URL du service",
+      "urlHint": "L’URL à laquelle votre service est accessible",
+      "description": "Description",
+      "descriptionPlaceholder": "Brève description de ce que fait ce service",
+      "monitoring": "Activer la surveillance",
+      "cancel": "Annuler",
+      "saving": "Enregistrement...",
+      "saveChanges": "Enregistrer les modifications",
+      "creating": "Création...",
+      "create": "Créer le service",
+      "errors": {
+        "loadGroups": "Impossible de charger les groupes : {message}",
+        "loadGroupsRetry": "Impossible de charger les groupes. Veuillez réessayer.",
+        "nameRequired": "Le nom du service est obligatoire",
+        "urlRequired": "L’URL du service est obligatoire",
+        "invalidUrl": "Veuillez saisir une URL valide (p. ex. https://example.com)",
+        "uploadFailed": "Échec de l’envoi de l’image : {message}",
+        "saveFailed": "Impossible d’enregistrer le service. Veuillez réessayer.",
+        "updateFailed": "Impossible de mettre à jour le service. Veuillez réessayer.",
+        "createFailed": "Impossible de créer le service. Veuillez réessayer."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Type d’icône",
+      "emoji": "Emoji",
+      "uploadImage": "Importer une image",
+      "imageUrl": "URL de l’image",
+      "autoFetch": "Récupérer l’icône",
+      "autoFetching": "Recherche de l’icône...",
+      "autoFetchHint": "Cherche une icône d’après le nom du service, sinon le favicon du site",
+      "autoFetchNeedsInput": "Saisissez d’abord un nom de service ou une URL",
+      "notFound": "Aucune icône trouvée — essayez d’en importer une manuellement",
+      "fetchFailed": "Impossible de récupérer l’icône",
+      "emojiLabel": "Icône (emoji)",
+      "pickEmoji": "Choisir un emoji",
+      "emojiHint": "Cliquez sur « Choisir un emoji » ou collez un emoji (les lettres et les chiffres ne sont pas autorisés)",
+      "preview": "Aperçu :",
+      "previewAlt": "Aperçu de l’icône",
+      "uploadLabel": "Importer une image d’icône",
+      "uploadHint": "Taille max. : 512 Ko. Formats : JPG, PNG, GIF, WEBP",
+      "remove": "Supprimer",
+      "urlHint": "Saisissez l’URL d’une image à utiliser comme icône du service",
+      "notAnImage": "Veuillez sélectionner un fichier image",
+      "tooLarge": "L’image doit faire moins de 512 Ko"
+    },
+    "emojiPicker": {
+      "title": "Choisir un emoji",
+      "close": "Fermer",
+      "categories": {
+        "smileys": "Smileys et personnes",
+        "animals": "Animaux et nature",
+        "food": "Nourriture et boissons",
+        "activities": "Activités et sports",
+        "travel": "Voyages et lieux",
+        "objects": "Objets",
+        "symbols": "Symboles",
+        "tech": "Technologie et sciences"
+      }
+    }
+  },
   "time": {
     "justNow": "à l’instant",
     "minutesAgo": "il y a {count} min",
     "hoursAgo": "il y a {count} h",
     "daysAgo": "il y a {count} j"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Annuler"
+    }
   },
   "weather": {
     "clear": "Dégagé",

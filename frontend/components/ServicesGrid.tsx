@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type {
   CardSize,
   CardScale,
@@ -79,14 +80,14 @@ export default function ServicesGrid({
   snapshots,
   integrationKpis,
 }: ServicesGridProps) {
+  const t = useTranslations('services')
   const services = tiles.flatMap((tile) => (tile.kind === 'service' ? [tile.service] : []))
   const widgetTiles = tiles.filter((tile) => tile.kind === 'widget')
 
   // List view shows services only; widgets need the grid
   const widgetNote = viewMode === 'list' && widgetTiles.length > 0 && (
     <p className="text-text-muted wallpaper-panel mt-3 text-xs">
-      {widgetTiles.length} {widgetTiles.length === 1 ? 'widget is' : 'widgets are'} only shown in
-      grid view.
+      {t('grid.widgetsGridOnly', { count: widgetTiles.length })}
     </p>
   )
 
@@ -125,7 +126,9 @@ export default function ServicesGrid({
               isEditMode
               dragHandleProps={{
                 ...dragHandleProps,
-                'aria-label': `Move ${tile.widget.title || 'widget'}`,
+                'aria-label': t('tile.move', {
+                  name: tile.widget.title || t('grid.untitledWidget'),
+                }),
               }}
               onSizeChange={onWidgetSizeChange}
               onEdit={onEditWidget}
@@ -158,7 +161,10 @@ export default function ServicesGrid({
             isEditMode
             onSizeChange={onSizeChange}
             onEdit={onEditService}
-            dragHandleProps={{ ...dragHandleProps, 'aria-label': `Move ${service.name}` }}
+            dragHandleProps={{
+              ...dragHandleProps,
+              'aria-label': t('tile.move', { name: service.name }),
+            }}
             enableCardResizing={enableCardResizing}
             cardScale={cardScale}
             isMonitored={monitored}

@@ -248,11 +248,112 @@
     "saveThemeFailed": "Failed to save the theme",
     "uploadWallpaperFailed": "Failed to upload wallpaper"
   },
+  "services": {
+    "tile": {
+      "move": "Move {name}",
+      "edit": "Edit {name}",
+      "notMonitored": "Not monitored"
+    },
+    "status": {
+      "online": "online",
+      "offline": "offline",
+      "unknown": "unknown",
+      "notMonitored": "not monitored"
+    },
+    "icon": {
+      "alt": "{name} icon"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget is} other {# widgets are}} only shown in grid view."
+    },
+    "hoverDetail": {
+      "loading": "Loading…",
+      "loadFailed": "Details could not be loaded",
+      "uptime": "Uptime (24h)",
+      "noChecks": "No checks",
+      "responseTime": "Response time",
+      "lastCheck": "Last check",
+      "never": "Never",
+      "lastError": "Last error"
+    },
+    "modal": {
+      "title": "Edit Service",
+      "close": "Close"
+    },
+    "form": {
+      "name": "Service Name",
+      "namePlaceholder": "e.g., Plex Media Server",
+      "url": "Service URL",
+      "urlHint": "The URL where your service can be accessed",
+      "description": "Description",
+      "descriptionPlaceholder": "Brief description of what this service does",
+      "monitoring": "Enable Monitoring",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "creating": "Creating...",
+      "create": "Create Service",
+      "errors": {
+        "loadGroups": "Failed to load groups: {message}",
+        "loadGroupsRetry": "Failed to load groups. Please try again.",
+        "nameRequired": "Service name is required",
+        "urlRequired": "Service URL is required",
+        "invalidUrl": "Please enter a valid URL (e.g., https://example.com)",
+        "uploadFailed": "Image upload failed: {message}",
+        "saveFailed": "Unable to save service. Please try again.",
+        "updateFailed": "Unable to update service. Please try again.",
+        "createFailed": "Unable to create service. Please try again."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Icon Type",
+      "emoji": "Emoji",
+      "uploadImage": "Upload Image",
+      "imageUrl": "Image URL",
+      "autoFetch": "Auto-fetch icon",
+      "autoFetching": "Finding icon...",
+      "autoFetchHint": "Look up a curated icon by service name, falling back to the site favicon",
+      "autoFetchNeedsInput": "Enter a service name or URL first",
+      "notFound": "Couldn't find an icon — try uploading manually",
+      "fetchFailed": "Failed to fetch icon",
+      "emojiLabel": "Icon (Emoji)",
+      "pickEmoji": "Pick Emoji",
+      "emojiHint": "Click \"Pick Emoji\" or paste an emoji (letters and numbers are not allowed)",
+      "preview": "Preview:",
+      "previewAlt": "Icon preview",
+      "uploadLabel": "Upload Icon Image",
+      "uploadHint": "Max size: 512KB. Formats: JPG, PNG, GIF, WEBP",
+      "remove": "Remove",
+      "urlHint": "Enter the URL of an image to use as your service icon",
+      "notAnImage": "Please select an image file",
+      "tooLarge": "Image must be less than 512KB"
+    },
+    "emojiPicker": {
+      "title": "Choose an Emoji",
+      "close": "Close",
+      "categories": {
+        "smileys": "Smileys & People",
+        "animals": "Animals & Nature",
+        "food": "Food & Drink",
+        "activities": "Activities & Sports",
+        "travel": "Travel & Places",
+        "objects": "Objects",
+        "symbols": "Symbols",
+        "tech": "Tech & Science"
+      }
+    }
+  },
   "time": {
     "justNow": "just now",
     "minutesAgo": "{count}m ago",
     "hoursAgo": "{count}h ago",
     "daysAgo": "{count}d ago"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Cancel"
+    }
   },
   "weather": {
     "clear": "Clear",

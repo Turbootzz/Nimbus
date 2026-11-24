@@ -248,11 +248,112 @@
     "saveThemeFailed": "Das Design konnte nicht gespeichert werden",
     "uploadWallpaperFailed": "Das Hintergrundbild konnte nicht hochgeladen werden"
   },
+  "services": {
+    "tile": {
+      "move": "{name} verschieben",
+      "edit": "{name} bearbeiten",
+      "notMonitored": "Nicht überwacht"
+    },
+    "status": {
+      "online": "online",
+      "offline": "offline",
+      "unknown": "unbekannt",
+      "notMonitored": "nicht überwacht"
+    },
+    "icon": {
+      "alt": "Symbol von {name}"
+    },
+    "grid": {
+      "untitledWidget": "Widget",
+      "widgetsGridOnly": "{count, plural, one {# Widget wird} other {# Widgets werden}} nur in der Rasteransicht angezeigt."
+    },
+    "hoverDetail": {
+      "loading": "Wird geladen…",
+      "loadFailed": "Details konnten nicht geladen werden",
+      "uptime": "Uptime (24 h)",
+      "noChecks": "Keine Prüfungen",
+      "responseTime": "Antwortzeit",
+      "lastCheck": "Letzte Prüfung",
+      "never": "Nie",
+      "lastError": "Letzter Fehler"
+    },
+    "modal": {
+      "title": "Dienst bearbeiten",
+      "close": "Schließen"
+    },
+    "form": {
+      "name": "Name des Dienstes",
+      "namePlaceholder": "z. B. Plex Media Server",
+      "url": "URL des Dienstes",
+      "urlHint": "Die URL, unter der dein Dienst erreichbar ist",
+      "description": "Beschreibung",
+      "descriptionPlaceholder": "Kurze Beschreibung, was dieser Dienst macht",
+      "monitoring": "Überwachung aktivieren",
+      "cancel": "Abbrechen",
+      "saving": "Wird gespeichert...",
+      "saveChanges": "Änderungen speichern",
+      "creating": "Wird erstellt...",
+      "create": "Dienst erstellen",
+      "errors": {
+        "loadGroups": "Gruppen konnten nicht geladen werden: {message}",
+        "loadGroupsRetry": "Gruppen konnten nicht geladen werden. Bitte versuche es erneut.",
+        "nameRequired": "Der Name des Dienstes ist erforderlich",
+        "urlRequired": "Die URL des Dienstes ist erforderlich",
+        "invalidUrl": "Bitte gib eine gültige URL ein (z. B. https://example.com)",
+        "uploadFailed": "Hochladen des Bildes fehlgeschlagen: {message}",
+        "saveFailed": "Dienst konnte nicht gespeichert werden. Bitte versuche es erneut.",
+        "updateFailed": "Dienst konnte nicht aktualisiert werden. Bitte versuche es erneut.",
+        "createFailed": "Dienst konnte nicht erstellt werden. Bitte versuche es erneut."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Symboltyp",
+      "emoji": "Emoji",
+      "uploadImage": "Bild hochladen",
+      "imageUrl": "Bild-URL",
+      "autoFetch": "Symbol automatisch abrufen",
+      "autoFetching": "Symbol wird gesucht...",
+      "autoFetchHint": "Sucht ein passendes Symbol anhand des Dienstnamens, sonst das Favicon der Website",
+      "autoFetchNeedsInput": "Gib zuerst einen Dienstnamen oder eine URL ein",
+      "notFound": "Kein Symbol gefunden — versuche, eines selbst hochzuladen",
+      "fetchFailed": "Symbol konnte nicht abgerufen werden",
+      "emojiLabel": "Symbol (Emoji)",
+      "pickEmoji": "Emoji auswählen",
+      "emojiHint": "Klicke auf „Emoji auswählen“ oder füge ein Emoji ein (Buchstaben und Zahlen sind nicht erlaubt)",
+      "preview": "Vorschau:",
+      "previewAlt": "Symbolvorschau",
+      "uploadLabel": "Symbolbild hochladen",
+      "uploadHint": "Max. Größe: 512 KB. Formate: JPG, PNG, GIF, WEBP",
+      "remove": "Entfernen",
+      "urlHint": "Gib die URL eines Bildes ein, das als Symbol deines Dienstes dienen soll",
+      "notAnImage": "Bitte wähle eine Bilddatei aus",
+      "tooLarge": "Das Bild muss kleiner als 512 KB sein"
+    },
+    "emojiPicker": {
+      "title": "Emoji auswählen",
+      "close": "Schließen",
+      "categories": {
+        "smileys": "Smileys & Personen",
+        "animals": "Tiere & Natur",
+        "food": "Essen & Trinken",
+        "activities": "Aktivitäten & Sport",
+        "travel": "Reisen & Orte",
+        "objects": "Objekte",
+        "symbols": "Symbole",
+        "tech": "Technik & Wissenschaft"
+      }
+    }
+  },
   "time": {
     "justNow": "gerade eben",
     "minutesAgo": "vor {count} Min.",
     "hoursAgo": "vor {count} Std.",
     "daysAgo": "vor {count} T."
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Abbrechen"
+    }
   },
   "weather": {
     "clear": "Klar",

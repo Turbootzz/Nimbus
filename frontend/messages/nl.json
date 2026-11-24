@@ -248,11 +248,112 @@
     "saveThemeFailed": "Het thema kon niet worden opgeslagen",
     "uploadWallpaperFailed": "De achtergrond kon niet worden geüpload"
   },
+  "services": {
+    "tile": {
+      "move": "{name} verplaatsen",
+      "edit": "{name} bewerken",
+      "notMonitored": "Niet gemonitord"
+    },
+    "status": {
+      "online": "online",
+      "offline": "offline",
+      "unknown": "onbekend",
+      "notMonitored": "niet gemonitord"
+    },
+    "icon": {
+      "alt": "Pictogram van {name}"
+    },
+    "grid": {
+      "untitledWidget": "widget",
+      "widgetsGridOnly": "{count, plural, one {# widget wordt} other {# widgets worden}} alleen in de rasterweergave getoond."
+    },
+    "hoverDetail": {
+      "loading": "Laden…",
+      "loadFailed": "Details konden niet worden geladen",
+      "uptime": "Uptime (24 u)",
+      "noChecks": "Geen controles",
+      "responseTime": "Responstijd",
+      "lastCheck": "Laatste controle",
+      "never": "Nooit",
+      "lastError": "Laatste fout"
+    },
+    "modal": {
+      "title": "Service bewerken",
+      "close": "Sluiten"
+    },
+    "form": {
+      "name": "Naam van de service",
+      "namePlaceholder": "bijv. Plex Media Server",
+      "url": "URL van de service",
+      "urlHint": "De URL waarop je service bereikbaar is",
+      "description": "Beschrijving",
+      "descriptionPlaceholder": "Korte beschrijving van wat deze service doet",
+      "monitoring": "Monitoring inschakelen",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "creating": "Aanmaken...",
+      "create": "Service aanmaken",
+      "errors": {
+        "loadGroups": "Groepen laden mislukt: {message}",
+        "loadGroupsRetry": "Groepen laden mislukt. Probeer het opnieuw.",
+        "nameRequired": "Naam van de service is verplicht",
+        "urlRequired": "URL van de service is verplicht",
+        "invalidUrl": "Voer een geldige URL in (bijv. https://example.com)",
+        "uploadFailed": "Afbeelding uploaden mislukt: {message}",
+        "saveFailed": "Service opslaan mislukt. Probeer het opnieuw.",
+        "updateFailed": "Service bijwerken mislukt. Probeer het opnieuw.",
+        "createFailed": "Service aanmaken mislukt. Probeer het opnieuw."
+      }
+    },
+    "iconSelector": {
+      "iconType": "Type pictogram",
+      "emoji": "Emoji",
+      "uploadImage": "Afbeelding uploaden",
+      "imageUrl": "Afbeeldings-URL",
+      "autoFetch": "Pictogram automatisch ophalen",
+      "autoFetching": "Pictogram zoeken...",
+      "autoFetchHint": "Zoekt een pictogram op basis van de naam van de service, anders het favicon van de site",
+      "autoFetchNeedsInput": "Vul eerst een naam of URL van de service in",
+      "notFound": "Geen pictogram gevonden — probeer er zelf een te uploaden",
+      "fetchFailed": "Pictogram ophalen mislukt",
+      "emojiLabel": "Pictogram (emoji)",
+      "pickEmoji": "Emoji kiezen",
+      "emojiHint": "Klik op \"Emoji kiezen\" of plak een emoji (letters en cijfers zijn niet toegestaan)",
+      "preview": "Voorbeeld:",
+      "previewAlt": "Voorbeeld van pictogram",
+      "uploadLabel": "Pictogram uploaden",
+      "uploadHint": "Max. grootte: 512 KB. Formaten: JPG, PNG, GIF, WEBP",
+      "remove": "Verwijderen",
+      "urlHint": "Vul de URL in van een afbeelding die je als pictogram voor je service wilt gebruiken",
+      "notAnImage": "Kies een afbeeldingsbestand",
+      "tooLarge": "De afbeelding moet kleiner zijn dan 512 KB"
+    },
+    "emojiPicker": {
+      "title": "Kies een emoji",
+      "close": "Sluiten",
+      "categories": {
+        "smileys": "Smileys & mensen",
+        "animals": "Dieren & natuur",
+        "food": "Eten & drinken",
+        "activities": "Activiteiten & sport",
+        "travel": "Reizen & plaatsen",
+        "objects": "Voorwerpen",
+        "symbols": "Symbolen",
+        "tech": "Techniek & wetenschap"
+      }
+    }
+  },
   "time": {
     "justNow": "zojuist",
     "minutesAgo": "{count} min geleden",
     "hoursAgo": "{count} u geleden",
     "daysAgo": "{count} d geleden"
+  },
+  "ui": {
+    "confirmDialog": {
+      "cancel": "Annuleren"
+    }
   },
   "weather": {
     "clear": "Helder",

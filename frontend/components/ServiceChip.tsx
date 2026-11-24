@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { PencilIcon } from '@heroicons/react/24/outline'
 import { Bars3Icon } from '@heroicons/react/24/solid'
 import type { CardScale, Service } from '@/types'
@@ -39,8 +40,9 @@ export default function ServiceChip({
   dragHandleProps,
   isDragging = false,
 }: ServiceChipProps) {
+  const t = useTranslations('services')
   const monitored = isMonitored ?? service.monitoring_enabled
-  const status = monitored ? service.status : 'not monitored'
+  const status = monitored ? t(`status.${service.status}`) : t('status.notMonitored')
   // URL, latency, uptime and last error, on hover, focus or a long press
   const detail = useServiceDetail(service, monitored, !isEditMode)
 
@@ -65,7 +67,7 @@ export default function ServiceChip({
       >
         <div
           {...dragHandleProps}
-          aria-label={`Move ${service.name}`}
+          aria-label={t('tile.move', { name: service.name })}
           className="cursor-grab touch-none active:cursor-grabbing"
           onClick={(e) => e.stopPropagation()}
           onTouchStart={(e) => e.stopPropagation()}
@@ -78,7 +80,7 @@ export default function ServiceChip({
             type="button"
             onClick={() => onEdit(service)}
             className="text-text-muted hover:text-text-primary shrink-0 transition-colors"
-            aria-label={`Edit ${service.name}`}
+            aria-label={t('tile.edit', { name: service.name })}
           >
             <PencilIcon className="h-4 w-4" />
           </button>
