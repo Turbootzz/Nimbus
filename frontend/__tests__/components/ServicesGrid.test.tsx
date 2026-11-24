@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import '@testing-library/jest-dom'
 import ServicesGrid from '@/components/ServicesGrid'
 import { mergeTiles } from '@/lib/tiles'
@@ -32,6 +32,21 @@ describe('ServicesGrid', () => {
     render(<ServicesGrid {...props} tiles={tiles} viewMode="grid" />)
     expect(screen.getByText('Plex')).toBeInTheDocument()
     expect(screen.getByText('Remember the milk')).toBeInTheDocument()
+  })
+
+  it.each(['cards', 'chips'] as const)('names the drag handles of %s in edit mode', (style) => {
+    render(
+      <ServicesGrid
+        {...props}
+        tiles={tiles}
+        viewMode="grid"
+        tileStyle={style}
+        isEditMode
+        onSizeChange={vi.fn()}
+      />
+    )
+    expect(screen.getByRole('button', { name: 'Move Plex' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Move widget' })).toBeInTheDocument()
   })
 
   it('shows only services in list view, with a hint about widgets', () => {

@@ -5,6 +5,8 @@ import { Toggle } from '@/components/ui/Toggle'
 import WallpaperSettings from '@/components/WallpaperSettings'
 import LayoutSettings from '@/components/LayoutSettings'
 import StatusStripSettings from '@/components/StatusStripSettings'
+import { useLayoutMode } from '@/lib/layout-store'
+import { resolveGroupDisplay } from '@/lib/tiles'
 
 export default function ThemePage() {
   const {
@@ -16,6 +18,7 @@ export default function ThemePage() {
     enableServiceGrouping,
     cardScale,
     viewMode,
+    groupDisplay,
     setTheme,
     setAccentColor,
     setOpenInNewTab,
@@ -23,7 +26,10 @@ export default function ThemePage() {
     setEnableServiceGrouping,
     setCardScale,
     setViewMode,
+    setGroupDisplay,
   } = useTheme()
+  // Without a choice, groups follow the layout
+  const shownGroupDisplay = resolveGroupDisplay(groupDisplay, useLayoutMode())
 
   const presetColors = [
     { name: 'Sky Blue (Default)', value: '#0ea5e9' },
@@ -207,15 +213,45 @@ export default function ThemePage() {
           <div className="glass-card border-card-border rounded-lg border p-6">
             <h2 className="text-text-primary mb-2 text-xl font-semibold">Service Grouping</h2>
             <p className="text-text-secondary mb-4 text-sm">
-              Organize your services into groups with a tabbed interface
+              Organize your services into groups, shown as tabs or as sections
             </p>
 
             <Toggle
               enabled={enableServiceGrouping}
               onChange={setEnableServiceGrouping}
               label="Enable service grouping"
-              description="When enabled, you can organize services into groups displayed as tabs. Create, rename, and reorder groups in edit mode. When disabled, all services are shown in a single view"
+              description="When enabled, you can organize services into groups. Create, rename, and reorder groups in edit mode. When disabled, all services are shown in a single view"
             />
+
+            {/* Tabs or sections - only matters with grouping on */}
+            <div className={`mt-6 ${enableServiceGrouping ? '' : 'opacity-50'}`}>
+              <p id="group-display-label" className="text-text-primary mb-2 text-sm font-medium">
+                Show groups as
+              </p>
+              <div role="group" aria-labelledby="group-display-label" className="flex gap-2">
+                {(['tabs', 'sections'] as const).map((display) => (
+                  <button
+                    key={display}
+                    type="button"
+                    onClick={() => setGroupDisplay(display)}
+                    disabled={!enableServiceGrouping}
+                    aria-pressed={shownGroupDisplay === display}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium capitalize transition-all ${
+                      shownGroupDisplay === display
+                        ? 'bg-primary text-white'
+                        : 'bg-background border-card-border text-text-primary hover:border-primary border'
+                    } ${enableServiceGrouping ? '' : 'cursor-not-allowed'}`}
+                  >
+                    {display}
+                  </button>
+                ))}
+              </div>
+              <p className="text-text-muted mt-2 text-xs">
+                {shownGroupDisplay === 'tabs'
+                  ? 'One group at a time, picked with a tab'
+                  : 'All groups on one page, each under its own header that can be collapsed'}
+              </p>
+            </div>
           </div>
 
           {/* Card Display */}

@@ -42,6 +42,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Smart self-signed cert handling
 - Status history & uptime graphs
 - Offline alerts: webhook, Discord, Slack, ntfy, Gotify, Telegram, Pushover ([docs](docs/NOTIFICATIONS.md))
+- Hover a tile (or long-press it) for 24h uptime, last check and last error
 
 </td>
 <td width="50%">
@@ -49,6 +50,8 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 **🎨 Personalization**
 - Custom wallpapers per user (upload or URL) with blur, dim and glass cards
 - Canvas layout: the dashboard fills the page under a top bar, no sidebar. The default for new users; switch in Theme settings
+- Groups as tabs or as stacked sections that collapse (sections are the default on the canvas)
+- Compact chips per group for a quick-launch row of links
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
 - Search: press `/` or Ctrl+K to find and open a service
 - Light/dark mode toggle

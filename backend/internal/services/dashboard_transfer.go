@@ -146,6 +146,7 @@ func (s *DashboardTransferService) Export(ctx context.Context, userID string) (*
 			Color:             group.Color,
 			Default:           group.IsDefault,
 			MonitoringEnabled: &group.MonitoringEnabled,
+			TileStyle:         group.TileStyle,
 		})
 	}
 
@@ -328,6 +329,7 @@ func (s *DashboardTransferService) exportPreferences(p *models.UserPreferences, 
 		CardOpacity:           &p.CardOpacity,
 		CardBlur:              &p.CardBlur,
 		LayoutMode:            &p.LayoutMode,
+		GroupDisplay:          p.GroupDisplay,
 		StatusStrip:           &dashdoc.StatusStrip{Enabled: p.StatusStrip.Enabled, Chips: []dashdoc.Chip{}},
 	}
 	if p.ThemeAccentColor != nil {
@@ -630,7 +632,7 @@ func (s *DashboardTransferService) plan(ctx context.Context, user *models.User, 
 
 	groups, groupIDs := importedGroups{}, map[string]string{}
 	for i, in := range doc.Groups {
-		group, err := NewGroupFromRequest(&models.GroupCreateRequest{Name: in.Name, Color: in.Color, MonitoringEnabled: in.MonitoringEnabled})
+		group, err := NewGroupFromRequest(&models.GroupCreateRequest{Name: in.Name, Color: in.Color, MonitoringEnabled: in.MonitoringEnabled, TileStyle: in.TileStyle})
 		if err != nil {
 			if err := report(dashdoc.Path("groups", i, ""), err); err != nil {
 				return nil, err
@@ -849,6 +851,8 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 		CardOpacity:           in.CardOpacity,
 		CardBlur:              in.CardBlur,
 		LayoutMode:            in.LayoutMode,
+		GroupDisplay:          in.GroupDisplay,
+		FollowLayout:          in.GroupDisplay == nil,
 	}
 
 	var wallpaper []byte

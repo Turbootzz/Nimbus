@@ -1,6 +1,6 @@
 'use client'
 
-import type { ReactNode } from 'react'
+import type { AnchorHTMLAttributes, ReactNode } from 'react'
 import { ClockIcon, PencilIcon } from '@heroicons/react/24/outline'
 import type { Service, CardSize, CardScale } from '@/types'
 import {
@@ -13,6 +13,7 @@ import { sizeToGridSpan, getNextSize } from '@/lib/card-utils'
 import ServiceIcon from '@/components/ServiceIcon'
 import EditOverlay, { overlayActionClass } from '@/components/EditOverlay'
 import KpiRow, { type ServiceKpis } from '@/components/KpiRow'
+import { useServiceDetail } from '@/components/ServiceHoverDetail'
 
 interface ServiceCardProps {
   service: Service
@@ -51,10 +52,14 @@ export default function ServiceCard({
   // In edit mode, the wrapper div handles grid spanning, so card just fills container
   const gridSpan = isEditMode ? '' : sizeToGridSpan[cardSize]
 
+  // Uptime and last error, on hover, focus or a long press
+  const detail = useServiceDetail(service, monitored, !isEditMode)
+
   const linkProps = {
     href: service.url,
     target: openInNewTab ? '_blank' : '_self',
     ...(openInNewTab && { rel: 'noopener noreferrer' }),
+    ...detail.triggerProps,
   }
 
   const handleClick = () => {
@@ -95,29 +100,21 @@ export default function ServiceCard({
     kpis,
   }
 
-  // When resizing is disabled, always use StandardCard (2x1)
-  if (!enableCardResizing) {
-    return <StandardCard {...variantProps} />
-  }
+  // When resizing is disabled, cardSize is always 2x1 (StandardCard)
+  const Variant = cardSize === '1x1' ? CompactCard : cardSize === '2x2' ? LargeCard : StandardCard
 
-  switch (cardSize) {
-    case '1x1':
-      return <CompactCard {...variantProps} />
-    case '2x2':
-      return <LargeCard {...variantProps} />
-    default:
-      return <StandardCard {...variantProps} />
-  }
+  return (
+    <>
+      <Variant {...variantProps} />
+      {detail.popover}
+    </>
+  )
 }
 
 interface CardVariantProps {
   service: Service
   gridSpan: string
-  linkProps: {
-    href: string
-    target: string
-    rel?: string
-  }
+  linkProps: AnchorHTMLAttributes<HTMLAnchorElement>
   isEditMode: boolean
   onSizeChange: () => void
   editActions?: ReactNode

@@ -19,7 +19,9 @@ const dashboardTestSchema = `
 	CREATE TABLE users (id TEXT PRIMARY KEY);
 	CREATE TABLE groups (
 		id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL, color TEXT, position INTEGER DEFAULT 0,
-		is_default INTEGER DEFAULT 0, monitoring_enabled INTEGER DEFAULT 1, created_at TIMESTAMP, updated_at TIMESTAMP
+		is_default INTEGER DEFAULT 0, monitoring_enabled INTEGER DEFAULT 1,
+		tile_style TEXT NOT NULL DEFAULT 'cards' CHECK (tile_style IN ('cards', 'chips')),
+		created_at TIMESTAMP, updated_at TIMESTAMP
 	);
 	CREATE UNIQUE INDEX idx_groups_default_per_user ON groups(user_id) WHERE is_default = TRUE;
 	CREATE TABLE integrations (
@@ -43,7 +45,8 @@ const dashboardTestSchema = `
 	);
 	CREATE TABLE user_preferences (
 		id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))), user_id TEXT NOT NULL UNIQUE,
-		theme_mode TEXT NOT NULL DEFAULT 'auto', created_at TIMESTAMP, updated_at TIMESTAMP
+		theme_mode TEXT NOT NULL DEFAULT 'auto', group_display TEXT CHECK (group_display IN ('tabs', 'sections')),
+		created_at TIMESTAMP, updated_at TIMESTAMP
 	);
 	INSERT INTO users (id) VALUES ('user-1'), ('user-2');
 `
@@ -68,8 +71,8 @@ func testDashboardRows(prefix string) *DashboardRows {
 	defaultGroup, integration := prefix+"-default", prefix+"-integration"
 	return &DashboardRows{
 		Groups: []*models.Group{
-			{ID: defaultGroup, Name: "Main", Color: "#0ea5e9", IsDefault: true, MonitoringEnabled: true, CreatedAt: now, UpdatedAt: now},
-			{ID: prefix + "-tools", Name: "Tools", Color: "#0ea5e9", MonitoringEnabled: true, CreatedAt: now, UpdatedAt: now},
+			{ID: defaultGroup, Name: "Main", Color: "#0ea5e9", IsDefault: true, MonitoringEnabled: true, TileStyle: models.TileStyleCards, CreatedAt: now, UpdatedAt: now},
+			{ID: prefix + "-tools", Name: "Tools", Color: "#0ea5e9", MonitoringEnabled: true, TileStyle: models.TileStyleChips, CreatedAt: now, UpdatedAt: now},
 		},
 		Integrations: []*models.Integration{
 			{ID: integration, Kind: "sonarr", Name: "Sonarr", BaseURL: "http://sonarr.lan", AuthType: models.IntegrationAuthAPIKey, VerifyTLS: true, RefreshSeconds: 60},
