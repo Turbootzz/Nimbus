@@ -296,6 +296,15 @@ func (r *DashboardRepository) Apply(ctx context.Context, userID string, replace 
 			return nil, err
 		}
 	}
+	if replace {
+		// The boards the document lists were emptied; a viewer of one
+		// creates no default group, so each gets it back here
+		for _, board := range boards {
+			if err := ensureDefaultGroup(ctx, tx, userID, board); err != nil {
+				return nil, err
+			}
+		}
+	}
 	for _, integration := range rows.Integrations {
 		if err := insertIntegration(ctx, tx, integration); err != nil {
 			return nil, err

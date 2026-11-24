@@ -493,3 +493,16 @@ func insertDefaultGroup(ctx context.Context, tx *sql.Tx, userID, boardID string)
 	}
 	return nil
 }
+
+// ensureDefaultGroup gives a board its default group if it has none
+func ensureDefaultGroup(ctx context.Context, tx *sql.Tx, userID, boardID string) error {
+	var exists bool
+	err := tx.QueryRowContext(ctx, `SELECT EXISTS (SELECT 1 FROM groups WHERE board_id = $1 AND is_default = TRUE)`, boardID).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("failed to look up default group: %w", err)
+	}
+	if exists {
+		return nil
+	}
+	return insertDefaultGroup(ctx, tx, userID, boardID)
+}

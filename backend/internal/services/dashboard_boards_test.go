@@ -174,6 +174,9 @@ func TestImportLeavesBoardsTheDocumentDoesNotListAlone(t *testing.T) {
 	assert.Equal(t, 1, env.countOn(t, "services", family.ID))
 	assert.Equal(t, 0, env.countOn(t, "services", defaultBoard.ID), "the default board is always part of a document")
 	assert.Equal(t, 2, env.countOn(t, "services", lab.ID))
+	var defaults int
+	require.NoError(t, env.db.QueryRow(`SELECT COUNT(*) FROM groups WHERE board_id = ? AND is_default = 1`, family.ID).Scan(&defaults))
+	assert.Equal(t, 1, defaults, "the emptied board gets its default group back")
 	renamed, err := boards.GetByID(ctx, family.ID)
 	require.NoError(t, err)
 	assert.Equal(t, "Family night", renamed.Name)
