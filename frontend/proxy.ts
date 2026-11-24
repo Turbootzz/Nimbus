@@ -66,6 +66,15 @@ async function validateToken(token: string): Promise<boolean> {
   }
 }
 
+// Lets the request through. Only /status gets PUBLIC_PAGE_HEADER, and only
+// from here: a client sending it would otherwise pin any page to English.
+function next(request: NextRequest, publicPage = false) {
+  const headers = new Headers(request.headers)
+  if (publicPage) headers.set(PUBLIC_PAGE_HEADER, '1')
+  else headers.delete(PUBLIC_PAGE_HEADER)
+  return NextResponse.next({ request: { headers } })
+}
+
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -79,9 +88,7 @@ export default async function proxy(request: NextRequest) {
       return NextResponse.rewrite(new URL('/-', request.url))
     }
     // Not the visitor's page: i18n/request.ts gives it no user language
-    const headers = new Headers(request.headers)
-    headers.set(PUBLIC_PAGE_HEADER, '1')
-    return NextResponse.next({ request: { headers } })
+    return next(request, true)
   }
 
   // Get auth token from httpOnly cookie
@@ -120,7 +127,7 @@ export default async function proxy(request: NextRequest) {
     const isValid = await validateToken(authToken)
     if (!isValid) {
       // Clear invalid cookie
-      const response = NextResponse.next()
+      const response = next(request)
       response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
       return response
     }
@@ -138,7 +145,7 @@ export default async function proxy(request: NextRequest) {
       }
       // Token is invalid/expired - clear it and continue to unauthenticated flow
       if (SHOW_LANDING_PAGE) {
-        const response = NextResponse.next()
+        const response = next(request)
         response.cookies.set('auth_token', '', { maxAge: 0, path: '/' })
         return response
       }
@@ -150,14 +157,14 @@ export default async function proxy(request: NextRequest) {
     // No token - unauthenticated user at root
     if (SHOW_LANDING_PAGE) {
       // Demo mode: show the marketing landing page
-      return NextResponse.next()
+      return next(request)
     }
     // Self-hosted mode: redirect to login
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Allow the request to continue
-  return NextResponse.next()
+  return next(request)
 }
 
 // Configure which paths the proxy should run on
