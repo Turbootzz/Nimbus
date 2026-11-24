@@ -270,6 +270,128 @@
       "connecting": "Verbinden..."
     }
   },
+  "backup": {
+    "page": {
+      "title": "Exporteren & importeren",
+      "description": "Maak een back-up van je dashboard, zet het over naar een andere Nimbus of deel de indeling."
+    },
+    "export": {
+      "title": "Exporteren",
+      "description": "Download je groepen, services, widgets, integraties en voorkeuren als één JSON-bestand, met geüploade pictogrammen en achtergrond erin. Inloggegevens van integraties, headerwaarden van Eigen API-widgets en adressen van kalenderfeeds worden nooit meegenomen; andere URL's worden geëxporteerd zoals je ze hebt ingevuld.",
+      "export": "Dashboard exporteren",
+      "exporting": "Exporteren…",
+      "failed": "Het dashboard kon niet worden geëxporteerd",
+      "omittedImages": "{count, plural, one {# geüploade afbeelding ontbrak of was te groot en is} other {# geüploade afbeeldingen ontbraken of waren te groot en zijn}} niet in het bestand opgenomen."
+    },
+    "import": {
+      "title": "Importeren",
+      "description": "Laad een bestand dat uit Nimbus is geëxporteerd. Je ziet wat het doet voordat er iets verandert.",
+      "fileLabel": "Dashboardbestand",
+      "chooseFile": "Bestand kiezen",
+      "noFile": "Geen bestand gekozen",
+      "howToImport": "Hoe importeren",
+      "modes": {
+        "merge": {
+          "label": "Samenvoegen",
+          "description": "Voeg het bestand toe aan wat je al hebt. Je voorkeuren blijven zoals ze zijn. Hetzelfde bestand twee keer importeren voegt alles twee keer toe."
+        },
+        "replace": {
+          "label": "Vervangen",
+          "description": "Verwijder je huidige dashboard en gebruik in plaats daarvan het bestand."
+        }
+      },
+      "checking": "Bestand controleren…",
+      "failed": "Het importeren is mislukt",
+      "tooLarge": "Het bestand is te groot. Een export is maximaal 10 MB.",
+      "unreadable": "Het bestand kon niet worden gelezen",
+      "replaceWarning": {
+        "title": "Vervangen verwijdert je huidige dashboard.",
+        "body": "Al je groepen, services, widgets en integraties worden verwijderd, inclusief de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, en je voorkeuren worden overschreven. Dit kan niet ongedaan worden gemaakt. Exporteer eerst als je een weg terug wilt."
+      },
+      "customCss": {
+        "title": "Dit bestand bevat eigen CSS (lees het voordat je importeert)",
+        "description": "Het past de stijl aan van elke pagina achter de login. Het kan niets van een andere site laden, maar kan wel verbergen of veranderen wat je ziet.",
+        "label": "Eigen CSS in het bestand"
+      },
+      "replaceButton": "Mijn dashboard vervangen",
+      "importButton": "Importeren",
+      "finished": "Importeren voltooid.",
+      "openDashboard": "Dashboard openen",
+      "confirm": {
+        "title": "Je dashboard vervangen?",
+        "message": "Dit verwijdert {count, plural, one {# bestaand item} other {# bestaande items}}, de inloggegevens die bij je integraties zijn opgeslagen en de statusgeschiedenis van je services, overschrijft je voorkeuren en importeert daarna het bestand. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vervangen"
+      },
+      "statusPage": {
+        "kept": "De openbare statuspagina gaat over naar de groep “{group}” uit het bestand.",
+        "offline": "De openbare statuspagina gaat offline: het bestand heeft geen groep “{group}”. Kies opnieuw een groep onder Instellingen → Beheer."
+      },
+      "summary": {
+        "willDo": "Deze import gaat",
+        "hasDone": "Deze import heeft",
+        "add": "Toevoegen",
+        "added": "Toegevoegd",
+        "delete": "Verwijderen",
+        "deleted": "Verwijderd",
+        "entities": {
+          "groups": "groepen",
+          "services": "services",
+          "widgets": "widgets",
+          "integrations": "integraties"
+        },
+        "preferencesFromFile": "Voorkeuren (thema, indeling, achtergrond, statusbalk): overgenomen uit het bestand",
+        "preferencesKept": "Voorkeuren (thema, indeling, achtergrond, statusbalk): blijven zoals ze zijn",
+        "needsCredentials": "{count, plural, one {# integratie komt} other {# integraties komen}} zonder inloggegevens. Vul ze in onder Instellingen → Integraties.",
+        "needsSecrets": "{count, plural, one {Bij # widget moeten de geheimen} other {Bij # widgets moeten de geheimen}} (headerwaarden, kalenderadressen) opnieuw worden ingevuld."
+      }
+    },
+    "wizard": {
+      "title": "Importeren uit een ander dashboard",
+      "description": "Stap over van Homepage, Homarr, Homer of Dashy, of begin met een docker-compose-bestand. Plak de config of kies het bestand. Het wordt aan je dashboard toegevoegd; niets van wat je hebt verandert. API-sleutels en wachtwoorden in de config worden niet overgenomen.",
+      "format": "Formaat",
+      "detectAutomatically": "Automatisch herkennen",
+      "expects": {
+        "homepage": "Verwacht services.yaml of bookmarks.yaml.",
+        "homarr": "Verwacht een boardconfig (JSON) van Homarr 0.x.",
+        "homer": "Verwacht config.yml.",
+        "dashy": "Verwacht conf.yml.",
+        "compose": "Verwacht docker-compose.yml."
+      },
+      "dockerHost": "Docker-host",
+      "dockerHostPlaceholder": "Deze host",
+      "dockerHostHelp": "Alleen voor docker-compose: de hostnaam of het IP-adres waarop de gepubliceerde poorten bereikbaar zijn. Leeg betekent de host van deze pagina.",
+      "config": "Config",
+      "configPlaceholder": "Plak hier de YAML of JSON",
+      "configFile": "Configbestand",
+      "chooseFile": "Bestand kiezen",
+      "convert": "Omzetten",
+      "working": "Bezig…",
+      "tooLarge": "Het bestand is te groot. Een config is maximaal 1 MB.",
+      "checkFailed": "De import kon niet worden gecontroleerd",
+      "convertFailed": "De config kon niet worden omgezet",
+      "importFailed": "Het importeren is mislukt",
+      "readAs": "Gelezen als <b>{format}</b>: {services, plural, one {# service} other {# services}}, {groups, plural, one {# groep} other {# groepen}}, {integrations, plural, one {# integratie} other {# integraties}}.",
+      "warnings": "Niet alles kon worden overgenomen ({count})",
+      "groups": "Groepen",
+      "groupInConfig": "Groep in de config",
+      "goesInto": "Gaat naar",
+      "groupFor": "Groep voor {name}",
+      "newGroup": "Nieuwe groep “{name}”",
+      "defaultGroup": "{name} (standaard)",
+      "services": "Services",
+      "name": "Naam",
+      "url": "URL",
+      "group": "Groep",
+      "integration": "Integratie",
+      "integrations": "Integraties",
+      "app": "App",
+      "address": "Adres",
+      "credentialsNote": "Inloggegevens worden niet overgenomen. Vul ze na het importeren in onder Instellingen → Integraties.",
+      "import": "Importeren",
+      "finished": "Importeren voltooid.",
+      "openDashboard": "Dashboard openen"
+    }
+  },
   "boards": {
     "manager": {
       "title": "Boards",
@@ -471,6 +593,75 @@
       "notFound": "Board niet gevonden",
       "notFoundDescription": "Het bestaat niet, of het wordt niet meer met je gedeeld.",
       "goToDashboard": "Naar je dashboard"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integraties",
+      "description": "Koppel Nimbus aan je apps. Koppel een integratie aan een service op de <link>bewerkpagina</link> ervan om live cijfers op de tegel te tonen.",
+      "add": "Integratie toevoegen",
+      "emptyTitle": "Nog geen integraties",
+      "supportedApps": "Ondersteunde apps: {apps}.",
+      "noneAvailable": "Deze server heeft geen integraties beschikbaar.",
+      "test": "Testen",
+      "testing": "Testen...",
+      "testFailed": "Test mislukt",
+      "edit": "Bewerken",
+      "delete": "Verwijderen",
+      "deleteTitle": "Integratie verwijderen",
+      "deleteMessage": "“{name}” verwijderen? Services die eraan gekoppeld zijn, verliezen hun live cijfers.",
+      "status": {
+        "needsCredentials": "Inloggegevens nodig: bewerk om ze in te vullen",
+        "notTested": "Niet getest",
+        "connected": "Verbonden",
+        "failed": "Mislukt",
+        "failedWith": "Mislukt: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Integratie toevoegen",
+      "editTitle": "{name} bewerken",
+      "close": "Sluiten",
+      "app": "App",
+      "name": "Naam",
+      "url": "URL",
+      "urlHelp": "Het adres waarop Nimbus de app bereikt, inclusief een eventueel subpad.",
+      "signInWith": "Inloggen met",
+      "auth": {
+        "none": "Geen",
+        "apiKey": "API-sleutel",
+        "token": "Token",
+        "basic": "Gebruikersnaam en wachtwoord"
+      },
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "savedPlaceholder": "Opgeslagen; laat leeg om te behouden",
+      "credentialsNote": "Inloggegevens worden versleuteld opgeslagen en nooit teruggestuurd naar de browser.",
+      "forExample": "Bijvoorbeeld {value}",
+      "refresh": "Verversinterval (seconden)",
+      "verifyTls": "TLS-certificaat controleren",
+      "verifyTlsHint": "Zet uit voor apps met een zelfondertekend certificaat",
+      "verifyTlsWarning": "Zonder deze controle kan Nimbus de app niet onderscheiden van een bedrieger, en wie er ook antwoordt, krijgt de inloggegevens. Zet het alleen uit voor een zelfondertekend certificaat op een netwerk dat je vertrouwt.",
+      "connectedIn": "Verbonden in {ms} ms",
+      "connectionFailed": "Verbinding mislukt: {error}",
+      "usernameMissing": "Vul ook de gebruikersnaam in",
+      "passwordMissing": "Vul ook het wachtwoord in, of laat beide leeg om de opgeslagen gegevens te behouden",
+      "testFailed": "Test mislukt",
+      "saveFailed": "Integratie opslaan mislukt",
+      "test": "Verbinding testen",
+      "testSaved": "Opgeslagen verbinding testen",
+      "testing": "Testen...",
+      "cancel": "Annuleren",
+      "save": "Wijzigingen opslaan",
+      "saving": "Opslaan...",
+      "add": "Integratie toevoegen"
+    },
+    "selector": {
+      "label": "Live cijfers",
+      "description": "Toon cijfers uit een app, zoals de wachtrij van Sonarr, op deze tegel.",
+      "none": "Geen",
+      "loading": "Integraties laden...",
+      "manage": "Integraties beheren"
     }
   },
   "language": {

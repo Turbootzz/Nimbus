@@ -270,6 +270,128 @@
       "connecting": "Connecting..."
     }
   },
+  "backup": {
+    "page": {
+      "title": "Export & Import",
+      "description": "Back up your dashboard, move it to another Nimbus, or share its layout."
+    },
+    "export": {
+      "title": "Export",
+      "description": "Download your groups, services, widgets, integrations and preferences as one JSON file, with uploaded icons and wallpaper inside. Integration credentials, Custom API header values and calendar feed addresses are never included; other URLs are exported as you entered them.",
+      "export": "Export dashboard",
+      "exporting": "Exporting…",
+      "failed": "Failed to export the dashboard",
+      "omittedImages": "{count, plural, one {# uploaded image was} other {# uploaded images were}} missing or too large and left out of the file."
+    },
+    "import": {
+      "title": "Import",
+      "description": "Load a file exported from Nimbus. You see what it does before anything changes.",
+      "fileLabel": "Dashboard file",
+      "chooseFile": "Choose file",
+      "noFile": "No file chosen",
+      "howToImport": "How to import",
+      "modes": {
+        "merge": {
+          "label": "Merge",
+          "description": "Add the file to what you have. Your preferences stay as they are. Importing the same file twice adds everything twice."
+        },
+        "replace": {
+          "label": "Replace",
+          "description": "Delete your current dashboard and use the file instead."
+        }
+      },
+      "checking": "Checking the file…",
+      "failed": "The import failed",
+      "tooLarge": "The file is too large. An export is at most 10 MB.",
+      "unreadable": "The file could not be read",
+      "replaceWarning": {
+        "title": "Replace deletes your current dashboard.",
+        "body": "All your groups, services, widgets and integrations are deleted, including the credentials saved with your integrations and the status history of your services, and your preferences are overwritten. This cannot be undone. Export first if you want a way back."
+      },
+      "customCss": {
+        "title": "This file brings custom CSS (read it before you import)",
+        "description": "It restyles every page behind the login. It cannot load anything from another site, but it can hide or change what you see.",
+        "label": "Custom CSS in the file"
+      },
+      "replaceButton": "Replace my dashboard",
+      "importButton": "Import",
+      "finished": "Import finished.",
+      "openDashboard": "Open the dashboard",
+      "confirm": {
+        "title": "Replace your dashboard?",
+        "message": "This deletes {count, plural, one {# existing item} other {# existing items}}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone.",
+        "confirm": "Replace"
+      },
+      "statusPage": {
+        "kept": "The public status page moves to the group “{group}” from the file.",
+        "offline": "The public status page goes offline: the file has no group “{group}”. Choose a group again under Settings → Admin Settings."
+      },
+      "summary": {
+        "willDo": "This import will",
+        "hasDone": "This import has",
+        "add": "Add",
+        "added": "Added",
+        "delete": "Delete",
+        "deleted": "Deleted",
+        "entities": {
+          "groups": "groups",
+          "services": "services",
+          "widgets": "widgets",
+          "integrations": "integrations"
+        },
+        "preferencesFromFile": "Preferences (theme, layout, wallpaper, status strip): taken from the file",
+        "preferencesKept": "Preferences (theme, layout, wallpaper, status strip): kept as they are",
+        "needsCredentials": "{count, plural, one {# integration comes} other {# integrations come}} without credentials. Enter them under Settings → Integrations.",
+        "needsSecrets": "{count, plural, one {# widget needs its} other {# widgets need their}} secrets (header values, calendar addresses) entered again."
+      }
+    },
+    "wizard": {
+      "title": "Import from another dashboard",
+      "description": "Switch from Homepage, Homarr, Homer or Dashy, or start from a docker-compose file. Paste the config or choose the file. It is added to your dashboard; nothing you have is changed. API keys and passwords in the config are not taken over.",
+      "format": "Format",
+      "detectAutomatically": "Detect automatically",
+      "expects": {
+        "homepage": "Expects services.yaml or bookmarks.yaml.",
+        "homarr": "Expects a board config (JSON) of Homarr 0.x.",
+        "homer": "Expects config.yml.",
+        "dashy": "Expects conf.yml.",
+        "compose": "Expects docker-compose.yml."
+      },
+      "dockerHost": "Docker host",
+      "dockerHostPlaceholder": "This host",
+      "dockerHostHelp": "Only for docker-compose: the host name or IP address its published ports are reached at. Empty means the host of this page.",
+      "config": "Config",
+      "configPlaceholder": "Paste the YAML or JSON here",
+      "configFile": "Config file",
+      "chooseFile": "Choose file",
+      "convert": "Convert",
+      "working": "Working…",
+      "tooLarge": "The file is too large. A config is at most 1 MB.",
+      "checkFailed": "The import could not be checked",
+      "convertFailed": "The config could not be converted",
+      "importFailed": "The import failed",
+      "readAs": "Read as <b>{format}</b>: {services} services, {groups} groups, {integrations} integrations.",
+      "warnings": "Not everything could be taken over ({count})",
+      "groups": "Groups",
+      "groupInConfig": "Group in the config",
+      "goesInto": "Goes into",
+      "groupFor": "Group for {name}",
+      "newGroup": "New group “{name}”",
+      "defaultGroup": "{name} (default)",
+      "services": "Services",
+      "name": "Name",
+      "url": "URL",
+      "group": "Group",
+      "integration": "Integration",
+      "integrations": "Integrations",
+      "app": "App",
+      "address": "Address",
+      "credentialsNote": "Credentials are not taken over. Enter them under Settings → Integrations after the import.",
+      "import": "Import",
+      "finished": "Import finished.",
+      "openDashboard": "Open the dashboard"
+    }
+  },
   "boards": {
     "manager": {
       "title": "Boards",
@@ -471,6 +593,75 @@
       "notFound": "Board not found",
       "notFoundDescription": "It does not exist, or it is no longer shared with you.",
       "goToDashboard": "Go to your dashboard"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integrations",
+      "description": "Connect Nimbus to your apps. Link an integration to a service on its <link>edit page</link> to show live numbers on the tile.",
+      "add": "Add Integration",
+      "emptyTitle": "No integrations yet",
+      "supportedApps": "Supported apps: {apps}.",
+      "noneAvailable": "This server has no integrations available.",
+      "test": "Test",
+      "testing": "Testing...",
+      "testFailed": "Test failed",
+      "edit": "Edit",
+      "delete": "Delete",
+      "deleteTitle": "Delete Integration",
+      "deleteMessage": "Delete \"{name}\"? Services linked to it lose their live numbers.",
+      "status": {
+        "needsCredentials": "Needs credentials: edit to enter them",
+        "notTested": "Not tested",
+        "connected": "Connected",
+        "failed": "Failed",
+        "failedWith": "Failed: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Add Integration",
+      "editTitle": "Edit {name}",
+      "close": "Close",
+      "app": "App",
+      "name": "Name",
+      "url": "URL",
+      "urlHelp": "The address Nimbus uses to reach the app, including any sub path.",
+      "signInWith": "Sign in with",
+      "auth": {
+        "none": "None",
+        "apiKey": "API key",
+        "token": "Token",
+        "basic": "Username and password"
+      },
+      "username": "Username",
+      "password": "Password",
+      "savedPlaceholder": "Saved; leave empty to keep",
+      "credentialsNote": "Credentials are stored encrypted and never sent back to the browser.",
+      "forExample": "For example {value}",
+      "refresh": "Refresh every (seconds)",
+      "verifyTls": "Verify TLS certificate",
+      "verifyTlsHint": "Turn off for apps with a self-signed certificate",
+      "verifyTlsWarning": "Without this check Nimbus can't tell the app from an impostor, and whoever answers gets the credentials. Only turn it off for a self-signed certificate on a network you trust.",
+      "connectedIn": "Connected in {ms} ms",
+      "connectionFailed": "Connection failed: {error}",
+      "usernameMissing": "Enter the username too",
+      "passwordMissing": "Enter the password too, or leave both empty to keep the saved ones",
+      "testFailed": "Test failed",
+      "saveFailed": "Failed to save integration",
+      "test": "Test connection",
+      "testSaved": "Test saved connection",
+      "testing": "Testing...",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "saving": "Saving...",
+      "add": "Add Integration"
+    },
+    "selector": {
+      "label": "Live numbers",
+      "description": "Show numbers from an app, like Sonarr's queue, on this tile.",
+      "none": "None",
+      "loading": "Loading integrations...",
+      "manage": "Manage integrations"
     }
   },
   "language": {

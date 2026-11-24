@@ -270,6 +270,128 @@
       "connecting": "Verbindung wird hergestellt..."
     }
   },
+  "backup": {
+    "page": {
+      "title": "Export & Import",
+      "description": "Sichere dein Dashboard, zieh damit zu einer anderen Nimbus-Instanz um oder teile sein Layout."
+    },
+    "export": {
+      "title": "Export",
+      "description": "Lade deine Gruppen, Dienste, Widgets, Integrationen und Einstellungen als eine JSON-Datei herunter, mit hochgeladenen Icons und Hintergrundbild darin. Zugangsdaten von Integrationen, Header-Werte von Eigene-API-Widgets und Adressen von Kalender-Feeds sind nie enthalten; andere URLs werden so exportiert, wie du sie eingegeben hast.",
+      "export": "Dashboard exportieren",
+      "exporting": "Wird exportiert…",
+      "failed": "Das Dashboard konnte nicht exportiert werden",
+      "omittedImages": "{count, plural, one {# hochgeladenes Bild fehlte oder war zu groß und wurde} other {# hochgeladene Bilder fehlten oder waren zu groß und wurden}} nicht in die Datei aufgenommen."
+    },
+    "import": {
+      "title": "Import",
+      "description": "Lade eine aus Nimbus exportierte Datei. Du siehst, was sie bewirkt, bevor sich etwas ändert.",
+      "fileLabel": "Dashboard-Datei",
+      "chooseFile": "Datei auswählen",
+      "noFile": "Keine Datei ausgewählt",
+      "howToImport": "Art des Imports",
+      "modes": {
+        "merge": {
+          "label": "Zusammenführen",
+          "description": "Füge die Datei zu deinem Bestand hinzu. Deine Einstellungen bleiben, wie sie sind. Wenn du dieselbe Datei zweimal importierst, wird alles zweimal hinzugefügt."
+        },
+        "replace": {
+          "label": "Ersetzen",
+          "description": "Lösche dein aktuelles Dashboard und verwende stattdessen die Datei."
+        }
+      },
+      "checking": "Datei wird geprüft…",
+      "failed": "Der Import ist fehlgeschlagen",
+      "tooLarge": "Die Datei ist zu groß. Ein Export ist höchstens 10 MB groß.",
+      "unreadable": "Die Datei konnte nicht gelesen werden",
+      "replaceWarning": {
+        "title": "Ersetzen löscht dein aktuelles Dashboard.",
+        "body": "Alle deine Gruppen, Dienste, Widgets und Integrationen werden gelöscht, einschließlich der bei deinen Integrationen gespeicherten Zugangsdaten und des Statusverlaufs deiner Dienste, und deine Einstellungen werden überschrieben. Das kann nicht rückgängig gemacht werden. Exportiere zuerst, wenn du einen Weg zurück haben willst."
+      },
+      "customCss": {
+        "title": "Diese Datei bringt eigenes CSS mit (lies es, bevor du importierst)",
+        "description": "Es gestaltet jede Seite hinter dem Login um. Es kann nichts von einer anderen Website laden, aber es kann verbergen oder verändern, was du siehst.",
+        "label": "Eigenes CSS in der Datei"
+      },
+      "replaceButton": "Mein Dashboard ersetzen",
+      "importButton": "Importieren",
+      "finished": "Import abgeschlossen.",
+      "openDashboard": "Dashboard öffnen",
+      "confirm": {
+        "title": "Dein Dashboard ersetzen?",
+        "message": "Dies löscht {count, plural, one {# vorhandenes Element} other {# vorhandene Elemente}}, die bei deinen Integrationen gespeicherten Zugangsdaten und den Statusverlauf deiner Dienste, überschreibt deine Einstellungen und importiert dann die Datei. Das kann nicht rückgängig gemacht werden.",
+        "confirm": "Ersetzen"
+      },
+      "statusPage": {
+        "kept": "Die öffentliche Statusseite wechselt zur Gruppe „{group}“ aus der Datei.",
+        "offline": "Die öffentliche Statusseite geht offline: Die Datei hat keine Gruppe „{group}“. Wähle unter Einstellungen → Admin-Einstellungen erneut eine Gruppe."
+      },
+      "summary": {
+        "willDo": "Dieser Import wird",
+        "hasDone": "Dieser Import hat",
+        "add": "Hinzufügen",
+        "added": "Hinzugefügt",
+        "delete": "Löschen",
+        "deleted": "Gelöscht",
+        "entities": {
+          "groups": "Gruppen",
+          "services": "Dienste",
+          "widgets": "Widgets",
+          "integrations": "Integrationen"
+        },
+        "preferencesFromFile": "Einstellungen (Theme, Layout, Hintergrundbild, Statusleiste): aus der Datei übernommen",
+        "preferencesKept": "Einstellungen (Theme, Layout, Hintergrundbild, Statusleiste): bleiben, wie sie sind",
+        "needsCredentials": "{count, plural, one {# Integration kommt} other {# Integrationen kommen}} ohne Zugangsdaten. Gib sie unter Einstellungen → Integrationen ein.",
+        "needsSecrets": "{count, plural, one {Bei # Widget müssen die Geheimnisse} other {Bei # Widgets müssen die Geheimnisse}} (Header-Werte, Kalenderadressen) erneut eingegeben werden."
+      }
+    },
+    "wizard": {
+      "title": "Aus einem anderen Dashboard importieren",
+      "description": "Wechsle von Homepage, Homarr, Homer oder Dashy, oder starte mit einer docker-compose-Datei. Füge die Konfiguration ein oder wähle die Datei aus. Sie wird deinem Dashboard hinzugefügt; nichts von deinem Bestand wird geändert. API-Schlüssel und Passwörter in der Konfiguration werden nicht übernommen.",
+      "format": "Format",
+      "detectAutomatically": "Automatisch erkennen",
+      "expects": {
+        "homepage": "Erwartet services.yaml oder bookmarks.yaml.",
+        "homarr": "Erwartet eine Board-Konfiguration (JSON) von Homarr 0.x.",
+        "homer": "Erwartet config.yml.",
+        "dashy": "Erwartet conf.yml.",
+        "compose": "Erwartet docker-compose.yml."
+      },
+      "dockerHost": "Docker-Host",
+      "dockerHostPlaceholder": "Dieser Host",
+      "dockerHostHelp": "Nur für docker-compose: der Hostname oder die IP-Adresse, unter der die veröffentlichten Ports erreichbar sind. Leer bedeutet der Host dieser Seite.",
+      "config": "Konfiguration",
+      "configPlaceholder": "Füge hier das YAML oder JSON ein",
+      "configFile": "Konfigurationsdatei",
+      "chooseFile": "Datei auswählen",
+      "convert": "Umwandeln",
+      "working": "Wird verarbeitet…",
+      "tooLarge": "Die Datei ist zu groß. Eine Konfiguration ist höchstens 1 MB groß.",
+      "checkFailed": "Der Import konnte nicht geprüft werden",
+      "convertFailed": "Die Konfiguration konnte nicht umgewandelt werden",
+      "importFailed": "Der Import ist fehlgeschlagen",
+      "readAs": "Gelesen als <b>{format}</b>: {services, plural, one {# Dienst} other {# Dienste}}, {groups, plural, one {# Gruppe} other {# Gruppen}}, {integrations, plural, one {# Integration} other {# Integrationen}}.",
+      "warnings": "Nicht alles konnte übernommen werden ({count})",
+      "groups": "Gruppen",
+      "groupInConfig": "Gruppe in der Konfiguration",
+      "goesInto": "Kommt in",
+      "groupFor": "Gruppe für {name}",
+      "newGroup": "Neue Gruppe „{name}“",
+      "defaultGroup": "{name} (Standard)",
+      "services": "Dienste",
+      "name": "Name",
+      "url": "URL",
+      "group": "Gruppe",
+      "integration": "Integration",
+      "integrations": "Integrationen",
+      "app": "App",
+      "address": "Adresse",
+      "credentialsNote": "Zugangsdaten werden nicht übernommen. Gib sie nach dem Import unter Einstellungen → Integrationen ein.",
+      "import": "Importieren",
+      "finished": "Import abgeschlossen.",
+      "openDashboard": "Dashboard öffnen"
+    }
+  },
   "boards": {
     "manager": {
       "title": "Boards",
@@ -471,6 +593,75 @@
       "notFound": "Board nicht gefunden",
       "notFoundDescription": "Es existiert nicht oder wird nicht mehr mit dir geteilt.",
       "goToDashboard": "Zu deinem Dashboard"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integrationen",
+      "description": "Verbinde Nimbus mit deinen Apps. Verknüpfe eine Integration auf der <link>Bearbeitungsseite</link> eines Dienstes, um Live-Zahlen auf der Kachel anzuzeigen.",
+      "add": "Integration hinzufügen",
+      "emptyTitle": "Noch keine Integrationen",
+      "supportedApps": "Unterstützte Apps: {apps}.",
+      "noneAvailable": "Auf diesem Server sind keine Integrationen verfügbar.",
+      "test": "Testen",
+      "testing": "Wird getestet...",
+      "testFailed": "Test fehlgeschlagen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "deleteTitle": "Integration löschen",
+      "deleteMessage": "„{name}“ löschen? Damit verknüpfte Dienste verlieren ihre Live-Zahlen.",
+      "status": {
+        "needsCredentials": "Zugangsdaten fehlen: zum Eingeben bearbeiten",
+        "notTested": "Nicht getestet",
+        "connected": "Verbunden",
+        "failed": "Fehlgeschlagen",
+        "failedWith": "Fehlgeschlagen: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Integration hinzufügen",
+      "editTitle": "{name} bearbeiten",
+      "close": "Schließen",
+      "app": "App",
+      "name": "Name",
+      "url": "URL",
+      "urlHelp": "Die Adresse, unter der Nimbus die App erreicht, einschließlich eines etwaigen Unterpfads.",
+      "signInWith": "Anmelden mit",
+      "auth": {
+        "none": "Keine",
+        "apiKey": "API-Schlüssel",
+        "token": "Token",
+        "basic": "Benutzername und Passwort"
+      },
+      "username": "Benutzername",
+      "password": "Passwort",
+      "savedPlaceholder": "Gespeichert; leer lassen zum Beibehalten",
+      "credentialsNote": "Zugangsdaten werden verschlüsselt gespeichert und nie an den Browser zurückgeschickt.",
+      "forExample": "Zum Beispiel {value}",
+      "refresh": "Aktualisieren alle (Sekunden)",
+      "verifyTls": "TLS-Zertifikat prüfen",
+      "verifyTlsHint": "Für Apps mit selbstsigniertem Zertifikat ausschalten",
+      "verifyTlsWarning": "Ohne diese Prüfung kann Nimbus die App nicht von einem Betrüger unterscheiden, und wer auch immer antwortet, erhält die Zugangsdaten. Schalte sie nur für ein selbstsigniertes Zertifikat in einem Netzwerk aus, dem du vertraust.",
+      "connectedIn": "Verbunden in {ms} ms",
+      "connectionFailed": "Verbindung fehlgeschlagen: {error}",
+      "usernameMissing": "Gib auch den Benutzernamen ein",
+      "passwordMissing": "Gib auch das Passwort ein, oder lass beide leer, um die gespeicherten zu behalten",
+      "testFailed": "Test fehlgeschlagen",
+      "saveFailed": "Integration konnte nicht gespeichert werden",
+      "test": "Verbindung testen",
+      "testSaved": "Gespeicherte Verbindung testen",
+      "testing": "Wird getestet...",
+      "cancel": "Abbrechen",
+      "save": "Änderungen speichern",
+      "saving": "Wird gespeichert...",
+      "add": "Integration hinzufügen"
+    },
+    "selector": {
+      "label": "Live-Zahlen",
+      "description": "Zeige Zahlen aus einer App, wie die Warteschlange von Sonarr, auf dieser Kachel.",
+      "none": "Keine",
+      "loading": "Integrationen werden geladen...",
+      "manage": "Integrationen verwalten"
     }
   },
   "language": {

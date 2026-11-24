@@ -270,6 +270,128 @@
       "connecting": "Connexion..."
     }
   },
+  "backup": {
+    "page": {
+      "title": "Exporter et importer",
+      "description": "Sauvegardez votre tableau de bord, transférez-le vers un autre Nimbus ou partagez sa disposition."
+    },
+    "export": {
+      "title": "Exporter",
+      "description": "Téléchargez vos groupes, services, widgets, intégrations et préférences dans un seul fichier JSON, avec les icônes et le fond d’écran importés inclus. Les identifiants des intégrations, les valeurs d’en-tête des widgets API personnalisée et les adresses des flux de calendrier ne sont jamais inclus ; les autres URL sont exportées telles que vous les avez saisies.",
+      "export": "Exporter le tableau de bord",
+      "exporting": "Exportation…",
+      "failed": "Impossible d’exporter le tableau de bord",
+      "omittedImages": "{count, plural, one {# image importée était manquante ou trop volumineuse et a été laissée} other {# images importées étaient manquantes ou trop volumineuses et ont été laissées}} hors du fichier."
+    },
+    "import": {
+      "title": "Importer",
+      "description": "Chargez un fichier exporté depuis Nimbus. Vous voyez ce qu’il fait avant que quoi que ce soit ne change.",
+      "fileLabel": "Fichier du tableau de bord",
+      "chooseFile": "Choisir un fichier",
+      "noFile": "Aucun fichier choisi",
+      "howToImport": "Mode d’importation",
+      "modes": {
+        "merge": {
+          "label": "Fusionner",
+          "description": "Ajoute le fichier à ce que vous avez. Vos préférences restent inchangées. Importer deux fois le même fichier ajoute tout deux fois."
+        },
+        "replace": {
+          "label": "Remplacer",
+          "description": "Supprime votre tableau de bord actuel et utilise le fichier à la place."
+        }
+      },
+      "checking": "Vérification du fichier…",
+      "failed": "L’importation a échoué",
+      "tooLarge": "Le fichier est trop volumineux. Un export fait au maximum 10 Mo.",
+      "unreadable": "Le fichier n’a pas pu être lu",
+      "replaceWarning": {
+        "title": "Remplacer supprime votre tableau de bord actuel.",
+        "body": "Tous vos groupes, services, widgets et intégrations sont supprimés, y compris les identifiants enregistrés avec vos intégrations et l’historique d’état de vos services, et vos préférences sont écrasées. Cette action est irréversible. Exportez d’abord si vous voulez pouvoir revenir en arrière."
+      },
+      "customCss": {
+        "title": "Ce fichier apporte du CSS personnalisé (lisez-le avant d’importer)",
+        "description": "Il modifie le style de chaque page derrière la connexion. Il ne peut rien charger depuis un autre site, mais il peut masquer ou modifier ce que vous voyez.",
+        "label": "CSS personnalisé dans le fichier"
+      },
+      "replaceButton": "Remplacer mon tableau de bord",
+      "importButton": "Importer",
+      "finished": "Importation terminée.",
+      "openDashboard": "Ouvrir le tableau de bord",
+      "confirm": {
+        "title": "Remplacer votre tableau de bord ?",
+        "message": "Cela supprime {count, plural, one {# élément existant} other {# éléments existants}}, les identifiants enregistrés avec vos intégrations et l’historique d’état de vos services, écrase vos préférences, puis importe le fichier. Cette action est irréversible.",
+        "confirm": "Remplacer"
+      },
+      "statusPage": {
+        "kept": "La page d’état publique passe au groupe « {group} » du fichier.",
+        "offline": "La page d’état publique est mise hors ligne : le fichier n’a pas de groupe « {group} ». Choisissez à nouveau un groupe dans Paramètres → Paramètres d’administration."
+      },
+      "summary": {
+        "willDo": "Cette importation va",
+        "hasDone": "Cette importation a",
+        "add": "Ajouter",
+        "added": "Ajoutés",
+        "delete": "Supprimer",
+        "deleted": "Supprimés",
+        "entities": {
+          "groups": "groupes",
+          "services": "services",
+          "widgets": "widgets",
+          "integrations": "intégrations"
+        },
+        "preferencesFromFile": "Préférences (thème, disposition, fond d’écran, barre d’état) : reprises du fichier",
+        "preferencesKept": "Préférences (thème, disposition, fond d’écran, barre d’état) : inchangées",
+        "needsCredentials": "{count, plural, one {# intégration arrive} other {# intégrations arrivent}} sans identifiants. Saisissez-les dans Paramètres → Intégrations.",
+        "needsSecrets": "{count, plural, one {# widget doit} other {# widgets doivent}} recevoir à nouveau ses secrets (valeurs d’en-tête, adresses de calendrier)."
+      }
+    },
+    "wizard": {
+      "title": "Importer depuis un autre tableau de bord",
+      "description": "Passez de Homepage, Homarr, Homer ou Dashy, ou partez d’un fichier docker-compose. Collez la configuration ou choisissez le fichier. Elle est ajoutée à votre tableau de bord ; rien de ce que vous avez n’est modifié. Les clés d’API et mots de passe de la configuration ne sont pas repris.",
+      "format": "Format",
+      "detectAutomatically": "Détection automatique",
+      "expects": {
+        "homepage": "Attend services.yaml ou bookmarks.yaml.",
+        "homarr": "Attend une configuration de board (JSON) de Homarr 0.x.",
+        "homer": "Attend config.yml.",
+        "dashy": "Attend conf.yml.",
+        "compose": "Attend docker-compose.yml."
+      },
+      "dockerHost": "Hôte Docker",
+      "dockerHostPlaceholder": "Cet hôte",
+      "dockerHostHelp": "Uniquement pour docker-compose : le nom d’hôte ou l’adresse IP où ses ports publiés sont joignables. Vide signifie l’hôte de cette page.",
+      "config": "Configuration",
+      "configPlaceholder": "Collez le YAML ou le JSON ici",
+      "configFile": "Fichier de configuration",
+      "chooseFile": "Choisir un fichier",
+      "convert": "Convertir",
+      "working": "Traitement…",
+      "tooLarge": "Le fichier est trop volumineux. Une configuration fait au maximum 1 Mo.",
+      "checkFailed": "L’importation n’a pas pu être vérifiée",
+      "convertFailed": "La configuration n’a pas pu être convertie",
+      "importFailed": "L’importation a échoué",
+      "readAs": "Lu comme <b>{format}</b> : {services, plural, one {# service} other {# services}}, {groups, plural, one {# groupe} other {# groupes}}, {integrations, plural, one {# intégration} other {# intégrations}}.",
+      "warnings": "Tout n’a pas pu être repris ({count})",
+      "groups": "Groupes",
+      "groupInConfig": "Groupe dans la configuration",
+      "goesInto": "Va dans",
+      "groupFor": "Groupe pour {name}",
+      "newGroup": "Nouveau groupe « {name} »",
+      "defaultGroup": "{name} (par défaut)",
+      "services": "Services",
+      "name": "Nom",
+      "url": "URL",
+      "group": "Groupe",
+      "integration": "Intégration",
+      "integrations": "Intégrations",
+      "app": "Application",
+      "address": "Adresse",
+      "credentialsNote": "Les identifiants ne sont pas repris. Saisissez-les dans Paramètres → Intégrations après l’importation.",
+      "import": "Importer",
+      "finished": "Importation terminée.",
+      "openDashboard": "Ouvrir le tableau de bord"
+    }
+  },
   "boards": {
     "manager": {
       "title": "Boards",
@@ -471,6 +593,75 @@
       "notFound": "Board introuvable",
       "notFoundDescription": "Il n’existe pas, ou il n’est plus partagé avec vous.",
       "goToDashboard": "Aller à votre tableau de bord"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Intégrations",
+      "description": "Connectez Nimbus à vos applications. Liez une intégration à un service sur sa <link>page de modification</link> pour afficher des chiffres en direct sur la tuile.",
+      "add": "Ajouter une intégration",
+      "emptyTitle": "Aucune intégration pour l’instant",
+      "supportedApps": "Applications prises en charge : {apps}.",
+      "noneAvailable": "Ce serveur ne propose aucune intégration.",
+      "test": "Tester",
+      "testing": "Test en cours...",
+      "testFailed": "Échec du test",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "deleteTitle": "Supprimer l’intégration",
+      "deleteMessage": "Supprimer « {name} » ? Les services qui y sont liés perdent leurs chiffres en direct.",
+      "status": {
+        "needsCredentials": "Identifiants requis : modifiez pour les saisir",
+        "notTested": "Non testée",
+        "connected": "Connectée",
+        "failed": "Échec",
+        "failedWith": "Échec : {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Ajouter une intégration",
+      "editTitle": "Modifier {name}",
+      "close": "Fermer",
+      "app": "Application",
+      "name": "Nom",
+      "url": "URL",
+      "urlHelp": "L’adresse que Nimbus utilise pour joindre l’application, y compris un éventuel sous-chemin.",
+      "signInWith": "Se connecter avec",
+      "auth": {
+        "none": "Aucune",
+        "apiKey": "Clé d’API",
+        "token": "Jeton",
+        "basic": "Nom d’utilisateur et mot de passe"
+      },
+      "username": "Nom d’utilisateur",
+      "password": "Mot de passe",
+      "savedPlaceholder": "Enregistré ; laissez vide pour conserver",
+      "credentialsNote": "Les identifiants sont stockés chiffrés et ne sont jamais renvoyés au navigateur.",
+      "forExample": "Par exemple {value}",
+      "refresh": "Actualiser toutes les (secondes)",
+      "verifyTls": "Vérifier le certificat TLS",
+      "verifyTlsHint": "Désactivez pour les applications avec un certificat auto-signé",
+      "verifyTlsWarning": "Sans cette vérification, Nimbus ne peut pas distinguer l’application d’un imposteur, et quiconque répond reçoit les identifiants. Désactivez-la uniquement pour un certificat auto-signé sur un réseau de confiance.",
+      "connectedIn": "Connecté en {ms} ms",
+      "connectionFailed": "Échec de la connexion : {error}",
+      "usernameMissing": "Saisissez aussi le nom d’utilisateur",
+      "passwordMissing": "Saisissez aussi le mot de passe, ou laissez les deux vides pour conserver ceux enregistrés",
+      "testFailed": "Échec du test",
+      "saveFailed": "Impossible d’enregistrer l’intégration",
+      "test": "Tester la connexion",
+      "testSaved": "Tester la connexion enregistrée",
+      "testing": "Test en cours...",
+      "cancel": "Annuler",
+      "save": "Enregistrer les modifications",
+      "saving": "Enregistrement...",
+      "add": "Ajouter l’intégration"
+    },
+    "selector": {
+      "label": "Chiffres en direct",
+      "description": "Affichez des chiffres d’une application, comme la file d’attente de Sonarr, sur cette tuile.",
+      "none": "Aucune",
+      "loading": "Chargement des intégrations...",
+      "manage": "Gérer les intégrations"
     }
   },
   "language": {

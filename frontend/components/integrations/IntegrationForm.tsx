@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
@@ -22,13 +23,6 @@ interface IntegrationFormProps {
   prefill?: { kind: string; name: string; base_url: string } | null
   onClose: () => void
   onSaved: (integration: Integration) => void
-}
-
-const authLabels: Record<IntegrationAuthType, string> = {
-  none: 'None',
-  api_key: 'API key',
-  token: 'Token',
-  basic: 'Username and password',
 }
 
 // Credentials to send: only what the auth type uses, and only when typed.
@@ -58,6 +52,13 @@ export default function IntegrationForm({
   onClose,
   onSaved,
 }: IntegrationFormProps) {
+  const t = useTranslations('integrations.form')
+  const authLabels: Record<IntegrationAuthType, string> = {
+    none: t('auth.none'),
+    api_key: t('auth.apiKey'),
+    token: t('auth.token'),
+    basic: t('auth.basic'),
+  }
   const isEdit = !!integration
   const [kind, setKind] = useState(integration?.kind ?? prefill?.kind ?? kinds[0]?.kind ?? '')
   const meta = kinds.find((k) => k.kind === kind)
@@ -85,7 +86,7 @@ export default function IntegrationForm({
   const busy = isSaving || isTesting
   const hasSavedCredentials =
     isEdit && integration.has_credentials && integration.auth_type === authType
-  const savedPlaceholder = hasSavedCredentials ? 'Saved; leave empty to keep' : ''
+  const savedPlaceholder = hasSavedCredentials ? t('savedPlaceholder') : ''
 
   const selectKind = (next: string) => {
     const nextMeta = kinds.find((k) => k.kind === next)
@@ -102,9 +103,9 @@ export default function IntegrationForm({
   // The saved username is never sent back, so basic auth is changed as a pair
   const credentialsError = (): string | null => {
     if (authType !== 'basic' || !(creds.username || creds.password)) return null
-    if (!creds.username) return 'Enter the username too'
+    if (!creds.username) return t('usernameMissing')
     if (hasSavedCredentials && !creds.password) {
-      return 'Enter the password too, or leave both empty to keep the saved ones'
+      return t('passwordMissing')
     }
     return null
   }
@@ -147,7 +148,7 @@ export default function IntegrationForm({
         ? await api.testSavedIntegration(integration.id)
         : await api.testIntegration(buildRequest())
       if (response.error || !response.data) {
-        setError(response.error?.message || 'Test failed')
+        setError(response.error?.message || t('testFailed'))
         return
       }
       setTestResult(response.data)
@@ -170,12 +171,12 @@ export default function IntegrationForm({
         ? await api.updateIntegration(integration.id, buildRequest())
         : await api.createIntegration(buildRequest())
       if (response.error || !response.data) {
-        setError(response.error?.message || 'Failed to save integration')
+        setError(response.error?.message || t('saveFailed'))
         return
       }
       onSaved(response.data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save integration')
+      setError(err instanceof Error ? err.message : t('saveFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -198,13 +199,13 @@ export default function IntegrationForm({
       >
         <div className="border-card-border flex items-center justify-between border-b p-4">
           <h3 id="integration-form-title" className="text-text-primary text-lg font-semibold">
-            {isEdit ? `Edit ${integration.name}` : 'Add Integration'}
+            {isEdit ? t('editTitle', { name: integration.name }) : t('addTitle')}
           </h3>
           <button
             type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Close"
+            aria-label={t('close')}
             disabled={busy}
           >
             <XMarkIcon className="h-5 w-5" />
@@ -221,7 +222,7 @@ export default function IntegrationForm({
 
             <div>
               <label htmlFor="integration-kind" className={labelClass}>
-                App
+                {t('app')}
               </label>
               <select
                 id="integration-kind"
@@ -240,7 +241,7 @@ export default function IntegrationForm({
 
             <div>
               <label htmlFor="integration-name" className={labelClass}>
-                Name
+                {t('name')}
               </label>
               <input
                 id="integration-name"
@@ -255,7 +256,7 @@ export default function IntegrationForm({
 
             <div>
               <label htmlFor="integration-url" className={labelClass}>
-                URL
+                {t('url')}
               </label>
               <input
                 id="integration-url"
@@ -268,7 +269,7 @@ export default function IntegrationForm({
                 required
               />
               <p className="text-text-muted mt-1 text-xs break-words">
-                The address Nimbus uses to reach the app, including any sub path.
+                {t('urlHelp')}
                 {meta?.hint && ` ${meta.hint}`}
               </p>
             </div>
@@ -276,7 +277,7 @@ export default function IntegrationForm({
             {meta && meta.auth_types.length > 1 && (
               <div>
                 <label htmlFor="integration-auth" className={labelClass}>
-                  Sign in with
+                  {t('signInWith')}
                 </label>
                 <select
                   id="integration-auth"
@@ -285,9 +286,9 @@ export default function IntegrationForm({
                   className={inputClass}
                   disabled={busy}
                 >
-                  {meta.auth_types.map((t) => (
-                    <option key={t} value={t}>
-                      {authLabels[t]}
+                  {meta.auth_types.map((type) => (
+                    <option key={type} value={type}>
+                      {authLabels[type]}
                     </option>
                   ))}
                 </select>
@@ -297,7 +298,7 @@ export default function IntegrationForm({
             {authType === 'api_key' && (
               <div>
                 <label htmlFor="integration-api-key" className={labelClass}>
-                  API key
+                  {authLabels.api_key}
                 </label>
                 <input
                   id="integration-api-key"
@@ -314,7 +315,7 @@ export default function IntegrationForm({
             {authType === 'token' && (
               <div>
                 <label htmlFor="integration-token" className={labelClass}>
-                  Token
+                  {authLabels.token}
                 </label>
                 <input
                   id="integration-token"
@@ -332,7 +333,7 @@ export default function IntegrationForm({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label htmlFor="integration-username" className={labelClass}>
-                    Username
+                    {t('username')}
                   </label>
                   <input
                     id="integration-username"
@@ -346,7 +347,7 @@ export default function IntegrationForm({
                 </div>
                 <div>
                   <label htmlFor="integration-password" className={labelClass}>
-                    Password
+                    {t('password')}
                   </label>
                   <input
                     id="integration-password"
@@ -360,9 +361,7 @@ export default function IntegrationForm({
                 </div>
               </div>
             )}
-            <p className="text-text-muted -mt-2 text-xs">
-              Credentials are stored encrypted and never sent back to the browser.
-            </p>
+            <p className="text-text-muted -mt-2 text-xs">{t('credentialsNote')}</p>
 
             {meta?.options?.map((option) => {
               const id = `integration-option-${option.key}`
@@ -380,7 +379,7 @@ export default function IntegrationForm({
                     placeholder={option.placeholder}
                     maxLength={option.max_length}
                     pattern={option.pattern}
-                    title={option.placeholder && `For example ${option.placeholder}`}
+                    title={option.placeholder && t('forExample', { value: option.placeholder })}
                     required={option.required}
                     aria-describedby={option.help ? `${id}-help` : undefined}
                     autoComplete="off"
@@ -398,7 +397,7 @@ export default function IntegrationForm({
 
             <div>
               <label htmlFor="integration-refresh" className={labelClass}>
-                Refresh every (seconds)
+                {t('refresh')}
               </label>
               <input
                 id="integration-refresh"
@@ -416,15 +415,13 @@ export default function IntegrationForm({
               id="integration-verify-tls"
               enabled={verifyTls}
               onChange={setVerifyTls}
-              label="Verify TLS certificate"
-              description="Turn off for apps with a self-signed certificate"
+              label={t('verifyTls')}
+              description={t('verifyTlsHint')}
               disabled={busy}
             />
             {!verifyTls && (
               <p role="status" className="text-warning -mt-2 text-xs">
-                Without this check Nimbus can&apos;t tell the app from an impostor, and whoever
-                answers gets the credentials. Only turn it off for a self-signed certificate on a
-                network you trust.
+                {t('verifyTlsWarning')}
               </p>
             )}
 
@@ -434,8 +431,8 @@ export default function IntegrationForm({
                 className={`text-sm ${testResult.ok ? 'text-success' : 'text-error'}`}
               >
                 {testResult.ok
-                  ? `Connected in ${testResult.latency_ms} ms`
-                  : `Connection failed: ${testResult.error}`}
+                  ? t('connectedIn', { ms: testResult.latency_ms })
+                  : t('connectionFailed', { error: testResult.error ?? '' })}
               </p>
             )}
           </div>
@@ -447,7 +444,7 @@ export default function IntegrationForm({
               className="border-card-border text-text-primary hover:bg-card-hover rounded-md border px-4 py-2 text-sm font-medium transition-colors"
               disabled={busy}
             >
-              {isTesting ? 'Testing...' : isEdit ? 'Test saved connection' : 'Test connection'}
+              {isTesting ? t('testing') : isEdit ? t('testSaved') : t('test')}
             </button>
             <div className="flex gap-2">
               <button
@@ -456,14 +453,14 @@ export default function IntegrationForm({
                 className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
                 disabled={busy}
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="submit"
                 disabled={busy}
                 className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed"
               >
-                {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Integration'}
+                {isSaving ? t('saving') : isEdit ? t('save') : t('add')}
               </button>
             </div>
           </div>

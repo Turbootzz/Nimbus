@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import type { Integration, IntegrationKindMeta } from '@/types'
 import { kindName } from '@/hooks/useIntegrations'
 
@@ -24,17 +25,18 @@ export default function IntegrationSelector({
   kinds,
   isLoading = false,
   disabled = false,
-  label = 'Live numbers',
-  description = "Show numbers from an app, like Sonarr's queue, on this tile.",
-  emptyOption = 'None',
+  label,
+  description,
+  emptyOption,
 }: IntegrationSelectorProps) {
+  const t = useTranslations('integrations.selector')
   return (
     <div>
       <label
         htmlFor="integration_id"
         className="text-text-secondary mb-2 block text-sm font-medium"
       >
-        {label}
+        {label ?? t('label')}
       </label>
       <select
         id="integration_id"
@@ -45,7 +47,7 @@ export default function IntegrationSelector({
         style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)' }}
         disabled={disabled || isLoading}
       >
-        <option value="">{isLoading ? 'Loading integrations...' : emptyOption}</option>
+        <option value="">{isLoading ? t('loading') : (emptyOption ?? t('none'))}</option>
         {integrations.map((integration) => (
           <option key={integration.id} value={integration.id}>
             {integration.name} ({kindName(kinds, integration.kind)})
@@ -53,9 +55,9 @@ export default function IntegrationSelector({
         ))}
       </select>
       <p className="text-text-muted mt-1 text-xs">
-        {description}{' '}
+        {description ?? t('description')}{' '}
         <Link href="/settings/integrations" className="text-primary underline">
-          Manage integrations
+          {t('manage')}
         </Link>
       </p>
     </div>

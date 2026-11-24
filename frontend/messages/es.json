@@ -270,6 +270,128 @@
       "connecting": "Conectando..."
     }
   },
+  "backup": {
+    "page": {
+      "title": "Exportar e importar",
+      "description": "Haz una copia de seguridad de tu panel, llévalo a otro Nimbus o comparte su diseño."
+    },
+    "export": {
+      "title": "Exportar",
+      "description": "Descarga tus grupos, servicios, widgets, integraciones y preferencias en un solo archivo JSON, con los iconos y el fondo de pantalla subidos incluidos. Las credenciales de las integraciones, los valores de cabecera de los widgets de API personalizada y las direcciones de los feeds de calendario nunca se incluyen; las demás URL se exportan tal como las introdujiste.",
+      "export": "Exportar panel",
+      "exporting": "Exportando…",
+      "failed": "No se pudo exportar el panel",
+      "omittedImages": "{count, plural, one {# imagen subida faltaba o era demasiado grande y se dejó} other {# imágenes subidas faltaban o eran demasiado grandes y se dejaron}} fuera del archivo."
+    },
+    "import": {
+      "title": "Importar",
+      "description": "Carga un archivo exportado desde Nimbus. Verás lo que hace antes de que cambie nada.",
+      "fileLabel": "Archivo del panel",
+      "chooseFile": "Elegir archivo",
+      "noFile": "Ningún archivo elegido",
+      "howToImport": "Cómo importar",
+      "modes": {
+        "merge": {
+          "label": "Combinar",
+          "description": "Añade el archivo a lo que ya tienes. Tus preferencias se quedan como están. Importar el mismo archivo dos veces lo añade todo dos veces."
+        },
+        "replace": {
+          "label": "Reemplazar",
+          "description": "Elimina tu panel actual y usa el archivo en su lugar."
+        }
+      },
+      "checking": "Comprobando el archivo…",
+      "failed": "La importación falló",
+      "tooLarge": "El archivo es demasiado grande. Una exportación ocupa como máximo 10 MB.",
+      "unreadable": "No se pudo leer el archivo",
+      "replaceWarning": {
+        "title": "Reemplazar elimina tu panel actual.",
+        "body": "Se eliminan todos tus grupos, servicios, widgets e integraciones, incluidas las credenciales guardadas con tus integraciones y el historial de estado de tus servicios, y se sobrescriben tus preferencias. Esto no se puede deshacer. Exporta primero si quieres poder volver atrás."
+      },
+      "customCss": {
+        "title": "Este archivo trae CSS personalizado (léelo antes de importar)",
+        "description": "Cambia el estilo de todas las páginas tras el inicio de sesión. No puede cargar nada de otro sitio, pero puede ocultar o cambiar lo que ves.",
+        "label": "CSS personalizado del archivo"
+      },
+      "replaceButton": "Reemplazar mi panel",
+      "importButton": "Importar",
+      "finished": "Importación terminada.",
+      "openDashboard": "Abrir el panel",
+      "confirm": {
+        "title": "¿Reemplazar tu panel?",
+        "message": "Esto elimina {count, plural, one {# elemento existente} other {# elementos existentes}}, las credenciales guardadas con tus integraciones y el historial de estado de tus servicios, sobrescribe tus preferencias y después importa el archivo. No se puede deshacer.",
+        "confirm": "Reemplazar"
+      },
+      "statusPage": {
+        "kept": "La página de estado pública pasa al grupo «{group}» del archivo.",
+        "offline": "La página de estado pública se desconecta: el archivo no tiene ningún grupo «{group}». Vuelve a elegir un grupo en Ajustes → Ajustes de administración."
+      },
+      "summary": {
+        "willDo": "Esta importación va a",
+        "hasDone": "Esta importación ha",
+        "add": "Añadir",
+        "added": "Añadido",
+        "delete": "Eliminar",
+        "deleted": "Eliminado",
+        "entities": {
+          "groups": "grupos",
+          "services": "servicios",
+          "widgets": "widgets",
+          "integrations": "integraciones"
+        },
+        "preferencesFromFile": "Preferencias (tema, diseño, fondo de pantalla, barra de estado): tomadas del archivo",
+        "preferencesKept": "Preferencias (tema, diseño, fondo de pantalla, barra de estado): se quedan como están",
+        "needsCredentials": "{count, plural, one {# integración llega} other {# integraciones llegan}} sin credenciales. Introdúcelas en Ajustes → Integraciones.",
+        "needsSecrets": "{count, plural, one {# widget necesita} other {# widgets necesitan}} que vuelvas a introducir sus secretos (valores de cabecera, direcciones de calendario)."
+      }
+    },
+    "wizard": {
+      "title": "Importar desde otro panel",
+      "description": "Cámbiate desde Homepage, Homarr, Homer o Dashy, o empieza con un archivo docker-compose. Pega la configuración o elige el archivo. Se añade a tu panel; no se cambia nada de lo que tienes. Las claves de API y contraseñas de la configuración no se transfieren.",
+      "format": "Formato",
+      "detectAutomatically": "Detectar automáticamente",
+      "expects": {
+        "homepage": "Espera services.yaml o bookmarks.yaml.",
+        "homarr": "Espera una configuración de tablero (JSON) de Homarr 0.x.",
+        "homer": "Espera config.yml.",
+        "dashy": "Espera conf.yml.",
+        "compose": "Espera docker-compose.yml."
+      },
+      "dockerHost": "Host de Docker",
+      "dockerHostPlaceholder": "Este host",
+      "dockerHostHelp": "Solo para docker-compose: el nombre de host o la dirección IP en la que se alcanzan sus puertos publicados. Vacío significa el host de esta página.",
+      "config": "Configuración",
+      "configPlaceholder": "Pega aquí el YAML o JSON",
+      "configFile": "Archivo de configuración",
+      "chooseFile": "Elegir archivo",
+      "convert": "Convertir",
+      "working": "Procesando…",
+      "tooLarge": "El archivo es demasiado grande. Una configuración ocupa como máximo 1 MB.",
+      "checkFailed": "No se pudo comprobar la importación",
+      "convertFailed": "No se pudo convertir la configuración",
+      "importFailed": "La importación falló",
+      "readAs": "Leído como <b>{format}</b>: {services, plural, one {# servicio} other {# servicios}}, {groups, plural, one {# grupo} other {# grupos}}, {integrations, plural, one {# integración} other {# integraciones}}.",
+      "warnings": "No se pudo transferir todo ({count})",
+      "groups": "Grupos",
+      "groupInConfig": "Grupo en la configuración",
+      "goesInto": "Va a",
+      "groupFor": "Grupo para {name}",
+      "newGroup": "Nuevo grupo «{name}»",
+      "defaultGroup": "{name} (predeterminado)",
+      "services": "Servicios",
+      "name": "Nombre",
+      "url": "URL",
+      "group": "Grupo",
+      "integration": "Integración",
+      "integrations": "Integraciones",
+      "app": "App",
+      "address": "Dirección",
+      "credentialsNote": "Las credenciales no se transfieren. Introdúcelas en Ajustes → Integraciones después de importar.",
+      "import": "Importar",
+      "finished": "Importación terminada.",
+      "openDashboard": "Abrir el panel"
+    }
+  },
   "boards": {
     "manager": {
       "title": "Tableros",
@@ -471,6 +593,75 @@
       "notFound": "Tablero no encontrado",
       "notFoundDescription": "No existe o ya no se comparte contigo.",
       "goToDashboard": "Ir a tu panel"
+    }
+  },
+  "integrations": {
+    "page": {
+      "title": "Integraciones",
+      "description": "Conecta Nimbus con tus apps. Vincula una integración a un servicio en su <link>página de edición</link> para mostrar cifras en directo en el mosaico.",
+      "add": "Añadir integración",
+      "emptyTitle": "Aún no hay integraciones",
+      "supportedApps": "Apps compatibles: {apps}.",
+      "noneAvailable": "Este servidor no tiene integraciones disponibles.",
+      "test": "Probar",
+      "testing": "Probando...",
+      "testFailed": "La prueba falló",
+      "edit": "Editar",
+      "delete": "Eliminar",
+      "deleteTitle": "Eliminar integración",
+      "deleteMessage": "¿Eliminar «{name}»? Los servicios vinculados a ella pierden sus cifras en directo.",
+      "status": {
+        "needsCredentials": "Faltan credenciales: edítala para introducirlas",
+        "notTested": "Sin probar",
+        "connected": "Conectada",
+        "failed": "Falló",
+        "failedWith": "Falló: {error}"
+      }
+    },
+    "form": {
+      "addTitle": "Añadir integración",
+      "editTitle": "Editar {name}",
+      "close": "Cerrar",
+      "app": "App",
+      "name": "Nombre",
+      "url": "URL",
+      "urlHelp": "La dirección que usa Nimbus para llegar a la app, incluida cualquier subruta.",
+      "signInWith": "Iniciar sesión con",
+      "auth": {
+        "none": "Ninguna",
+        "apiKey": "Clave de API",
+        "token": "Token",
+        "basic": "Usuario y contraseña"
+      },
+      "username": "Usuario",
+      "password": "Contraseña",
+      "savedPlaceholder": "Guardado; déjalo vacío para conservarlo",
+      "credentialsNote": "Las credenciales se guardan cifradas y nunca se devuelven al navegador.",
+      "forExample": "Por ejemplo {value}",
+      "refresh": "Actualizar cada (segundos)",
+      "verifyTls": "Verificar certificado TLS",
+      "verifyTlsHint": "Desactívalo para apps con un certificado autofirmado",
+      "verifyTlsWarning": "Sin esta comprobación, Nimbus no puede distinguir la app de un impostor, y quien responda recibe las credenciales. Desactívalo solo para un certificado autofirmado en una red de confianza.",
+      "connectedIn": "Conectado en {ms} ms",
+      "connectionFailed": "La conexión falló: {error}",
+      "usernameMissing": "Introduce también el usuario",
+      "passwordMissing": "Introduce también la contraseña, o deja ambos vacíos para conservar los guardados",
+      "testFailed": "La prueba falló",
+      "saveFailed": "No se pudo guardar la integración",
+      "test": "Probar conexión",
+      "testSaved": "Probar conexión guardada",
+      "testing": "Probando...",
+      "cancel": "Cancelar",
+      "save": "Guardar cambios",
+      "saving": "Guardando...",
+      "add": "Añadir integración"
+    },
+    "selector": {
+      "label": "Cifras en directo",
+      "description": "Muestra cifras de una app, como la cola de Sonarr, en este mosaico.",
+      "none": "Ninguna",
+      "loading": "Cargando integraciones...",
+      "manage": "Gestionar integraciones"
     }
   },
   "language": {
