@@ -309,7 +309,8 @@ export default function DashboardImport() {
                   lists are deleted, with the status history of those services. So are your
                   integrations and their saved credentials, except those that tiles on your other
                   boards still use. Other boards stay as they are. Your preferences are overwritten.
-                  This cannot be undone. Export first if you want a way back.
+                  This cannot be undone. Export first to keep a way back; the export leaves out
+                  credentials, widget secrets and status history.
                 </p>
               </div>
             )}
