@@ -4,7 +4,6 @@ import { useSyncExternalStore } from 'react'
 // (a test keeps them equal)
 export const API_CACHE = 'nimbus-api-v1'
 export const CACHED_AT_HEADER = 'X-Nimbus-Cached-At'
-export const CLEAR_API_CACHE = 'CLEAR_API_CACHE'
 
 // localStorage key: the user the offline copy was made for
 const CACHE_OWNER_KEY = 'offlineCacheOwner'
@@ -17,8 +16,8 @@ const CACHE_OWNER_KEY = 'offlineCacheOwner'
 export async function clearApiCache(): Promise<void> {
   if (typeof window === 'undefined') return
   try {
-    // The worker also stops in-flight responses from being stored afterwards
-    navigator.serviceWorker?.controller?.postMessage({ type: CLEAR_API_CACHE })
+    // Also keeps responses still in flight in any worker out of the new cache:
+    // the worker stores them in the cache it opened before they went out
     if ('caches' in window) await caches.delete(API_CACHE)
     // Last: if this fails, the stale owner only causes one more purge
     window.localStorage?.removeItem(CACHE_OWNER_KEY)
