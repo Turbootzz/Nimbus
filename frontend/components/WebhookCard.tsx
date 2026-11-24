@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import { getWebhookTarget } from '@/lib/webhook-targets'
 import type { Webhook } from '@/types'
 
@@ -12,12 +13,16 @@ interface WebhookCardProps {
 }
 
 export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: WebhookCardProps) {
+  const t = useTranslations('notifications')
+  const locale = useLocale()
+  const target = getWebhookTarget(webhook.format)
+
   const maskUrl = (url: string) => {
     try {
       const parsed = new URL(url)
       // An ntfy topic name works like a password, and the fixed API
       // endpoints need no more than their host
-      if (webhook.format === 'ntfy' || !getWebhookTarget(webhook.format).url) {
+      if (webhook.format === 'ntfy' || !target.url) {
         return parsed.origin
       }
       const pathParts = parsed.pathname.split('/')
@@ -32,12 +37,12 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
   }
 
   const formatDate = (dateStr?: string) => {
-    if (!dateStr) return 'Never'
+    if (!dateStr) return t('card.never')
     const date = new Date(dateStr)
     return (
-      date.toLocaleDateString() +
+      date.toLocaleDateString(locale) +
       ' ' +
-      date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     )
   }
 
@@ -52,10 +57,10 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
                 webhook.enabled ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-500'
               }`}
             >
-              {webhook.enabled ? 'Active' : 'Disabled'}
+              {webhook.enabled ? t('card.active') : t('card.disabled')}
             </span>
             <span className="bg-primary/10 text-primary rounded px-2 py-0.5 text-xs font-medium">
-              {getWebhookTarget(webhook.format).label}
+              {target.value === 'generic' ? t('targets.generic.label') : target.label}
             </span>
           </div>
 
@@ -63,16 +68,23 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
 
           <div className="text-text-secondary flex flex-wrap gap-x-4 gap-y-1 text-xs">
             <span>
-              Triggers:{' '}
-              {[webhook.triggers.on_offline && 'Offline', webhook.triggers.on_online && 'Online']
-                .filter(Boolean)
-                .join(', ') || 'None'}
+              {t('card.triggers', {
+                triggers:
+                  [
+                    webhook.triggers.on_offline && t('card.offline'),
+                    webhook.triggers.on_online && t('card.online'),
+                  ]
+                    .filter(Boolean)
+                    .join(', ') || t('card.none'),
+              })}
             </span>
-            <span>Sent: {webhook.total_sent}</span>
+            <span>{t('card.sent', { count: webhook.total_sent })}</span>
             {webhook.total_failed > 0 && (
-              <span className="text-red-500">Failed: {webhook.total_failed}</span>
+              <span className="text-red-500">
+                {t('card.failed', { count: webhook.total_failed })}
+              </span>
             )}
-            <span>Last triggered: {formatDate(webhook.last_triggered_at)}</span>
+            <span>{t('card.lastTriggered', { date: formatDate(webhook.last_triggered_at) })}</span>
           </div>
         </div>
 
@@ -81,12 +93,12 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
             type="button"
             role="switch"
             aria-checked={webhook.enabled}
-            aria-label={`${webhook.name} enabled`}
+            aria-label={t('card.enabledLabel', { name: webhook.name })}
             onClick={onToggle}
             className={`relative h-6 w-11 rounded-full transition-colors ${
               webhook.enabled ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
             }`}
-            title={webhook.enabled ? 'Disable webhook' : 'Enable webhook'}
+            title={webhook.enabled ? t('card.disable') : t('card.enable')}
           >
             <span
               className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
@@ -110,7 +122,7 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
               d="M13 10V3L4 14h7v7l9-11h-7z"
             />
           </svg>
-          Test
+          {t('card.test')}
         </button>
         <button
           onClick={onEdit}
@@ -124,7 +136,7 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
               d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
             />
           </svg>
-          Edit
+          {t('card.edit')}
         </button>
         <button
           onClick={onDelete}
@@ -138,7 +150,7 @@ export function WebhookCard({ webhook, onEdit, onDelete, onTest, onToggle }: Web
               d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
             />
           </svg>
-          Delete
+          {t('card.delete')}
         </button>
       </div>
     </div>

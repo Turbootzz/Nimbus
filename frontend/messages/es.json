@@ -1,4 +1,145 @@
 {
+  "admin": {
+    "page": {
+      "title": "Ajustes de administración",
+      "subtitle": "Configura los ajustes de Nimbus para todo el sistema",
+      "immediate": "Los cambios se aplican de inmediato",
+      "loadFailed": "No se pudieron cargar los ajustes",
+      "updateFailed": "No se pudo actualizar el ajuste",
+      "registration": {
+        "title": "Registro de usuarios",
+        "description": "Controla cómo pueden unirse nuevos usuarios a tu instancia de Nimbus",
+        "toggle": "Registro público",
+        "toggleDescription": "Permite que nuevos usuarios creen cuentas. Si está desactivado, solo los administradores pueden crear usuarios."
+      },
+      "discovery": {
+        "title": "Detección de Docker",
+        "description": "Los contenedores tras la integración de Docker de un administrador aparecen en Descubiertos, en la página Servicios",
+        "toggle": "Añadir automáticamente contenedores etiquetados",
+        "toggleDescription": "Añade sin preguntar los contenedores con la etiqueta nimbus.enable=true y un nimbus.url al panel de ese administrador. Los contenedores sin etiqueta y las direcciones adivinadas nunca se añaden por sí solos."
+      },
+      "smtp": {
+        "title": "Correo / SMTP",
+        "description": "Configura SMTP para los correos de restablecimiento de contraseña"
+      },
+      "statusPage": {
+        "title": "Página de estado pública",
+        "description": "Comparte el tiempo de actividad de un grupo de servicios en una página que no necesita cuenta"
+      }
+    },
+    "smtp": {
+      "saved": "Ajustes de SMTP guardados",
+      "saveFailed": "No se pudieron guardar los ajustes",
+      "testSucceeded": "Conexión SMTP correcta",
+      "testFailed": "La prueba de conexión falló",
+      "testError": "No se pudo probar la conexión SMTP",
+      "fromEnv": "SMTP está preconfigurado. Puedes sobrescribir estos ajustes abajo.",
+      "notConfigured": "SMTP no está configurado. Rellena los campos de abajo y activa SMTP para permitir los correos de restablecimiento de contraseña.",
+      "enable": "Activar SMTP",
+      "enableDescription": "Necesario para los correos de restablecimiento de contraseña",
+      "host": "Servidor SMTP",
+      "port": "Puerto SMTP",
+      "encryption": "Cifrado",
+      "encryptionModes": {
+        "auto": "Automático (según el puerto)",
+        "starttls": "STARTTLS",
+        "tls": "TLS implícito (puerto 465)",
+        "none": "Ninguno (sin cifrar)"
+      },
+      "username": "Usuario",
+      "password": "Contraseña",
+      "fromEmail": "Correo del remitente",
+      "fromName": "Nombre del remitente",
+      "unencryptedWarning": "Los correos se envían sin cifrar. Úsalo solo para un relay en una red de confianza. El usuario y la contraseña deben quedar vacíos, ya que se enviarían en texto plano.",
+      "skipVerify": "Omitir la verificación del certificado",
+      "skipVerifyDescription": "Permite certificados autofirmados. Déjalo desactivado salvo que tu relay lo necesite.",
+      "saving": "Guardando...",
+      "save": "Guardar ajustes",
+      "testing": "Probando...",
+      "test": "Probar conexión"
+    },
+    "statusPage": {
+      "loadFailed": "No se pudieron cargar los ajustes de la página de estado",
+      "logoTooLarge": "El logo supera los 512 KB",
+      "uploadFailed": "No se pudo subir el logo",
+      "saved": "Página de estado guardada",
+      "saveFailed": "No se pudo guardar la página de estado",
+      "loading": "Cargando...",
+      "enable": "Activar la página de estado",
+      "enableDescription": "Cualquiera que pueda acceder a este Nimbus puede abrir /status sin iniciar sesión. Mientras esté desactivada, la página no existe.",
+      "group": "Grupo que se muestra",
+      "chooseGroup": "Elige un grupo",
+      "groupMissing": "El grupo elegido no es tuyo o ya no existe. Elige uno de tus grupos para mostrar la página.",
+      "title": "Título",
+      "groupsNote": "Los grupos son personales, así que la página muestra uno de tus propios grupos. Solo aparecen sus servicios supervisados: nombre, icono, estado y tiempo de actividad. No se comparte nada más sobre ellos.",
+      "logo": "Logo",
+      "currentLogo": "Logo actual",
+      "logoFile": "Archivo del logo",
+      "uploading": "Subiendo...",
+      "replace": "Reemplazar",
+      "upload": "Subir",
+      "remove": "Quitar",
+      "logoHint": "JPG, PNG, GIF o WEBP, hasta 512 KB",
+      "showLinks": "Mostrar enlaces",
+      "showLinksDescription": "Convierte el nombre de cada servicio en un enlace a su URL y muestra iconos cargados desde una URL. Déjalo desactivado para mantener privadas tus direcciones.",
+      "saving": "Guardando...",
+      "save": "Guardar página de estado",
+      "open": "Abrir página de estado"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "Tokens de API",
+      "description": "Crea tokens de acceso personales para el acceso programático. Envíalos como",
+      "loadFailed": "No se pudieron cargar los tokens de API",
+      "createFailed": "No se pudo crear el token",
+      "confirmRevoke": "¿Revocar \"{name}\"? Los clientes que lo usan dejarán de funcionar de inmediato.",
+      "never": "Nunca",
+      "created": "Token creado. No podrás volver a ver este token — cópialo ahora.",
+      "copied": "¡Copiado!",
+      "copy": "Copiar",
+      "createTitle": "Crear un token nuevo",
+      "namePlaceholder": "Nombre del token (p. ej. panel Hearth)",
+      "name": "Nombre del token",
+      "scopes": "Permisos",
+      "noScope": "Selecciona al menos un permiso.",
+      "expires": "Caduca",
+      "creating": "Creando…",
+      "create": "Crear token",
+      "empty": "Aún no hay tokens de API. Crea uno arriba.",
+      "expired": "caducado",
+      "dates": "Creado: {created} · Último uso: {lastUsed} · Caduca: {expires}",
+      "revokeLabel": "Revocar {name}",
+      "revoking": "Revocando…",
+      "revoke": "Revocar"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Leer servicios",
+        "description": "Servicios y grupos"
+      },
+      "read:metrics": {
+        "label": "Leer métricas",
+        "description": "Tiempo de actividad, historial de estado y la exportación de Prometheus"
+      },
+      "read:widgets": {
+        "label": "Leer widgets",
+        "description": "Widgets y datos del panel"
+      },
+      "write:services": {
+        "label": "Escribir servicios",
+        "description": "Crear, cambiar, eliminar y volver a comprobar servicios y grupos"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Permite que un asistente de IA lea tu panel a través de /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# día} other {# días}}",
+      "years": "{count, plural, one {# año} other {# años}}"
+    }
+  },
   "auth": {
     "layout": {
       "tagline": "Tu panel personal para el homelab"
@@ -405,6 +546,144 @@
       "editable": "Este panel sigue el archivo al que apunta NIMBUS_CONFIG_FILE. Lo que cambies aquí puede sobrescribirse cuando el archivo cambie o el servidor se reinicie.",
       "preferences": "Los ajustes de tema, diseño y fondo de pantalla también vienen del archivo: los cambios en ellos no se guardan.",
       "readOnlyNote": "Este panel lo gestiona un archivo de configuración y es de solo lectura. Cambia el archivo en su lugar."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Notificaciones",
+      "description": "Recibe alertas por webhook, Discord, Slack, ntfy, Gotify, Telegram o Pushover cuando los servicios cambian de estado",
+      "add": "Añadir webhook",
+      "loadFailed": "No se pudieron cargar los webhooks",
+      "saveFailed": "No se pudo guardar el webhook",
+      "confirmDelete": "¿Seguro que quieres eliminar este webhook?",
+      "testSent": "¡Notificación de prueba enviada!",
+      "testFailed": "La prueba falló: {error}",
+      "unknownError": "Error desconocido",
+      "empty": "Aún no hay webhooks configurados",
+      "createFirst": "Crea tu primer webhook"
+    },
+    "card": {
+      "active": "Activo",
+      "disabled": "Desactivado",
+      "triggers": "Disparadores: {triggers}",
+      "offline": "Sin conexión",
+      "online": "En línea",
+      "none": "Ninguno",
+      "sent": "Enviadas: {count}",
+      "failed": "Fallidas: {count}",
+      "lastTriggered": "Último disparo: {date}",
+      "never": "Nunca",
+      "enabledLabel": "{name} activado",
+      "disable": "Desactivar webhook",
+      "enable": "Activar webhook",
+      "test": "Probar",
+      "edit": "Editar",
+      "delete": "Eliminar"
+    },
+    "form": {
+      "addTitle": "Añadir webhook",
+      "editTitle": "Editar webhook",
+      "close": "Cerrar",
+      "name": "Nombre",
+      "namePlaceholder": "Alertas del homelab",
+      "type": "Tipo",
+      "optional": "{label} (opcional)",
+      "savedSecret": "Guardado. Déjalo en blanco para conservarlo",
+      "removeToken": "Quitar el token de acceso guardado",
+      "priority": "Prioridad",
+      "priorities": {
+        "min": "Mínima",
+        "low": "Baja",
+        "default": "Predeterminada",
+        "high": "Alta",
+        "urgent": "Urgente"
+      },
+      "verifyTls": "Verificar el certificado TLS",
+      "verifyTlsDescription": "Desactívalo para un servidor con un certificado autofirmado",
+      "triggers": "Eventos que lo disparan",
+      "onOffline": "Cuando un servicio se desconecta",
+      "onOnline": "Cuando un servicio vuelve a estar en línea",
+      "retries": "Reintentos de notificación",
+      "retriesHint": "Para alertas de desconexión: vuelve a comprobar antes de enviar para evitar falsos positivos.",
+      "retryCount": "Reintentos (0-5)",
+      "retryDelay": "Espera (10-300 s)",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "saveChanges": "Guardar cambios",
+      "create": "Crear webhook",
+      "saveFailed": "No se pudo guardar el webhook",
+      "errors": {
+        "required": "{field}: campo obligatorio",
+        "nameTooLong": "El nombre debe tener 100 caracteres o menos",
+        "invalidUrl": "Introduce una URL completa que empiece por http:// o https://",
+        "ntfyTopic": "La URL debe terminar con el topic, como https://ntfy.sh/my-topic",
+        "invalidChatId": "El ID de chat debe ser un número o un @nombredelcanal público",
+        "noTrigger": "Selecciona al menos un evento"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Genérico",
+        "description": "Payload JSON estándar",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "discord": {
+        "description": "Formato embed compatible con Discord",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "slack": {
+        "description": "Formato Slack Block Kit",
+        "url": {
+          "label": "URL del webhook"
+        }
+      },
+      "ntfy": {
+        "description": "Push a un topic de ntfy, en ntfy.sh o en tu propio servidor",
+        "url": {
+          "label": "URL del topic",
+          "help": "La dirección del servidor seguida del nombre del topic."
+        },
+        "token": {
+          "label": "Token de acceso",
+          "help": "Solo hace falta para topics protegidos."
+        }
+      },
+      "gotify": {
+        "description": "Push a un servidor Gotify",
+        "url": {
+          "label": "URL del servidor"
+        },
+        "token": {
+          "label": "Token de la app",
+          "help": "Crea una aplicación en Gotify y copia su token."
+        }
+      },
+      "telegram": {
+        "description": "Mensaje de tu bot de Telegram",
+        "token": {
+          "label": "Token del bot",
+          "help": "De @BotFather."
+        },
+        "chatId": {
+          "label": "ID de chat",
+          "help": "Un ID de usuario, grupo o canal, o un @nombredelcanal público."
+        }
+      },
+      "pushover": {
+        "description": "Push a través de Pushover",
+        "token": {
+          "label": "Token de la app",
+          "help": "El token de API de tu aplicación de Pushover."
+        },
+        "userKey": {
+          "label": "Clave de usuario",
+          "help": "Tu clave de usuario o una clave de grupo."
+        }
+      }
     }
   },
   "preferences": {

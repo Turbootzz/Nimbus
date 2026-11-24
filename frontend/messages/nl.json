@@ -1,4 +1,145 @@
 {
+  "admin": {
+    "page": {
+      "title": "Beheerinstellingen",
+      "subtitle": "Stel systeembrede instellingen voor Nimbus in",
+      "immediate": "Wijzigingen gaan direct in",
+      "loadFailed": "Kan instellingen niet laden",
+      "updateFailed": "Kan instelling niet bijwerken",
+      "registration": {
+        "title": "Gebruikersregistratie",
+        "description": "Bepaal hoe nieuwe gebruikers lid kunnen worden van je Nimbus-installatie",
+        "toggle": "Openbare registratie",
+        "toggleDescription": "Laat nieuwe gebruikers zelf een account aanmaken. Staat dit uit, dan kunnen alleen beheerders nieuwe gebruikers aanmaken."
+      },
+      "discovery": {
+        "title": "Docker-detectie",
+        "description": "Containers achter de Docker-integratie van een beheerder verschijnen onder Gevonden op de pagina Services",
+        "toggle": "Gelabelde containers automatisch toevoegen",
+        "toggleDescription": "Voeg containers met het label nimbus.enable=true en een nimbus.url zonder te vragen toe aan het dashboard van die beheerder. Containers zonder label en geraden adressen worden nooit vanzelf toegevoegd."
+      },
+      "smtp": {
+        "title": "E-mail / SMTP",
+        "description": "Stel SMTP in voor e-mails om een wachtwoord te herstellen"
+      },
+      "statusPage": {
+        "title": "Openbare statuspagina",
+        "description": "Deel de uptime van één groep services op een pagina waarvoor geen account nodig is"
+      }
+    },
+    "smtp": {
+      "saved": "SMTP-instellingen opgeslagen",
+      "saveFailed": "Kan instellingen niet opslaan",
+      "testSucceeded": "SMTP-verbinding geslaagd",
+      "testFailed": "Verbindingstest mislukt",
+      "testError": "Kan SMTP-verbinding niet testen",
+      "fromEnv": "SMTP is vooraf ingesteld. Je kunt deze instellingen hieronder overschrijven.",
+      "notConfigured": "SMTP is niet ingesteld. Vul de velden hieronder in en schakel SMTP in om e-mails voor wachtwoordherstel te kunnen versturen.",
+      "enable": "SMTP inschakelen",
+      "enableDescription": "Nodig voor e-mails voor wachtwoordherstel",
+      "host": "SMTP-host",
+      "port": "SMTP-poort",
+      "encryption": "Versleuteling",
+      "encryptionModes": {
+        "auto": "Automatisch (op basis van poort)",
+        "starttls": "STARTTLS",
+        "tls": "Impliciete TLS (poort 465)",
+        "none": "Geen (onversleuteld)"
+      },
+      "username": "Gebruikersnaam",
+      "password": "Wachtwoord",
+      "fromEmail": "Afzenderadres",
+      "fromName": "Afzendernaam",
+      "unencryptedWarning": "E-mails worden onversleuteld verstuurd. Gebruik dit alleen voor een relay op een vertrouwd netwerk. Laat gebruikersnaam en wachtwoord leeg, want die zouden als leesbare tekst worden verstuurd.",
+      "skipVerify": "Certificaatcontrole overslaan",
+      "skipVerifyDescription": "Staat zelfondertekende certificaten toe. Laat dit uit, tenzij je relay het nodig heeft.",
+      "saving": "Opslaan...",
+      "save": "Instellingen opslaan",
+      "testing": "Testen...",
+      "test": "Verbinding testen"
+    },
+    "statusPage": {
+      "loadFailed": "Kan de instellingen van de statuspagina niet laden",
+      "logoTooLarge": "Het logo is groter dan 512 KB",
+      "uploadFailed": "Kan het logo niet uploaden",
+      "saved": "Statuspagina opgeslagen",
+      "saveFailed": "Kan de statuspagina niet opslaan",
+      "loading": "Laden...",
+      "enable": "Statuspagina inschakelen",
+      "enableDescription": "Iedereen die deze Nimbus kan bereiken, kan /status openen zonder in te loggen. Staat hij uit, dan bestaat de pagina niet.",
+      "group": "Groep om te tonen",
+      "chooseGroup": "Kies een groep",
+      "groupMissing": "De gekozen groep is niet van jou of bestaat niet meer. Kies een van je eigen groepen om de pagina te tonen.",
+      "title": "Titel",
+      "groupsNote": "Groepen zijn persoonlijk, dus de pagina toont een van je eigen groepen. Alleen de gemonitorde services daarin verschijnen: naam, pictogram, status en uptime. Verder wordt er niets over gedeeld.",
+      "logo": "Logo",
+      "currentLogo": "Huidig logo",
+      "logoFile": "Logobestand",
+      "uploading": "Uploaden...",
+      "replace": "Vervangen",
+      "upload": "Uploaden",
+      "remove": "Verwijderen",
+      "logoHint": "JPG, PNG, GIF of WEBP, tot 512 KB",
+      "showLinks": "Links tonen",
+      "showLinksDescription": "Maakt van elke servicenaam een link naar de URL en toont pictogrammen die van een URL komen. Laat dit uit om je adressen privé te houden.",
+      "saving": "Opslaan...",
+      "save": "Statuspagina opslaan",
+      "open": "Statuspagina openen"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "API-tokens",
+      "description": "Maak persoonlijke toegangstokens voor toegang vanuit scripts en apps. Stuur ze mee als",
+      "loadFailed": "Kan API-tokens niet laden",
+      "createFailed": "Kan token niet aanmaken",
+      "confirmRevoke": "\"{name}\" intrekken? Clients die het gebruiken, werken meteen niet meer.",
+      "never": "Nooit",
+      "created": "Token aangemaakt. Je kunt dit token hierna niet meer zien — kopieer het nu.",
+      "copied": "Gekopieerd!",
+      "copy": "Kopiëren",
+      "createTitle": "Nieuw token aanmaken",
+      "namePlaceholder": "Tokennaam (bijv. Hearth-dashboard)",
+      "name": "Tokennaam",
+      "scopes": "Rechten",
+      "noScope": "Kies minstens één recht.",
+      "expires": "Verloopt",
+      "creating": "Aanmaken…",
+      "create": "Token aanmaken",
+      "empty": "Nog geen API-tokens. Maak er hierboven een aan.",
+      "expired": "verlopen",
+      "dates": "Aangemaakt {created} · Laatst gebruikt {lastUsed} · Verloopt {expires}",
+      "revokeLabel": "{name} intrekken",
+      "revoking": "Intrekken…",
+      "revoke": "Intrekken"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Services lezen",
+        "description": "Services en groepen"
+      },
+      "read:metrics": {
+        "label": "Statistieken lezen",
+        "description": "Uptime, statusgeschiedenis en de Prometheus-export"
+      },
+      "read:widgets": {
+        "label": "Widgets lezen",
+        "description": "Widgets en dashboardgegevens"
+      },
+      "write:services": {
+        "label": "Services schrijven",
+        "description": "Services en groepen aanmaken, wijzigen, verwijderen en opnieuw controleren"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Laat een AI-assistent je dashboard lezen via /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# dag} other {# dagen}}",
+      "years": "{count, plural, one {# jaar} other {# jaar}}"
+    }
+  },
   "auth": {
     "layout": {
       "tagline": "Je persoonlijke homelab-dashboard"
@@ -405,6 +546,144 @@
       "editable": "Dit dashboard volgt het bestand waar NIMBUS_CONFIG_FILE naar verwijst. Wat je hier wijzigt, kan worden overschreven als het bestand verandert of de server opnieuw start.",
       "preferences": "Ook de instellingen voor thema, indeling en achtergrond komen uit het bestand: wijzigingen daarin worden niet opgeslagen.",
       "readOnlyNote": "Dit dashboard wordt beheerd via een configuratiebestand en is alleen-lezen. Pas in plaats daarvan het bestand aan."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Meldingen",
+      "description": "Krijg meldingen via een webhook, Discord, Slack, ntfy, Gotify, Telegram of Pushover als de status van services verandert",
+      "add": "Webhook toevoegen",
+      "loadFailed": "Kan webhooks niet laden",
+      "saveFailed": "Kan webhook niet opslaan",
+      "confirmDelete": "Weet je zeker dat je deze webhook wilt verwijderen?",
+      "testSent": "Testmelding verstuurd!",
+      "testFailed": "Test mislukt: {error}",
+      "unknownError": "Onbekende fout",
+      "empty": "Nog geen webhooks ingesteld",
+      "createFirst": "Maak je eerste webhook"
+    },
+    "card": {
+      "active": "Actief",
+      "disabled": "Uitgeschakeld",
+      "triggers": "Triggers: {triggers}",
+      "offline": "Offline",
+      "online": "Online",
+      "none": "Geen",
+      "sent": "Verstuurd: {count}",
+      "failed": "Mislukt: {count}",
+      "lastTriggered": "Laatst getriggerd: {date}",
+      "never": "Nooit",
+      "enabledLabel": "{name} ingeschakeld",
+      "disable": "Webhook uitschakelen",
+      "enable": "Webhook inschakelen",
+      "test": "Testen",
+      "edit": "Bewerken",
+      "delete": "Verwijderen"
+    },
+    "form": {
+      "addTitle": "Webhook toevoegen",
+      "editTitle": "Webhook bewerken",
+      "close": "Sluiten",
+      "name": "Naam",
+      "namePlaceholder": "Homelab-meldingen",
+      "type": "Type",
+      "optional": "{label} (optioneel)",
+      "savedSecret": "Opgeslagen. Laat leeg om te behouden",
+      "removeToken": "Opgeslagen toegangstoken verwijderen",
+      "priority": "Prioriteit",
+      "priorities": {
+        "min": "Minimaal",
+        "low": "Laag",
+        "default": "Standaard",
+        "high": "Hoog",
+        "urgent": "Urgent"
+      },
+      "verifyTls": "TLS-certificaat controleren",
+      "verifyTlsDescription": "Zet dit uit voor een server met een zelfondertekend certificaat",
+      "triggers": "Triggers",
+      "onOffline": "Als een service offline gaat",
+      "onOnline": "Als een service weer online komt",
+      "retries": "Nieuwe pogingen",
+      "retriesHint": "Voor offline-meldingen: controleer opnieuw voor het versturen om valse meldingen te voorkomen.",
+      "retryCount": "Pogingen (0-5)",
+      "retryDelay": "Wachttijd (10-300 s)",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "create": "Webhook aanmaken",
+      "saveFailed": "Kan webhook niet opslaan",
+      "errors": {
+        "required": "{field} is verplicht",
+        "nameTooLong": "Naam mag maximaal 100 tekens lang zijn",
+        "invalidUrl": "Vul een volledige URL in, die begint met http:// of https://",
+        "ntfyTopic": "De URL moet eindigen op het topic, zoals https://ntfy.sh/my-topic",
+        "invalidChatId": "Chat-ID moet een getal of een openbare @kanaalnaam zijn",
+        "noTrigger": "Kies minstens één trigger"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Algemeen",
+        "description": "Standaard JSON-payload",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "discord": {
+        "description": "Discord-compatibel embed-formaat",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "slack": {
+        "description": "Slack Block Kit-formaat",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "ntfy": {
+        "description": "Push naar een ntfy-topic, op ntfy.sh of je eigen server",
+        "url": {
+          "label": "Topic-URL",
+          "help": "Het serveradres gevolgd door de naam van het topic."
+        },
+        "token": {
+          "label": "Toegangstoken",
+          "help": "Alleen nodig voor beveiligde topics."
+        }
+      },
+      "gotify": {
+        "description": "Push naar een Gotify-server",
+        "url": {
+          "label": "Server-URL"
+        },
+        "token": {
+          "label": "App-token",
+          "help": "Maak een applicatie aan in Gotify en kopieer het token ervan."
+        }
+      },
+      "telegram": {
+        "description": "Bericht van je Telegram-bot",
+        "token": {
+          "label": "Bot-token",
+          "help": "Van @BotFather."
+        },
+        "chatId": {
+          "label": "Chat-ID",
+          "help": "Een gebruikers-, groeps- of kanaal-ID, of een openbare @kanaalnaam."
+        }
+      },
+      "pushover": {
+        "description": "Push via Pushover",
+        "token": {
+          "label": "App-token",
+          "help": "Het API-token van je Pushover-applicatie."
+        },
+        "userKey": {
+          "label": "Gebruikerssleutel",
+          "help": "Je gebruikerssleutel of een groepssleutel."
+        }
+      }
     }
   },
   "preferences": {

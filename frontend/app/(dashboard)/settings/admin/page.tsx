@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import { Toggle } from '@/components/ui/Toggle'
 import SMTPSettingsSection from '@/components/SMTPSettingsSection'
@@ -9,6 +10,7 @@ import StatusPageSettings from '@/components/StatusPageSettings'
 import type { SystemSetting, User } from '@/types'
 
 export default function AdminSettingsPage() {
+  const t = useTranslations('admin.page')
   const router = useRouter()
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [isCheckingAuth, setIsCheckingAuth] = useState(true)
@@ -43,15 +45,15 @@ export default function AdminSettingsPage() {
       if (response.data) {
         setSettings(response.data.settings || [])
       } else if (response.error) {
-        setError(response.error.message || 'Failed to load settings')
+        setError(response.error.message || t('loadFailed'))
       }
     } catch (err) {
-      setError('Failed to load settings')
+      setError(t('loadFailed'))
       console.error('Failed to fetch settings:', err)
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [t])
 
   // Only fetch settings after confirming admin access
   useEffect(() => {
@@ -75,10 +77,10 @@ export default function AdminSettingsPage() {
           return [...prev, response.data!]
         })
       } else if (response.error) {
-        setError(response.error.message || 'Failed to update setting')
+        setError(response.error.message || t('updateFailed'))
       }
     } catch (err) {
-      setError('Failed to update setting')
+      setError(t('updateFailed'))
       console.error('Failed to update setting:', err)
     } finally {
       setActionLoading(null)
@@ -100,11 +102,9 @@ export default function AdminSettingsPage() {
   return (
     <div className="max-w-4xl p-4 sm:p-6">
       <div className="wallpaper-panel mb-8">
-        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">Admin Settings</h1>
-        <p className="text-text-secondary mb-2 text-sm sm:text-base">
-          Configure system-wide settings for Nimbus
-        </p>
-        <p className="text-text-muted text-xs sm:text-sm">Changes take effect immediately</p>
+        <h1 className="text-text-primary mb-2 text-2xl font-bold sm:text-3xl">{t('title')}</h1>
+        <p className="text-text-secondary mb-2 text-sm sm:text-base">{t('subtitle')}</p>
+        <p className="text-text-muted text-xs sm:text-sm">{t('immediate')}</p>
       </div>
 
       {error && (
@@ -116,10 +116,10 @@ export default function AdminSettingsPage() {
       <div className="space-y-6">
         {/* User Registration */}
         <div className="glass-card border-card-border rounded-lg border p-6">
-          <h2 className="text-text-primary mb-2 text-xl font-semibold">User Registration</h2>
-          <p className="text-text-secondary mb-4 text-sm">
-            Control how new users can join your Nimbus instance
-          </p>
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">
+            {t('registration.title')}
+          </h2>
+          <p className="text-text-secondary mb-4 text-sm">{t('registration.description')}</p>
 
           <Toggle
             id="public-registration-toggle"
@@ -127,45 +127,38 @@ export default function AdminSettingsPage() {
             onChange={() =>
               handleToggle('public_registration_enabled', publicRegSetting?.value || 'true')
             }
-            label="Public Registration"
-            description="Allow new users to register accounts. When disabled, only admins can create new users."
+            label={t('registration.toggle')}
+            description={t('registration.toggleDescription')}
             disabled={actionLoading === 'public_registration_enabled'}
           />
         </div>
 
         {/* Docker discovery */}
         <div className="glass-card border-card-border rounded-lg border p-6">
-          <h2 className="text-text-primary mb-2 text-xl font-semibold">Docker Discovery</h2>
-          <p className="text-text-secondary mb-4 text-sm">
-            Containers behind an admin&apos;s Docker integration show up under Discovered on the
-            Services page
-          </p>
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('discovery.title')}</h2>
+          <p className="text-text-secondary mb-4 text-sm">{t('discovery.description')}</p>
 
           <Toggle
             id="discovery-auto-add-toggle"
             enabled={autoAddValue === 'true'}
             onChange={() => handleToggle('discovery_auto_add', autoAddValue)}
-            label="Auto-add labelled containers"
-            description="Add containers labelled nimbus.enable=true with a nimbus.url to that admin's dashboard, without asking. Unlabelled containers and guessed addresses are never added on their own."
+            label={t('discovery.toggle')}
+            description={t('discovery.toggleDescription')}
             disabled={actionLoading === 'discovery_auto_add'}
           />
         </div>
 
         {/* SMTP / Email Configuration */}
         <div className="glass-card border-card-border rounded-lg border p-6">
-          <h2 className="text-text-primary mb-2 text-xl font-semibold">Email / SMTP</h2>
-          <p className="text-text-secondary mb-4 text-sm">
-            Configure SMTP settings for password reset emails
-          </p>
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('smtp.title')}</h2>
+          <p className="text-text-secondary mb-4 text-sm">{t('smtp.description')}</p>
           <SMTPSettingsSection settings={settings} />
         </div>
 
         {/* Public status page */}
         <div className="glass-card border-card-border rounded-lg border p-6">
-          <h2 className="text-text-primary mb-2 text-xl font-semibold">Public status page</h2>
-          <p className="text-text-secondary mb-4 text-sm">
-            Share the uptime of one group of services on a page that needs no account
-          </p>
+          <h2 className="text-text-primary mb-2 text-xl font-semibold">{t('statusPage.title')}</h2>
+          <p className="text-text-secondary mb-4 text-sm">{t('statusPage.description')}</p>
           <StatusPageSettings />
         </div>
       </div>

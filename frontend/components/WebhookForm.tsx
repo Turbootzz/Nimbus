@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { Toggle } from '@/components/ui/Toggle'
 import {
@@ -9,10 +10,11 @@ import {
   buildWebhookRequest,
   getWebhookTarget,
   validateWebhookForm,
+  type DescribeWebhookProblem,
   type WebhookFieldErrors,
   type WebhookFormValues,
 } from '@/lib/webhook-targets'
-import type { ApiError, Webhook, WebhookCreateRequest } from '@/types'
+import type { ApiError, Webhook, WebhookCreateRequest, WebhookFormat } from '@/types'
 
 export type WebhookFormData = WebhookCreateRequest
 
@@ -37,6 +39,9 @@ interface FieldProps {
     'aria-describedby': string | undefined
   }) => React.ReactNode
 }
+
+type FieldText = { label: string; help?: string }
+type TargetFields = Partial<Record<'url' | 'token' | 'userKey' | 'chatId', FieldText>>
 
 // Field renders a label, the input and its help or validation message
 function Field({ id, label, help, error, children }: FieldProps) {
@@ -63,6 +68,7 @@ function Field({ id, label, help, error, children }: FieldProps) {
 }
 
 export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
+  const t = useTranslations('notifications')
   const [values, setValues] = useState<WebhookFormValues>({
     name: webhook?.name || '',
     format: webhook?.format || 'generic',
@@ -87,7 +93,50 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
   const target = getWebhookTarget(values.format)
   // Saved secrets only carry over while the type stays the same
   const keepsCredentials = !!webhook?.has_credentials && webhook.format === values.format
-  const savedSecretPlaceholder = keepsCredentials ? 'Saved. Leave blank to keep it' : undefined
+  const savedSecretPlaceholder = keepsCredentials ? t('form.savedSecret') : undefined
+
+  // The input texts of each type; only these fields are shown
+  const fieldTexts: Record<WebhookFormat, TargetFields> = {
+    generic: { url: { label: t('targets.generic.url.label') } },
+    discord: { url: { label: t('targets.discord.url.label') } },
+    slack: { url: { label: t('targets.slack.url.label') } },
+    ntfy: {
+      url: { label: t('targets.ntfy.url.label'), help: t('targets.ntfy.url.help') },
+      token: { label: t('targets.ntfy.token.label'), help: t('targets.ntfy.token.help') },
+    },
+    gotify: {
+      url: { label: t('targets.gotify.url.label') },
+      token: { label: t('targets.gotify.token.label'), help: t('targets.gotify.token.help') },
+    },
+    telegram: {
+      token: { label: t('targets.telegram.token.label'), help: t('targets.telegram.token.help') },
+      chatId: {
+        label: t('targets.telegram.chatId.label'),
+        help: t('targets.telegram.chatId.help'),
+      },
+    },
+    pushover: {
+      token: { label: t('targets.pushover.token.label'), help: t('targets.pushover.token.help') },
+      userKey: {
+        label: t('targets.pushover.userKey.label'),
+        help: t('targets.pushover.userKey.help'),
+      },
+    },
+  }
+  const text = fieldTexts[target.value]
+
+  const describe: DescribeWebhookProblem = (field, problem) => {
+    if (problem !== 'required') return t(`form.errors.${problem}`)
+    const labels = {
+      name: t('form.name'),
+      url: text.url?.label,
+      token: text.token?.label,
+      user_key: text.userKey?.label,
+      chat_id: text.chatId?.label,
+      triggers: undefined,
+    }
+    return t('form.errors.required', { field: labels[field] ?? '' })
+  }
 
   const set = <K extends keyof WebhookFormValues>(key: K, value: WebhookFormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }))
@@ -104,7 +153,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
     e.preventDefault()
     setError(null)
 
-    const found = validateWebhookForm(values, keepsCredentials)
+    const found = validateWebhookForm(values, keepsCredentials, describe)
     setErrors(found)
     if (Object.keys(found).length > 0) return
 
@@ -114,10 +163,10 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
       if (failure) {
         // Field messages show at their input; the summary always shows on top
         setErrors(failure.fields ?? {})
-        setError(failure.message || 'Failed to save webhook')
+        setError(failure.message || t('form.saveFailed'))
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save webhook')
+      setError(err instanceof Error ? err.message : t('form.saveFailed'))
     } finally {
       setIsLoading(false)
     }
@@ -139,13 +188,13 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
       >
         <div className="mb-6 flex items-center justify-between">
           <h2 id="webhook-form-title" className="text-text-primary text-xl font-semibold">
-            {isEditMode ? 'Edit Webhook' : 'Add Webhook'}
+            {isEditMode ? t('form.editTitle') : t('form.addTitle')}
           </h2>
           <button
             type="button"
             onClick={onClose}
             disabled={isLoading}
-            aria-label="Close"
+            aria-label={t('form.close')}
             className="text-text-muted hover:text-text-primary focus-visible:ring-primary/40 rounded focus:outline-none focus-visible:ring-2 disabled:opacity-50"
           >
             <XMarkIcon className="h-6 w-6" />
@@ -162,14 +211,14 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
             </div>
           )}
 
-          <Field id="name" label="Name" error={errors.name}>
+          <Field id="name" label={t('form.name')} error={errors.name}>
             {(props) => (
               <input
                 {...props}
                 type="text"
                 value={values.name}
                 onChange={(e) => set('name', e.target.value)}
-                placeholder="Homelab alerts"
+                placeholder={t('form.namePlaceholder')}
                 disabled={isLoading}
                 className={inputClass}
               />
@@ -181,7 +230,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
               id="webhook-type-label"
               className="text-text-primary mb-2 block text-sm font-medium"
             >
-              Type
+              {t('form.type')}
             </span>
             <div
               role="group"
@@ -213,15 +262,17 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                       : 'border-card-border text-text-secondary hover:border-primary/50'
                   } disabled:opacity-50`}
                 >
-                  {option.label}
+                  {option.value === 'generic' ? t('targets.generic.label') : option.label}
                 </button>
               ))}
             </div>
-            <p className="text-text-muted mt-1 text-xs">{target.description}</p>
+            <p className="text-text-muted mt-1 text-xs">
+              {t(`targets.${target.value}.description`)}
+            </p>
           </div>
 
-          {target.url && (
-            <Field id="url" label={target.url.label} help={target.url.help} error={errors.url}>
+          {text.url && (
+            <Field id="url" label={text.url.label} help={text.url.help} error={errors.url}>
               {(props) => (
                 <input
                   {...props}
@@ -236,13 +287,15 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
             </Field>
           )}
 
-          {target.token && (
+          {text.token && (
             <Field
               id="token"
               label={
-                target.token.optional ? `${target.token.label} (optional)` : target.token.label
+                target.token?.optional
+                  ? t('form.optional', { label: text.token.label })
+                  : text.token.label
               }
-              help={target.token.help}
+              help={text.token.help}
               error={errors.token}
             >
               {(props) => (
@@ -272,15 +325,15 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                 disabled={isLoading}
                 className="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
               />
-              <span className="text-text-primary text-sm">Remove the saved access token</span>
+              <span className="text-text-primary text-sm">{t('form.removeToken')}</span>
             </label>
           )}
 
-          {target.userKey && (
+          {text.userKey && (
             <Field
               id="user_key"
-              label={target.userKey.label}
-              help={target.userKey.help}
+              label={text.userKey.label}
+              help={text.userKey.help}
               error={errors.user_key}
             >
               {(props) => (
@@ -298,11 +351,11 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
             </Field>
           )}
 
-          {target.chatId && (
+          {text.chatId && (
             <Field
               id="chat_id"
-              label={target.chatId.label}
-              help={target.chatId.help}
+              label={text.chatId.label}
+              help={text.chatId.help}
               error={errors.chat_id}
             >
               {(props) => (
@@ -320,7 +373,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
           )}
 
           {target.priority && (
-            <Field id="priority" label="Priority" error={errors.priority}>
+            <Field id="priority" label={t('form.priority')} error={errors.priority}>
               {(props) => (
                 <select
                   {...props}
@@ -331,7 +384,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                 >
                   {NTFY_PRIORITIES.map((priority) => (
                     <option key={priority.value} value={priority.value}>
-                      {priority.label}
+                      {t(`form.priorities.${priority.key}`)}
                     </option>
                   ))}
                 </select>
@@ -344,15 +397,15 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
               id="webhook-verify-tls"
               enabled={values.verifyTls}
               onChange={(verifyTls) => set('verifyTls', verifyTls)}
-              label="Verify TLS certificate"
-              description="Turn off for a server with a self-signed certificate"
+              label={t('form.verifyTls')}
+              description={t('form.verifyTlsDescription')}
               disabled={isLoading}
             />
           )}
 
           <fieldset aria-describedby={errors.triggers ? 'triggers-error' : undefined}>
             <legend className="text-text-primary mb-2 block text-sm font-medium">
-              Trigger Events
+              {t('form.triggers')}
             </legend>
             <div className="space-y-2">
               <label className="flex cursor-pointer items-center gap-3">
@@ -363,7 +416,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                   disabled={isLoading}
                   className="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
                 />
-                <span className="text-text-primary text-sm">When service goes offline</span>
+                <span className="text-text-primary text-sm">{t('form.onOffline')}</span>
               </label>
               <label className="flex cursor-pointer items-center gap-3">
                 <input
@@ -373,7 +426,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
                   disabled={isLoading}
                   className="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
                 />
-                <span className="text-text-primary text-sm">When service comes back online</span>
+                <span className="text-text-primary text-sm">{t('form.onOnline')}</span>
               </label>
             </div>
             {errors.triggers && (
@@ -386,15 +439,13 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
           {/* Notification Retries */}
           <div>
             <span className="text-text-primary mb-1 block text-sm font-medium">
-              Notification Retries
+              {t('form.retries')}
             </span>
-            <p className="text-text-muted mb-3 text-xs">
-              For offline alerts: re-check before sending to prevent false positives.
-            </p>
+            <p className="text-text-muted mb-3 text-xs">{t('form.retriesHint')}</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label htmlFor="retryCount" className="text-text-secondary mb-1 block text-xs">
-                  Retries (0-5)
+                  {t('form.retryCount')}
                 </label>
                 <input
                   type="number"
@@ -411,7 +462,7 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
               </div>
               <div>
                 <label htmlFor="retryDelay" className="text-text-secondary mb-1 block text-xs">
-                  Delay (10-300s)
+                  {t('form.retryDelay')}
                 </label>
                 <input
                   type="number"
@@ -439,14 +490,14 @@ export function WebhookForm({ webhook, onSubmit, onClose }: WebhookFormProps) {
               disabled={isLoading}
               className="text-text-primary bg-background border-card-border hover:bg-card flex-1 rounded-lg border px-4 py-2 font-medium transition-colors disabled:opacity-50"
             >
-              Cancel
+              {t('form.cancel')}
             </button>
             <button
               type="submit"
               disabled={isLoading}
               className="bg-primary hover:bg-primary/90 flex-1 rounded-lg px-4 py-2 font-medium text-white transition-colors disabled:opacity-50"
             >
-              {isLoading ? 'Saving...' : isEditMode ? 'Save Changes' : 'Create Webhook'}
+              {isLoading ? t('form.saving') : isEditMode ? t('form.saveChanges') : t('form.create')}
             </button>
           </div>
         </form>

@@ -1,4 +1,145 @@
 {
+  "admin": {
+    "page": {
+      "title": "Admin-Einstellungen",
+      "subtitle": "Systemweite Einstellungen für Nimbus festlegen",
+      "immediate": "Änderungen gelten sofort",
+      "loadFailed": "Einstellungen konnten nicht geladen werden",
+      "updateFailed": "Einstellung konnte nicht aktualisiert werden",
+      "registration": {
+        "title": "Benutzerregistrierung",
+        "description": "Lege fest, wie neue Benutzer deiner Nimbus-Instanz beitreten können",
+        "toggle": "Öffentliche Registrierung",
+        "toggleDescription": "Neue Benutzer dürfen selbst ein Konto erstellen. Wenn deaktiviert, können nur Admins neue Benutzer anlegen."
+      },
+      "discovery": {
+        "title": "Docker-Erkennung",
+        "description": "Container hinter der Docker-Integration eines Admins erscheinen unter „Gefunden“ auf der Seite „Dienste“",
+        "toggle": "Markierte Container automatisch hinzufügen",
+        "toggleDescription": "Fügt Container mit dem Label nimbus.enable=true und einer nimbus.url ohne Nachfrage zum Dashboard dieses Admins hinzu. Container ohne Label und geratene Adressen werden nie von selbst hinzugefügt."
+      },
+      "smtp": {
+        "title": "E-Mail / SMTP",
+        "description": "SMTP-Einstellungen für E-Mails zum Zurücksetzen des Passworts festlegen"
+      },
+      "statusPage": {
+        "title": "Öffentliche Statusseite",
+        "description": "Teile die Uptime einer Gruppe von Diensten auf einer Seite, die kein Konto erfordert"
+      }
+    },
+    "smtp": {
+      "saved": "SMTP-Einstellungen gespeichert",
+      "saveFailed": "Einstellungen konnten nicht gespeichert werden",
+      "testSucceeded": "SMTP-Verbindung erfolgreich",
+      "testFailed": "Verbindungstest fehlgeschlagen",
+      "testError": "SMTP-Verbindung konnte nicht getestet werden",
+      "fromEnv": "SMTP ist vorkonfiguriert. Du kannst diese Einstellungen unten überschreiben.",
+      "notConfigured": "SMTP ist nicht eingerichtet. Fülle die Felder unten aus und aktiviere SMTP, um E-Mails zum Zurücksetzen des Passworts zu ermöglichen.",
+      "enable": "SMTP aktivieren",
+      "enableDescription": "Erforderlich für E-Mails zum Zurücksetzen des Passworts",
+      "host": "SMTP-Host",
+      "port": "SMTP-Port",
+      "encryption": "Verschlüsselung",
+      "encryptionModes": {
+        "auto": "Automatisch (nach Port)",
+        "starttls": "STARTTLS",
+        "tls": "Implizites TLS (Port 465)",
+        "none": "Keine (unverschlüsselt)"
+      },
+      "username": "Benutzername",
+      "password": "Passwort",
+      "fromEmail": "Absenderadresse",
+      "fromName": "Absendername",
+      "unencryptedWarning": "E-Mails werden unverschlüsselt gesendet. Nutze das nur für ein Relay in einem vertrauenswürdigen Netzwerk. Benutzername und Passwort müssen leer bleiben, da sie im Klartext gesendet würden.",
+      "skipVerify": "Zertifikatsprüfung überspringen",
+      "skipVerifyDescription": "Erlaubt selbstsignierte Zertifikate. Lass das aus, außer dein Relay braucht es.",
+      "saving": "Speichern...",
+      "save": "Einstellungen speichern",
+      "testing": "Testen...",
+      "test": "Verbindung testen"
+    },
+    "statusPage": {
+      "loadFailed": "Die Einstellungen der Statusseite konnten nicht geladen werden",
+      "logoTooLarge": "Das Logo ist größer als 512 KB",
+      "uploadFailed": "Das Logo konnte nicht hochgeladen werden",
+      "saved": "Statusseite gespeichert",
+      "saveFailed": "Die Statusseite konnte nicht gespeichert werden",
+      "loading": "Laden...",
+      "enable": "Statusseite aktivieren",
+      "enableDescription": "Jeder, der dieses Nimbus erreicht, kann /status ohne Anmeldung öffnen. Solange sie aus ist, gibt es die Seite nicht.",
+      "group": "Angezeigte Gruppe",
+      "chooseGroup": "Gruppe auswählen",
+      "groupMissing": "Die gewählte Gruppe gehört nicht dir oder existiert nicht mehr. Wähle eine deiner Gruppen, um die Seite anzuzeigen.",
+      "title": "Titel",
+      "groupsNote": "Gruppen sind persönlich, daher zeigt die Seite eine deiner eigenen Gruppen. Nur ihre überwachten Dienste erscheinen: Name, Symbol, Status und Uptime. Sonst wird nichts über sie geteilt.",
+      "logo": "Logo",
+      "currentLogo": "Aktuelles Logo",
+      "logoFile": "Logodatei",
+      "uploading": "Hochladen...",
+      "replace": "Ersetzen",
+      "upload": "Hochladen",
+      "remove": "Entfernen",
+      "logoHint": "JPG, PNG, GIF oder WEBP, bis 512 KB",
+      "showLinks": "Links anzeigen",
+      "showLinksDescription": "Macht jeden Dienstnamen zu einem Link auf seine URL und zeigt Symbole, die von einer URL geladen werden. Lass das aus, um deine Adressen privat zu halten.",
+      "saving": "Speichern...",
+      "save": "Statusseite speichern",
+      "open": "Statusseite öffnen"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "API-Tokens",
+      "description": "Erstelle persönliche Zugriffstokens für den programmatischen Zugriff. Sende sie als",
+      "loadFailed": "API-Tokens konnten nicht geladen werden",
+      "createFailed": "Token konnte nicht erstellt werden",
+      "confirmRevoke": "„{name}“ widerrufen? Clients, die es nutzen, funktionieren sofort nicht mehr.",
+      "never": "Nie",
+      "created": "Token erstellt. Du kannst dieses Token später nicht mehr sehen — kopiere es jetzt.",
+      "copied": "Kopiert!",
+      "copy": "Kopieren",
+      "createTitle": "Neues Token erstellen",
+      "namePlaceholder": "Tokenname (z. B. Hearth-Dashboard)",
+      "name": "Tokenname",
+      "scopes": "Berechtigungen",
+      "noScope": "Wähle mindestens eine Berechtigung.",
+      "expires": "Läuft ab",
+      "creating": "Erstellen…",
+      "create": "Token erstellen",
+      "empty": "Noch keine API-Tokens. Erstelle oben eins.",
+      "expired": "abgelaufen",
+      "dates": "Erstellt {created} · Zuletzt verwendet {lastUsed} · Läuft ab {expires}",
+      "revokeLabel": "{name} widerrufen",
+      "revoking": "Widerrufen…",
+      "revoke": "Widerrufen"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Dienste lesen",
+        "description": "Dienste und Gruppen"
+      },
+      "read:metrics": {
+        "label": "Metriken lesen",
+        "description": "Uptime, Statusverlauf und der Prometheus-Export"
+      },
+      "read:widgets": {
+        "label": "Widgets lesen",
+        "description": "Widgets und Dashboard-Daten"
+      },
+      "write:services": {
+        "label": "Dienste schreiben",
+        "description": "Dienste und Gruppen erstellen, ändern, löschen und neu prüfen"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Lass einen KI-Assistenten dein Dashboard über /mcp lesen"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# Tag} other {# Tage}}",
+      "years": "{count, plural, one {# Jahr} other {# Jahre}}"
+    }
+  },
   "auth": {
     "layout": {
       "tagline": "Dein persönliches Homelab-Dashboard"
@@ -405,6 +546,144 @@
       "editable": "Dieses Dashboard folgt der Datei, auf die NIMBUS_CONFIG_FILE zeigt. Was du hier änderst, kann überschrieben werden, wenn sich die Datei ändert oder der Server neu startet.",
       "preferences": "Auch die Einstellungen für Design, Layout und Hintergrundbild kommen aus der Datei: Änderungen daran werden nicht gespeichert.",
       "readOnlyNote": "Dieses Dashboard wird von einer Konfigurationsdatei verwaltet und ist schreibgeschützt. Ändere stattdessen die Datei."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Benachrichtigungen",
+      "description": "Erhalte Warnungen per Webhook, Discord, Slack, ntfy, Gotify, Telegram oder Pushover, wenn Dienste ihren Status ändern",
+      "add": "Webhook hinzufügen",
+      "loadFailed": "Webhooks konnten nicht geladen werden",
+      "saveFailed": "Webhook konnte nicht gespeichert werden",
+      "confirmDelete": "Willst du diesen Webhook wirklich löschen?",
+      "testSent": "Testbenachrichtigung gesendet!",
+      "testFailed": "Test fehlgeschlagen: {error}",
+      "unknownError": "Unbekannter Fehler",
+      "empty": "Noch keine Webhooks eingerichtet",
+      "createFirst": "Erstelle deinen ersten Webhook"
+    },
+    "card": {
+      "active": "Aktiv",
+      "disabled": "Deaktiviert",
+      "triggers": "Auslöser: {triggers}",
+      "offline": "Offline",
+      "online": "Online",
+      "none": "Keine",
+      "sent": "Gesendet: {count}",
+      "failed": "Fehlgeschlagen: {count}",
+      "lastTriggered": "Zuletzt ausgelöst: {date}",
+      "never": "Nie",
+      "enabledLabel": "{name} aktiviert",
+      "disable": "Webhook deaktivieren",
+      "enable": "Webhook aktivieren",
+      "test": "Testen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen"
+    },
+    "form": {
+      "addTitle": "Webhook hinzufügen",
+      "editTitle": "Webhook bearbeiten",
+      "close": "Schließen",
+      "name": "Name",
+      "namePlaceholder": "Homelab-Warnungen",
+      "type": "Typ",
+      "optional": "{label} (optional)",
+      "savedSecret": "Gespeichert. Leer lassen, um es zu behalten",
+      "removeToken": "Gespeichertes Zugriffstoken entfernen",
+      "priority": "Priorität",
+      "priorities": {
+        "min": "Minimal",
+        "low": "Niedrig",
+        "default": "Standard",
+        "high": "Hoch",
+        "urgent": "Dringend"
+      },
+      "verifyTls": "TLS-Zertifikat prüfen",
+      "verifyTlsDescription": "Für einen Server mit selbstsigniertem Zertifikat ausschalten",
+      "triggers": "Auslösende Ereignisse",
+      "onOffline": "Wenn ein Dienst offline geht",
+      "onOnline": "Wenn ein Dienst wieder online ist",
+      "retries": "Wiederholungen",
+      "retriesHint": "Für Offline-Warnungen: vor dem Senden erneut prüfen, um Fehlalarme zu vermeiden.",
+      "retryCount": "Wiederholungen (0-5)",
+      "retryDelay": "Verzögerung (10-300 s)",
+      "cancel": "Abbrechen",
+      "saving": "Speichern...",
+      "saveChanges": "Änderungen speichern",
+      "create": "Webhook erstellen",
+      "saveFailed": "Webhook konnte nicht gespeichert werden",
+      "errors": {
+        "required": "{field} ist erforderlich",
+        "nameTooLong": "Der Name darf höchstens 100 Zeichen lang sein",
+        "invalidUrl": "Gib eine vollständige URL ein, beginnend mit http:// oder https://",
+        "ntfyTopic": "Die URL muss mit dem Topic enden, etwa https://ntfy.sh/my-topic",
+        "invalidChatId": "Die Chat-ID muss eine Zahl oder ein öffentlicher @kanalname sein",
+        "noTrigger": "Wähle mindestens ein auslösendes Ereignis"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Allgemein",
+        "description": "Standard-JSON-Payload",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "discord": {
+        "description": "Discord-kompatibles Embed-Format",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "slack": {
+        "description": "Slack-Block-Kit-Format",
+        "url": {
+          "label": "Webhook-URL"
+        }
+      },
+      "ntfy": {
+        "description": "Push an ein ntfy-Topic, auf ntfy.sh oder deinem eigenen Server",
+        "url": {
+          "label": "Topic-URL",
+          "help": "Die Serveradresse, gefolgt vom Namen des Topics."
+        },
+        "token": {
+          "label": "Zugriffstoken",
+          "help": "Nur für geschützte Topics nötig."
+        }
+      },
+      "gotify": {
+        "description": "Push an einen Gotify-Server",
+        "url": {
+          "label": "Server-URL"
+        },
+        "token": {
+          "label": "App-Token",
+          "help": "Erstelle in Gotify eine Anwendung und kopiere ihr Token."
+        }
+      },
+      "telegram": {
+        "description": "Nachricht von deinem Telegram-Bot",
+        "token": {
+          "label": "Bot-Token",
+          "help": "Von @BotFather."
+        },
+        "chatId": {
+          "label": "Chat-ID",
+          "help": "Eine Benutzer-, Gruppen- oder Kanal-ID oder ein öffentlicher @kanalname."
+        }
+      },
+      "pushover": {
+        "description": "Push über Pushover",
+        "token": {
+          "label": "App-Token",
+          "help": "Das API-Token deiner Pushover-Anwendung."
+        },
+        "userKey": {
+          "label": "Benutzerschlüssel",
+          "help": "Dein Benutzerschlüssel oder ein Gruppenschlüssel."
+        }
+      }
     }
   },
   "preferences": {

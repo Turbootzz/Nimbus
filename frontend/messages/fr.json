@@ -1,4 +1,145 @@
 {
+  "admin": {
+    "page": {
+      "title": "Paramètres d’administration",
+      "subtitle": "Configurez les paramètres de Nimbus pour tout le système",
+      "immediate": "Les modifications prennent effet immédiatement",
+      "loadFailed": "Impossible de charger les paramètres",
+      "updateFailed": "Impossible de mettre à jour le paramètre",
+      "registration": {
+        "title": "Inscription des utilisateurs",
+        "description": "Choisissez comment les nouveaux utilisateurs peuvent rejoindre votre instance Nimbus",
+        "toggle": "Inscription publique",
+        "toggleDescription": "Autorise les nouveaux utilisateurs à créer un compte. Si cette option est désactivée, seuls les administrateurs peuvent créer des utilisateurs."
+      },
+      "discovery": {
+        "title": "Détection Docker",
+        "description": "Les conteneurs derrière l’intégration Docker d’un administrateur apparaissent sous Découverts sur la page Services",
+        "toggle": "Ajouter automatiquement les conteneurs étiquetés",
+        "toggleDescription": "Ajoute sans demander les conteneurs étiquetés nimbus.enable=true avec un nimbus.url au tableau de bord de cet administrateur. Les conteneurs sans étiquette et les adresses devinées ne sont jamais ajoutés d’eux-mêmes."
+      },
+      "smtp": {
+        "title": "E-mail / SMTP",
+        "description": "Configurez SMTP pour les e-mails de réinitialisation du mot de passe"
+      },
+      "statusPage": {
+        "title": "Page de statut publique",
+        "description": "Partagez la disponibilité d’un groupe de services sur une page accessible sans compte"
+      }
+    },
+    "smtp": {
+      "saved": "Paramètres SMTP enregistrés",
+      "saveFailed": "Impossible d’enregistrer les paramètres",
+      "testSucceeded": "Connexion SMTP réussie",
+      "testFailed": "Échec du test de connexion",
+      "testError": "Impossible de tester la connexion SMTP",
+      "fromEnv": "SMTP est préconfiguré. Vous pouvez remplacer ces paramètres ci-dessous.",
+      "notConfigured": "SMTP n’est pas configuré. Remplissez les champs ci-dessous et activez SMTP pour permettre les e-mails de réinitialisation du mot de passe.",
+      "enable": "Activer SMTP",
+      "enableDescription": "Requis pour les e-mails de réinitialisation du mot de passe",
+      "host": "Hôte SMTP",
+      "port": "Port SMTP",
+      "encryption": "Chiffrement",
+      "encryptionModes": {
+        "auto": "Automatique (selon le port)",
+        "starttls": "STARTTLS",
+        "tls": "TLS implicite (port 465)",
+        "none": "Aucun (non chiffré)"
+      },
+      "username": "Nom d’utilisateur",
+      "password": "Mot de passe",
+      "fromEmail": "E-mail de l’expéditeur",
+      "fromName": "Nom de l’expéditeur",
+      "unencryptedWarning": "Les e-mails sont envoyés sans chiffrement. N’utilisez ceci que pour un relais sur un réseau de confiance. Le nom d’utilisateur et le mot de passe doivent rester vides, car ils seraient envoyés en clair.",
+      "skipVerify": "Ignorer la vérification du certificat",
+      "skipVerifyDescription": "Autorise les certificats auto-signés. Laissez désactivé sauf si votre relais en a besoin.",
+      "saving": "Enregistrement...",
+      "save": "Enregistrer les paramètres",
+      "testing": "Test en cours...",
+      "test": "Tester la connexion"
+    },
+    "statusPage": {
+      "loadFailed": "Impossible de charger les paramètres de la page de statut",
+      "logoTooLarge": "Le logo dépasse 512 Ko",
+      "uploadFailed": "Impossible d’envoyer le logo",
+      "saved": "Page de statut enregistrée",
+      "saveFailed": "Impossible d’enregistrer la page de statut",
+      "loading": "Chargement...",
+      "enable": "Activer la page de statut",
+      "enableDescription": "Toute personne pouvant accéder à ce Nimbus peut ouvrir /status sans se connecter. Tant qu’elle est désactivée, la page n’existe pas.",
+      "group": "Groupe à afficher",
+      "chooseGroup": "Choisissez un groupe",
+      "groupMissing": "Le groupe choisi ne vous appartient pas ou n’existe plus. Choisissez l’un de vos groupes pour afficher la page.",
+      "title": "Titre",
+      "groupsNote": "Les groupes sont personnels : la page affiche donc l’un de vos propres groupes. Seuls ses services surveillés apparaissent : nom, icône, statut et disponibilité. Rien d’autre n’est partagé à leur sujet.",
+      "logo": "Logo",
+      "currentLogo": "Logo actuel",
+      "logoFile": "Fichier du logo",
+      "uploading": "Envoi...",
+      "replace": "Remplacer",
+      "upload": "Envoyer",
+      "remove": "Supprimer",
+      "logoHint": "JPG, PNG, GIF ou WEBP, jusqu’à 512 Ko",
+      "showLinks": "Afficher les liens",
+      "showLinksDescription": "Transforme chaque nom de service en lien vers son URL et affiche les icônes chargées depuis une URL. Laissez désactivé pour garder vos adresses privées.",
+      "saving": "Enregistrement...",
+      "save": "Enregistrer la page de statut",
+      "open": "Ouvrir la page de statut"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "Jetons d’API",
+      "description": "Créez des jetons d’accès personnels pour un accès programmatique. Envoyez-les sous la forme",
+      "loadFailed": "Impossible de charger les jetons d’API",
+      "createFailed": "Impossible de créer le jeton",
+      "confirmRevoke": "Révoquer « {name} » ? Les clients qui l’utilisent cesseront immédiatement de fonctionner.",
+      "never": "Jamais",
+      "created": "Jeton créé. Vous ne pourrez plus voir ce jeton — copiez-le maintenant.",
+      "copied": "Copié !",
+      "copy": "Copier",
+      "createTitle": "Créer un jeton",
+      "namePlaceholder": "Nom du jeton (p. ex. tableau de bord Hearth)",
+      "name": "Nom du jeton",
+      "scopes": "Portées",
+      "noScope": "Sélectionnez au moins une portée.",
+      "expires": "Expiration",
+      "creating": "Création…",
+      "create": "Créer le jeton",
+      "empty": "Aucun jeton d’API pour l’instant. Créez-en un ci-dessus.",
+      "expired": "expiré",
+      "dates": "Créé : {created} · Dernière utilisation : {lastUsed} · Expire : {expires}",
+      "revokeLabel": "Révoquer {name}",
+      "revoking": "Révocation…",
+      "revoke": "Révoquer"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Lire les services",
+        "description": "Services et groupes"
+      },
+      "read:metrics": {
+        "label": "Lire les métriques",
+        "description": "Disponibilité, historique des statuts et export Prometheus"
+      },
+      "read:widgets": {
+        "label": "Lire les widgets",
+        "description": "Widgets et données du tableau de bord"
+      },
+      "write:services": {
+        "label": "Écrire les services",
+        "description": "Créer, modifier, supprimer et revérifier les services et les groupes"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Permet à un assistant IA de lire votre tableau de bord via /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# jour} other {# jours}}",
+      "years": "{count, plural, one {# an} other {# ans}}"
+    }
+  },
   "auth": {
     "layout": {
       "tagline": "Votre tableau de bord homelab personnel"
@@ -405,6 +546,144 @@
       "editable": "Ce tableau de bord suit le fichier indiqué par NIMBUS_CONFIG_FILE. Ce que vous modifiez ici peut être écrasé quand le fichier change ou que le serveur redémarre.",
       "preferences": "Les paramètres de thème, de disposition et de fond d’écran viennent aussi du fichier : leurs modifications ne sont pas enregistrées.",
       "readOnlyNote": "Ce tableau de bord est géré par un fichier de configuration et est en lecture seule. Modifiez plutôt le fichier."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Notifications",
+      "description": "Recevez des alertes via un webhook, Discord, Slack, ntfy, Gotify, Telegram ou Pushover quand le statut des services change",
+      "add": "Ajouter un webhook",
+      "loadFailed": "Impossible de charger les webhooks",
+      "saveFailed": "Impossible d’enregistrer le webhook",
+      "confirmDelete": "Voulez-vous vraiment supprimer ce webhook ?",
+      "testSent": "Notification de test envoyée !",
+      "testFailed": "Échec du test : {error}",
+      "unknownError": "Erreur inconnue",
+      "empty": "Aucun webhook configuré pour l’instant",
+      "createFirst": "Créez votre premier webhook"
+    },
+    "card": {
+      "active": "Actif",
+      "disabled": "Désactivé",
+      "triggers": "Déclencheurs : {triggers}",
+      "offline": "Hors ligne",
+      "online": "En ligne",
+      "none": "Aucun",
+      "sent": "Envoyées : {count}",
+      "failed": "Échecs : {count}",
+      "lastTriggered": "Dernier déclenchement : {date}",
+      "never": "Jamais",
+      "enabledLabel": "{name} activé",
+      "disable": "Désactiver le webhook",
+      "enable": "Activer le webhook",
+      "test": "Tester",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "form": {
+      "addTitle": "Ajouter un webhook",
+      "editTitle": "Modifier le webhook",
+      "close": "Fermer",
+      "name": "Nom",
+      "namePlaceholder": "Alertes homelab",
+      "type": "Type",
+      "optional": "{label} (facultatif)",
+      "savedSecret": "Enregistré. Laissez vide pour le conserver",
+      "removeToken": "Supprimer le jeton d’accès enregistré",
+      "priority": "Priorité",
+      "priorities": {
+        "min": "Minimale",
+        "low": "Basse",
+        "default": "Par défaut",
+        "high": "Haute",
+        "urgent": "Urgente"
+      },
+      "verifyTls": "Vérifier le certificat TLS",
+      "verifyTlsDescription": "Désactivez pour un serveur avec un certificat auto-signé",
+      "triggers": "Événements déclencheurs",
+      "onOffline": "Quand un service passe hors ligne",
+      "onOnline": "Quand un service revient en ligne",
+      "retries": "Nouvelles tentatives",
+      "retriesHint": "Pour les alertes hors ligne : revérifier avant l’envoi pour éviter les faux positifs.",
+      "retryCount": "Tentatives (0-5)",
+      "retryDelay": "Délai (10-300 s)",
+      "cancel": "Annuler",
+      "saving": "Enregistrement...",
+      "saveChanges": "Enregistrer les modifications",
+      "create": "Créer le webhook",
+      "saveFailed": "Impossible d’enregistrer le webhook",
+      "errors": {
+        "required": "{field} est obligatoire",
+        "nameTooLong": "Le nom ne doit pas dépasser 100 caractères",
+        "invalidUrl": "Saisissez une URL complète, commençant par http:// ou https://",
+        "ntfyTopic": "L’URL doit se terminer par le topic, par exemple https://ntfy.sh/my-topic",
+        "invalidChatId": "L’ID de chat doit être un nombre ou un @nomducanal public",
+        "noTrigger": "Sélectionnez au moins un événement déclencheur"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Générique",
+        "description": "Charge utile JSON standard",
+        "url": {
+          "label": "URL du webhook"
+        }
+      },
+      "discord": {
+        "description": "Format embed compatible Discord",
+        "url": {
+          "label": "URL du webhook"
+        }
+      },
+      "slack": {
+        "description": "Format Slack Block Kit",
+        "url": {
+          "label": "URL du webhook"
+        }
+      },
+      "ntfy": {
+        "description": "Push vers un topic ntfy, sur ntfy.sh ou votre propre serveur",
+        "url": {
+          "label": "URL du topic",
+          "help": "L’adresse du serveur suivie du nom du topic."
+        },
+        "token": {
+          "label": "Jeton d’accès",
+          "help": "Nécessaire uniquement pour les topics protégés."
+        }
+      },
+      "gotify": {
+        "description": "Push vers un serveur Gotify",
+        "url": {
+          "label": "URL du serveur"
+        },
+        "token": {
+          "label": "Jeton d’application",
+          "help": "Créez une application dans Gotify et copiez son jeton."
+        }
+      },
+      "telegram": {
+        "description": "Message de votre bot Telegram",
+        "token": {
+          "label": "Jeton du bot",
+          "help": "Fourni par @BotFather."
+        },
+        "chatId": {
+          "label": "ID de chat",
+          "help": "Un ID d’utilisateur, de groupe ou de canal, ou un @nomducanal public."
+        }
+      },
+      "pushover": {
+        "description": "Push via Pushover",
+        "token": {
+          "label": "Jeton d’application",
+          "help": "Le jeton d’API de votre application Pushover."
+        },
+        "userKey": {
+          "label": "Clé utilisateur",
+          "help": "Votre clé utilisateur ou une clé de groupe."
+        }
+      }
     }
   },
   "preferences": {

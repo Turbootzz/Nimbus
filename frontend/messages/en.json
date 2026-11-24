@@ -1,4 +1,145 @@
 {
+  "admin": {
+    "page": {
+      "title": "Admin Settings",
+      "subtitle": "Configure system-wide settings for Nimbus",
+      "immediate": "Changes take effect immediately",
+      "loadFailed": "Failed to load settings",
+      "updateFailed": "Failed to update setting",
+      "registration": {
+        "title": "User Registration",
+        "description": "Control how new users can join your Nimbus instance",
+        "toggle": "Public Registration",
+        "toggleDescription": "Allow new users to register accounts. When disabled, only admins can create new users."
+      },
+      "discovery": {
+        "title": "Docker Discovery",
+        "description": "Containers behind an admin's Docker integration show up under Discovered on the Services page",
+        "toggle": "Auto-add labelled containers",
+        "toggleDescription": "Add containers labelled nimbus.enable=true with a nimbus.url to that admin's dashboard, without asking. Unlabelled containers and guessed addresses are never added on their own."
+      },
+      "smtp": {
+        "title": "Email / SMTP",
+        "description": "Configure SMTP settings for password reset emails"
+      },
+      "statusPage": {
+        "title": "Public status page",
+        "description": "Share the uptime of one group of services on a page that needs no account"
+      }
+    },
+    "smtp": {
+      "saved": "SMTP settings saved successfully",
+      "saveFailed": "Failed to save settings",
+      "testSucceeded": "SMTP connection successful",
+      "testFailed": "Connection test failed",
+      "testError": "Failed to test SMTP connection",
+      "fromEnv": "SMTP is pre-configured. You can override these settings below.",
+      "notConfigured": "SMTP is not configured. Fill in the fields below and enable SMTP to allow password reset emails.",
+      "enable": "Enable SMTP",
+      "enableDescription": "Required for password reset emails",
+      "host": "SMTP Host",
+      "port": "SMTP Port",
+      "encryption": "Encryption",
+      "encryptionModes": {
+        "auto": "Automatic (based on port)",
+        "starttls": "STARTTLS",
+        "tls": "Implicit TLS (port 465)",
+        "none": "None (unencrypted)"
+      },
+      "username": "Username",
+      "password": "Password",
+      "fromEmail": "From Email",
+      "fromName": "From Name",
+      "unencryptedWarning": "Emails are sent unencrypted. Only use this for a relay on a trusted network. Username and password must be left empty, since they would be sent in cleartext.",
+      "skipVerify": "Skip certificate verification",
+      "skipVerifyDescription": "Allows self-signed certificates. Leave off unless your relay needs it.",
+      "saving": "Saving...",
+      "save": "Save settings",
+      "testing": "Testing...",
+      "test": "Test connection"
+    },
+    "statusPage": {
+      "loadFailed": "Failed to load the status page settings",
+      "logoTooLarge": "The logo is larger than 512 KB",
+      "uploadFailed": "Failed to upload the logo",
+      "saved": "Status page saved",
+      "saveFailed": "Failed to save the status page",
+      "loading": "Loading...",
+      "enable": "Enable the status page",
+      "enableDescription": "Anyone who can reach this Nimbus can open /status without signing in. While off, the page does not exist.",
+      "group": "Group to show",
+      "chooseGroup": "Choose a group",
+      "groupMissing": "The group that was chosen is not one of yours, or no longer exists. Choose one of your groups to show the page.",
+      "title": "Title",
+      "groupsNote": "Groups are personal, so the page shows one of your own groups. Only its monitored services appear: name, icon, status and uptime. Nothing else about them is shared.",
+      "logo": "Logo",
+      "currentLogo": "Current logo",
+      "logoFile": "Logo file",
+      "uploading": "Uploading...",
+      "replace": "Replace",
+      "upload": "Upload",
+      "remove": "Remove",
+      "logoHint": "JPG, PNG, GIF or WEBP, up to 512 KB",
+      "showLinks": "Show links",
+      "showLinksDescription": "Makes each service name a link to its URL, and shows icons loaded from a URL. Leave off to keep your addresses private.",
+      "saving": "Saving...",
+      "save": "Save status page",
+      "open": "Open status page"
+    }
+  },
+  "apiTokens": {
+    "page": {
+      "title": "API Tokens",
+      "description": "Create personal access tokens for programmatic access. Send them as",
+      "loadFailed": "Failed to load API tokens",
+      "createFailed": "Failed to create token",
+      "confirmRevoke": "Revoke \"{name}\"? Clients using it will stop working immediately.",
+      "never": "Never",
+      "created": "Token created. You won't be able to see this token again — copy it now.",
+      "copied": "Copied!",
+      "copy": "Copy",
+      "createTitle": "Create new token",
+      "namePlaceholder": "Token name (e.g. Hearth dashboard)",
+      "name": "Token name",
+      "scopes": "Scopes",
+      "noScope": "Select at least one scope.",
+      "expires": "Expires",
+      "creating": "Creating…",
+      "create": "Create Token",
+      "empty": "No API tokens yet. Create one above.",
+      "expired": "expired",
+      "dates": "Created {created} · Last used {lastUsed} · Expires {expires}",
+      "revokeLabel": "Revoke {name}",
+      "revoking": "Revoking…",
+      "revoke": "Revoke"
+    },
+    "scopes": {
+      "read:services": {
+        "label": "Read services",
+        "description": "Services and groups"
+      },
+      "read:metrics": {
+        "label": "Read metrics",
+        "description": "Uptime, status history and the Prometheus export"
+      },
+      "read:widgets": {
+        "label": "Read widgets",
+        "description": "Widgets and dashboard data"
+      },
+      "write:services": {
+        "label": "Write services",
+        "description": "Create, change, delete and recheck services and groups"
+      },
+      "mcp": {
+        "label": "MCP",
+        "description": "Let an AI assistant read your dashboard through /mcp"
+      }
+    },
+    "expiry": {
+      "days": "{count, plural, one {# day} other {# days}}",
+      "years": "{count, plural, one {# year} other {# years}}"
+    }
+  },
   "auth": {
     "layout": {
       "tagline": "Your Personal Homelab Dashboard"
@@ -405,6 +546,144 @@
       "editable": "This dashboard follows the file NIMBUS_CONFIG_FILE points at. What you change here can be overwritten when the file changes or the server restarts.",
       "preferences": "Theme, layout and wallpaper settings come from the file too: changes to them are not saved.",
       "readOnlyNote": "This dashboard is managed by a config file and is read-only. Change the file instead."
+    }
+  },
+  "notifications": {
+    "page": {
+      "title": "Notifications",
+      "description": "Get alerts through a webhook, Discord, Slack, ntfy, Gotify, Telegram or Pushover when services change status",
+      "add": "Add Webhook",
+      "loadFailed": "Failed to load webhooks",
+      "saveFailed": "Failed to save webhook",
+      "confirmDelete": "Are you sure you want to delete this webhook?",
+      "testSent": "Test notification sent successfully!",
+      "testFailed": "Test failed: {error}",
+      "unknownError": "Unknown error",
+      "empty": "No webhooks configured yet",
+      "createFirst": "Create your first webhook"
+    },
+    "card": {
+      "active": "Active",
+      "disabled": "Disabled",
+      "triggers": "Triggers: {triggers}",
+      "offline": "Offline",
+      "online": "Online",
+      "none": "None",
+      "sent": "Sent: {count}",
+      "failed": "Failed: {count}",
+      "lastTriggered": "Last triggered: {date}",
+      "never": "Never",
+      "enabledLabel": "{name} enabled",
+      "disable": "Disable webhook",
+      "enable": "Enable webhook",
+      "test": "Test",
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "form": {
+      "addTitle": "Add Webhook",
+      "editTitle": "Edit Webhook",
+      "close": "Close",
+      "name": "Name",
+      "namePlaceholder": "Homelab alerts",
+      "type": "Type",
+      "optional": "{label} (optional)",
+      "savedSecret": "Saved. Leave blank to keep it",
+      "removeToken": "Remove the saved access token",
+      "priority": "Priority",
+      "priorities": {
+        "min": "Min",
+        "low": "Low",
+        "default": "Default",
+        "high": "High",
+        "urgent": "Urgent"
+      },
+      "verifyTls": "Verify TLS certificate",
+      "verifyTlsDescription": "Turn off for a server with a self-signed certificate",
+      "triggers": "Trigger Events",
+      "onOffline": "When service goes offline",
+      "onOnline": "When service comes back online",
+      "retries": "Notification Retries",
+      "retriesHint": "For offline alerts: re-check before sending to prevent false positives.",
+      "retryCount": "Retries (0-5)",
+      "retryDelay": "Delay (10-300s)",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "create": "Create Webhook",
+      "saveFailed": "Failed to save webhook",
+      "errors": {
+        "required": "{field} is required",
+        "nameTooLong": "Name must be 100 characters or less",
+        "invalidUrl": "Enter a full URL, starting with http:// or https://",
+        "ntfyTopic": "The URL must end with the topic, like https://ntfy.sh/my-topic",
+        "invalidChatId": "Chat ID must be a number or a public @channelname",
+        "noTrigger": "Select at least one trigger event"
+      }
+    },
+    "targets": {
+      "generic": {
+        "label": "Generic",
+        "description": "Standard JSON payload",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "discord": {
+        "description": "Discord-compatible embed format",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "slack": {
+        "description": "Slack Block Kit format",
+        "url": {
+          "label": "Webhook URL"
+        }
+      },
+      "ntfy": {
+        "description": "Push to an ntfy topic, on ntfy.sh or your own server",
+        "url": {
+          "label": "Topic URL",
+          "help": "The server address followed by the topic name."
+        },
+        "token": {
+          "label": "Access token",
+          "help": "Only needed for protected topics."
+        }
+      },
+      "gotify": {
+        "description": "Push to a Gotify server",
+        "url": {
+          "label": "Server URL"
+        },
+        "token": {
+          "label": "App token",
+          "help": "Create an application in Gotify and copy its token."
+        }
+      },
+      "telegram": {
+        "description": "Message from your Telegram bot",
+        "token": {
+          "label": "Bot token",
+          "help": "From @BotFather."
+        },
+        "chatId": {
+          "label": "Chat ID",
+          "help": "A user, group or channel ID, or a public @channelname."
+        }
+      },
+      "pushover": {
+        "description": "Push through Pushover",
+        "token": {
+          "label": "App token",
+          "help": "The API token of your Pushover application."
+        },
+        "userKey": {
+          "label": "User key",
+          "help": "Your user key or a group key."
+        }
+      }
     }
   },
   "preferences": {
