@@ -15,12 +15,16 @@ import { useGroupMonitoringLock } from '@/hooks/useGroupMonitoringLock'
 import { useConfigFile } from '@/hooks/useConfigFile'
 import { canEdit } from '@/lib/config-file'
 import { ReadOnlyNote } from '@/components/ConfigFileBanner'
+import BoardSelect from '@/components/boards/BoardSelect'
 
 interface ServiceFormProps {
   // Edits this service when set, otherwise creates a new one
   service?: Service
   // Group preselected for a new service; falls back to the default group
   initialGroupId?: string | null
+  // The board whose groups are offered and a new service goes to; the
+  // user's default board when undefined
+  boardId?: string
   // 'page' is a card on a page, 'modal' fills a dialog and scrolls inside it
   variant?: 'page' | 'modal'
   onSaved: (service: Service) => void
@@ -40,6 +44,7 @@ const cancelClass =
 export default function ServiceForm({
   service,
   initialGroupId,
+  boardId,
   variant = 'page',
   onSaved,
   cancelHref,
@@ -57,6 +62,8 @@ export default function ServiceForm({
   const [uploadedFile, setUploadedFile] = useState<File | null>(null)
   const [groups, setGroups] = useState<Group[]>([])
   const [groupsLoading, setGroupsLoading] = useState(true)
+  // Another board moves the service there, out of its group; '' stays
+  const [moveTo, setMoveTo] = useState('')
 
   const [formData, setFormData] = useState({
     name: service?.name ?? '',
@@ -81,6 +88,8 @@ export default function ServiceForm({
 
   // Fetch groups when grouping is enabled
   useEffect(() => {
+    // Groups of a board asked for before the last one are not shown
+    let stale = false
     const fetchGroups = async () => {
       if (!enableServiceGrouping) {
         setGroupsLoading(false)
@@ -89,7 +98,9 @@ export default function ServiceForm({
 
       setGroupsLoading(true)
       try {
-        const response = await api.getGroups()
+        // A service is edited with the groups of the board it is on
+        const response = await api.getGroups(service?.board_id ?? boardId)
+        if (stale) return
         if (response.error) {
           setError(`Failed to load groups: ${response.error.message}`)
           return
@@ -109,14 +120,17 @@ export default function ServiceForm({
         }
       } catch (error) {
         console.error('Failed to fetch groups:', error)
-        setError('Failed to load groups. Please try again.')
+        if (!stale) setError('Failed to load groups. Please try again.')
       } finally {
-        setGroupsLoading(false)
+        if (!stale) setGroupsLoading(false)
       }
     }
 
     fetchGroups()
-  }, [enableServiceGrouping, initialGroupId, isEdit])
+    return () => {
+      stale = true
+    }
+  }, [enableServiceGrouping, initialGroupId, isEdit, boardId, service?.board_id])
 
   const setSaving = (next: boolean) => {
     setIsSaving(next)
@@ -163,16 +177,18 @@ export default function ServiceForm({
         monitoring_enabled: formData.monitoring_enabled,
       }
       // An update sends '' to clear the group or unlink the integration; a
-      // new service leaves them out
+      // new service leaves them out. A move leaves the group behind.
       const response = service
         ? await api.updateService(service.id, {
             ...data,
-            group_id: enableServiceGrouping ? formData.group_id : undefined,
+            group_id: moveTo ? '' : enableServiceGrouping ? formData.group_id : undefined,
             integration_id: formData.integration_id,
+            ...(moveTo && { board_id: moveTo }),
           })
         : await api.createService({
             ...data,
             group_id: enableServiceGrouping && formData.group_id ? formData.group_id : undefined,
+            board_id: boardId,
             integration_id: formData.integration_id || undefined,
           })
 
@@ -283,8 +299,18 @@ export default function ServiceForm({
             onFileSelect={(file) => setUploadedFile(file)}
           />
 
-          {/* Group Selector (only when grouping is enabled) */}
-          {enableServiceGrouping && (
+          {service && (
+            <BoardSelect
+              id="service-board"
+              currentBoardId={service.board_id}
+              value={moveTo}
+              onChange={setMoveTo}
+              disabled={isSaving}
+            />
+          )}
+
+          {/* Group Selector (only when grouping is enabled); a move clears it */}
+          {enableServiceGrouping && !moveTo && (
             <GroupSelector
               value={formData.group_id}
               onChange={(value) => setFormData((prev) => ({ ...prev, group_id: value }))}

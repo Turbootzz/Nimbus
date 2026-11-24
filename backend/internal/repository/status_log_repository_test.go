@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func setupStatusLogTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table (use INTEGER for autoincrement in SQLite)
 	_, err = db.Exec(`

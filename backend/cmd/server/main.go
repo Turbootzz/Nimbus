@@ -155,6 +155,11 @@ func main() {
 	}
 	widgetPoller := workers.NewWidgetPoller(liveDataService)
 	widgetService.SetPoller(widgetPoller)
+	// Boards: who may see which one is decided in boardService only
+	boardRepo := repository.NewBoardRepository(database)
+	boardService := services.NewBoardService(boardRepo)
+	widgetService.SetBoards(boardService)
+	boardReader := &services.BoardReader{Boards: boardService, Services: serviceRepo, Groups: groupRepo, Widgets: widgetService, Live: liveDataService}
 	integrationService.SetPoller(widgetPoller)
 	healthCheckService.SetStatusPublisher(liveDataService)
 
@@ -164,15 +169,19 @@ func main() {
 	serviceHandler := handlers.NewServiceHandler(serviceRepo, groupRepo, healthCheckService, integrationRepo)
 	serviceHandler.SetPreferences(preferencesRepo)
 	serviceHandler.SetPoller(widgetPoller)
+	serviceHandler.SetBoards(boardService)
 	preferencesHandler := handlers.NewPreferencesHandler(preferencesRepo)
 	preferencesHandler.SetPoller(widgetPoller)
 	// Wallpapers of users deleted by an admin, or left by a crash
 	go handlers.PruneWallpapers(context.Background(), preferencesRepo)
 	adminHandler := handlers.NewAdminHandler(userRepo)
 	metricsHandler := handlers.NewMetricsHandler(metricsService, serviceRepo)
+	metricsHandler.SetBoards(boardService)
 	uploadHandler := handlers.NewUploadHandler(userRepo)
 	staticHandler := handlers.NewStaticHandler()
 	groupHandler := handlers.NewGroupHandler(groupRepo)
+	groupHandler.SetBoards(boardService)
+	boardHandler := handlers.NewBoardHandler(boardService)
 	webhookHandler := handlers.NewWebhookHandler(webhookRepo, notificationService)
 	passwordHandler := handlers.NewPasswordHandler(userRepo, authService, emailService, passwordResetRepo)
 	settingsHandler := handlers.NewSettingsHandler(settingsRepo, emailService)
@@ -182,14 +191,17 @@ func main() {
 	middleware.SetAPITokenRateLimit(getEnvPositiveInt("API_TOKEN_RATE_LIMIT", middleware.DefaultAPITokenRateLimit))
 	integrationHandler := handlers.NewIntegrationHandler(integrationService)
 	widgetHandler := handlers.NewWidgetHandler(widgetService)
+	widgetHandler.SetBoards(boardService)
 	discoveryHandler := handlers.NewDiscoveryHandler(discoveryService)
 	dashboardHandler := handlers.NewDashboardHandler(liveDataService, sseHub)
+	dashboardHandler.SetBoards(boardService)
 	statusPageService := services.NewStatusPageService(settingsRepo, groupRepo, serviceRepo, statusLogRepo, userRepo, handlers.UploadDir)
 	statusPageHandler := handlers.NewStatusPageHandler(statusPageService)
 
 	// Dashboard export/import
 	transferService := services.NewDashboardTransferService(services.DashboardTransferDeps{
 		Dashboard:          repository.NewDashboardRepository(database),
+		Boards:             boardRepo,
 		Groups:             groupRepo,
 		Services:           serviceRepo,
 		Widgets:            widgetRepo,
@@ -332,6 +344,16 @@ func main() {
 	groups.Put("/:id<guid>", groupHandler.UpdateGroup)
 	groups.Delete("/:id<guid>", groupHandler.DeleteGroup)
 
+	// Board routes. Listing is a read like the services on them; managing
+	// boards is session only (sharing one makes it public to every user).
+	boardRoutes := v1.Group("/boards", middleware.AuthMiddleware(authService, userRepo, apiTokenRepo, models.ScopeReadServices), lockDashboard)
+	boardRoutes.Get("/", boardHandler.ListBoards)
+	boardRoutes.Post("/", sessionOnly, boardHandler.CreateBoard)
+	boardRoutes.Put("/reorder", sessionOnly, boardHandler.ReorderBoards) // Must be before /:id routes
+	boardRoutes.Put("/:id<guid>", sessionOnly, boardHandler.UpdateBoard)
+	boardRoutes.Delete("/:id<guid>", sessionOnly, boardHandler.DeleteBoard)
+	boardRoutes.Get("/:id<guid>/integrations", sessionOnly, boardHandler.ListBoardIntegrations)
+
 	// Webhook routes (protected; session only: webhook URLs are secrets and
 	// a webhook makes the server send requests)
 	webhooks := v1.Group("/webhooks", sessionAuth, sessionOnly)
@@ -456,6 +478,7 @@ func main() {
 		Snapshots:    liveDataService,
 		Integrations: integrationService,
 		Health:       healthCheckService,
+		Boards:       boardReader,
 		Users:        userRepo,
 		Tokens:       apiTokenRepo,
 	}))

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -57,6 +58,7 @@ func setupDiscoveryTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(discoveryTestSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

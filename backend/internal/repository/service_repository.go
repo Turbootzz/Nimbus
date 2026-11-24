@@ -39,10 +39,13 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 	if service.Position, err = nextTilePosition(ctx, tx, service.UserID); err != nil {
 		return err
 	}
+	if service.BoardID, err = boardOr(ctx, tx, service.UserID, service.BoardID); err != nil {
+		return err
+	}
 
 	query := `
-		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		INSERT INTO services (user_id, name, url, icon, icon_type, icon_image_path, description, status, position, card_size, group_id, integration_id, monitoring_enabled, created_at, updated_at, board_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
 		RETURNING id
 	`
 
@@ -64,6 +67,7 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 		service.MonitoringEnabled,
 		service.CreatedAt,
 		service.UpdatedAt,
+		service.BoardID,
 	).Scan(&service.ID)
 	if err != nil {
 		return err
@@ -76,14 +80,14 @@ func (r *ServiceRepository) Create(ctx context.Context, service *models.Service)
 const serviceColumns = `
 	id, user_id, name, url, icon, icon_type, icon_image_path, description, status,
 	response_time, position, card_size, group_id, integration_id, monitoring_enabled,
-	created_at, updated_at
+	created_at, updated_at, board_id
 `
 
 // monitoredServiceColumns is serviceColumns for queries that join groups as g
 const monitoredServiceColumns = `
 	s.id, s.user_id, s.name, s.url, s.icon, s.icon_type, s.icon_image_path, s.description, s.status,
 	s.response_time, s.position, s.card_size, s.group_id, s.integration_id, s.monitoring_enabled,
-	s.created_at, s.updated_at
+	s.created_at, s.updated_at, s.board_id
 `
 
 func scanService(row rowScanner) (*models.Service, error) {
@@ -106,6 +110,7 @@ func scanService(row rowScanner) (*models.Service, error) {
 		&service.MonitoringEnabled,
 		&service.CreatedAt,
 		&service.UpdatedAt,
+		&service.BoardID,
 	)
 	if err != nil {
 		return nil, err
@@ -138,10 +143,16 @@ func (r *ServiceRepository) GetByID(ctx context.Context, id string) (*models.Ser
 	return scanService(r.db.QueryRowContext(ctx, query, id))
 }
 
-// GetAllByUserID retrieves all services for a specific user
+// GetAllByUserID retrieves all services for a specific user, on all their boards
 func (r *ServiceRepository) GetAllByUserID(ctx context.Context, userID string) ([]*models.Service, error) {
 	query := `SELECT ` + serviceColumns + ` FROM services WHERE user_id = $1 ORDER BY position ASC, created_at DESC`
 	return r.queryServices(ctx, query, userID)
+}
+
+// GetAllByBoardID retrieves the services on one board
+func (r *ServiceRepository) GetAllByBoardID(ctx context.Context, boardID string) ([]*models.Service, error) {
+	query := `SELECT ` + serviceColumns + ` FROM services WHERE board_id = $1 ORDER BY position ASC, created_at DESC`
+	return r.queryServices(ctx, query, boardID)
 }
 
 // GetAll retrieves all services across all users
@@ -186,38 +197,58 @@ func (r *ServiceRepository) GetAllForMonitoringByUserID(ctx context.Context, use
 
 // GetMonitoredByGroup retrieves the services of one group that are health
 // checked, by the rule of GetAllForMonitoring. A default group also holds
-// its owner's ungrouped services, as on the dashboard.
+// the ungrouped services of its board, as on the dashboard.
 func (r *ServiceRepository) GetMonitoredByGroup(ctx context.Context, group *models.Group) ([]*models.Service, error) {
 	query := `
 		SELECT ` + monitoredServiceColumns + `
 		FROM services s
 		LEFT JOIN groups g ON s.group_id = g.id
-		WHERE (s.group_id = $1 OR (s.group_id IS NULL AND s.user_id = $2))
+		WHERE (s.group_id = $1 OR (s.group_id IS NULL AND s.board_id = $2))
 		  AND s.monitoring_enabled = TRUE
 		  AND (s.group_id IS NULL OR g.monitoring_enabled = TRUE)
 		ORDER BY s.position ASC, s.created_at DESC
 	`
-	return r.queryServices(ctx, query, group.ID, ungroupedOwner(group))
+	return r.queryServices(ctx, query, group.ID, ungroupedBoard(group))
 }
 
-// ungroupedOwner is the user whose ungrouped services belong to group: its
-// owner for a default group, else nil, which matches no one
-func ungroupedOwner(group *models.Group) any {
+// ungroupedBoard is the board whose ungrouped services belong to group: its
+// board for a default group, else nil, which matches nothing
+func ungroupedBoard(group *models.Group) any {
 	if group.IsDefault {
-		return group.UserID
+		return group.BoardID
 	}
 	return nil
 }
 
-// Update updates an existing service
+// Update saves the editable fields of the user's service if it is still on
+// service.BoardID: the caller checked its group against that board, so a
+// service moved to another board meanwhile is left alone (sql.ErrNoRows)
 func (r *ServiceRepository) Update(ctx context.Context, service *models.Service) error {
+	return updateService(ctx, r.db, service)
+}
+
+// Move saves the service like Update and puts it on boardID, after the
+// user's last tile, in one transaction. The caller checks that the board is
+// the user's and sets the service's group for it.
+func (r *ServiceRepository) Move(ctx context.Context, service *models.Service, boardID string) error {
+	position, err := moveTile(ctx, r.db, "services", service.UserID, service.ID, boardID, func(tx *sql.Tx) error {
+		return updateService(ctx, tx, service)
+	})
+	if err != nil {
+		return err
+	}
+	service.BoardID, service.Position = boardID, position
+	return nil
+}
+
+func updateService(ctx context.Context, q execQuerier, service *models.Service) error {
 	query := `
 		UPDATE services
 		SET name = $1, url = $2, icon = $3, icon_type = $4, icon_image_path = $5, description = $6, card_size = $7, group_id = $8, integration_id = $9, monitoring_enabled = $10, updated_at = $11
-		WHERE id = $12 AND user_id = $13
+		WHERE id = $12 AND user_id = $13 AND board_id = $14
 	`
 
-	result, err := r.db.ExecContext(
+	result, err := q.ExecContext(
 		ctx,
 		query,
 		service.Name,
@@ -233,6 +264,7 @@ func (r *ServiceRepository) Update(ctx context.Context, service *models.Service)
 		service.UpdatedAt,
 		service.ID,
 		service.UserID,
+		service.BoardID,
 	)
 
 	if err != nil {
@@ -368,7 +400,7 @@ func (r *ServiceRepository) bulkUpdatePositionsPostgreSQL(ctx context.Context, u
 
 	// Verify all services were updated
 	if int(rowsAffected) != len(positions) {
-		return fmt.Errorf("expected to update %d services, but updated %d (service not found or access denied)", len(positions), rowsAffected)
+		return fmt.Errorf("expected to update %d services, but updated %d: %w", len(positions), rowsAffected, sql.ErrNoRows)
 	}
 
 	return tx.Commit()

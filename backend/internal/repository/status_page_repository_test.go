@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -48,6 +49,7 @@ func setupStatusPageTestDB(t *testing.T) *sql.DB {
 		);
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 
@@ -63,6 +65,14 @@ func seedStatusPageService(t *testing.T, db *sql.DB, id, groupID string, positio
 		Position: position, GroupID: group, MonitoringEnabled: monitored,
 		CreatedAt: time.Now(), UpdatedAt: time.Now(),
 	})
+}
+
+// defaultBoardOf is the default board AddBoards gave the user's rows
+func defaultBoardOf(t *testing.T, db *sql.DB, userID string) string {
+	t.Helper()
+	var id string
+	require.NoError(t, db.QueryRow(`SELECT id FROM boards WHERE user_id = ? AND is_default = 1`, userID).Scan(&id))
+	return id
 }
 
 // seedTheirUngroupedService adds a monitored ungrouped service of user-2,
@@ -119,7 +129,7 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup(t *testing.T) {
 	assert.Equal(t, models.UptimeBucket{ServiceID: "svc-b", Hour: 2, Total: 1, Online: 1}, got["svc-b@2h0m0s"])
 
 	// A default group also counts its owner's ungrouped services, and only theirs
-	buckets, err = repo.GetHourlyUptimeByGroup(context.Background(), &models.Group{ID: "group-1", UserID: "user-1", IsDefault: true}, from, recentFrom)
+	buckets, err = repo.GetHourlyUptimeByGroup(context.Background(), &models.Group{ID: "group-1", UserID: "user-1", IsDefault: true, BoardID: defaultBoardOf(t, db, "user-1")}, from, recentFrom)
 	require.NoError(t, err)
 	assert.Len(t, buckets, 4)
 	for _, b := range buckets {
@@ -137,12 +147,16 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup_Empty(t *testing.T) {
 }
 
 // The exact 24 hour and 7 day cutoffs hold for a default group's ungrouped
-// services too, and another user's ungrouped checks stay out
+// services too, and ungrouped checks of another board or user stay out
 func TestStatusLogRepository_GetHourlyUptimeByGroup_DefaultGroupWindows(t *testing.T) {
 	db := setupStatusPageTestDB(t)
 	repo := NewStatusLogRepository(db)
 
 	seedStatusPageService(t, db, "svc-ungrouped", "", 0, true)
+	seedStatusPageService(t, db, "svc-other-board", "", 1, true)
+	_, err := db.Exec(`INSERT INTO boards (id, user_id, name, slug) VALUES ('board-work', 'user-1', 'Work', 'work');
+		UPDATE services SET board_id = 'board-work' WHERE id = 'svc-other-board'`)
+	require.NoError(t, err)
 	seedTheirUngroupedService(t, db, "svc-theirs")
 
 	now := time.Date(2026, 11, 24, 12, 34, 56, 0, time.UTC)
@@ -152,9 +166,11 @@ func TestStatusLogRepository_GetHourlyUptimeByGroup_DefaultGroupWindows(t *testi
 	seedStatusLog(t, db, "svc-ungrouped", models.StatusOffline, recentFrom.Add(-time.Second))
 	seedStatusLog(t, db, "svc-ungrouped", models.StatusOnline, recentFrom.Add(time.Second))
 	seedStatusLog(t, db, "svc-ungrouped", models.StatusOnline, now.Add(-time.Second))
+	seedStatusLog(t, db, "svc-other-board", models.StatusOffline, now.Add(-time.Second))
 	seedStatusLog(t, db, "svc-theirs", models.StatusOffline, now.Add(-time.Second))
 
-	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), &models.Group{ID: "group-1", UserID: "user-1", IsDefault: true}, from, recentFrom)
+	group := &models.Group{ID: "group-1", UserID: "user-1", IsDefault: true, BoardID: defaultBoardOf(t, db, "user-1")}
+	buckets, err := repo.GetHourlyUptimeByGroup(context.Background(), group, from, recentFrom)
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []models.UptimeBucket{
 		// Hour 0 starts at 12:00, but the check at from minus a second is out
@@ -183,6 +199,11 @@ func TestServiceRepository_GetMonitoredByGroup(t *testing.T) {
 	seedStatusPageService(t, db, "paused", "group-off", 0, true)
 	seedStatusPageService(t, db, "ungrouped", "", 0, true)
 	seedStatusPageService(t, db, "ungrouped-off", "", 4, false)
+	// Ungrouped on another board of the same user: never on this page
+	seedStatusPageService(t, db, "other-board", "", 0, true)
+	_, err := db.Exec(`INSERT INTO boards (id, user_id, name, slug) VALUES ('board-work', 'user-1', 'Work', 'work');
+		UPDATE services SET board_id = 'board-work' WHERE id = 'other-board'`)
+	require.NoError(t, err)
 	seedTheirUngroupedService(t, db, "theirs")
 
 	services, err := repo.GetMonitoredByGroup(context.Background(), public)
@@ -196,13 +217,13 @@ func TestServiceRepository_GetMonitoredByGroup(t *testing.T) {
 	assert.Empty(t, none)
 
 	// The default group holds the ungrouped services too, as on the dashboard
-	public.IsDefault = true
+	public.IsDefault, public.BoardID = true, defaultBoardOf(t, db, "user-1")
 	services, err = repo.GetMonitoredByGroup(context.Background(), public)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"ungrouped", "first", "second"}, serviceIDs(services))
 
 	// Ungrouped services follow only their own flag, also in a paused default group
-	paused.IsDefault = true
+	paused.IsDefault, paused.BoardID = true, public.BoardID
 	services, err = repo.GetMonitoredByGroup(context.Background(), paused)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"ungrouped"}, serviceIDs(services))

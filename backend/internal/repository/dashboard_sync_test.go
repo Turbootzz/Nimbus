@@ -182,4 +182,16 @@ func TestDashboardSyncChecksTheLimitsUnderTheLock(t *testing.T) {
 	changes = &DashboardChanges{Create: DashboardRows{Widgets: []*models.Widget{widget("from-file")}}}
 	changes.Delete.Widgets = []string{"mine-widget"}
 	require.NoError(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
+
+	// The limits are per user: a widget on another board counts too
+	onBoard := widget("on-board")
+	onBoard.BoardID = "mine-board"
+	changes = &DashboardChanges{Create: DashboardRows{
+		Boards:  []*models.Board{{ID: "mine-board", Name: "Lab", Slug: "lab"}},
+		Widgets: []*models.Widget{onBoard},
+	}}
+	changes.Delete.Widgets = []string{"from-file"}
+	require.NoError(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits))
+	changes = &DashboardChanges{Create: DashboardRows{Widgets: []*models.Widget{widget("from-file-2")}}}
+	assert.ErrorIs(t, repo.Sync(ctx, "user-1", changes, testDashboardLimits), ErrWidgetLimitReached)
 }

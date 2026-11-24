@@ -9,7 +9,8 @@ import (
 // DashboardChanges is what a dashboard sync writes: only the rows that are
 // new, changed or gone
 type DashboardChanges struct {
-	// Create holds the new rows, and the preferences to save (nil: none)
+	// Create holds the new rows, the boards to create or update, and the
+	// preferences to save (nil: none)
 	Create DashboardRows
 	// Update holds changed rows in full; they keep their ID
 	Update DashboardRows
@@ -26,7 +27,7 @@ func (c *DashboardChanges) Empty() bool {
 	rows := func(r *DashboardRows) int {
 		return len(r.Groups) + len(r.Integrations) + len(r.Services) + len(r.Widgets)
 	}
-	return rows(&c.Create)+rows(&c.Update)+len(c.Credentials) == 0 && c.Create.Preferences == nil &&
+	return rows(&c.Create)+rows(&c.Update)+len(c.Credentials)+len(c.Create.Boards) == 0 && c.Create.Preferences == nil &&
 		len(c.Delete.Groups)+len(c.Delete.Integrations)+len(c.Delete.Services)+len(c.Delete.Widgets) == 0
 }
 
@@ -45,16 +46,17 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 	if err := lockUser(ctx, tx, userID); err != nil {
 		return err
 	}
-	// Counted under the lock: the user may have added rows since the sync
-	// was planned
-	before, err := dashboardState(ctx, tx, userID)
+	// Counted under the lock, on all boards as the limits are per user: the
+	// user may have added rows since the sync was planned
+	var kept DashboardState
+	err = tx.QueryRowContext(ctx, `
+		SELECT (SELECT COUNT(*) FROM integrations WHERE user_id = $1), (SELECT COUNT(*) FROM widgets WHERE user_id = $1)`,
+		userID).Scan(&kept.Integrations, &kept.Widgets)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read dashboard state: %w", err)
 	}
-	kept := DashboardState{
-		Integrations: before.Integrations - len(changes.Delete.Integrations),
-		Widgets:      before.Widgets - len(changes.Delete.Widgets),
-	}
+	kept.Integrations -= len(changes.Delete.Integrations)
+	kept.Widgets -= len(changes.Delete.Widgets)
 	if err := changes.Create.CheckLimits(kept, limits); err != nil {
 		return err
 	}
@@ -70,9 +72,17 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		return nil
 	}
 
+	defaultBoard, err := defaultBoardID(ctx, tx, userID)
+	if err != nil {
+		return err
+	}
+	changes.Create.own(userID, defaultBoard)
+	// New boards, and the ones whose name or shared flag the document changes
+	if err := upsertBoards(ctx, tx, &changes.Create, true); err != nil {
+		return err
+	}
 	// Groups and integrations first: tiles point at them
 	for _, group := range changes.Create.Groups {
-		group.UserID = userID
 		if err := insertGroup(ctx, tx, group); err != nil {
 			return err
 		}
@@ -89,7 +99,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		}
 	}
 	for _, integration := range changes.Create.Integrations {
-		integration.UserID = userID
 		if err := insertIntegration(ctx, tx, integration); err != nil {
 			return err
 		}
@@ -114,7 +123,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 	}
 
 	for _, service := range changes.Create.Services {
-		service.UserID = userID
 		if err := insertService(ctx, tx, service); err != nil {
 			return err
 		}
@@ -132,7 +140,6 @@ func (r *DashboardRepository) Sync(ctx context.Context, userID string, changes *
 		}
 	}
 	for _, widget := range changes.Create.Widgets {
-		widget.UserID = userID
 		if err := insertWidget(ctx, tx, widget); err != nil {
 			return err
 		}

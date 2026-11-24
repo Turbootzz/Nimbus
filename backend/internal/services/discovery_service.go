@@ -374,7 +374,8 @@ func (s *DiscoveryService) groupID(ctx context.Context, userID, name string) (*s
 	}
 	s.groupMu.Lock()
 	defer s.groupMu.Unlock()
-	groups, err := s.groups.GetAllByUserID(ctx, userID)
+	// Discovered services go to the default board, so its groups only
+	groups, err := s.groups.GetAllOnDefaultBoard(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list groups: %w", err)
 	}

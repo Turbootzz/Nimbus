@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 
 	"github.com/nimbus/backend/internal/models"
@@ -284,6 +285,7 @@ func TestIntegrationRepository_ListInUse(t *testing.T) {
 		CREATE TABLE services (id TEXT PRIMARY KEY, integration_id TEXT);
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 
 	used := createTestIntegration(t, repo, "user-1", "Used", nil)
 	usedByService := createTestIntegration(t, repo, "user-1", "Service", nil)

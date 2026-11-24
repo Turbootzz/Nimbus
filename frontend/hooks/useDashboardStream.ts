@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { api } from '@/lib/api'
+import { BOARD_NOT_FOUND } from '@/lib/boards'
 import { getApiUrl } from '@/lib/utils/api-url'
 import type { ServiceStatusEvent, Snapshot } from '@/types'
 
@@ -35,6 +36,9 @@ function mergeNewer(current: SnapshotMap, loaded: Snapshot[]): SnapshotMap {
 }
 
 interface DashboardStreamOptions {
+  // The board to follow; the user's default board when undefined. A change
+  // does not reconnect: the dashboard remounts per board.
+  boardId?: string
   // A health check finished for one of the user's services
   onServiceStatus: (event: ServiceStatusEvent) => void
   // Refetch services; called while the stream is down and after it recovers
@@ -46,7 +50,7 @@ interface DashboardStreamOptions {
  * /dashboard/stream. Reconnects with backoff (1s to 30s) and polls every 30s
  * while disconnected.
  */
-export function useDashboardStream({ onServiceStatus, onResync }: DashboardStreamOptions) {
+export function useDashboardStream({ boardId, onServiceStatus, onResync }: DashboardStreamOptions) {
   const [snapshots, setSnapshots] = useState<SnapshotMap>({})
   const [connected, setConnected] = useState(false)
 
@@ -56,7 +60,12 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
     handlers.current = { onServiceStatus, onResync }
   })
 
+  // Read once, like the board itself (see boardId)
+  const board = useRef(boardId)
+
   useEffect(() => {
+    const boardId = board.current
+    const query = boardId ? `?board=${encodeURIComponent(boardId)}` : ''
     let source: EventSource | null = null
     let retryTimer: ReturnType<typeof setTimeout> | undefined
     let loadTimer: ReturnType<typeof setTimeout> | undefined
@@ -64,16 +73,30 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
     let retryDelay = MIN_RETRY_MS
     let failures = 0
     let closed = false
+    // The board was unshared or deleted: nothing to follow anymore
+    let gone = false
 
     // Retries on failure, or polled widgets would wait for their next fetch
     const loadData = async () => {
       clearTimeout(loadTimer)
       try {
-        const response = await api.getDashboardData()
+        const response = await api.getDashboardData(boardId)
         if (closed) return
         if (response.data) {
           const loaded = response.data
           setSnapshots((current) => mergeNewer(current, loaded))
+          return
+        }
+        if (response.error?.message === BOARD_NOT_FOUND) {
+          // Stop retrying; the view moves to another board (onResync)
+          if (!gone) {
+            gone = true
+            source?.close()
+            clearTimeout(retryTimer)
+            handlers.current.onResync()
+            // Polling stays as the fallback, should that resync be skipped
+            if (!pollTimer) pollTimer = setInterval(resync, FALLBACK_POLL_MS)
+          }
           return
         }
         console.error('Failed to load dashboard data:', response.error?.message)
@@ -94,8 +117,10 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
     }
 
     const connect = () => {
-      if (closed) return
-      source = new EventSource(`${getApiUrl()}/dashboard/stream`, { withCredentials: true })
+      if (closed || gone) return
+      source = new EventSource(`${getApiUrl()}/dashboard/stream${query}`, {
+        withCredentials: true,
+      })
 
       source.addEventListener('hello', () => {
         setConnected(true)
@@ -120,6 +145,8 @@ export function useDashboardStream({ onServiceStatus, onResync }: DashboardStrea
         source?.close()
         setConnected(false)
         failures++
+        // EventSource hides a 404 too: ask whether the board is still there
+        if (failures === 1 && boardId) loadData()
         if (failures === AUTH_CHECK_AFTER_ERRORS) api.getCurrentUser()
         if (!pollTimer) pollTimer = setInterval(resync, FALLBACK_POLL_MS)
         retryTimer = setTimeout(connect, retryDelay)

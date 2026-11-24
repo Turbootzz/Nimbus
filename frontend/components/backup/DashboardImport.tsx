@@ -305,10 +305,12 @@ export default function DashboardImport() {
               >
                 <p className="font-medium">Replace deletes your current dashboard.</p>
                 <p>
-                  All your groups, services, widgets and integrations are deleted, including the
-                  credentials saved with your integrations and the status history of your services,
-                  and your preferences are overwritten. This cannot be undone. Export first if you
-                  want a way back.
+                  The groups, services and widgets on your default board and on the boards the file
+                  lists are deleted, with the status history of those services. So are your
+                  integrations and their saved credentials, except those that tiles on your other
+                  boards still use. Other boards stay as they are. Your preferences are overwritten.
+                  This cannot be undone. Export first to keep a way back; the export leaves out
+                  credentials, widget secrets and status history.
                 </p>
               </div>
             )}
@@ -363,7 +365,7 @@ export default function DashboardImport() {
       {confirming && ready && (
         <ConfirmDialog
           title="Replace your dashboard?"
-          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, the credentials saved with your integrations and the status history of your services, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
+          message={`This deletes ${willDelete} existing ${willDelete === 1 ? 'item' : 'items'}, with the credentials and status history they hold, overwrites your preferences, then imports the file. It cannot be undone. ${statusPageNote(ready) ?? ''}`.trim()}
           confirmLabel="Replace"
           onConfirm={apply}
           onCancel={() => setConfirming(false)}

@@ -13,6 +13,12 @@ import (
 type MetricsHandler struct {
 	metricsService *services.MetricsService
 	serviceRepo    repository.ServiceRepositoryInterface
+	boards         *services.BoardService // nil: one dashboard per user
+}
+
+// SetBoards lets a viewer of a shared board read the metrics of its services
+func (h *MetricsHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func NewMetricsHandler(metricsService *services.MetricsService, serviceRepo repository.ServiceRepositoryInterface) *MetricsHandler {
@@ -42,7 +48,8 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 		return NotFound(c, "Service not found")
 	}
 
-	if service.UserID != userID {
+	// The owner, or someone who may see the board the service is on
+	if !h.boards.CanRead(c.Context(), userID, service.UserID, service.BoardID) {
 		return Forbidden(c, "Access denied")
 	}
 
@@ -79,6 +86,11 @@ func (h *MetricsHandler) GetServiceMetrics(c *fiber.Ctx) error {
 	if err != nil {
 		return InternalError(c, "Failed to retrieve metrics")
 	}
+	// What a check ran into may quote the owner's network
+	if service.UserID != userID && metrics.LastError != nil {
+		message := services.ViewerCheckError
+		metrics.LastError = &message
+	}
 
 	return Success(c, metrics)
 }
@@ -103,7 +115,8 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 		return NotFound(c, "Service not found")
 	}
 
-	if service.UserID != userID {
+	// The owner, or someone who may see the board the service is on
+	if !h.boards.CanRead(c.Context(), userID, service.UserID, service.BoardID) {
 		return Forbidden(c, "Access denied")
 	}
 
@@ -123,6 +136,10 @@ func (h *MetricsHandler) GetRecentStatusLogs(c *fiber.Ctx) error {
 	// Convert to response format
 	responses := make([]interface{}, len(logs))
 	for i, log := range logs {
+		if service.UserID != userID && log.ErrorMessage != nil {
+			message := services.ViewerCheckError
+			log.ErrorMessage = &message
+		}
 		responses[i] = log.ToResponse()
 	}
 

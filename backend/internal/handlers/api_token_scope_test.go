@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -64,6 +65,7 @@ func setupScopeTestApp(t *testing.T) (*fiber.App, *sql.DB) {
 			VALUES ('eeeeeeee-eeee-eeee-eeee-eeeeeeeeee01', '` + scopeTestUserID + `', 'Jellyfin', 'http://jellyfin.lan', 'online', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 	`)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 
 	handler := NewServiceHandler(repository.NewServiceRepository(db), repository.NewGroupRepository(db), nil, repository.NewIntegrationRepository(db))
 	auth := middleware.AuthMiddleware(services.NewAuthService(), repository.NewUserRepository(db), repository.NewAPITokenRepository(db), models.ScopeReadServices)

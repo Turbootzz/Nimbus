@@ -25,8 +25,9 @@ interface DashboardHeaderProps {
   isDraggingTab: boolean
   addServiceHref: string
   onAddWidget: () => void
-  // The dashboard is locked by a config file: no edit or add buttons, but
-  // readOnlyNote (none when null, the config file note when undefined)
+  // The dashboard is locked by a config file, shared by someone else or in
+  // a kiosk: no edit or add buttons, but readOnlyNote (none when null, the
+  // config file note when undefined)
   readOnly?: boolean
   readOnlyNote?: string | null
 }

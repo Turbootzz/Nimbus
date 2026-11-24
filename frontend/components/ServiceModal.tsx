@@ -8,12 +8,14 @@ import { useModalLayer } from '@/hooks/useModalLayer'
 
 interface ServiceModalProps {
   service: Service
+  // The board the dashboard shows; undefined is the default board
+  boardId?: string
   onClose: () => void
   onSaved: (service: Service) => void
 }
 
 // Edits a service in place on the dashboard; looks like WidgetModal
-export default function ServiceModal({ service, onClose, onSaved }: ServiceModalProps) {
+export default function ServiceModal({ service, boardId, onClose, onSaved }: ServiceModalProps) {
   const [isSaving, setIsSaving] = useState(false)
 
   // Esc closes, except while a save is running
@@ -53,6 +55,7 @@ export default function ServiceModal({ service, onClose, onSaved }: ServiceModal
         {/* The form focuses its first field when it opens */}
         <ServiceForm
           service={service}
+          boardId={boardId}
           variant="modal"
           onSaved={onSaved}
           onCancel={onClose}

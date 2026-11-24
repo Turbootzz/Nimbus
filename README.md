@@ -54,6 +54,7 @@ Multi-user support, real-time health checks, beautiful themes, and Prometheus me
 - Groups as tabs or as stacked sections that collapse (sections are the default on the canvas)
 - Compact chips per group for a quick-launch row of links
 - Status strip: key numbers from your apps and an "Operational / N down" pill at the top
+- Boards: more than one dashboard per user, a board an admin shares read-only with everyone, and a chrome-less kiosk view for wall screens (`?kiosk=1`) ([docs](docs/BOARDS.md))
 - Search: press `/` or Ctrl+K to find and open a service
 - Installable app (PWA): add Nimbus to your home screen or desktop; your services list stays readable offline. See [docs/PWA.md](docs/PWA.md)
 - Light/dark mode toggle
@@ -288,6 +289,7 @@ Run `make help` for all available commands.
 | [WIDGETS.md](docs/WIDGETS.md) | Widget types, RSS and custom API paths |
 | [INTEGRATIONS.md](docs/INTEGRATIONS.md) | Supported apps and how to add one |
 | [NOTIFICATIONS.md](docs/NOTIFICATIONS.md) | Alerts through webhooks, Discord, Slack, ntfy, Gotify, Telegram and Pushover |
+| [BOARDS.md](docs/BOARDS.md) | Several boards, the shared board and kiosk mode for wall screens |
 | [MCP.md](docs/MCP.md) | Connect Claude, Open WebUI or Home Assistant to your dashboard |
 | [PWA.md](docs/PWA.md) | Install Nimbus as an app, offline behaviour |
 | [THEMING.md](docs/THEMING.md) | Theme presets, fonts, icon source, custom CSS and theme files |

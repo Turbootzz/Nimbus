@@ -18,6 +18,7 @@ import (
 	"github.com/nimbus/backend/internal/middleware"
 	"github.com/nimbus/backend/internal/models"
 	"github.com/nimbus/backend/internal/repository"
+	"github.com/nimbus/backend/internal/services"
 )
 
 // DashboardURI is the resource with a summary of the dashboard
@@ -26,6 +27,7 @@ const DashboardURI = "nimbus://dashboard"
 const instructions = `Nimbus is a self-hosted homelab dashboard. This server gives read access to the services, uptime history, widgets and integrations of the user who owns the API token.
 
 - Start with list_services for an overview; "what is down?" is the services with status "offline".
+- A user can have several boards. Every tool reads the default board unless "board" names another one (name, slug or ID); the ` + DashboardURI + ` resource lists them. A board shared by an admin can be read, not changed.
 - Services can be referenced by ID or by name. Use search_services when a name is not exact.
 - get_uptime answers questions about reliability over 1h, 24h, 7d or 30d. total_checks of 0 means there is no data, not 0% uptime.
 - recheck_service is the only tool that changes anything: it runs a health check now. It needs a token with the write:services scope.
@@ -60,6 +62,14 @@ type IntegrationStore interface {
 	List(ctx context.Context, userID string) ([]models.Integration, error)
 }
 
+// BoardStore reads one board the user may see: their own, or one shared with
+// everyone. Without it (nil) a user has one dashboard.
+type BoardStore interface {
+	List(ctx context.Context, userID string) ([]*models.Board, error)
+	// Read returns repository.ErrBoardNotFound for a board the user can't see
+	Read(ctx context.Context, userID, ref string) (*services.BoardContent, error)
+}
+
 type HealthChecker interface {
 	CheckService(ctx context.Context, service *models.Service) error
 }
@@ -73,6 +83,7 @@ type Deps struct {
 	Snapshots    SnapshotSource
 	Integrations IntegrationStore
 	Health       HealthChecker
+	Boards       BoardStore
 
 	// For token authentication on the HTTP endpoint
 	Users  *repository.UserRepository

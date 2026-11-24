@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"database/sql"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -43,6 +44,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create groups table (needed for GetAllForMonitoring join)
 	_, err = db.Exec(`
@@ -61,6 +63,7 @@ func setupMetricsTestDB(t *testing.T) *sql.DB {
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`
@@ -372,6 +375,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create services table
 	_, err = db.Exec(`
@@ -398,6 +402,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterNonMonitored(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`
@@ -508,6 +513,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring(t *testing.
 	if err != nil {
 		t.Fatalf("Failed to create groups table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create services table
 	_, err = db.Exec(`
@@ -534,6 +540,7 @@ func TestMetricsService_GetPrometheusMetrics_FilterByGroupMonitoring(t *testing.
 	if err != nil {
 		t.Fatalf("Failed to create services table: %v", err)
 	}
+	testutil.AddBoards(t, db)
 
 	// Create service_status_logs table
 	_, err = db.Exec(`

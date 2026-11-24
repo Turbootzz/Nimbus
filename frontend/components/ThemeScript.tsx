@@ -6,8 +6,15 @@
  *
  */
 
-// This function will be stringified and injected into the HTML
-function applyThemeBeforeHydration() {
+import { isDashboardPath } from '@/lib/boards'
+import { isKioskSearch } from '@/lib/kiosk'
+
+// This function will be stringified and injected into the HTML. It gets the
+// path rules of lib/boards and lib/kiosk the same way, as arguments.
+function applyThemeBeforeHydration(
+  isBoardPath: (pathname: string) => boolean,
+  isKiosk: (search: string) => boolean
+) {
   try {
     // Read from localStorage
     const theme = localStorage.getItem('theme') || 'auto'
@@ -76,11 +83,12 @@ function applyThemeBeforeHydration() {
       }
     }
 
-    // Canvas layout replaces the sidebar on the dashboard; CSS hides the
-    // classic chrome until React renders the canvas. Without a stored layout
-    // (new user or browser) CSS hides the page until the preferences say
-    // which one it is.
-    if (window.location.pathname === '/dashboard') {
+    // Canvas layout replaces the sidebar on a board; CSS hides the classic
+    // chrome until React renders the canvas. Without a stored layout (new
+    // user or browser) CSS hides the page until the preferences say which
+    // one it is. Kiosk mode hides all chrome.
+    if (isBoardPath(window.location.pathname)) {
+      if (isKiosk(window.location.search)) root.setAttribute('data-kiosk', '')
       const layout = localStorage.getItem('nimbus-layout')
       if (layout === 'canvas') {
         root.setAttribute('data-layout', 'canvas')
@@ -100,7 +108,7 @@ function applyThemeBeforeHydration() {
 }
 
 export function ThemeScript() {
-  const scriptContent = `(${applyThemeBeforeHydration.toString()})()`
+  const scriptContent = `(${applyThemeBeforeHydration.toString()})(${isDashboardPath.toString()}, ${isKioskSearch.toString()})`
 
   return <script dangerouslySetInnerHTML={{ __html: scriptContent }} />
 }

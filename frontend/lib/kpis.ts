@@ -2,7 +2,11 @@ import type { Integration, IntegrationKindMeta, IntegrationPayload, Kpi } from '
 
 // The KPIs of one integration: those of its kind that fit the options it
 // has set
-export function kpisForIntegration(integration: Integration, kinds: IntegrationKindMeta[]): Kpi[] {
+// Kind and options are all it reads, so a viewer's BoardIntegration works too
+export function kpisForIntegration(
+  integration: Pick<Integration, 'kind' | 'options'>,
+  kinds: Pick<IntegrationKindMeta, 'kind' | 'kpis'>[]
+): Kpi[] {
   const kpis = kinds.find((k) => k.kind === integration.kind)?.kpis ?? []
   const isSet = (option?: string) => !!option && !!integration.options?.[option]
   return kpis.filter(

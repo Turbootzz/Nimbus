@@ -11,6 +11,12 @@ import (
 
 type WidgetHandler struct {
 	service *services.WidgetService
+	boards  *services.BoardService // nil: one dashboard per user
+}
+
+// SetBoards makes the list take ?board=
+func (h *WidgetHandler) SetBoards(boards *services.BoardService) {
+	h.boards = boards
 }
 
 func NewWidgetHandler(service *services.WidgetService) *WidgetHandler {
@@ -27,13 +33,18 @@ func (h *WidgetHandler) ListTypes(c *fiber.Ctx) error {
 	return c.JSON(h.service.Types(IsAdmin(c)))
 }
 
-// ListWidgets returns the user's widgets in grid order
+// ListWidgets returns the widgets of one board in grid order: ?board=<id>,
+// or the user's default board
 func (h *WidgetHandler) ListWidgets(c *fiber.Ctx) error {
 	userID, err := RequireUserID(c)
 	if err != nil {
 		return err
 	}
-	list, err := h.service.List(c.Context(), userID)
+	board, err := requestBoard(c, h.boards, userID)
+	if err != nil {
+		return serviceError(c, err, "list widgets", boardNotFound)
+	}
+	list, err := h.service.ListBoard(c.Context(), userID, board)
 	if err != nil {
 		return serviceError(c, err, "list widgets", widgetNotFound)
 	}

@@ -276,11 +276,11 @@ func (r *StatusLogRepository) GetHourlyUptimeByGroup(ctx context.Context, group 
 			COUNT(CASE WHEN l.checked_at >= $2 AND l.status = 'online' THEN 1 END) AS recent_online
 		FROM service_status_logs l
 		JOIN services s ON s.id = l.service_id
-		WHERE l.checked_at >= $3 AND (s.group_id = $4 OR (s.group_id IS NULL AND s.user_id = $5))
+		WHERE l.checked_at >= $3 AND (s.group_id = $4 OR (s.group_id IS NULL AND s.board_id = $5))
 		GROUP BY l.service_id, hour
 	`
 
-	rows, err := r.db.QueryContext(ctx, query, from.Truncate(time.Hour), recentFrom, from, group.ID, ungroupedOwner(group))
+	rows, err := r.db.QueryContext(ctx, query, from.Truncate(time.Hour), recentFrom, from, group.ID, ungroupedBoard(group))
 	if err != nil {
 		return nil, err
 	}

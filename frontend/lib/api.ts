@@ -4,6 +4,9 @@ import type {
   AuthResponse,
   User,
   Service,
+  Board,
+  BoardRequest,
+  BoardIntegration,
   ServiceCreateRequest,
   ServiceUpdateRequest,
   ServiceReorderRequest,
@@ -280,8 +283,47 @@ class ApiClient {
   // Services
   // ============================================
 
-  async getServices(): Promise<ApiResponse<Service[]>> {
-    return this.request<Service[]>('/services')
+  // Board endpoints. Lists take an optional board ID; without one they are
+  // about the user's default board, as before boards existed.
+  private boardQuery(boardId?: string): string {
+    return boardId ? `?board=${encodeURIComponent(boardId)}` : ''
+  }
+
+  // The user's boards, then the boards shared with everyone
+  async getBoards(): Promise<ApiResponse<Board[]>> {
+    return this.request<Board[]>('/boards')
+  }
+
+  async createBoard(data: BoardRequest): Promise<ApiResponse<Board>> {
+    return this.request<Board>('/boards', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateBoard(id: string, data: BoardRequest): Promise<ApiResponse<Board>> {
+    return this.request<Board>(`/boards/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  // ids: the user's own boards in their new order
+  async reorderBoards(ids: string[]): Promise<ApiResponse<{ message: string }>> {
+    return this.request<{ message: string }>('/boards/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ boards: ids }),
+    })
+  }
+
+  // With moveTo the board's tiles and groups go to that board, otherwise
+  // they are deleted with it
+  async deleteBoard(id: string, moveTo?: string): Promise<ApiResponse<void>> {
+    const query = moveTo ? `?move_to=${encodeURIComponent(moveTo)}` : ''
+    return this.request<void>(`/boards/${id}${query}`, { method: 'DELETE' })
+  }
+
+  // The kinds of the integrations a board's service tiles show
+  async getBoardIntegrations(id: string): Promise<ApiResponse<BoardIntegration[]>> {
+    return this.request<BoardIntegration[]>(`/boards/${id}/integrations`)
+  }
+
+  async getServices(boardId?: string): Promise<ApiResponse<Service[]>> {
+    return this.request<Service[]>(`/services${this.boardQuery(boardId)}`)
   }
 
   async getService(id: string): Promise<ApiResponse<Service>> {
@@ -339,8 +381,8 @@ class ApiClient {
   // Groups
   // ============================================
 
-  async getGroups(): Promise<ApiResponse<Group[]>> {
-    return this.request<Group[]>('/groups')
+  async getGroups(boardId?: string): Promise<ApiResponse<Group[]>> {
+    return this.request<Group[]>(`/groups${this.boardQuery(boardId)}`)
   }
 
   async getGroup(id: string): Promise<ApiResponse<Group>> {
@@ -386,8 +428,8 @@ class ApiClient {
     return this.request<WidgetTypeMeta[]>('/widgets/types')
   }
 
-  async getWidgets(): Promise<ApiResponse<Widget[]>> {
-    return this.request<Widget[]>('/widgets')
+  async getWidgets(boardId?: string): Promise<ApiResponse<Widget[]>> {
+    return this.request<Widget[]>(`/widgets${this.boardQuery(boardId)}`)
   }
 
   async createWidget(data: WidgetCreateRequest): Promise<ApiResponse<Widget>> {
@@ -488,8 +530,8 @@ class ApiClient {
   }
 
   // Latest data of all polled widgets, before the stream takes over
-  async getDashboardData(): Promise<ApiResponse<Snapshot[]>> {
-    return this.request<Snapshot[]>('/dashboard/data')
+  async getDashboardData(boardId?: string): Promise<ApiResponse<Snapshot[]>> {
+    return this.request<Snapshot[]>(`/dashboard/data${this.boardQuery(boardId)}`)
   }
 
   // Saves the order of services and widgets together

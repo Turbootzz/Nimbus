@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 
 	"github.com/nimbus/backend/internal/models"
@@ -56,6 +57,7 @@ func setupWidgetTestDB(t *testing.T) *sql.DB {
 
 	_, err = db.Exec(widgetTestSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 

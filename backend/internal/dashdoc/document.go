@@ -17,6 +17,8 @@ const Version = 1
 // 10 MiB import (an exported group takes at least 49 bytes, a service 114):
 // they never refuse an export, only a document of near-empty entries.
 const (
+	MaxBoards       = 20
+	MaxBoardNameLen = 50
 	MaxGroups       = 250_000
 	MaxServices     = 100_000
 	MaxWidgets      = 200
@@ -53,8 +55,14 @@ func ParseMode(s string) (Mode, bool) {
 // Document is a whole dashboard. Entities point at each other with refs:
 // strings that only mean something inside the document, never database IDs.
 // A ref is only required on an entity that something points at.
+//
+// Groups, services and widgets are on the user's default board unless their
+// board_ref names one of Boards. A document works on those boards only: the
+// default board and the ones it lists.
 type Document struct {
-	Version      int           `json:"version"`
+	Version int `json:"version"`
+	// Boards are the user's other boards; a dashboard with one board has none
+	Boards       []Board       `json:"boards,omitempty"`
 	Groups       []Group       `json:"groups"`
 	Integrations []Integration `json:"integrations"`
 	Services     []Service     `json:"services"`
@@ -65,13 +73,27 @@ type Document struct {
 	OmittedImages int `json:"omitted_images,omitempty"`
 }
 
+// Board is a board next to the default one. An import finds the board the
+// user already has by its slug, and creates it otherwise.
+type Board struct {
+	Ref  string `json:"ref"`
+	Name string `json:"name"`
+	// Slug is the URL name (/board/<slug>); omitted, it follows the name
+	Slug string `json:"slug,omitempty"`
+	// Shared shows the board to every user. Only an admin's import shares
+	// a board; anyone else gets a private one.
+	Shared bool `json:"shared,omitempty"`
+}
+
 // Group is a service group. Groups are ordered as listed.
 type Group struct {
 	Ref   string `json:"ref,omitempty"`
 	Name  string `json:"name"`
 	Color string `json:"color,omitempty"`
-	// Default marks the user's default group; a merge maps it onto the
-	// default group the user already has
+	// BoardRef is the board the group is on; omitted means the default board
+	BoardRef string `json:"board_ref,omitempty"`
+	// Default marks the default group of its board; a merge maps it onto
+	// the default group that board already has
 	Default           bool  `json:"default,omitempty"`
 	MonitoringEnabled *bool `json:"monitoring_enabled,omitempty"`
 	// TileStyle is "cards" or "chips"; omitted means cards
@@ -121,6 +143,9 @@ type Service struct {
 	GroupRef          string `json:"group_ref,omitempty"`
 	IntegrationRef    string `json:"integration_ref,omitempty"`
 	MonitoringEnabled *bool  `json:"monitoring_enabled,omitempty"`
+	// BoardRef is the board the tile is on, the same as its group's;
+	// omitted means the default board
+	BoardRef string `json:"board_ref,omitempty"`
 }
 
 // Widget is a tile that is not a link. Config is type-specific; where a
@@ -136,6 +161,9 @@ type Widget struct {
 	Enabled        *bool           `json:"enabled,omitempty"`
 	GroupRef       string          `json:"group_ref,omitempty"`
 	IntegrationRef string          `json:"integration_ref,omitempty"`
+	// BoardRef is the board the tile is on, the same as its group's;
+	// omitted means the default board
+	BoardRef string `json:"board_ref,omitempty"`
 	// NeedsSecrets tells the reader that the config holds masked secrets
 	// (header values, private feed URLs) that must be entered again.
 	// Informational: an import looks at the config itself.

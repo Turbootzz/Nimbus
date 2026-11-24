@@ -61,6 +61,7 @@ func Validate(doc *Document) error {
 		return issues.Err()
 	}
 
+	checkSize(&issues, "boards", len(doc.Boards), MaxBoards)
 	checkSize(&issues, "groups", len(doc.Groups), MaxGroups)
 	checkSize(&issues, "integrations", len(doc.Integrations), MaxIntegrations)
 	checkSize(&issues, "services", len(doc.Services), MaxServices)
@@ -69,12 +70,32 @@ func Validate(doc *Document) error {
 		return issues.Err()
 	}
 
-	groups, integrations, widgets, services := refSet{}, refSet{}, refSet{}, refSet{}
-	defaults := 0
+	boards, groups, integrations, widgets, services := refSet{}, refSet{}, refSet{}, refSet{}, refSet{}
+	for i, board := range doc.Boards {
+		if board.Ref == "" {
+			issues.Add(Path("boards", i, "ref"), "is required")
+		}
+		boards.add(&issues, Path("boards", i, "ref"), board.Ref)
+		if name := strings.TrimSpace(board.Name); name == "" || len([]rune(name)) > MaxBoardNameLen {
+			issues.Add(Path("boards", i, "name"), "is required, and must be %d characters or less", MaxBoardNameLen)
+		}
+	}
+	// A tile and its group are on one board
+	groupBoard := map[string]string{}
+	sameBoard := func(list string, i int, groupRef, boardRef string) {
+		if board, ok := groupBoard[groupRef]; ok && board != boardRef {
+			issues.Add(Path(list, i, "board_ref"), "must be the board of its group (%q)", board)
+		}
+	}
+	defaults := map[string]int{}
 	for i, group := range doc.Groups {
 		groups.add(&issues, Path("groups", i, "ref"), group.Ref)
+		boards.need(&issues, Path("groups", i, "board_ref"), group.BoardRef, "board")
+		if group.Ref != "" {
+			groupBoard[group.Ref] = group.BoardRef
+		}
 		if group.Default {
-			if defaults++; defaults > 1 {
+			if defaults[group.BoardRef]++; defaults[group.BoardRef] > 1 {
 				issues.Add(Path("groups", i, "default"), "only one group can be the default")
 			}
 		}
@@ -85,12 +106,16 @@ func Validate(doc *Document) error {
 	for i, service := range doc.Services {
 		services.add(&issues, Path("services", i, "ref"), service.Ref)
 		groups.need(&issues, Path("services", i, "group_ref"), service.GroupRef, "group")
+		boards.need(&issues, Path("services", i, "board_ref"), service.BoardRef, "board")
+		sameBoard("services", i, service.GroupRef, service.BoardRef)
 		integrations.need(&issues, Path("services", i, "integration_ref"), service.IntegrationRef, "integration")
 		checkPosition(&issues, Path("services", i, "position"), service.Position)
 	}
 	for i, widget := range doc.Widgets {
 		widgets.add(&issues, Path("widgets", i, "ref"), widget.Ref)
 		groups.need(&issues, Path("widgets", i, "group_ref"), widget.GroupRef, "group")
+		boards.need(&issues, Path("widgets", i, "board_ref"), widget.BoardRef, "board")
+		sameBoard("widgets", i, widget.GroupRef, widget.BoardRef)
 		integrations.need(&issues, Path("widgets", i, "integration_ref"), widget.IntegrationRef, "integration")
 		checkPosition(&issues, Path("widgets", i, "position"), widget.Position)
 	}

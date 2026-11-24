@@ -31,6 +31,7 @@ func IsValidHexColor(color string) bool {
 type Group struct {
 	ID                string    `json:"id" db:"id"`
 	UserID            string    `json:"user_id" db:"user_id"`
+	BoardID           string    `json:"board_id" db:"board_id"` // "" on create means the default board
 	Name              string    `json:"name" db:"name"`
 	Color             string    `json:"color" db:"color"`
 	Position          int       `json:"position" db:"position"`
@@ -47,6 +48,7 @@ type GroupCreateRequest struct {
 	Color             string `json:"color"`              // Optional, defaults to DefaultGroupColor
 	MonitoringEnabled *bool  `json:"monitoring_enabled"` // Optional, defaults to true
 	TileStyle         string `json:"tile_style"`         // Optional, defaults to cards
+	BoardID           string `json:"board_id"`           // Optional board; the default board when omitted
 }
 
 // GroupUpdateRequest represents the data needed to update a group
@@ -60,6 +62,7 @@ type GroupUpdateRequest struct {
 // GroupResponse is the safe group data to return to clients
 type GroupResponse struct {
 	ID                string    `json:"id"`
+	BoardID           string    `json:"board_id"`
 	Name              string    `json:"name"`
 	Color             string    `json:"color"`
 	Position          int       `json:"position"`
@@ -74,6 +77,7 @@ type GroupResponse struct {
 func (g *Group) ToResponse() GroupResponse {
 	return GroupResponse{
 		ID:                g.ID,
+		BoardID:           g.BoardID,
 		Name:              g.Name,
 		Color:             g.Color,
 		Position:          g.Position,

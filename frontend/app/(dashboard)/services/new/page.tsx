@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import ServiceForm from '@/components/ServiceForm'
+import { useBoards } from '@/hooks/useBoards'
+import { boardHref } from '@/lib/boards'
 
 // Whitelist of valid `from` values to prevent open-redirect via crafted URLs.
 // href and label live together so adding a target can't leave the back-link
@@ -17,7 +19,16 @@ const DEFAULT_RETURN = { href: '/services', label: 'Services' }
 function NewServiceContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const returnTarget = RETURN_TARGETS[searchParams.get('from') ?? ''] ?? DEFAULT_RETURN
+  const { boards, loaded, failed } = useBoards()
+  // A board ID only counts when it is one of the user's own boards; the link
+  // back is made from that board, never taken from the URL
+  const boardParam = searchParams.get('board')
+  const board = boards.find((b) => b.id === boardParam && b.can_edit)
+  const fromTarget = RETURN_TARGETS[searchParams.get('from') ?? '']
+  const returnTarget =
+    fromTarget && board
+      ? { ...fromTarget, href: boardHref(board, boards) }
+      : (fromTarget ?? DEFAULT_RETURN)
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -38,11 +49,24 @@ function NewServiceContent() {
         </p>
       </div>
 
-      <ServiceForm
-        initialGroupId={searchParams.get('group')}
-        cancelHref={returnTarget.href}
-        onSaved={() => router.push(returnTarget.href)}
-      />
+      {/* With a board, its groups are only known once the boards are; a
+          board that is not the user's never falls back to the default one */}
+      {boardParam && !board ? (
+        (loaded || failed) && (
+          <p className="text-text-secondary wallpaper-panel">
+            {loaded
+              ? 'Board not found'
+              : 'Boards could not be loaded. Reload the page to try again.'}
+          </p>
+        )
+      ) : (
+        <ServiceForm
+          initialGroupId={searchParams.get('group')}
+          boardId={board?.id}
+          cancelHref={returnTarget.href}
+          onSaved={() => router.push(returnTarget.href)}
+        />
+      )}
     </div>
   )
 }

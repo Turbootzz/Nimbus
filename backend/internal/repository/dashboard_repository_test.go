@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"github.com/nimbus/backend/internal/testutil"
 	"testing"
 	"time"
 
@@ -61,6 +62,7 @@ func setupDashboardTestDB(t *testing.T) *sql.DB {
 	t.Cleanup(func() { db.Close() })
 	_, err = db.Exec(dashboardTestSchema)
 	require.NoError(t, err)
+	testutil.AddBoards(t, db)
 	return db
 }
 
