@@ -103,6 +103,7 @@ preferences:
   theme_preset: nord
   kpi_mono: true
   custom_css: ".card { border-radius: 0; }"
+  language: nl
   status_strip:
     enabled: true
     chips:
@@ -120,6 +121,7 @@ preferences:
 	assert.Equal(t, "chips", one(`SELECT tile_style FROM groups WHERE user_id = $1 AND name = 'Media'`, transferFresh))
 	assert.Equal(t, "sections", one(`SELECT group_display FROM user_preferences WHERE user_id = $1`, transferFresh))
 	assert.Equal(t, "nord", one(`SELECT theme_preset FROM user_preferences WHERE user_id = $1`, transferFresh))
+	assert.Equal(t, "nl", one(`SELECT language FROM user_preferences WHERE user_id = $1`, transferFresh))
 
 	sonarrService := one(`SELECT id FROM services WHERE user_id = $1 AND name = 'Sonarr'`, transferFresh)
 	sonarr := one(`SELECT id FROM integrations WHERE user_id = $1 AND name = 'Sonarr'`, transferFresh)
@@ -176,7 +178,7 @@ preferences:
 	assert.Equal(t, "1", one(`SELECT COUNT(*) FROM integrations WHERE user_id = $1`, transferFresh))
 	assert.Equal(t, "2", one(`SELECT COUNT(*) FROM groups WHERE user_id = $1`, transferFresh))
 	assert.Equal(t, "light", one(`SELECT theme_mode FROM user_preferences WHERE user_id = $1`, transferFresh))
-	assert.Equal(t, "dracula|true|.card { border-radius: 0; }", one(`SELECT theme_preset || '|' || kpi_mono::text || '|' || custom_css FROM user_preferences WHERE user_id = $1`, transferFresh),
+	assert.Equal(t, "dracula|true|.card { border-radius: 0; }|nl", one(`SELECT theme_preset || '|' || kpi_mono::text || '|' || custom_css || '|' || COALESCE(language, '') FROM user_preferences WHERE user_id = $1`, transferFresh),
 		"the preset changed; the settings the file left out kept their value")
 	assert.Equal(t, "", one(`SELECT COALESCE(group_display, '') FROM user_preferences WHERE user_id = $1`, transferFresh), "left out, it follows the layout")
 

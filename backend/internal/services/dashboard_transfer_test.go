@@ -122,6 +122,7 @@ const transferSchema = `
 		kpi_mono BOOLEAN NOT NULL DEFAULT 0,
 		icon_source TEXT NOT NULL DEFAULT 'dashboard-icons-svg',
 		custom_css TEXT NOT NULL DEFAULT '',
+		language TEXT,
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 	);
@@ -328,6 +329,7 @@ func (e *transferEnv) seedDashboard(t *testing.T) {
 		KpiMono:          new(true),
 		IconSource:       new("selfhst"),
 		CustomCSS:        new(seededCSS),
+		Language:         models.NullableString{Value: new("nl"), Set: true},
 		StatusStrip: &models.StatusStrip{Enabled: true, Chips: []models.StatusChip{
 			{Source: "integration", ID: sonarr.ID, KPI: "queue"},
 			{Source: "widget", ID: api.ID, KPI: "Temp"},
@@ -400,6 +402,7 @@ func TestExportUsesRefsAndCarriesNoSecrets(t *testing.T) {
 	assert.Equal(t, new(true), doc.Preferences.KpiMono)
 	assert.Equal(t, new("selfhst"), doc.Preferences.IconSource)
 	assert.Equal(t, new(seededCSS), doc.Preferences.CustomCSS)
+	assert.Equal(t, new("nl"), doc.Preferences.Language)
 
 	require.Len(t, doc.Integrations, 2)
 	assert.Equal(t, "plain", doc.Integrations[0].Ref)
@@ -1004,6 +1007,8 @@ func TestInvalidDocuments(t *testing.T) {
 		{"wallpaper not an image", prefs(dashdoc.Preferences{WallpaperData: base64.StdEncoding.EncodeToString([]byte("nope"))}), "preferences.wallpaper_data"},
 		{"accent color", prefs(dashdoc.Preferences{ThemeAccentColor: new("blue")}), "preferences.theme_accent_color"},
 		{"accent color with alpha", prefs(dashdoc.Preferences{ThemeAccentColor: new("#11223344")}), "preferences.theme_accent_color"},
+		{"language", prefs(dashdoc.Preferences{Language: new("xx")}), "preferences.language"},
+		{"language in capitals", prefs(dashdoc.Preferences{Language: new("NL")}), "preferences.language"},
 		{"theme mode", prefs(dashdoc.Preferences{ThemeMode: new("neon")}), "preferences"},
 		{"wallpaper blur", prefs(dashdoc.Preferences{WallpaperBlur: new(99)}), "preferences"},
 		{"chip without a target", prefs(dashdoc.Preferences{StatusStrip: &dashdoc.StatusStrip{Chips: []dashdoc.Chip{{Source: "integration", Ref: "nope", KPI: "queue"}}}}), "preferences.status_strip.chips[0].ref"},
@@ -1042,6 +1047,32 @@ func TestImportKeepsTheAccentColorAsGiven(t *testing.T) {
 	prefs, err := env.preferences.GetByUserID(ctx, transferUser)
 	require.NoError(t, err)
 	assert.Nil(t, prefs.ThemeAccentColor)
+}
+
+// The language: an export says "" when it follows the browser, and a file
+// from before it keeps the user's
+func TestImportLanguage(t *testing.T) {
+	env := newTransferEnv(t)
+	ctx := context.Background()
+	apply := func(raw string) *string {
+		t.Helper()
+		var doc dashdoc.Document
+		require.NoError(t, json.Unmarshal([]byte(raw), &doc))
+		_, err := env.svc.Apply(ctx, transferUser, &doc, dashdoc.ModeReplace)
+		require.NoError(t, err)
+		prefs, err := env.preferences.GetByUserID(ctx, transferUser)
+		require.NoError(t, err)
+		return prefs.Language
+	}
+
+	assert.Nil(t, apply(`{"version": 1, "preferences": {"theme_mode": "dark"}}`))
+	assert.Equal(t, new(""), env.export(t, transferUser).Preferences.Language)
+
+	assert.Equal(t, new("de"), apply(`{"version": 1, "preferences": {"language": "de"}}`))
+	assert.Equal(t, new("de"), env.export(t, transferUser).Preferences.Language)
+	assert.Equal(t, new("de"), apply(`{"version": 1, "preferences": {"theme_mode": "light"}}`), "left out, it keeps the user's")
+
+	assert.Nil(t, apply(`{"version": 1, "preferences": {"language": ""}}`))
 }
 
 func TestImportStaysUnderThePerUserLimits(t *testing.T) {

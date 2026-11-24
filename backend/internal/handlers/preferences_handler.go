@@ -163,6 +163,13 @@ func (h *PreferencesHandler) UpdatePreferences(c *fiber.Ctx) error {
 		}
 	}
 
+	if language := req.Language.GetValue(); req.Language.IsSet() && language != nil && !models.ValidLanguage(*language) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error":  "Validation failed",
+			"fields": map[string]string{"language": "language must be one of: " + models.Languages},
+		})
+	}
+
 	if req.CustomCSS != nil {
 		if err := utils.ValidateCustomCSS(*req.CustomCSS); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{

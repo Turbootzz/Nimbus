@@ -344,6 +344,7 @@ func (s *DashboardTransferService) exportPreferences(p *models.UserPreferences, 
 	out := &dashdoc.Preferences{
 		ThemeMode:             &p.ThemeMode,
 		ThemeAccentColor:      new(string),
+		Language:              new(string),
 		OpenInNewTab:          &p.OpenInNewTab,
 		EnableCardResizing:    &p.EnableCardResizing,
 		EnableServiceGrouping: &p.EnableServiceGrouping,
@@ -364,6 +365,9 @@ func (s *DashboardTransferService) exportPreferences(p *models.UserPreferences, 
 	}
 	if p.ThemeAccentColor != nil {
 		out.ThemeAccentColor = p.ThemeAccentColor
+	}
+	if p.Language != nil {
+		out.Language = p.Language
 	}
 
 	switch background := p.ThemeBackground; {
@@ -1052,6 +1056,17 @@ func (s *DashboardTransferService) planPreferences(in *dashdoc.Preferences, inte
 			issues.Add("preferences.theme_accent_color", "must be a valid hex color (e.g., #3B82F6)")
 		}
 		req.ThemeAccentColor = models.NullableString{Value: in.ThemeAccentColor, Set: true}
+	}
+
+	switch {
+	case in.Language == nil:
+	case *in.Language == "":
+		req.Language = models.NullableString{Set: true}
+	default:
+		if !models.ValidLanguage(*in.Language) {
+			issues.Add("preferences.language", "must be one of: %s", models.Languages)
+		}
+		req.Language = models.NullableString{Value: in.Language, Set: true}
 	}
 
 	if in.StatusStrip != nil {
