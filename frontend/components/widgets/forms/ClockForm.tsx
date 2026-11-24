@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { Toggle } from '@/components/ui/Toggle'
 import type { ClockWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
@@ -16,13 +17,14 @@ export default function ClockForm({
   onChange,
   disabled,
 }: WidgetFormProps<ClockWidgetConfig>) {
+  const t = useTranslations('widgets.clock.form')
   const zones = useMemo(() => timezones(), [])
 
   return (
     <div className="space-y-4">
       <div>
         <label htmlFor="clock-timezone" className={labelClass}>
-          Timezone
+          {t('timezone')}
         </label>
         <input
           id="clock-timezone"
@@ -30,7 +32,7 @@ export default function ClockForm({
           list="clock-timezones"
           value={config.timezone}
           onChange={(e) => onChange({ ...config, timezone: e.target.value })}
-          placeholder="Your browser's timezone"
+          placeholder={t('timezonePlaceholder')}
           className={inputClass}
           disabled={disabled}
         />
@@ -39,12 +41,12 @@ export default function ClockForm({
             <option key={zone} value={zone} />
           ))}
         </datalist>
-        <p className="text-text-muted mt-1 text-xs">For example Europe/Amsterdam</p>
+        <p className="text-text-muted mt-1 text-xs">{t('timezoneHint')}</p>
       </div>
 
       <div>
         <label htmlFor="clock-date-format" className={labelClass}>
-          Date
+          {t('date')}
         </label>
         <select
           id="clock-date-format"
@@ -58,9 +60,9 @@ export default function ClockForm({
           className={inputClass}
           disabled={disabled}
         >
-          <option value="short">Short</option>
-          <option value="long">Long</option>
-          <option value="none">Hidden</option>
+          <option value="short">{t('dateShort')}</option>
+          <option value="long">{t('dateLong')}</option>
+          <option value="none">{t('dateHidden')}</option>
         </select>
       </div>
 
@@ -68,14 +70,14 @@ export default function ClockForm({
         id="clock-hour12"
         enabled={config.hour12}
         onChange={(hour12) => onChange({ ...config, hour12 })}
-        label="12-hour clock"
+        label={t('hour12')}
         disabled={disabled}
       />
       <Toggle
         id="clock-seconds"
         enabled={config.show_seconds}
         onChange={(show_seconds) => onChange({ ...config, show_seconds })}
-        label="Show seconds"
+        label={t('seconds')}
         disabled={disabled}
       />
     </div>

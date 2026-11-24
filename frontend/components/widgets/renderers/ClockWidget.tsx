@@ -1,15 +1,16 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import type { ClockWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 
 // Formats the time and date, or returns null for a timezone the browser
 // doesn't know
-function formatClock(now: Date, config: ClockWidgetConfig) {
+function formatClock(now: Date, config: ClockWidgetConfig, locale: string) {
   const timeZone = config.timezone || undefined
   try {
-    const time = new Intl.DateTimeFormat(undefined, {
+    const time = new Intl.DateTimeFormat(locale, {
       hour: '2-digit',
       minute: '2-digit',
       second: config.show_seconds ? '2-digit' : undefined,
@@ -19,7 +20,7 @@ function formatClock(now: Date, config: ClockWidgetConfig) {
     const date =
       config.date_format === 'none'
         ? null
-        : new Intl.DateTimeFormat(undefined, {
+        : new Intl.DateTimeFormat(locale, {
             dateStyle: config.date_format === 'long' ? 'full' : 'medium',
             timeZone,
           }).format(now)
@@ -30,6 +31,8 @@ function formatClock(now: Date, config: ClockWidgetConfig) {
 }
 
 export default function ClockWidget({ config, cardSize }: WidgetRendererProps<ClockWidgetConfig>) {
+  const t = useTranslations('widgets.clock')
+  const locale = useLocale()
   const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
@@ -37,9 +40,11 @@ export default function ClockWidget({ config, cardSize }: WidgetRendererProps<Cl
     return () => clearInterval(interval)
   }, [])
 
-  const clock = formatClock(now, config)
+  const clock = formatClock(now, config, locale)
   if (!clock) {
-    return <p className="text-error text-sm">Unknown timezone: {config.timezone}</p>
+    return (
+      <p className="text-error text-sm">{t('unknownTimezone', { timezone: config.timezone })}</p>
+    )
   }
 
   const timeSize = cardSize === '2x2' ? 'text-5xl' : cardSize === '1x1' ? 'text-2xl' : 'text-4xl'

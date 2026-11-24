@@ -528,5 +528,219 @@
     "snow": "Sneeuw",
     "thunderstorm": "Onweer",
     "unknown": "Onbekend"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "TLS-certificaat controleren",
+      "integrationsError": "Kon je integraties niet laden: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Klok",
+        "description": "Tijd en datum, in elke tijdzone"
+      },
+      "markdown": {
+        "name": "Notitie",
+        "description": "Tekst met Markdown-opmaak"
+      },
+      "bookmarks": {
+        "name": "Bladwijzers",
+        "description": "Een compacte lijst met links"
+      },
+      "weather": {
+        "name": "Weer",
+        "description": "Het huidige weer en een korte verwachting"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "De nieuwste berichten uit maximaal drie feeds"
+      },
+      "custom_api": {
+        "name": "Eigen API",
+        "description": "Maximaal vier waarden uit elke JSON-API"
+      },
+      "system_stats": {
+        "name": "Systeemstatistieken",
+        "description": "CPU, geheugen, schijf en uptime van de Nimbus-server"
+      },
+      "docker_containers": {
+        "name": "Docker-containers",
+        "description": "De containers van een Docker-integratie en hun status"
+      },
+      "calendar": {
+        "name": "Kalender",
+        "description": "Komende afleveringen, films en iCal-afspraken"
+      },
+      "iframe": {
+        "name": "Webpagina",
+        "description": "Toon een webpagina in een tegel"
+      }
+    },
+    "card": {
+      "refresh": "Widget verversen",
+      "edit": "Widget bewerken",
+      "delete": "Widget verwijderen",
+      "updateFailed": "Laatste update mislukt: {error}",
+      "outOfDate": "Deze gegevens zijn mogelijk verouderd",
+      "loadFailed": "Kon niet laden: {error}",
+      "loading": "Laden",
+      "unsupported": "Dit widgettype ({type}) wordt niet ondersteund door deze versie van Nimbus."
+    },
+    "modal": {
+      "addWidget": "Widget toevoegen",
+      "addTitle": "{name} toevoegen",
+      "editTitle": "{name} bewerken",
+      "back": "Terug naar widgettypes",
+      "close": "Sluiten",
+      "cannotEdit": "Dit widgettype ({type}) kan in deze versie van Nimbus niet worden bewerkt.",
+      "titleLabel": "Titel <muted>(optioneel)</muted>",
+      "cancel": "Annuleren",
+      "saving": "Opslaan...",
+      "saveChanges": "Wijzigingen opslaan",
+      "saveFailed": "Widget opslaan mislukt",
+      "chooseIntegration": "Kies een integratie",
+      "integration": {
+        "label": "Integratie",
+        "description": "De {names}-integratie die deze widget leest.",
+        "empty": "Kies een {names}-integratie"
+      }
+    },
+    "bookmarks": {
+      "empty": "Nog geen bladwijzers",
+      "form": {
+        "label": "Bladwijzers",
+        "icon": "Pictogram van bladwijzer {n}",
+        "name": "Naam van bladwijzer {n}",
+        "url": "URL van bladwijzer {n}",
+        "namePlaceholder": "Naam",
+        "remove": "Bladwijzer {n} verwijderen",
+        "add": "Bladwijzer toevoegen",
+        "hint": "Het pictogram kan een emoji of een afbeeldings-URL zijn."
+      }
+    },
+    "calendar": {
+      "today": "Vandaag",
+      "tomorrow": "Morgen",
+      "hasEvents": "{day}, heeft afspraken",
+      "nothingOnDay": "Niets op deze dag",
+      "nothingComing": "Niets gepland",
+      "failed": "{count, plural, one {# bron kon niet worden geladen} other {# bronnen konden niet worden geladen}}",
+      "form": {
+        "sources": "Sonarr en Radarr",
+        "loadingIntegrations": "Integraties laden...",
+        "noIntegrations": "Nog geen Sonarr of Radarr. <link>Voeg er een toe</link> om te zien wat eraan komt.",
+        "feeds": "Kalenderfeeds (iCal)",
+        "feedUrl": "URL van kalender {n}",
+        "removeFeed": "Kalender {n} verwijderen",
+        "addFeed": "Kalender toevoegen",
+        "feedsHint": "Het geheime iCal-adres van een Google-, Outlook- of Nextcloud-kalender werkt; na het opslaan wordt het als ******** getoond en blijft het bewaard zolang je het laat staan. Terugkerende afspraken verschijnen alleen op hun eerste datum.",
+        "days": "Aantal dagen vooruit in de agenda",
+        "verifyTlsHint": "Zet dit uit voor kalenders in je lokale netwerk met een zelfondertekend certificaat"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Onbekende tijdzone: {timezone}",
+      "form": {
+        "timezone": "Tijdzone",
+        "timezonePlaceholder": "De tijdzone van je browser",
+        "timezoneHint": "Bijvoorbeeld Europe/Amsterdam",
+        "date": "Datum",
+        "dateShort": "Kort",
+        "dateLong": "Lang",
+        "dateHidden": "Verborgen",
+        "hour12": "12-uursklok",
+        "seconds": "Seconden tonen"
+      }
+    },
+    "customApi": {
+      "notFound": "Niets gevonden op {path}",
+      "form": {
+        "urlHint": "De Nimbus-server haalt deze URL op; die moet JSON teruggeven.",
+        "verifyTlsHint": "Zet dit uit voor apps met een zelfondertekend certificaat",
+        "values": "Waarden",
+        "valueLabel": "Label van waarde {n}",
+        "valuePath": "Pad van waarde {n}",
+        "valueUnit": "Eenheid van waarde {n}",
+        "labelPlaceholder": "Label",
+        "unitPlaceholder": "Eenheid",
+        "removeValue": "Waarde {n} verwijderen",
+        "addValue": "Waarde toevoegen",
+        "pathsHint": "Paden gebruiken punten en indexen: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> voor het laatste item, <code>items.length</code> om te tellen.",
+        "headers": "Headers (optioneel)",
+        "headerName": "Naam van header {n}",
+        "headerValue": "Waarde van header {n}",
+        "valuePlaceholder": "Waarde",
+        "removeHeader": "Header {n} verwijderen",
+        "addHeader": "Header toevoegen",
+        "headersHint": "Opgeslagen waarden worden als ******** getoond en blijven bewaard zolang je ze laat staan. Ze worden onversleuteld bij de widget opgeslagen; gebruik voor apps die Nimbus ondersteunt liever een integratie."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} van {total} actief",
+      "empty": "Geen containers",
+      "form": {
+        "hideStopped": "Gestopte containers verbergen",
+        "hideStoppedHint": "Ze tellen wel mee in het aantal"
+      }
+    },
+    "embed": {
+      "empty": "Geen URL ingesteld",
+      "frameTitle": "Ingesloten pagina",
+      "form": {
+        "hint": "Sommige sites weigeren ingesloten te worden. Je browser laadt de pagina, niet de Nimbus-server. De pagina vult de tegel; wijzig de tegelgrootte in de bewerkmodus."
+      }
+    },
+    "note": {
+      "empty": "Lege notitie",
+      "form": {
+        "label": "Notitie",
+        "placeholder": "# Titel\n- een lijstitem\n[een link](https://example.com)",
+        "hint": "Markdown wordt ondersteund, HTML niet."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# feed kon niet worden geladen} other {# feeds konden niet worden geladen}}",
+      "empty": "Nog geen berichten",
+      "untitled": "Zonder titel",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "URL van feed {n}",
+        "removeFeed": "Feed {n} verwijderen",
+        "addFeed": "Feed toevoegen",
+        "feedsHint": "RSS, Atom en JSON Feed werken. Berichten uit alle feeds worden samengevoegd, de nieuwste eerst.",
+        "limit": "Aantal berichten",
+        "verifyTlsHint": "Zet dit uit voor feeds in je lokale netwerk met een zelfondertekend certificaat"
+      }
+    },
+    "systemStats": {
+      "disk": "Schijf",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Uptime {uptime}",
+      "uptime": {
+        "days": "{days}d {hours}u",
+        "hours": "{hours}u {minutes}m",
+        "minutes": "{minutes}m"
+      },
+      "form": {
+        "diskHint": "Een pad op de Nimbus-server; de tegel toont het gebruik van de schijf waar het op staat. Koppel in Docker een schijf van de host in de container om die te zien."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · voelt als {temperature}",
+      "wind": "wind {speed} {unit}",
+      "form": {
+        "chosenPlace": "Gekozen plaats",
+        "search": "Plaats zoeken",
+        "searchPlaceholder": "Plaatsnaam",
+        "searchButton": "Plaatsen zoeken",
+        "searchFailed": "Locatie zoeken mislukt",
+        "noResults": "Geen plaatsen gevonden",
+        "searchHint": "De zoekopdracht gaat vanuit je browser naar Open-Meteo. Je kunt hieronder ook coördinaten invullen.",
+        "latitude": "Breedtegraad",
+        "longitude": "Lengtegraad",
+        "location": "Naam op de tegel",
+        "units": "Eenheden"
+      }
+    }
   }
 }

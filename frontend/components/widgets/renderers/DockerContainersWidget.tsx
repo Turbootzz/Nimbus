@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { DockerContainersPayload, DockerContainersWidgetConfig } from '@/types'
 import type { WidgetRendererProps } from '@/components/widgets/registry'
 
@@ -13,6 +14,7 @@ export default function DockerContainersWidget({
   cardSize,
   snapshot,
 }: WidgetRendererProps<DockerContainersWidgetConfig>) {
+  const t = useTranslations('widgets.dockerContainers')
   const docker = snapshot?.payload as DockerContainersPayload | null | undefined
   if (!docker) return null // WidgetCard shows loading and errors
 
@@ -21,10 +23,10 @@ export default function DockerContainersWidget({
   return (
     <div>
       <p className="text-text-muted mb-1 text-xs">
-        {docker.running} of {docker.total} running
+        {t('running', { running: docker.running, total: docker.total })}
       </p>
       {docker.containers.length === 0 ? (
-        <p className="text-text-muted text-sm">No containers</p>
+        <p className="text-text-muted text-sm">{t('empty')}</p>
       ) : (
         <ul>
           {docker.containers.map((container) => (

@@ -1,6 +1,7 @@
 'use client'
 
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import type { RssWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
 import { Toggle } from '@/components/ui/Toggle'
@@ -16,17 +17,18 @@ const MAX_FEEDS = 3
 const MAX_ITEMS = 50
 
 export default function RssForm({ config, onChange, disabled }: WidgetFormProps<RssWidgetConfig>) {
+  const t = useTranslations('widgets')
   const setFeeds = (feeds: string[]) => onChange({ ...config, feeds })
 
   return (
     <div className="space-y-4">
       <div>
-        <span className={labelClass}>Feeds</span>
+        <span className={labelClass}>{t('rss.form.feeds')}</span>
         <div className="space-y-2">
           {config.feeds.map((feed, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
-                aria-label={`Feed ${index + 1} URL`}
+                aria-label={t('rss.form.feedUrl', { n: index + 1 })}
                 type="url"
                 value={feed}
                 onChange={(e) =>
@@ -41,7 +43,7 @@ export default function RssForm({ config, onChange, disabled }: WidgetFormProps<
                   type="button"
                   onClick={() => setFeeds(config.feeds.filter((_, i) => i !== index))}
                   className={removeRowClass}
-                  aria-label={`Remove feed ${index + 1}`}
+                  aria-label={t('rss.form.removeFeed', { n: index + 1 })}
                   disabled={disabled}
                 >
                   <TrashIcon className="h-4 w-4" />
@@ -58,17 +60,15 @@ export default function RssForm({ config, onChange, disabled }: WidgetFormProps<
             disabled={disabled}
           >
             <PlusIcon className="mr-1 h-4 w-4" />
-            Add feed
+            {t('rss.form.addFeed')}
           </button>
         )}
-        <p className="text-text-muted mt-1 text-xs">
-          RSS, Atom and JSON Feed work. Items from all feeds are merged, newest first.
-        </p>
+        <p className="text-text-muted mt-1 text-xs">{t('rss.form.feedsHint')}</p>
       </div>
 
       <div>
         <label htmlFor="rss-limit" className={labelClass}>
-          Number of items
+          {t('rss.form.limit')}
         </label>
         <input
           id="rss-limit"
@@ -86,8 +86,8 @@ export default function RssForm({ config, onChange, disabled }: WidgetFormProps<
         id="rss-verify-tls"
         enabled={config.verify_tls}
         onChange={(verify_tls) => onChange({ ...config, verify_tls })}
-        label="Verify TLS certificate"
-        description="Turn off for feeds on your LAN with a self-signed certificate"
+        label={t('common.verifyTls')}
+        description={t('rss.form.verifyTlsHint')}
         disabled={disabled}
       />
     </div>

@@ -528,5 +528,219 @@
     "snow": "Neige",
     "thunderstorm": "Orage",
     "unknown": "Inconnu"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "Vérifier le certificat TLS",
+      "integrationsError": "Impossible de charger vos intégrations : {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Horloge",
+        "description": "Heure et date, dans n’importe quel fuseau horaire"
+      },
+      "markdown": {
+        "name": "Note",
+        "description": "Texte avec mise en forme Markdown"
+      },
+      "bookmarks": {
+        "name": "Favoris",
+        "description": "Une liste compacte de liens"
+      },
+      "weather": {
+        "name": "Météo",
+        "description": "La météo actuelle et une courte prévision"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "Les derniers articles de trois flux au maximum"
+      },
+      "custom_api": {
+        "name": "API personnalisée",
+        "description": "Jusqu’à quatre valeurs de n’importe quelle API JSON"
+      },
+      "system_stats": {
+        "name": "Statistiques système",
+        "description": "Processeur, mémoire, disque et temps de fonctionnement du serveur Nimbus"
+      },
+      "docker_containers": {
+        "name": "Conteneurs Docker",
+        "description": "Les conteneurs d’une intégration Docker et leur état"
+      },
+      "calendar": {
+        "name": "Calendrier",
+        "description": "Épisodes, films et événements iCal à venir"
+      },
+      "iframe": {
+        "name": "Page web",
+        "description": "Afficher une page web dans une tuile"
+      }
+    },
+    "card": {
+      "refresh": "Actualiser le widget",
+      "edit": "Modifier le widget",
+      "delete": "Supprimer le widget",
+      "updateFailed": "Échec de la dernière mise à jour : {error}",
+      "outOfDate": "Ces données ne sont peut-être plus à jour",
+      "loadFailed": "Chargement impossible : {error}",
+      "loading": "Chargement",
+      "unsupported": "Ce type de widget ({type}) n’est pas pris en charge par cette version de Nimbus."
+    },
+    "modal": {
+      "addWidget": "Ajouter un widget",
+      "addTitle": "Ajouter un widget {name}",
+      "editTitle": "Modifier le widget {name}",
+      "back": "Retour aux types de widgets",
+      "close": "Fermer",
+      "cannotEdit": "Ce type de widget ({type}) ne peut pas être modifié dans cette version de Nimbus.",
+      "titleLabel": "Titre <muted>(facultatif)</muted>",
+      "cancel": "Annuler",
+      "saving": "Enregistrement...",
+      "saveChanges": "Enregistrer les modifications",
+      "saveFailed": "Impossible d’enregistrer le widget",
+      "chooseIntegration": "Choisissez une intégration",
+      "integration": {
+        "label": "Intégration",
+        "description": "L’intégration {names} que lit ce widget.",
+        "empty": "Choisissez une intégration {names}"
+      }
+    },
+    "bookmarks": {
+      "empty": "Aucun favori pour l’instant",
+      "form": {
+        "label": "Favoris",
+        "icon": "Icône du favori {n}",
+        "name": "Nom du favori {n}",
+        "url": "URL du favori {n}",
+        "namePlaceholder": "Nom",
+        "remove": "Retirer le favori {n}",
+        "add": "Ajouter un favori",
+        "hint": "L’icône peut être un emoji ou l’URL d’une image."
+      }
+    },
+    "calendar": {
+      "today": "Aujourd’hui",
+      "tomorrow": "Demain",
+      "hasEvents": "{day}, avec des événements",
+      "nothingOnDay": "Rien ce jour-là",
+      "nothingComing": "Rien de prévu",
+      "failed": "{count, plural, one {# source n’a pas pu être chargée} other {# sources n’ont pas pu être chargées}}",
+      "form": {
+        "sources": "Sonarr et Radarr",
+        "loadingIntegrations": "Chargement des intégrations...",
+        "noIntegrations": "Pas encore de Sonarr ni de Radarr. <link>Ajoutez-en un</link> pour voir ce qui arrive.",
+        "feeds": "Flux de calendrier (iCal)",
+        "feedUrl": "URL du calendrier {n}",
+        "removeFeed": "Retirer le calendrier {n}",
+        "addFeed": "Ajouter un calendrier",
+        "feedsHint": "L’adresse iCal secrète d’un calendrier Google, Outlook ou Nextcloud fonctionne ; une fois enregistrée, elle s’affiche comme ******** et reste conservée tant que vous n’y touchez pas. Les événements récurrents n’apparaissent qu’à leur première date.",
+        "days": "Nombre de jours à venir dans l’agenda",
+        "verifyTlsHint": "Désactivez pour les calendriers de votre réseau local avec un certificat autosigné"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Fuseau horaire inconnu : {timezone}",
+      "form": {
+        "timezone": "Fuseau horaire",
+        "timezonePlaceholder": "Fuseau horaire de votre navigateur",
+        "timezoneHint": "Par exemple Europe/Paris",
+        "date": "Date",
+        "dateShort": "Courte",
+        "dateLong": "Longue",
+        "dateHidden": "Masquée",
+        "hour12": "Format 12 heures",
+        "seconds": "Afficher les secondes"
+      }
+    },
+    "customApi": {
+      "notFound": "Rien trouvé à {path}",
+      "form": {
+        "urlHint": "Le serveur Nimbus récupère cette URL ; elle doit renvoyer du JSON.",
+        "verifyTlsHint": "Désactivez pour les applications avec un certificat autosigné",
+        "values": "Valeurs",
+        "valueLabel": "Libellé de la valeur {n}",
+        "valuePath": "Chemin de la valeur {n}",
+        "valueUnit": "Unité de la valeur {n}",
+        "labelPlaceholder": "Libellé",
+        "unitPlaceholder": "Unité",
+        "removeValue": "Retirer la valeur {n}",
+        "addValue": "Ajouter une valeur",
+        "pathsHint": "Les chemins utilisent des points et des index : <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> pour le dernier élément, <code>items.length</code> pour compter.",
+        "headers": "En-têtes (facultatif)",
+        "headerName": "Nom de l’en-tête {n}",
+        "headerValue": "Valeur de l’en-tête {n}",
+        "valuePlaceholder": "Valeur",
+        "removeHeader": "Retirer l’en-tête {n}",
+        "addHeader": "Ajouter un en-tête",
+        "headersHint": "Les valeurs enregistrées s’affichent comme ******** et restent conservées tant que vous n’y touchez pas. Elles sont stockées avec le widget, sans chiffrement ; pour les applications prises en charge par Nimbus, utilisez plutôt une intégration."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} sur {total} en cours d’exécution",
+      "empty": "Aucun conteneur",
+      "form": {
+        "hideStopped": "Masquer les conteneurs arrêtés",
+        "hideStoppedHint": "Ils restent comptés dans le total"
+      }
+    },
+    "embed": {
+      "empty": "Aucune URL définie",
+      "frameTitle": "Page intégrée",
+      "form": {
+        "hint": "Certains sites refusent d’être intégrés. C’est votre navigateur qui charge la page, pas le serveur Nimbus. La page remplit la tuile ; changez la taille de la tuile en mode édition."
+      }
+    },
+    "note": {
+      "empty": "Note vide",
+      "form": {
+        "label": "Note",
+        "placeholder": "# Titre\n- un élément de liste\n[un lien](https://example.com)",
+        "hint": "Le Markdown est pris en charge, pas le HTML."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# flux n’a pas pu être chargé} other {# flux n’ont pas pu être chargés}}",
+      "empty": "Aucun article pour l’instant",
+      "untitled": "Sans titre",
+      "form": {
+        "feeds": "Flux",
+        "feedUrl": "URL du flux {n}",
+        "removeFeed": "Retirer le flux {n}",
+        "addFeed": "Ajouter un flux",
+        "feedsHint": "RSS, Atom et JSON Feed sont pris en charge. Les articles de tous les flux sont fusionnés, du plus récent au plus ancien.",
+        "limit": "Nombre d’articles",
+        "verifyTlsHint": "Désactivez pour les flux de votre réseau local avec un certificat autosigné"
+      }
+    },
+    "systemStats": {
+      "disk": "Disque",
+      "gigabytes": "{used} Go / {total} Go",
+      "up": "Actif depuis {uptime}",
+      "uptime": {
+        "days": "{days} j {hours} h",
+        "hours": "{hours} h {minutes} min",
+        "minutes": "{minutes} min"
+      },
+      "form": {
+        "diskHint": "Un chemin sur le serveur Nimbus ; la tuile affiche l’occupation du disque sur lequel il se trouve. Dans Docker, montez un disque de l’hôte dans le conteneur pour le voir."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · ressenti {temperature}",
+      "wind": "vent {speed} {unit}",
+      "form": {
+        "chosenPlace": "Lieu choisi",
+        "search": "Trouver un lieu",
+        "searchPlaceholder": "Nom de la ville",
+        "searchButton": "Rechercher des lieux",
+        "searchFailed": "La recherche du lieu a échoué",
+        "noResults": "Aucun lieu trouvé",
+        "searchHint": "La recherche est envoyée à Open-Meteo depuis votre navigateur. Vous pouvez aussi saisir des coordonnées ci-dessous.",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "location": "Nom sur la tuile",
+        "units": "Unités"
+      }
+    }
   }
 }

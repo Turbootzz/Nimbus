@@ -1,6 +1,7 @@
 'use client'
 
 import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline'
+import { useTranslations } from 'next-intl'
 import type { CustomApiField, CustomApiHeader, CustomApiWidgetConfig } from '@/types'
 import type { WidgetFormProps } from '@/components/widgets/registry'
 import { Toggle } from '@/components/ui/Toggle'
@@ -20,6 +21,7 @@ export default function CustomApiForm({
   onChange,
   disabled,
 }: WidgetFormProps<CustomApiWidgetConfig>) {
+  const t = useTranslations('widgets')
   const setFields = (fields: CustomApiField[]) => onChange({ ...config, fields })
   const updateField = (index: number, patch: Partial<CustomApiField>) =>
     setFields(config.fields.map((field, i) => (i === index ? { ...field, ...patch } : field)))
@@ -42,36 +44,34 @@ export default function CustomApiForm({
           className={inputClass}
           disabled={disabled}
         />
-        <p className="text-text-muted mt-1 text-xs">
-          The Nimbus server fetches this URL; it must return JSON.
-        </p>
+        <p className="text-text-muted mt-1 text-xs">{t('customApi.form.urlHint')}</p>
       </div>
 
       <Toggle
         id="custom-api-verify-tls"
         enabled={config.verify_tls}
         onChange={(verify_tls) => onChange({ ...config, verify_tls })}
-        label="Verify TLS certificate"
-        description="Turn off for apps with a self-signed certificate"
+        label={t('common.verifyTls')}
+        description={t('customApi.form.verifyTlsHint')}
         disabled={disabled}
       />
 
       <div>
-        <span className={labelClass}>Values</span>
+        <span className={labelClass}>{t('customApi.form.values')}</span>
         <div className="space-y-2">
           {config.fields.map((field, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
-                aria-label={`Value ${index + 1} label`}
+                aria-label={t('customApi.form.valueLabel', { n: index + 1 })}
                 value={field.label}
                 onChange={(e) => updateField(index, { label: e.target.value })}
-                placeholder="Label"
+                placeholder={t('customApi.form.labelPlaceholder')}
                 maxLength={40}
                 className={inputClass}
                 disabled={disabled}
               />
               <input
-                aria-label={`Value ${index + 1} path`}
+                aria-label={t('customApi.form.valuePath', { n: index + 1 })}
                 value={field.path}
                 onChange={(e) => updateField(index, { path: e.target.value })}
                 placeholder="data.items.length"
@@ -80,10 +80,10 @@ export default function CustomApiForm({
                 disabled={disabled}
               />
               <input
-                aria-label={`Value ${index + 1} unit`}
+                aria-label={t('customApi.form.valueUnit', { n: index + 1 })}
                 value={field.unit}
                 onChange={(e) => updateField(index, { unit: e.target.value })}
-                placeholder="Unit"
+                placeholder={t('customApi.form.unitPlaceholder')}
                 maxLength={10}
                 className={`${inputClass} w-20! shrink-0`}
                 disabled={disabled}
@@ -92,7 +92,7 @@ export default function CustomApiForm({
                 type="button"
                 onClick={() => setFields(config.fields.filter((_, i) => i !== index))}
                 className={removeRowClass}
-                aria-label={`Remove value ${index + 1}`}
+                aria-label={t('customApi.form.removeValue', { n: index + 1 })}
                 disabled={disabled}
               >
                 <TrashIcon className="h-4 w-4" />
@@ -108,22 +108,21 @@ export default function CustomApiForm({
             disabled={disabled}
           >
             <PlusIcon className="mr-1 h-4 w-4" />
-            Add value
+            {t('customApi.form.addValue')}
           </button>
         )}
         <p className="text-text-muted mt-1 text-xs">
-          Paths use dots and indexes: <code>stats.cpu</code>, <code>items[0].name</code>,{' '}
-          <code>items[-1].name</code> for the last item, <code>items.length</code> to count.
+          {t.rich('customApi.form.pathsHint', { code: (chunks) => <code>{chunks}</code> })}
         </p>
       </div>
 
       <div>
-        <span className={labelClass}>Headers (optional)</span>
+        <span className={labelClass}>{t('customApi.form.headers')}</span>
         <div className="space-y-2">
           {config.headers.map((header, index) => (
             <div key={index} className="flex items-center gap-2">
               <input
-                aria-label={`Header ${index + 1} name`}
+                aria-label={t('customApi.form.headerName', { n: index + 1 })}
                 value={header.name}
                 onChange={(e) => updateHeader(index, { name: e.target.value })}
                 placeholder="X-Api-Key"
@@ -131,10 +130,10 @@ export default function CustomApiForm({
                 disabled={disabled}
               />
               <input
-                aria-label={`Header ${index + 1} value`}
+                aria-label={t('customApi.form.headerValue', { n: index + 1 })}
                 value={header.value}
                 onChange={(e) => updateHeader(index, { value: e.target.value })}
-                placeholder="Value"
+                placeholder={t('customApi.form.valuePlaceholder')}
                 className={inputClass}
                 autoComplete="off"
                 disabled={disabled}
@@ -143,7 +142,7 @@ export default function CustomApiForm({
                 type="button"
                 onClick={() => setHeaders(config.headers.filter((_, i) => i !== index))}
                 className={removeRowClass}
-                aria-label={`Remove header ${index + 1}`}
+                aria-label={t('customApi.form.removeHeader', { n: index + 1 })}
                 disabled={disabled}
               >
                 <TrashIcon className="h-4 w-4" />
@@ -159,13 +158,10 @@ export default function CustomApiForm({
             disabled={disabled}
           >
             <PlusIcon className="mr-1 h-4 w-4" />
-            Add header
+            {t('customApi.form.addHeader')}
           </button>
         )}
-        <p className="text-text-muted mt-1 text-xs">
-          Saved values show as ******** and are kept as long as you leave them. They are stored with
-          the widget, not encrypted; for apps Nimbus supports, use an integration instead.
-        </p>
+        <p className="text-text-muted mt-1 text-xs">{t('customApi.form.headersHint')}</p>
       </div>
     </div>
   )

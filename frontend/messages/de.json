@@ -528,5 +528,219 @@
     "snow": "Schnee",
     "thunderstorm": "Gewitter",
     "unknown": "Unbekannt"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "TLS-Zertifikat prüfen",
+      "integrationsError": "Deine Integrationen konnten nicht geladen werden: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Uhr",
+        "description": "Uhrzeit und Datum, in jeder Zeitzone"
+      },
+      "markdown": {
+        "name": "Notiz",
+        "description": "Text mit Markdown-Formatierung"
+      },
+      "bookmarks": {
+        "name": "Lesezeichen",
+        "description": "Eine kompakte Liste von Links"
+      },
+      "weather": {
+        "name": "Wetter",
+        "description": "Aktuelles Wetter und eine kurze Vorhersage"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "Neueste Einträge aus bis zu drei Feeds"
+      },
+      "custom_api": {
+        "name": "Eigene API",
+        "description": "Bis zu vier Werte aus einer beliebigen JSON-API"
+      },
+      "system_stats": {
+        "name": "Systemstatistik",
+        "description": "CPU, Arbeitsspeicher, Festplatte und Laufzeit des Nimbus-Servers"
+      },
+      "docker_containers": {
+        "name": "Docker-Container",
+        "description": "Container einer Docker-Integration und ihr Status"
+      },
+      "calendar": {
+        "name": "Kalender",
+        "description": "Kommende Folgen, Filme und iCal-Termine"
+      },
+      "iframe": {
+        "name": "Webseite",
+        "description": "Eine Webseite in einer Kachel anzeigen"
+      }
+    },
+    "card": {
+      "refresh": "Widget aktualisieren",
+      "edit": "Widget bearbeiten",
+      "delete": "Widget löschen",
+      "updateFailed": "Letzte Aktualisierung fehlgeschlagen: {error}",
+      "outOfDate": "Diese Daten sind möglicherweise veraltet",
+      "loadFailed": "Laden fehlgeschlagen: {error}",
+      "loading": "Wird geladen",
+      "unsupported": "Dieser Widget-Typ ({type}) wird von dieser Nimbus-Version nicht unterstützt."
+    },
+    "modal": {
+      "addWidget": "Widget hinzufügen",
+      "addTitle": "{name} hinzufügen",
+      "editTitle": "{name} bearbeiten",
+      "back": "Zurück zu den Widget-Typen",
+      "close": "Schließen",
+      "cannotEdit": "Dieser Widget-Typ ({type}) kann in dieser Nimbus-Version nicht bearbeitet werden.",
+      "titleLabel": "Titel <muted>(optional)</muted>",
+      "cancel": "Abbrechen",
+      "saving": "Wird gespeichert...",
+      "saveChanges": "Änderungen speichern",
+      "saveFailed": "Widget konnte nicht gespeichert werden",
+      "chooseIntegration": "Wähle eine Integration",
+      "integration": {
+        "label": "Integration",
+        "description": "Die {names}-Integration, die dieses Widget liest.",
+        "empty": "Wähle eine {names}-Integration"
+      }
+    },
+    "bookmarks": {
+      "empty": "Noch keine Lesezeichen",
+      "form": {
+        "label": "Lesezeichen",
+        "icon": "Symbol von Lesezeichen {n}",
+        "name": "Name von Lesezeichen {n}",
+        "url": "URL von Lesezeichen {n}",
+        "namePlaceholder": "Name",
+        "remove": "Lesezeichen {n} entfernen",
+        "add": "Lesezeichen hinzufügen",
+        "hint": "Das Symbol kann ein Emoji oder eine Bild-URL sein."
+      }
+    },
+    "calendar": {
+      "today": "Heute",
+      "tomorrow": "Morgen",
+      "hasEvents": "{day}, hat Termine",
+      "nothingOnDay": "Nichts an diesem Tag",
+      "nothingComing": "Nichts geplant",
+      "failed": "{count, plural, one {# Quelle konnte nicht geladen werden} other {# Quellen konnten nicht geladen werden}}",
+      "form": {
+        "sources": "Sonarr und Radarr",
+        "loadingIntegrations": "Integrationen werden geladen...",
+        "noIntegrations": "Noch kein Sonarr oder Radarr. <link>Füge eins hinzu</link>, um zu sehen, was kommt.",
+        "feeds": "Kalender-Feeds (iCal)",
+        "feedUrl": "URL von Kalender {n}",
+        "removeFeed": "Kalender {n} entfernen",
+        "addFeed": "Kalender hinzufügen",
+        "feedsHint": "Die geheime iCal-Adresse eines Google-, Outlook- oder Nextcloud-Kalenders funktioniert; nach dem Speichern wird sie als ******** angezeigt und bleibt erhalten, solange du sie nicht änderst. Wiederkehrende Termine erscheinen nur an ihrem ersten Datum.",
+        "days": "Tage im Voraus in der Agenda",
+        "verifyTlsHint": "Für Kalender in deinem lokalen Netzwerk mit selbstsigniertem Zertifikat ausschalten"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Unbekannte Zeitzone: {timezone}",
+      "form": {
+        "timezone": "Zeitzone",
+        "timezonePlaceholder": "Zeitzone deines Browsers",
+        "timezoneHint": "Zum Beispiel Europe/Berlin",
+        "date": "Datum",
+        "dateShort": "Kurz",
+        "dateLong": "Lang",
+        "dateHidden": "Ausgeblendet",
+        "hour12": "12-Stunden-Format",
+        "seconds": "Sekunden anzeigen"
+      }
+    },
+    "customApi": {
+      "notFound": "Nichts gefunden unter {path}",
+      "form": {
+        "urlHint": "Der Nimbus-Server ruft diese URL ab; sie muss JSON liefern.",
+        "verifyTlsHint": "Für Apps mit selbstsigniertem Zertifikat ausschalten",
+        "values": "Werte",
+        "valueLabel": "Bezeichnung von Wert {n}",
+        "valuePath": "Pfad von Wert {n}",
+        "valueUnit": "Einheit von Wert {n}",
+        "labelPlaceholder": "Bezeichnung",
+        "unitPlaceholder": "Einheit",
+        "removeValue": "Wert {n} entfernen",
+        "addValue": "Wert hinzufügen",
+        "pathsHint": "Pfade verwenden Punkte und Indizes: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> für das letzte Element, <code>items.length</code> zum Zählen.",
+        "headers": "Header (optional)",
+        "headerName": "Name von Header {n}",
+        "headerValue": "Wert von Header {n}",
+        "valuePlaceholder": "Wert",
+        "removeHeader": "Header {n} entfernen",
+        "addHeader": "Header hinzufügen",
+        "headersHint": "Gespeicherte Werte werden als ******** angezeigt und bleiben erhalten, solange du sie nicht änderst. Sie werden unverschlüsselt mit dem Widget gespeichert; für Apps, die Nimbus unterstützt, nutze besser eine Integration."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} von {total} laufen",
+      "empty": "Keine Container",
+      "form": {
+        "hideStopped": "Gestoppte Container ausblenden",
+        "hideStoppedHint": "Sie werden weiterhin mitgezählt"
+      }
+    },
+    "embed": {
+      "empty": "Keine URL festgelegt",
+      "frameTitle": "Eingebettete Seite",
+      "form": {
+        "hint": "Manche Seiten lassen sich nicht einbetten. Dein Browser lädt die Seite, nicht der Nimbus-Server. Die Seite füllt die Kachel; ändere die Kachelgröße im Bearbeitungsmodus."
+      }
+    },
+    "note": {
+      "empty": "Leere Notiz",
+      "form": {
+        "label": "Notiz",
+        "placeholder": "# Titel\n- ein Listenpunkt\n[ein Link](https://example.com)",
+        "hint": "Markdown wird unterstützt, HTML nicht."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# Feed konnte nicht geladen werden} other {# Feeds konnten nicht geladen werden}}",
+      "empty": "Noch keine Einträge",
+      "untitled": "Ohne Titel",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "URL von Feed {n}",
+        "removeFeed": "Feed {n} entfernen",
+        "addFeed": "Feed hinzufügen",
+        "feedsHint": "RSS, Atom und JSON Feed funktionieren. Einträge aller Feeds werden zusammengeführt, die neuesten zuerst.",
+        "limit": "Anzahl der Einträge",
+        "verifyTlsHint": "Für Feeds in deinem lokalen Netzwerk mit selbstsigniertem Zertifikat ausschalten"
+      }
+    },
+    "systemStats": {
+      "disk": "Festplatte",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Läuft seit {uptime}",
+      "uptime": {
+        "days": "{days} T. {hours} Std.",
+        "hours": "{hours} Std. {minutes} Min.",
+        "minutes": "{minutes} Min."
+      },
+      "form": {
+        "diskHint": "Ein Pfad auf dem Nimbus-Server; die Kachel zeigt die Belegung des Datenträgers, auf dem er liegt. Binde in Docker einen Datenträger des Hosts in den Container ein, um ihn zu sehen."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · gefühlt {temperature}",
+      "wind": "Wind {speed} {unit}",
+      "form": {
+        "chosenPlace": "Gewählter Ort",
+        "search": "Ort suchen",
+        "searchPlaceholder": "Ortsname",
+        "searchButton": "Orte suchen",
+        "searchFailed": "Ortssuche fehlgeschlagen",
+        "noResults": "Keine Orte gefunden",
+        "searchHint": "Die Suche geht von deinem Browser an Open-Meteo. Du kannst unten auch Koordinaten eingeben.",
+        "latitude": "Breitengrad",
+        "longitude": "Längengrad",
+        "location": "Name auf der Kachel",
+        "units": "Einheiten"
+      }
+    }
   }
 }

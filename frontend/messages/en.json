@@ -528,5 +528,219 @@
     "snow": "Snow",
     "thunderstorm": "Thunderstorm",
     "unknown": "Unknown"
+  },
+  "widgets": {
+    "common": {
+      "verifyTls": "Verify TLS certificate",
+      "integrationsError": "Could not load your integrations: {error}"
+    },
+    "types": {
+      "clock": {
+        "name": "Clock",
+        "description": "Time and date, in any timezone"
+      },
+      "markdown": {
+        "name": "Note",
+        "description": "Text with Markdown formatting"
+      },
+      "bookmarks": {
+        "name": "Bookmarks",
+        "description": "A compact list of links"
+      },
+      "weather": {
+        "name": "Weather",
+        "description": "Current weather and a short forecast"
+      },
+      "rss": {
+        "name": "RSS",
+        "description": "Latest items from up to three feeds"
+      },
+      "custom_api": {
+        "name": "Custom API",
+        "description": "Up to four values from any JSON API"
+      },
+      "system_stats": {
+        "name": "System stats",
+        "description": "CPU, memory, disk and uptime of the Nimbus server"
+      },
+      "docker_containers": {
+        "name": "Docker containers",
+        "description": "Containers of a Docker integration and their state"
+      },
+      "calendar": {
+        "name": "Calendar",
+        "description": "Upcoming episodes, movies and iCal events"
+      },
+      "iframe": {
+        "name": "Embed",
+        "description": "Show a web page inside a tile"
+      }
+    },
+    "card": {
+      "refresh": "Refresh widget",
+      "edit": "Edit widget",
+      "delete": "Delete widget",
+      "updateFailed": "Last update failed: {error}",
+      "outOfDate": "This data may be out of date",
+      "loadFailed": "Could not load: {error}",
+      "loading": "Loading",
+      "unsupported": "This widget type ({type}) is not supported by this version of Nimbus."
+    },
+    "modal": {
+      "addWidget": "Add Widget",
+      "addTitle": "Add {name}",
+      "editTitle": "Edit {name}",
+      "back": "Back to widget types",
+      "close": "Close",
+      "cannotEdit": "This widget type ({type}) can't be edited in this version of Nimbus.",
+      "titleLabel": "Title <muted>(optional)</muted>",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "saveChanges": "Save Changes",
+      "saveFailed": "Failed to save widget",
+      "chooseIntegration": "Choose an integration",
+      "integration": {
+        "label": "Integration",
+        "description": "The {names} integration this widget reads.",
+        "empty": "Choose a {names} integration"
+      }
+    },
+    "bookmarks": {
+      "empty": "No bookmarks yet",
+      "form": {
+        "label": "Bookmarks",
+        "icon": "Bookmark {n} icon",
+        "name": "Bookmark {n} name",
+        "url": "Bookmark {n} URL",
+        "namePlaceholder": "Name",
+        "remove": "Remove bookmark {n}",
+        "add": "Add bookmark",
+        "hint": "The icon can be an emoji or an image URL."
+      }
+    },
+    "calendar": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "hasEvents": "{day}, has events",
+      "nothingOnDay": "Nothing on this day",
+      "nothingComing": "Nothing coming up",
+      "failed": "{count, plural, one {# source could not be loaded} other {# sources could not be loaded}}",
+      "form": {
+        "sources": "Sonarr and Radarr",
+        "loadingIntegrations": "Loading integrations...",
+        "noIntegrations": "No Sonarr or Radarr yet. <link>Add one</link> to see what is coming.",
+        "feeds": "Calendar feeds (iCal)",
+        "feedUrl": "Calendar {n} URL",
+        "removeFeed": "Remove calendar {n}",
+        "addFeed": "Add calendar",
+        "feedsHint": "The secret iCal address of a Google, Outlook or Nextcloud calendar works; once saved it shows as ******** and is kept as long as you leave it. Repeating events only show on their first date.",
+        "days": "Days ahead in the agenda",
+        "verifyTlsHint": "Turn off for calendars on your LAN with a self-signed certificate"
+      }
+    },
+    "clock": {
+      "unknownTimezone": "Unknown timezone: {timezone}",
+      "form": {
+        "timezone": "Timezone",
+        "timezonePlaceholder": "Your browser's timezone",
+        "timezoneHint": "For example Europe/Amsterdam",
+        "date": "Date",
+        "dateShort": "Short",
+        "dateLong": "Long",
+        "dateHidden": "Hidden",
+        "hour12": "12-hour clock",
+        "seconds": "Show seconds"
+      }
+    },
+    "customApi": {
+      "notFound": "Nothing found at {path}",
+      "form": {
+        "urlHint": "The Nimbus server fetches this URL; it must return JSON.",
+        "verifyTlsHint": "Turn off for apps with a self-signed certificate",
+        "values": "Values",
+        "valueLabel": "Value {n} label",
+        "valuePath": "Value {n} path",
+        "valueUnit": "Value {n} unit",
+        "labelPlaceholder": "Label",
+        "unitPlaceholder": "Unit",
+        "removeValue": "Remove value {n}",
+        "addValue": "Add value",
+        "pathsHint": "Paths use dots and indexes: <code>stats.cpu</code>, <code>items[0].name</code>, <code>items[-1].name</code> for the last item, <code>items.length</code> to count.",
+        "headers": "Headers (optional)",
+        "headerName": "Header {n} name",
+        "headerValue": "Header {n} value",
+        "valuePlaceholder": "Value",
+        "removeHeader": "Remove header {n}",
+        "addHeader": "Add header",
+        "headersHint": "Saved values show as ******** and are kept as long as you leave them. They are stored with the widget, not encrypted; for apps Nimbus supports, use an integration instead."
+      }
+    },
+    "dockerContainers": {
+      "running": "{running} of {total} running",
+      "empty": "No containers",
+      "form": {
+        "hideStopped": "Hide stopped containers",
+        "hideStoppedHint": "The count still includes them"
+      }
+    },
+    "embed": {
+      "empty": "No URL set",
+      "frameTitle": "Embedded page",
+      "form": {
+        "hint": "Some sites refuse to be embedded. Your browser loads the page, not the Nimbus server. The page fills the tile; change the tile size in edit mode."
+      }
+    },
+    "note": {
+      "empty": "Empty note",
+      "form": {
+        "label": "Note",
+        "placeholder": "# Title\n- a list item\n[a link](https://example.com)",
+        "hint": "Markdown is supported. HTML is not."
+      }
+    },
+    "rss": {
+      "failed": "{count, plural, one {# feed could not be loaded} other {# feeds could not be loaded}}",
+      "empty": "No items yet",
+      "untitled": "Untitled",
+      "form": {
+        "feeds": "Feeds",
+        "feedUrl": "Feed {n} URL",
+        "removeFeed": "Remove feed {n}",
+        "addFeed": "Add feed",
+        "feedsHint": "RSS, Atom and JSON Feed work. Items from all feeds are merged, newest first.",
+        "limit": "Number of items",
+        "verifyTlsHint": "Turn off for feeds on your LAN with a self-signed certificate"
+      }
+    },
+    "systemStats": {
+      "disk": "Disk",
+      "gigabytes": "{used} GB / {total} GB",
+      "up": "Up {uptime}",
+      "uptime": {
+        "days": "{days}d {hours}h",
+        "hours": "{hours}h {minutes}m",
+        "minutes": "{minutes}m"
+      },
+      "form": {
+        "diskHint": "A path on the Nimbus server; the tile shows the use of the disk it is on. In Docker, mount a host disk into the container to see it."
+      }
+    },
+    "weather": {
+      "detail": "{condition} · feels like {temperature}",
+      "wind": "wind {speed} {unit}",
+      "form": {
+        "chosenPlace": "Chosen place",
+        "search": "Find a place",
+        "searchPlaceholder": "City name",
+        "searchButton": "Search places",
+        "searchFailed": "Location search failed",
+        "noResults": "No places found",
+        "searchHint": "The search goes to Open-Meteo from your browser. You can also enter coordinates below.",
+        "latitude": "Latitude",
+        "longitude": "Longitude",
+        "location": "Name on the tile",
+        "units": "Units"
+      }
+    }
   }
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ArrowLeftIcon, XMarkIcon } from '@heroicons/react/24/outline'
+import { useLocale, useTranslations } from 'next-intl'
 import { api } from '@/lib/api'
 import type { Widget, WidgetTypeMeta } from '@/types'
 import BoardSelect from '@/components/boards/BoardSelect'
@@ -25,7 +26,7 @@ interface WidgetModalProps {
 
 // Types this version can add: the ones the frontend knows
 export function addableTypes(types: WidgetTypeMeta[]): WidgetTypeMeta[] {
-  return types.filter((t) => getWidgetDefinition(t.type))
+  return types.filter((meta) => getWidgetDefinition(meta.type))
 }
 
 interface IntegrationFieldProps {
@@ -37,10 +38,14 @@ interface IntegrationFieldProps {
 
 // Picks one of the user's integrations of the kinds a widget type uses
 function IntegrationField({ wanted, value, onChange, disabled }: IntegrationFieldProps) {
+  const t = useTranslations('widgets')
+  const locale = useLocale()
   const { integrations, kinds, isLoading, error } = useIntegrations()
-  const names = wanted.map((kind) => kindName(kinds, kind)).join(' or ')
+  const names = new Intl.ListFormat(locale, { type: 'disjunction' }).format(
+    wanted.map((kind) => kindName(kinds, kind))
+  )
   if (error) {
-    return <p className="text-error text-sm">Could not load your integrations: {error}</p>
+    return <p className="text-error text-sm">{t('common.integrationsError', { error })}</p>
   }
   return (
     <IntegrationSelector
@@ -50,9 +55,9 @@ function IntegrationField({ wanted, value, onChange, disabled }: IntegrationFiel
       kinds={kinds}
       isLoading={isLoading}
       disabled={disabled}
-      label="Integration"
-      description={`The ${names} integration this widget reads.`}
-      emptyOption={`Choose a ${names} integration`}
+      label={t('modal.integration.label')}
+      description={t('modal.integration.description', { names })}
+      emptyOption={t('modal.integration.empty', { names })}
     />
   )
 }
@@ -65,6 +70,7 @@ export default function WidgetModal({
   onClose,
   onSaved,
 }: WidgetModalProps) {
+  const t = useTranslations('widgets')
   const isEdit = !!widget
   const [type, setType] = useState<string | null>(widget?.type ?? null)
   const [title, setTitle] = useState(widget?.title ?? '')
@@ -81,7 +87,8 @@ export default function WidgetModal({
   const dialogRef = useModalLayer(onClose, !isSaving)
 
   const definition = type ? getWidgetDefinition(type) : undefined
-  const wantedKinds = types.find((t) => t.type === type)?.integration_kinds ?? []
+  const typeMeta = types.find((meta) => meta.type === type)
+  const wantedKinds = typeMeta?.integration_kinds ?? []
 
   const selectType = (next: string) => {
     const nextDefinition = getWidgetDefinition(next)
@@ -97,7 +104,7 @@ export default function WidgetModal({
     e.preventDefault()
     if (!type) return
     if (wantedKinds.length > 0 && !integrationId) {
-      setError('Choose an integration')
+      setError(t('modal.chooseIntegration'))
       return
     }
     setError(null)
@@ -120,18 +127,22 @@ export default function WidgetModal({
             ...integration,
           })
       if (response.error || !response.data) {
-        setError(response.error?.message || 'Failed to save widget')
+        setError(response.error?.message || t('modal.saveFailed'))
         return
       }
       onSaved(response.data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save widget')
+      setError(err instanceof Error ? err.message : t('modal.saveFailed'))
     } finally {
       setIsSaving(false)
     }
   }
 
-  const heading = definition ? `${isEdit ? 'Edit' : 'Add'} ${definition.label}` : 'Add Widget'
+  const heading = definition
+    ? t(isEdit ? 'modal.editTitle' : 'modal.addTitle', {
+        name: t(`types.${definition.type}.name`),
+      })
+    : t('modal.addWidget')
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -156,7 +167,7 @@ export default function WidgetModal({
                 type="button"
                 onClick={() => setType(null)}
                 className="text-text-secondary hover:text-text-primary transition-colors"
-                aria-label="Back to widget types"
+                aria-label={t('modal.back')}
                 disabled={isSaving}
               >
                 <ArrowLeftIcon className="h-5 w-5" />
@@ -170,7 +181,7 @@ export default function WidgetModal({
             type="button"
             onClick={onClose}
             className="text-text-secondary hover:text-text-primary transition-colors"
-            aria-label="Close"
+            aria-label={t('modal.close')}
             disabled={isSaving}
           >
             <XMarkIcon className="h-5 w-5" />
@@ -179,7 +190,7 @@ export default function WidgetModal({
 
         {isEdit && !definition ? (
           <p className="text-text-secondary p-4 text-sm">
-            This widget type ({widget.type}) can&apos;t be edited in this version of Nimbus.
+            {t('modal.cannotEdit', { type: widget.type })}
           </p>
         ) : !definition ? (
           <div className="grid grid-cols-1 gap-2 overflow-y-auto p-4 sm:grid-cols-2">
@@ -197,10 +208,10 @@ export default function WidgetModal({
                   <Icon className="text-primary h-6 w-6 shrink-0" />
                   <span>
                     <span className="text-text-primary block text-sm font-medium">
-                      {typeDefinition.label}
+                      {t(`types.${typeDefinition.type}.name`)}
                     </span>
                     <span className="text-text-muted block text-xs">
-                      {typeDefinition.description}
+                      {t(`types.${typeDefinition.type}.description`)}
                     </span>
                   </span>
                 </button>
@@ -217,7 +228,11 @@ export default function WidgetModal({
               )}
               <div>
                 <label htmlFor="widget-title" className={labelClass}>
-                  Title <span className="text-text-muted font-normal">(optional)</span>
+                  {t.rich('modal.titleLabel', {
+                    muted: (chunks) => (
+                      <span className="text-text-muted font-normal">{chunks}</span>
+                    ),
+                  })}
                 </label>
                 <input
                   id="widget-title"
@@ -241,7 +256,7 @@ export default function WidgetModal({
                 config={config}
                 onChange={setConfig}
                 disabled={isSaving}
-                meta={types.find((t) => t.type === type)}
+                meta={typeMeta}
               />
               {widget && (
                 <BoardSelect
@@ -261,14 +276,18 @@ export default function WidgetModal({
                 className="text-text-secondary hover:text-text-primary hover:bg-card-hover rounded-md px-4 py-2 text-sm font-medium transition-colors"
                 disabled={isSaving}
               >
-                Cancel
+                {t('modal.cancel')}
               </button>
               <button
                 type="submit"
                 disabled={isSaving}
                 className="bg-primary hover:bg-primary-hover disabled:bg-primary/50 rounded-md px-4 py-2 text-sm font-medium text-white transition-colors disabled:cursor-not-allowed"
               >
-                {isSaving ? 'Saving...' : isEdit ? 'Save Changes' : 'Add Widget'}
+                {isSaving
+                  ? t('modal.saving')
+                  : isEdit
+                    ? t('modal.saveChanges')
+                    : t('modal.addWidget')}
               </button>
             </div>
           </form>
