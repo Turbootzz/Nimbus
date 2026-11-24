@@ -553,7 +553,7 @@
         "hint": "Wijs deze service toe aan een groep om alles overzichtelijk te houden"
       },
       "monitoringLock": {
-        "default": "Als dit uit staat, krijgt deze service geen statuscontrole, verschijnt ze niet in de statistieken en activeert ze geen webhooks",
+        "default": "Als dit uit staat, krijgt deze service geen statuscontrole, verschijnt hij niet in de statistieken en activeert hij geen webhooks",
         "groupDisabled": "Monitoring staat uit voor de groep “{name}”, dus services daarin krijgen nooit een statuscontrole"
       }
     },
